@@ -113,16 +113,11 @@ echo "Checking composer dependencies..."
 # Suppress git safe.directory warning for mounted volumes
 su -s /bin/sh apache -c "git config --global --add safe.directory /var/www/html || true"
 
-COMPOSER_CACHE_DIR_DEFAULT=${COMPOSER_CACHE_DIR:-/var/www/.composer/cache}
-COMPOSER_MEMORY_LIMIT_DEFAULT=${COMPOSER_MEMORY_LIMIT:--1}
-mkdir -p "$COMPOSER_CACHE_DIR_DEFAULT"
-chown -R apache:apache "$COMPOSER_CACHE_DIR_DEFAULT"
-
 if [ ! -d "/var/www/html/vendor" ] || [ ! -f "/var/www/html/vendor/autoload.php" ]; then
   echo "Installing composer dependencies..."
   mkdir -p /var/www/html/vendor
   chown -R apache:apache /var/www/html/vendor
-  su -s /bin/sh apache -c "COMPOSER_CACHE_DIR=$COMPOSER_CACHE_DIR_DEFAULT COMPOSER_MEMORY_LIMIT=$COMPOSER_MEMORY_LIMIT_DEFAULT composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader"
+  su -s /bin/sh apache -c "composer install --no-interaction --prefer-dist --optimize-autoloader"
 else
   echo "Composer dependencies already installed."
 fi
