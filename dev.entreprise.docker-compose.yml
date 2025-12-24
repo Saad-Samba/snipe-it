@@ -11,6 +11,9 @@ services:
     volumes:
       # Mount source code with consistency mode for better performance
       - .:/var/www/html:cached
+      # Persist composer cache and vendor directory between container restarts to speed up installs
+      - composer_cache:/var/www/.composer/cache
+      - vendor:/var/www/html/vendor
     ports:
       - "8000:80"
     depends_on:
@@ -22,6 +25,9 @@ services:
         restart: true
     env_file:
       - .env.dev.docker
+    environment:
+      COMPOSER_CACHE_DIR: /var/www/.composer/cache
+      COMPOSER_MEMORY_LIMIT: -1
 
   mariadb:
     image: mariadb:11.4.7
@@ -49,3 +55,5 @@ services:
 
 volumes:
   db: {}
+  composer_cache: {}
+  vendor: {}

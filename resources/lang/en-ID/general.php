@@ -227,6 +227,7 @@ return [
     'note_deleted'            => 'Note Deleted',
     'delete_note'              => 'Delete Note',
     'order_number'          => 'Nomor Pemesanan',
+    'owner'                 => 'Owner',
     'only_deleted'          => 'Only Deleted Assets',
     'page_menu'				=> 'Menampilkan item _MENU_',
     'page_error'            => 'Could not determine previous page. Redirected to homepage.',
