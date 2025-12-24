@@ -51,6 +51,17 @@
         </li>
 
         <li>
+          <a href="#owned-assets" data-toggle="tab">
+            <span class="hidden-lg hidden-md">
+              <x-icon type="assets" class="fa-2x" />
+            </span>
+            <span class="hidden-xs hidden-sm">{{ trans('general.owned_assets') }}
+              {!! ($user->ownerAssets()->count() > 0 ) ? '<span class="badge badge-secondary">'.number_format($user->ownerAssets()->count()).'</span>' : '' !!}
+            </span>
+          </a>
+        </li>
+
+        <li>
           <a href="#licenses" data-toggle="tab">
             <span class="hidden-lg hidden-md">
             <x-icon type="licenses" class="fa-2x" />
@@ -853,6 +864,35 @@
             </table>
           </div>
         </div><!-- /asset -->
+
+        <div class="tab-pane" id="owned-assets">
+          <!-- owned assets table -->
+
+          @include('partials.asset-bulk-actions', ['id_divname' => 'ownedAssetsBulkEditToolbar', 'id_formname' => 'ownedAssetsBulkForm', 'id_button' => 'bulkOwnedAssetEditButton'])
+
+          <div class="table table-responsive">
+            <table
+                data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout() }}"
+                data-show-columns-search="true"
+                data-cookie-id-table="userOwnedAssetsListingTable"
+                data-id-table="userOwnedAssetsListingTable"
+                data-side-pagination="server"
+                data-show-footer="true"
+                data-sort-name="name"
+                data-toolbar="#ownedAssetsBulkEditToolbar"
+                data-bulk-button-id="#bulkOwnedAssetEditButton"
+                data-bulk-form-id="#ownedAssetsBulkForm"
+                id="userOwnedAssetsListingTable"
+                data-buttons="assetButtons"
+                class="table table-striped snipe-table"
+                data-url="{{ route('api.assets.index',['owner_id' => e($user->id)]) }}"
+                data-export-options='{
+                "fileName": "export-{{ str_slug($user->username) }}-owned-assets-{{ date('Y-m-d') }}",
+                "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
+                }'>
+            </table>
+          </div>
+        </div><!-- /owned-assets -->
 
         <div class="tab-pane" id="licenses">
 

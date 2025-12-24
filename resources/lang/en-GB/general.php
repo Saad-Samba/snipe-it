@@ -33,6 +33,7 @@ return [
     'asset_tags'            => 'Asset Tags',
     'available'		        => 'Available',
     'assets_available'		=> 'Assets available',
+    'owned_assets'         => 'Owned Assets',
     'accept_assets'         => 'Accept Assets :name',
     'accept_assets_menu'    => 'Accept Assets',
     'accept_item'           => 'Accept Item',

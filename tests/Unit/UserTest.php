@@ -1,6 +1,7 @@
 <?php
 namespace Tests\Unit;
 
+use App\Models\Asset;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -14,6 +15,15 @@ class UserTest extends TestCase
         $user = User::generateFormattedNameFromFullName($fullname, 'firstname');
         $this->assertEquals($expected_firstname, $user['first_name']);
         $this->assertEquals($expected_lastname, $user['last_name']);
+    }
+
+    public function testOwnerAssetsRelationshipReturnsOwnedAssets()
+    {
+        $owner = User::factory()->create();
+        $asset = Asset::factory()->create(['owner_id' => $owner->id]);
+
+        $this->assertCount(1, $owner->ownerAssets);
+        $this->assertTrue($owner->ownerAssets->first()->is($asset));
     }
 
     public function testFirstName()
