@@ -44,7 +44,7 @@
             <span class="hidden-lg hidden-md">
             <x-icon type="assets" class="fa-2x" />
             </span>
-            <span class="hidden-xs hidden-sm">{{ trans('general.assets') }}
+            <span class="hidden-xs hidden-sm">{{ trans('general.assigned_assets') }}
               {!! ($user->assets()->AssetsForShow()->count() > 0 ) ? '<span class="badge badge-secondary">'.number_format($user->assets()->AssetsForShow()->withoutTrashed()->count()).'</span>' : '' !!}
             </span>
           </a>
