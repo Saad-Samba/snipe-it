@@ -98,6 +98,7 @@ class Asset extends Depreciable
         'created_at'     => 'datetime',
         'updated_at'   => 'datetime',
         'deleted_at'  => 'datetime',
+        'owner_id'       => 'integer',
     ];
 
     protected $rules = [
@@ -128,7 +129,8 @@ class Asset extends Depreciable
         'requestable'       => ['nullable', 'boolean'],
         'assigned_user'     => ['integer', 'nullable', 'exists:users,id,deleted_at,NULL'],
         'assigned_location' => ['integer', 'nullable', 'exists:locations,id,deleted_at,NULL', 'fmcs_location'],
-        'assigned_asset'    => ['integer', 'nullable', 'exists:assets,id,deleted_at,NULL']
+        'assigned_asset'    => ['integer', 'nullable', 'exists:assets,id,deleted_at,NULL'],
+        'owner_id'          => ['nullable', 'integer', 'exists:users,id,deleted_at,NULL'],
     ];
 
 
@@ -165,6 +167,7 @@ class Asset extends Depreciable
         'next_audit_date',
         'last_checkin',
         'last_checkout',
+        'owner_id',
     ];
 
     use Searchable;
@@ -206,6 +209,7 @@ class Asset extends Depreciable
         'model'              => ['name', 'model_number', 'eol'],
         'model.category'     => ['name'],
         'model.manufacturer' => ['name'],
+        'owner'              => ['first_name', 'last_name', 'username', 'employee_num'],
     ];
 
     protected static function booted(): void
@@ -910,6 +914,18 @@ class Asset extends Depreciable
         return $this->belongsTo(\App\Models\User::class, 'created_by');
     }
 
+    /**
+     * Establishes the asset -> owner relationship
+     *
+     * @author [A. Gianotto] [<snipe@snipe.net>]
+     * @since  [v7.0]
+     * @return \Illuminate\Database\Eloquent\Relations\Relation
+     */
+    public function owner()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'owner_id')->withTrashed();
+    }
+
 
 
     /**
@@ -1280,6 +1296,24 @@ class Asset extends Depreciable
                     'assets_users.last_name',
                     ], $term
                 );
+        }
+
+        /**
+         * Asset owner
+         */
+        $query = $query->leftJoin(
+            'users as asset_owners',
+            'asset_owners.id',
+            '=',
+            'assets.owner_id'
+        );
+
+        foreach ($terms as $term) {
+            $query = $query
+                ->orWhere('asset_owners.first_name', 'LIKE', '%'.$term.'%')
+                ->orWhere('asset_owners.last_name', 'LIKE', '%'.$term.'%')
+                ->orWhere('asset_owners.username', 'LIKE', '%'.$term.'%')
+                ->orWhere('asset_owners.employee_num', 'LIKE', '%'.$term.'%');
         }
 
         /**
@@ -1937,6 +1971,22 @@ class Asset extends Depreciable
                         );
                     }
 
+                    if ($fieldname == 'owner') {
+                        $query->whereHas(
+                            'owner',
+                            function ($query) use ($search_val) {
+                                $query->where(
+                                    function ($query) use ($search_val) {
+                                        $query->where('users.first_name', 'LIKE', '%'.$search_val.'%')
+                                            ->orWhere('users.last_name', 'LIKE', '%'.$search_val.'%')
+                                            ->orWhere('users.username', 'LIKE', '%'.$search_val.'%')
+                                            ->orWhere('users.employee_num', 'LIKE', '%'.$search_val.'%');
+                                    }
+                                );
+                            }
+                        );
+                    }
+
 
                     if ($fieldname == 'manufacturer') {
                         $query->whereHas(
@@ -2129,6 +2179,19 @@ class Asset extends Depreciable
     public function scopeOrderAssigned($query, $order)
     {
         return $query->leftJoin('users as users_sort', 'assets.assigned_to', '=', 'users_sort.id')->select('assets.*')->orderBy('users_sort.first_name', $order)->orderBy('users_sort.last_name', $order);
+    }
+
+    /**
+     * Query builder scope to order on asset owner
+     *
+     * @param \Illuminate\Database\Query\Builder $query Query builder instance
+     * @param text                               $order Order
+     *
+     * @return \Illuminate\Database\Query\Builder          Modified query builder
+     */
+    public function scopeOrderOwner($query, $order)
+    {
+        return $query->leftJoin('users as owner_sort', 'assets.owner_id', '=', 'owner_sort.id')->select('assets.*')->orderBy('owner_sort.first_name', $order)->orderBy('owner_sort.last_name', $order);
     }
 
     /**

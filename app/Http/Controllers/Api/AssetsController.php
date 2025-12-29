@@ -131,6 +131,7 @@ class AssetsController extends Controller
             'jobtitle',
             'assigned_to',
             'created_by',
+            'owner',
 
         ];
 
@@ -160,6 +161,7 @@ class AssetsController extends Controller
                 'defaultLoc',
                 'assignedTo',
                 'adminuser',
+                'owner',
                 'model.depreciation',
                 'model.category',
                 'model.manufacturer',
@@ -359,6 +361,10 @@ class AssetsController extends Controller
                 ->where('assets.assigned_type', '=', $request->input('assigned_type'));
         }
 
+        if ($request->filled('owner_id')) {
+            $assets->where('assets.owner_id', '=', $request->input('owner_id'));
+        }
+
         if ($request->filled('company_id')) {
             $assets->where('assets.company_id', '=', $request->input('company_id'));
         }
@@ -419,6 +425,9 @@ class AssetsController extends Controller
                 break;
             case 'assigned_to':
                 $assets->OrderAssigned($order);
+                break;
+            case 'owner':
+                $assets->OrderOwner($order);
                 break;
             case 'jobtitle':
                 $assets->OrderByJobTitle($order);

@@ -202,6 +202,21 @@ class AssetTest extends TestCase
         $this->assertModelMissing($asset);
     }
 
+    public function testOwnerIsSeparateFromAssignedTarget()
+    {
+        $owner = User::factory()->create();
+        $assignee = User::factory()->create();
+
+        $asset = Asset::factory()->create([
+            'owner_id' => $owner->id,
+            'assigned_to' => $assignee->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->assertTrue($asset->fresh()->owner->is($owner));
+        $this->assertTrue($asset->fresh()->assignedTo->is($assignee));
+    }
+
     public function testGetImageUrlMethod()
     {
         $urlBase = config('filesystems.disks.public.url');
