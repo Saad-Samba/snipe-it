@@ -838,7 +838,11 @@
         <div class="tab-pane" id="asset">
           <!-- checked out assets table -->
 
-            @include('partials.asset-bulk-actions')
+            @include('partials.asset-bulk-actions', [
+              'id_divname' => 'ownedAssetsBulkEditToolbar',
+              'id_formname' => 'ownedAssetsBulkForm',
+              'id_button' => 'ownedBulkAssetEditButton'
+            ])
 
             <div class="table table-responsive">
 
@@ -880,9 +884,9 @@
                     data-side-pagination="server"
                     data-show-footer="true"
                     data-sort-name="name"
-                    data-toolbar="#assetsBulkEditToolbar"
-                    data-bulk-button-id="#bulkAssetEditButton"
-                    data-bulk-form-id="#assetsBulkForm"
+                    data-toolbar="#ownedAssetsBulkEditToolbar"
+                    data-bulk-button-id="#ownedBulkAssetEditButton"
+                    data-bulk-form-id="#ownedAssetsBulkForm"
                     id="userOwnedAssetsListingTable"
                     data-buttons="assetButtons"
                     class="table table-striped snipe-table"
