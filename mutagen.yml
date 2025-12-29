@@ -1,0 +1,29 @@
+sync:
+  snipeit:
+    mode: "two-way-resolved"
+    alpha: "."
+    beta: "docker://snipeit/var/www/html"
+    ignore:
+      vcs: true
+      paths:
+        - ".git"
+        - "node_modules"
+        - "vendor"
+        - "storage/logs"
+        - "storage/framework/cache"
+        - "storage/framework/sessions"
+        - "public/uploads"
+        - "public/storage"
+    symlink:
+      mode: "posix-raw"
+    permissions:
+      defaultFileMode: 0644
+      defaultDirectoryMode: 0755
+      betaUmask: 0002
+    configurationBeta:
+      modifications:
+        watch: true
+      probeMode: assume-present
+    configurationAlpha:
+      modifications:
+        watch: true

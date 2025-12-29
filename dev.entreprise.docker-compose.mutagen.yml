@@ -1,0 +1,12 @@
+# Optional override for using Mutagen sync on the dev enterprise stack.
+# Use with: docker compose -f dev.entreprise.docker-compose.yml -f dev.entreprise.docker-compose.mutagen.yml up
+version: '3'
+
+services:
+  snipeit:
+    volumes:
+      - snipeit-sync:/var/www/html
+
+volumes:
+  snipeit-sync:
+    driver: local
