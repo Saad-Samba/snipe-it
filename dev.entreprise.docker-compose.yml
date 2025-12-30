@@ -8,9 +8,22 @@ services:
       context: .
       dockerfile: Dockerfile.entreprise.alpine
     container_name: snipeit
+    develop:
+      watch:
+        # Sync source for live reload without a heavy bind mount
+        - path: .
+          target: /var/www/html
+          action: sync
+          ignore:
+            - vendor
+            - node_modules
+            - storage/logs
     volumes:
-      # Mount source code with consistency mode for better performance
-      - .:/var/www/html:cached
+      # Keep hot paths off the host filesystem for speed
+      - snipeit-vendor:/var/www/html/vendor
+      - snipeit-logs:/var/www/html/storage/logs
+      # Persist app data (uploads, keys, backups)
+      - snipeit-data:/var/lib/snipeit
     ports:
       - "8000:80"
     depends_on:
@@ -49,3 +62,6 @@ services:
 
 volumes:
   db: {}
+  snipeit-vendor: {}
+  snipeit-logs: {}
+  snipeit-data: {}
