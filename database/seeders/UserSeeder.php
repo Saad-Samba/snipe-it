@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class UserSeeder extends Seeder
 {
@@ -19,7 +20,9 @@ class UserSeeder extends Seeder
      */
     public function run()
     {
+        Schema::disableForeignKeyConstraints();
         User::truncate();
+        Schema::enableForeignKeyConstraints();
 
         if (! Company::count()) {
             $this->call(CompanySeeder::class);
