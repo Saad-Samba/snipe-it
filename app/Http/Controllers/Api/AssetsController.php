@@ -30,6 +30,7 @@ use App\Models\Setting;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -361,6 +362,12 @@ class AssetsController extends Controller
 
         if ($request->filled('company_id')) {
             $assets->where('assets.company_id', '=', $request->input('company_id'));
+        }
+
+        $disciplineField = CustomField::where('name', 'Discipline')->first();
+        $disciplineColumn = $disciplineField?->db_column ?? CustomField::name_to_db_name('Discipline');
+        if ($request->filled('discipline') && Schema::hasColumn('assets', $disciplineColumn)) {
+            $assets->where($disciplineColumn, '=', $request->input('discipline'));
         }
 
         if ($request->filled('manufacturer_id')) {

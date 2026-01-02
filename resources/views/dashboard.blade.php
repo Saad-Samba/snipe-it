@@ -27,14 +27,72 @@
 @endif
 
 <div class="row">
+    <div class="col-md-12">
+        <form method="GET" action="{{ route('home') }}">
+            <div class="box box-default">
+                <div class="box-header with-border">
+                    <h2 class="box-title">{{ __('Filters') }}</h2>
+                    <div class="box-tools pull-right">
+                        <a class="btn btn-box-tool" href="{{ route('home') }}">
+                            {{ __('Reset') }}
+                        </a>
+                    </div>
+                </div>
+                <div class="box-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="company_id">{{ __('Company') }}</label>
+                                <select class="form-control" id="company_id" name="company_id">
+                                    <option value="">{{ __('All companies') }}</option>
+                                    @foreach ($companies as $company)
+                                        <option value="{{ $company->id }}" {{ ($selectedCompany == $company->id) ? 'selected' : '' }}>
+                                            {{ $company->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="discipline">{{ __('Discipline') }}</label>
+                                @if ($hasDisciplineColumn)
+                                    <select class="form-control" id="discipline" name="discipline">
+                                        <option value="">{{ __('All disciplines') }}</option>
+                                        @foreach ($disciplines as $discipline)
+                                            <option value="{{ $discipline }}" {{ ($selectedDiscipline === $discipline) ? 'selected' : '' }}>
+                                                {{ $discipline }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <input class="form-control" id="discipline" name="discipline" type="text" placeholder="Discipline custom field not found" disabled>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-md-4" style="margin-top: 25px;">
+                            <button type="submit" class="btn btn-primary">{{ __('Filter') }}</button>
+                            <a class="btn btn-default" href="{{ route('home') }}">{{ __('Clear') }}</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
 
     <!-- panel -->
     <div class="col-lg-2 col-xs-6">
-        <a href="{{ route('hardware.index') }}">
+        @php
+            $assetLinkParams = ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline, 'advanced' => 1];
+        @endphp
+        <a href="{{ route('hardware.index', $assetLinkParams) }}">
             <!-- small hardware box -->
             <div class="dashboard small-box bg-teal">
                 <div class="inner">
-                    <h3>{{ number_format(\App\Models\Asset::AssetsForShow()->count()) }}</h3>
+                    <h3>{{ number_format($counts['asset']) }}</h3>
                     <p>{{ trans('general.assets') }}</p>
                 </div>
                 <div class="icon" aria-hidden="true">
@@ -43,13 +101,19 @@
                 <span class="small-box-footer">
                     {{ trans('general.view_all') }}
                     <x-icon type="arrow-circle-right" />
+                    @if($selectedCompany || $selectedDiscipline)
+                        <span class="label label-info" aria-label="{{ __('Filters applied') }}" title="{{ __('Filters applied') }}">Filtered</span>
+                    @endif
                 </span>
             </div>
         </a>
     </div><!-- ./col -->
 
     <div class="col-lg-2 col-xs-6">
-        <a href="{{ route('licenses.index') }}" aria-hidden="true">
+        @php
+            $licenseLinkParams = ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline, 'advanced' => 1];
+        @endphp
+        <a href="{{ route('licenses.index', $licenseLinkParams) }}" aria-hidden="true">
             <!-- small license box -->
             <div class="dashboard small-box bg-maroon">
                 <div class="inner">
@@ -62,6 +126,9 @@
                 <span class="small-box-footer">
                     {{ trans('general.view_all') }}
                     <x-icon type="arrow-circle-right" />
+                    @if($selectedCompany || $selectedDiscipline)
+                        <span class="label label-info" aria-label="{{ __('Filters applied') }}" title="{{ __('Filters applied') }}">Filtered</span>
+                    @endif
                 </span>
             </div>
         </a>
@@ -533,7 +600,9 @@
 
       $.ajax({
           type: 'GET',
-          url: '{{ (\App\Models\Setting::getSettings()->dash_chart_type == 'name') ? route('api.statuslabels.assets.byname') : route('api.statuslabels.assets.bytype') }}',
+          url: '{{ (\App\Models\Setting::getSettings()->dash_chart_type == 'name')
+                ? route('api.statuslabels.assets.byname', ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline])
+                : route('api.statuslabels.assets.bytype', ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline]) }}',
           headers: {
               "X-Requested-With": 'XMLHttpRequest',
               "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content')

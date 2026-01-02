@@ -31,11 +31,14 @@ class LicensesController extends Controller
      * @return \Illuminate\Contracts\View\View
      * @throws \Illuminate\Auth\Access\AuthorizationException
      */
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('view', License::class);
 
-        return view('licenses/index');
+        return view('licenses/index')
+            ->with('hasDashboardFilters', $request->filled('company_id') || $request->filled('discipline'))
+            ->with('selectedCompany', $request->input('company_id'))
+            ->with('selectedDiscipline', $request->input('discipline'));
     }
 
     /**
@@ -84,6 +87,7 @@ class LicensesController extends Controller
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
+        $license->discipline        = $request->input('discipline');
         $license->maintained        = $request->input('maintained', 0);
         $license->manufacturer_id   = $request->input('manufacturer_id');
         $license->name              = $request->input('name');
@@ -167,6 +171,7 @@ class LicensesController extends Controller
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
+        $license->discipline        = $request->input('discipline');
         $license->maintained        = $request->input('maintained',0);
         $license->name              = $request->input('name');
         $license->notes             = $request->input('notes');

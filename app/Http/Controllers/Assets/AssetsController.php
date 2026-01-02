@@ -65,7 +65,10 @@ class AssetsController extends Controller
         $this->authorize('index', Asset::class);
         $company = Company::find($request->input('company_id'));
 
-        return view('hardware/index')->with('company', $company);
+        return view('hardware/index')
+            ->with('company', $company)
+            ->with('selectedDiscipline', $request->input('discipline'))
+            ->with('hasDashboardFilters', $request->filled('company_id') || $request->filled('discipline'));
     }
 
     /**

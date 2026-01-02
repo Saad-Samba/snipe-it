@@ -44,6 +44,15 @@
 @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id'])
 @include ('partials.forms.edit.manufacturer-select', ['translated_name' => trans('general.manufacturer'), 'fieldname' => 'manufacturer_id',])
 
+<!-- Discipline -->
+<div class="form-group {{ $errors->has('discipline') ? ' has-error' : '' }}">
+    <label for="discipline" class="col-md-3 control-label">{{ __('Discipline') }}</label>
+    <div class="col-md-7">
+        <input class="form-control" type="text" name="discipline" id="discipline" value="{{ old('discipline', $item->discipline) }}" />
+        {!! $errors->first('discipline', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+    </div>
+</div>
+
 <!-- Licensed to name -->
 <div class="form-group {{ $errors->has('license_name') ? ' has-error' : '' }}">
     <label for="license_name" class="col-md-3 control-label">{{ trans('admin/licenses/form.to_name') }}</label>

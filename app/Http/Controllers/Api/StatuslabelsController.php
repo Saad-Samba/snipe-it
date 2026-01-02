@@ -202,22 +202,35 @@ class StatuslabelsController extends Controller
      * @author [A. Gianotto] [<snipe@snipe.net>]
      * @since [v3.0]
      */
-    public function getAssetCountByStatuslabel() : array
+    public function getAssetCountByStatuslabel(\Illuminate\Http\Request $request) : array
     {
         $this->authorize('view', Statuslabel::class);
 
-        if (Setting::getSettings()->show_archived_in_list == 0 ) {
-            $statuslabels = Statuslabel::withCount('assets')->where('archived','0')->get();
-        } else {
-            $statuslabels = Statuslabel::withCount('assets')->get();
-        }
+        $disciplineColumn = \App\Models\CustomField::name_to_db_name('Discipline');
+        $hasDisciplineColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
+        $selectedDiscipline = ($hasDisciplineColumn) ? $request->input('discipline') : null;
+        $selectedCompany = $request->input('company_id');
+
+        $statuslabels = (Setting::getSettings()->show_archived_in_list == 0)
+            ? Statuslabel::where('archived', '0')->get()
+            : Statuslabel::all();
 
         $total = [];
 
         foreach ($statuslabels as $statuslabel) {
 
+            $assetQuery = \App\Models\Asset::query()
+                ->where('status_id', $statuslabel->id)
+                ->when($selectedCompany, function ($query) use ($selectedCompany) {
+                    return $query->where('company_id', $selectedCompany);
+                });
+
+            if ($hasDisciplineColumn && $selectedDiscipline) {
+                $assetQuery->where($disciplineColumn, $selectedDiscipline);
+            }
+
             $total[$statuslabel->name]['label'] = $statuslabel->name;
-            $total[$statuslabel->name]['count'] = $statuslabel->assets_count;
+            $total[$statuslabel->name]['count'] = $assetQuery->count();
 
             if ($statuslabel->color != '') {
                 $total[$statuslabel->name]['color'] = $statuslabel->color;
@@ -234,24 +247,41 @@ class StatuslabelsController extends Controller
      * @author [A. Gianotto] [<snipe@snipe.net>]
      * @since [v6.0.11]
      */
-    public function getAssetCountByMetaStatus() : array
+    public function getAssetCountByMetaStatus(\Illuminate\Http\Request $request) : array
     {
         $this->authorize('view', Statuslabel::class);
 
+        $disciplineColumn = \App\Models\CustomField::name_to_db_name('Discipline');
+        $hasDisciplineColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
+        $selectedDiscipline = ($hasDisciplineColumn) ? $request->input('discipline') : null;
+        $selectedCompany = $request->input('company_id');
+
+        $baseFilter = function ($query) use ($selectedCompany, $hasDisciplineColumn, $disciplineColumn, $selectedDiscipline) {
+            if ($selectedCompany) {
+                $query->where('company_id', $selectedCompany);
+            }
+
+            if ($hasDisciplineColumn && $selectedDiscipline) {
+                $query->where($disciplineColumn, $selectedDiscipline);
+            }
+
+            return $query;
+        };
+
         $total['rtd']['label'] = trans('general.ready_to_deploy');
-        $total['rtd']['count'] = Asset::RTD()->count();
+        $total['rtd']['count'] = $baseFilter(Asset::RTD())->count();
 
         $total['deployed']['label'] = trans('general.deployed');
-        $total['deployed']['count'] = Asset::Deployed()->count();
+        $total['deployed']['count'] = $baseFilter(Asset::Deployed())->count();
 
         $total['archived']['label'] = trans('general.archived');
-        $total['archived']['count'] = Asset::Archived()->count();
+        $total['archived']['count'] = $baseFilter(Asset::Archived())->count();
 
         $total['pending']['label'] = trans('general.pending');
-        $total['pending']['count'] = Asset::Pending()->count();
+        $total['pending']['count'] = $baseFilter(Asset::Pending())->count();
 
         $total['undeployable']['label'] = trans('general.undeployable');
-        $total['undeployable']['count'] = Asset::Undeployable()->count();
+        $total['undeployable']['count'] = $baseFilter(Asset::Undeployable())->count();
 
         return (new PieChartTransformer())->transformPieChartDate($total);
     }

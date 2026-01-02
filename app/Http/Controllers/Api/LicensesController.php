@@ -10,6 +10,7 @@ use App\Models\License;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\JsonResponse;
 
 class LicensesController extends Controller
@@ -38,6 +39,10 @@ class LicensesController extends Controller
 
         if ($request->filled('company_id')) {
             $licenses->where('licenses.company_id', '=', $request->input('company_id'));
+        }
+
+        if ($request->filled('discipline') && Schema::hasColumn('licenses', 'discipline')) {
+            $licenses->where('licenses.discipline', '=', $request->input('discipline'));
         }
 
         if ($request->filled('name')) {
@@ -126,7 +131,10 @@ class LicensesController extends Controller
                 $licenses = $licenses->leftJoin('depreciations', 'licenses.depreciation_id', '=', 'depreciations.id')->orderBy('depreciations.name', $order);
                 break;
             case 'company':
-                $licenses = $licenses->leftJoin('companies', 'licenses.company_id', '=', 'companies.id')->orderBy('companies.name', $order);
+            $licenses = $licenses->leftJoin('companies', 'licenses.company_id', '=', 'companies.id')->orderBy('companies.name', $order);
+                break;
+            case 'discipline':
+                $licenses = $licenses->orderBy('licenses.discipline', $order);
                 break;
             case 'created_by':
                 $licenses = $licenses->OrderByCreatedBy($order);
@@ -152,6 +160,7 @@ class LicensesController extends Controller
                         'termination_date',
                         'depreciation_id',
                         'min_amt',
+                        'discipline',
                     ];
                 $sort = in_array($request->input('sort'), $allowed_columns) ? e($request->input('sort')) : 'created_at';
                 $licenses = $licenses->orderBy($sort, $order);
