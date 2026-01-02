@@ -206,9 +206,9 @@ class StatuslabelsController extends Controller
     {
         $this->authorize('view', Statuslabel::class);
 
-        $departmentColumn = \App\Models\CustomField::name_to_db_name('Department');
-        $hasDepartmentColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $departmentColumn);
-        $selectedDepartment = ($hasDepartmentColumn) ? $request->input('department') : null;
+        $disciplineColumn = \App\Models\CustomField::name_to_db_name('Discipline');
+        $hasDisciplineColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
+        $selectedDiscipline = ($hasDisciplineColumn) ? $request->input('discipline') : null;
         $selectedCompany = $request->input('company_id');
 
         $statuslabels = (Setting::getSettings()->show_archived_in_list == 0)
@@ -225,8 +225,8 @@ class StatuslabelsController extends Controller
                     return $query->where('company_id', $selectedCompany);
                 });
 
-            if ($hasDepartmentColumn && $selectedDepartment) {
-                $assetQuery->where($departmentColumn, $selectedDepartment);
+            if ($hasDisciplineColumn && $selectedDiscipline) {
+                $assetQuery->where($disciplineColumn, $selectedDiscipline);
             }
 
             $total[$statuslabel->name]['label'] = $statuslabel->name;
@@ -251,18 +251,18 @@ class StatuslabelsController extends Controller
     {
         $this->authorize('view', Statuslabel::class);
 
-        $departmentColumn = \App\Models\CustomField::name_to_db_name('Department');
-        $hasDepartmentColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $departmentColumn);
-        $selectedDepartment = ($hasDepartmentColumn) ? $request->input('department') : null;
+        $disciplineColumn = \App\Models\CustomField::name_to_db_name('Discipline');
+        $hasDisciplineColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
+        $selectedDiscipline = ($hasDisciplineColumn) ? $request->input('discipline') : null;
         $selectedCompany = $request->input('company_id');
 
-        $baseFilter = function ($query) use ($selectedCompany, $hasDepartmentColumn, $departmentColumn, $selectedDepartment) {
+        $baseFilter = function ($query) use ($selectedCompany, $hasDisciplineColumn, $disciplineColumn, $selectedDiscipline) {
             if ($selectedCompany) {
                 $query->where('company_id', $selectedCompany);
             }
 
-            if ($hasDepartmentColumn && $selectedDepartment) {
-                $query->where($departmentColumn, $selectedDepartment);
+            if ($hasDisciplineColumn && $selectedDiscipline) {
+                $query->where($disciplineColumn, $selectedDiscipline);
             }
 
             return $query;

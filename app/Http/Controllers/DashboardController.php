@@ -30,9 +30,9 @@ class DashboardController extends Controller
         if (auth()->user()->hasAccess('admin')) {
             $asset_stats = null;
 
-            $departmentColumn = \App\Models\CustomField::name_to_db_name('Department');
-            $hasDepartmentColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $departmentColumn);
-            $selectedDepartment = ($hasDepartmentColumn) ? $request->input('department') : null;
+            $disciplineColumn = \App\Models\CustomField::name_to_db_name('Discipline');
+            $hasDisciplineColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
+            $selectedDiscipline = ($hasDisciplineColumn) ? $request->input('discipline') : null;
             $selectedCompany = $request->input('company_id');
 
             $assetQuery = \App\Models\Asset::query();
@@ -41,8 +41,8 @@ class DashboardController extends Controller
                 $assetQuery->where('company_id', $selectedCompany);
             }
 
-            if ($hasDepartmentColumn && $selectedDepartment) {
-                $assetQuery->where($departmentColumn, $selectedDepartment);
+            if ($hasDisciplineColumn && $selectedDiscipline) {
+                $assetQuery->where($disciplineColumn, $selectedDiscipline);
             }
 
             $counts['asset'] = (clone $assetQuery)->count();
@@ -61,13 +61,13 @@ class DashboardController extends Controller
                 });
             }
 
-            if ($hasDepartmentColumn && $selectedDepartment) {
-                $licenseSeatsQuery->whereHas('asset', function ($query) use ($departmentColumn, $selectedDepartment, $selectedCompany) {
+            if ($hasDisciplineColumn && $selectedDiscipline) {
+                $licenseSeatsQuery->whereHas('asset', function ($query) use ($disciplineColumn, $selectedDiscipline, $selectedCompany) {
                     if ($selectedCompany) {
                         $query->where('company_id', $selectedCompany);
                     }
 
-                    $query->where($departmentColumn, $selectedDepartment);
+                    $query->where($disciplineColumn, $selectedDiscipline);
                 });
             }
 
@@ -81,19 +81,19 @@ class DashboardController extends Controller
             $counts['user'] = \App\Models\Company::scopeCompanyables(auth()->user())->count();
             $counts['grand_total'] = $counts['asset'] + $counts['accessory'] + $counts['license'] + $counts['consumable'];
 
-            $departments = collect();
+            $disciplines = collect();
 
-            if ($hasDepartmentColumn) {
-                $departments = \App\Models\Asset::query()
+            if ($hasDisciplineColumn) {
+                $disciplines = \App\Models\Asset::query()
                     ->when($selectedCompany, function ($query) use ($selectedCompany) {
                         return $query->where('company_id', $selectedCompany);
                     })
-                    ->whereNotNull($departmentColumn)
-                    ->select($departmentColumn)
+                    ->whereNotNull($disciplineColumn)
+                    ->select($disciplineColumn)
                     ->distinct()
-                    ->orderBy($departmentColumn)
+                    ->orderBy($disciplineColumn)
                     ->get()
-                    ->pluck($departmentColumn);
+                    ->pluck($disciplineColumn);
             }
 
             $companies = \App\Models\Company::orderBy('name')->get();
@@ -106,10 +106,10 @@ class DashboardController extends Controller
             return view('dashboard')
                 ->with('asset_stats', $asset_stats)
                 ->with('counts', $counts)
-                ->with('departments', $departments)
+                ->with('disciplines', $disciplines)
                 ->with('companies', $companies)
-                ->with('departmentColumn', $hasDepartmentColumn ? $departmentColumn : null)
-                ->with('selectedDepartment', $selectedDepartment)
+                ->with('disciplineColumn', $hasDisciplineColumn ? $disciplineColumn : null)
+                ->with('selectedDiscipline', $selectedDiscipline)
                 ->with('selectedCompany', $selectedCompany);
         } else {
             Session::reflash();

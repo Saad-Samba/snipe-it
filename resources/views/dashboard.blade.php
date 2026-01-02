@@ -55,18 +55,18 @@
                         </div>
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label for="department">{{ __('Department') }}</label>
-                                @if ($departmentColumn)
-                                    <select class="form-control" id="department" name="department">
-                                        <option value="">{{ __('All departments') }}</option>
-                                        @foreach ($departments as $department)
-                                            <option value="{{ $department }}" {{ ($selectedDepartment === $department) ? 'selected' : '' }}>
-                                                {{ $department }}
+                                <label for="discipline">{{ __('Discipline') }}</label>
+                                @if ($disciplineColumn)
+                                    <select class="form-control" id="discipline" name="discipline">
+                                        <option value="">{{ __('All disciplines') }}</option>
+                                        @foreach ($disciplines as $discipline)
+                                            <option value="{{ $discipline }}" {{ ($selectedDiscipline === $discipline) ? 'selected' : '' }}>
+                                                {{ $discipline }}
                                             </option>
                                         @endforeach
                                     </select>
                                 @else
-                                    <input class="form-control" id="department" name="department" type="text" placeholder="Department custom field not found" disabled>
+                                    <input class="form-control" id="discipline" name="discipline" type="text" placeholder="Discipline custom field not found" disabled>
                                 @endif
                             </div>
                         </div>
@@ -589,8 +589,8 @@
       $.ajax({
           type: 'GET',
           url: '{{ (\App\Models\Setting::getSettings()->dash_chart_type == 'name')
-                ? route('api.statuslabels.assets.byname', ['company_id' => $selectedCompany, 'department' => $selectedDepartment])
-                : route('api.statuslabels.assets.bytype', ['company_id' => $selectedCompany, 'department' => $selectedDepartment]) }}',
+                ? route('api.statuslabels.assets.byname', ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline])
+                : route('api.statuslabels.assets.bytype', ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline]) }}',
           headers: {
               "X-Requested-With": 'XMLHttpRequest',
               "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content')
