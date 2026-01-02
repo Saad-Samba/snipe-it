@@ -31,11 +31,14 @@ class LicensesController extends Controller
      * @return \Illuminate\Contracts\View\View
      * @throws \Illuminate\Auth\Access\AuthorizationException
      */
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('view', License::class);
 
-        return view('licenses/index');
+        return view('licenses/index')
+            ->with('hasDashboardFilters', $request->filled('company_id') || $request->filled('discipline'))
+            ->with('selectedCompany', $request->input('company_id'))
+            ->with('selectedDiscipline', $request->input('discipline'));
     }
 
     /**

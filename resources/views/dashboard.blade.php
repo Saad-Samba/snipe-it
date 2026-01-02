@@ -110,7 +110,10 @@
     </div><!-- ./col -->
 
     <div class="col-lg-2 col-xs-6">
-        <a href="{{ route('licenses.index') }}" aria-hidden="true">
+        @php
+            $licenseLinkParams = ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline, 'advanced' => 1];
+        @endphp
+        <a href="{{ route('licenses.index', $licenseLinkParams) }}" aria-hidden="true">
             <!-- small license box -->
             <div class="dashboard small-box bg-maroon">
                 <div class="inner">
@@ -123,6 +126,9 @@
                 <span class="small-box-footer">
                     {{ trans('general.view_all') }}
                     <x-icon type="arrow-circle-right" />
+                    @if($selectedCompany || $selectedDiscipline)
+                        <span class="label label-info" aria-label="{{ __('Filters applied') }}" title="{{ __('Filters applied') }}">Filtered</span>
+                    @endif
                 </span>
             </div>
         </a>

@@ -10,6 +10,7 @@ use App\Models\License;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\JsonResponse;
 
 class LicensesController extends Controller
@@ -38,6 +39,10 @@ class LicensesController extends Controller
 
         if ($request->filled('company_id')) {
             $licenses->where('licenses.company_id', '=', $request->input('company_id'));
+        }
+
+        if ($request->filled('discipline') && Schema::hasColumn('licenses', 'discipline')) {
+            $licenses->where('licenses.discipline', '=', $request->input('discipline'));
         }
 
         if ($request->filled('name')) {

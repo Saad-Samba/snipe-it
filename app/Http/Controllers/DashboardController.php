@@ -63,12 +63,20 @@ class DashboardController extends Controller
             }
 
             if ($hasDisciplineColumn && $selectedDiscipline) {
-                $licenseSeatsQuery->whereHas('asset', function ($query) use ($disciplineColumn, $selectedDiscipline, $selectedCompany) {
-                    if ($selectedCompany) {
-                        $query->where('company_id', $selectedCompany);
-                    }
+                $licenseSeatsQuery->where(function ($query) use ($disciplineColumn, $selectedDiscipline, $selectedCompany) {
+                    $query->whereHas('asset', function ($assetQuery) use ($disciplineColumn, $selectedDiscipline, $selectedCompany) {
+                        if ($selectedCompany) {
+                            $assetQuery->where('company_id', $selectedCompany);
+                        }
 
-                    $query->where($disciplineColumn, $selectedDiscipline);
+                        $assetQuery->where($disciplineColumn, $selectedDiscipline);
+                    })
+                    ->orWhereHas('license', function ($licenseQuery) use ($selectedDiscipline, $selectedCompany) {
+                        if ($selectedCompany) {
+                            $licenseQuery->where('company_id', $selectedCompany);
+                        }
+                        $licenseQuery->where('discipline', $selectedDiscipline);
+                    });
                 });
             }
 
@@ -85,14 +93,21 @@ class DashboardController extends Controller
             $disciplines = collect();
 
             if ($hasDisciplineColumn) {
-                $disciplines = \App\Models\Asset::query()
+                $assetDisciplines = \App\Models\Asset::query()
                     ->whereNotNull($disciplineColumn)
                     ->where($disciplineColumn, '!=', '')
                     ->select($disciplineColumn)
                     ->distinct()
-                    ->orderBy($disciplineColumn)
-                    ->get()
                     ->pluck($disciplineColumn);
+
+                $licenseDisciplines = \App\Models\License::query()
+                    ->whereNotNull('discipline')
+                    ->where('discipline', '!=', '')
+                    ->select('discipline')
+                    ->distinct()
+                    ->pluck('discipline');
+
+                $disciplines = $assetDisciplines->merge($licenseDisciplines)->unique()->sort()->values();
             }
 
             $companies = \App\Models\Company::orderBy('name')->get();

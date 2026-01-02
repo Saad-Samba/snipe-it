@@ -22,8 +22,8 @@ Use these steps to ensure the dashboard filters for **company** and **Discipline
 * The filter state is passed to the chart APIs, so the pie chart matches the filtered dataset.
 
 ### About licenses
-* The dashboard’s license count currently filters by the Discipline value on related assets. Licenses themselves don’t yet have a Discipline field.
-* To track Discipline directly on licenses, add a **Discipline** custom field to licenses too. After that, update reporting/filters to combine both the license’s own Discipline and the Discipline of any asset seats (if relevant for your process).
+* Licenses now have a **Discipline** field (stored on the licenses table). Populate it on each license record.
+* The dashboard license widget and list respect both license-level Discipline and asset seat Discipline (if the asset has one). Filters will match either.
 
 ## 4) Avoid deleting the Discipline field
 * Deleting the custom field drops the `assets` column and all Discipline values, which breaks the filter.
