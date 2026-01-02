@@ -55,19 +55,15 @@
                         </div>
                         <div class="col-md-4">
                             <div class="form-group">
-                                <label for="discipline">{{ __('Discipline') }}</label>
-                                @if ($hasDisciplineColumn)
-                                    <select class="form-control" id="discipline" name="discipline">
-                                        <option value="">{{ __('All disciplines') }}</option>
-                                        @foreach ($disciplines as $discipline)
-                                            <option value="{{ $discipline }}" {{ ($selectedDiscipline === $discipline) ? 'selected' : '' }}>
-                                                {{ $discipline }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                @else
-                                    <input class="form-control" id="discipline" name="discipline" type="text" placeholder="Discipline custom field not found" disabled>
-                                @endif
+                                <label for="discipline_id">{{ __('Discipline') }}</label>
+                                <select class="form-control" id="discipline_id" name="discipline_id">
+                                    <option value="">{{ __('All disciplines') }}</option>
+                                    @foreach ($disciplines as $discipline)
+                                        <option value="{{ $discipline->id }}" {{ ($selectedDisciplineId == $discipline->id) ? 'selected' : '' }}>
+                                            {{ $discipline->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-4" style="margin-top: 25px;">
@@ -86,7 +82,7 @@
     <!-- panel -->
     <div class="col-lg-2 col-xs-6">
         @php
-            $assetLinkParams = ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline, 'advanced' => 1];
+            $assetLinkParams = ['company_id' => $selectedCompany, 'discipline_id' => $selectedDisciplineId, 'advanced' => 1];
         @endphp
         <a href="{{ route('hardware.index', $assetLinkParams) }}">
             <!-- small hardware box -->
@@ -111,7 +107,7 @@
 
     <div class="col-lg-2 col-xs-6">
         @php
-            $licenseLinkParams = ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline, 'advanced' => 1];
+            $licenseLinkParams = ['company_id' => $selectedCompany, 'discipline_id' => $selectedDisciplineId, 'advanced' => 1];
         @endphp
         <a href="{{ route('licenses.index', $licenseLinkParams) }}" aria-hidden="true">
             <!-- small license box -->

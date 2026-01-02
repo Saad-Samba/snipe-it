@@ -51,7 +51,7 @@ class License extends Depreciable
         'seats' => 'required|min:1|integer|limit_change:10000', // limit_change is a "pseudo-rule" that translates into 'between', see prepareLimitChangeRule() below
         'license_email'   => 'email|nullable|max:120',
         'license_name'   => 'string|nullable|max:100',
-        'discipline' => 'string|nullable|max:255',
+        'discipline_id' => 'integer|nullable|exists:disciplines,id',
         'notes'   => 'string|nullable',
         'category_id' => 'required|exists:categories,id',
         'company_id' => 'integer|nullable',
@@ -73,7 +73,7 @@ class License extends Depreciable
         'expiration_date',
         'license_email',
         'license_name', //actually licensed_to
-        'discipline',
+        'discipline_id',
         'maintained',
         'manufacturer_id',
         'category_id',
@@ -120,9 +120,15 @@ class License extends Depreciable
         'company'      => ['name'],
         'category'     => ['name'],
         'depreciation' => ['name'],
+        'discipline'   => ['name'],
         'supplier'     => ['name'],
     ];
     protected $appends = ['free_seat_count'];
+
+    public function discipline()
+    {
+        return $this->belongsTo(\App\Models\Discipline::class);
+    }
 
     /**
      * Update seat counts when the license is updated

@@ -67,8 +67,8 @@ class AssetsController extends Controller
 
         return view('hardware/index')
             ->with('company', $company)
-            ->with('selectedDiscipline', $request->input('discipline'))
-            ->with('hasDashboardFilters', $request->filled('company_id') || $request->filled('discipline'));
+            ->with('selectedDiscipline', optional(\App\Models\Discipline::find($request->input('discipline_id')))->name)
+            ->with('hasDashboardFilters', $request->filled('company_id') || $request->filled('discipline_id'));
     }
 
     /**

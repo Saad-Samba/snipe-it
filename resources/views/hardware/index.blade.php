@@ -61,8 +61,8 @@
                   @if(Request::get('company_id') && isset($company))
                     <span class="label label-default">{{ __('Company') }}: {{ $company->name }}</span>
                   @endif
-                  @if(Request::get('discipline'))
-                    <span class="label label-default">{{ __('Discipline') }}: {{ Request::get('discipline') }}</span>
+                  @if(Request::get('discipline_id'))
+                    <span class="label label-default">{{ __('Discipline') }}: {{ $selectedDiscipline }}</span>
                   @endif
                   <a class="btn btn-xs btn-default" style="margin-left: 6px;" href="{{ route('hardware.index') }}">
                     {{ __('Clear filters') }}
@@ -96,7 +96,7 @@
                     array('status' => e(Request::get('status')),
                     'order_number'=>e(strval(Request::get('order_number'))),
                     'company_id'=>e(Request::get('company_id')),
-                    'discipline'=>e(Request::get('discipline')),
+                    'discipline_id'=>e(Request::get('discipline_id')),
                     'status_id'=>e(Request::get('status_id')))) }}"
                 data-export-options='{
                 "fileName": "export{{ (Request::has('status')) ? '-'.str_slug(Request::get('status')) : '' }}-assets-{{ date('Y-m-d') }}",

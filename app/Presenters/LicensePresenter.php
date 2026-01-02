@@ -73,6 +73,7 @@ class LicensePresenter extends Presenter
                 'switchable' => true,
                 'title' => __('Discipline'),
                 'visible' => false,
+                'formatter' => 'simpleValueFormatter',
             ], [
                 'field' => 'category',
                 'searchable' => true,

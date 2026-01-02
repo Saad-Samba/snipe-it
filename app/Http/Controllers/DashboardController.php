@@ -30,10 +30,8 @@ class DashboardController extends Controller
         if (auth()->user()->hasAccess('admin')) {
             $asset_stats = null;
 
-            $disciplineField = \App\Models\CustomField::where('name', 'Discipline')->first();
-            $disciplineColumn = $disciplineField->db_column ?? \App\Models\CustomField::name_to_db_name('Discipline');
-            $hasDisciplineColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
-            $selectedDiscipline = ($hasDisciplineColumn) ? $request->input('discipline') : null;
+            $disciplines = \App\Models\Discipline::orderBy('name')->get();
+            $selectedDisciplineId = $request->input('discipline_id');
             $selectedCompany = $request->input('company_id');
 
             $assetQuery = \App\Models\Asset::query();
@@ -42,8 +40,8 @@ class DashboardController extends Controller
                 $assetQuery->where('company_id', $selectedCompany);
             }
 
-            if ($hasDisciplineColumn && $selectedDiscipline) {
-                $assetQuery->where($disciplineColumn, $selectedDiscipline);
+            if ($selectedDisciplineId) {
+                $assetQuery->where('discipline_id', $selectedDisciplineId);
             }
 
             $counts['asset'] = (clone $assetQuery)->count();
@@ -62,20 +60,20 @@ class DashboardController extends Controller
                 });
             }
 
-            if ($hasDisciplineColumn && $selectedDiscipline) {
-                $licenseSeatsQuery->where(function ($query) use ($disciplineColumn, $selectedDiscipline, $selectedCompany) {
-                    $query->whereHas('asset', function ($assetQuery) use ($disciplineColumn, $selectedDiscipline, $selectedCompany) {
+            if ($selectedDisciplineId) {
+                $licenseSeatsQuery->where(function ($query) use ($selectedDisciplineId, $selectedCompany) {
+                    $query->whereHas('asset', function ($assetQuery) use ($selectedDisciplineId, $selectedCompany) {
                         if ($selectedCompany) {
                             $assetQuery->where('company_id', $selectedCompany);
                         }
 
-                        $assetQuery->where($disciplineColumn, $selectedDiscipline);
+                        $assetQuery->where('discipline_id', $selectedDisciplineId);
                     })
-                    ->orWhereHas('license', function ($licenseQuery) use ($selectedDiscipline, $selectedCompany) {
+                    ->orWhereHas('license', function ($licenseQuery) use ($selectedDisciplineId, $selectedCompany) {
                         if ($selectedCompany) {
                             $licenseQuery->where('company_id', $selectedCompany);
                         }
-                        $licenseQuery->where('discipline', $selectedDiscipline);
+                        $licenseQuery->where('discipline_id', $selectedDisciplineId);
                     });
                 });
             }
@@ -90,26 +88,6 @@ class DashboardController extends Controller
             $counts['user'] = \App\Models\Company::scopeCompanyables(auth()->user())->count();
             $counts['grand_total'] = $counts['asset'] + $counts['accessory'] + $counts['license'] + $counts['consumable'];
 
-            $disciplines = collect();
-
-            if ($hasDisciplineColumn) {
-                $assetDisciplines = \App\Models\Asset::query()
-                    ->whereNotNull($disciplineColumn)
-                    ->where($disciplineColumn, '!=', '')
-                    ->select($disciplineColumn)
-                    ->distinct()
-                    ->pluck($disciplineColumn);
-
-                $licenseDisciplines = \App\Models\License::query()
-                    ->whereNotNull('discipline')
-                    ->where('discipline', '!=', '')
-                    ->select('discipline')
-                    ->distinct()
-                    ->pluck('discipline');
-
-                $disciplines = $assetDisciplines->merge($licenseDisciplines)->unique()->sort()->values();
-            }
-
             $companies = \App\Models\Company::orderBy('name')->get();
 
             if ((! file_exists(storage_path().'/oauth-private.key')) || (! file_exists(storage_path().'/oauth-public.key'))) {
@@ -122,9 +100,10 @@ class DashboardController extends Controller
                 ->with('counts', $counts)
                 ->with('disciplines', $disciplines)
                 ->with('companies', $companies)
-                ->with('disciplineColumn', $hasDisciplineColumn ? $disciplineColumn : null)
-                ->with('hasDisciplineColumn', $hasDisciplineColumn)
-                ->with('selectedDiscipline', $selectedDiscipline)
+                ->with('disciplineColumn', null)
+                ->with('hasDisciplineColumn', $disciplines->isNotEmpty())
+                ->with('selectedDiscipline', $selectedDisciplineId ? optional($disciplines->firstWhere('id', $selectedDisciplineId))->name : null)
+                ->with('selectedDisciplineId', $selectedDisciplineId)
                 ->with('selectedCompany', $selectedCompany);
         } else {
             Session::reflash();

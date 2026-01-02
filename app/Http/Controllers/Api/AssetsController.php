@@ -364,10 +364,8 @@ class AssetsController extends Controller
             $assets->where('assets.company_id', '=', $request->input('company_id'));
         }
 
-        $disciplineField = CustomField::where('name', 'Discipline')->first();
-        $disciplineColumn = $disciplineField?->db_column ?? CustomField::name_to_db_name('Discipline');
-        if ($request->filled('discipline') && Schema::hasColumn('assets', $disciplineColumn)) {
-            $assets->where($disciplineColumn, '=', $request->input('discipline'));
+        if ($request->filled('discipline_id') && Schema::hasColumn('assets', 'discipline_id')) {
+            $assets->where('assets.discipline_id', '=', $request->input('discipline_id'));
         }
 
         if ($request->filled('manufacturer_id')) {

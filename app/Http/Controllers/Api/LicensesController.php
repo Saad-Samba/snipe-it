@@ -41,8 +41,8 @@ class LicensesController extends Controller
             $licenses->where('licenses.company_id', '=', $request->input('company_id'));
         }
 
-        if ($request->filled('discipline') && Schema::hasColumn('licenses', 'discipline')) {
-            $licenses->where('licenses.discipline', '=', $request->input('discipline'));
+        if ($request->filled('discipline_id') && Schema::hasColumn('licenses', 'discipline_id')) {
+            $licenses->where('licenses.discipline_id', '=', $request->input('discipline_id'));
         }
 
         if ($request->filled('name')) {
@@ -131,10 +131,10 @@ class LicensesController extends Controller
                 $licenses = $licenses->leftJoin('depreciations', 'licenses.depreciation_id', '=', 'depreciations.id')->orderBy('depreciations.name', $order);
                 break;
             case 'company':
-            $licenses = $licenses->leftJoin('companies', 'licenses.company_id', '=', 'companies.id')->orderBy('companies.name', $order);
+                $licenses = $licenses->leftJoin('companies', 'licenses.company_id', '=', 'companies.id')->orderBy('companies.name', $order);
                 break;
             case 'discipline':
-                $licenses = $licenses->orderBy('licenses.discipline', $order);
+                $licenses = $licenses->leftJoin('disciplines', 'licenses.discipline_id', '=', 'disciplines.id')->orderBy('disciplines.name', $order);
                 break;
             case 'created_by':
                 $licenses = $licenses->OrderByCreatedBy($order);

@@ -46,7 +46,10 @@ class LicensesTransformer
             'min_amt' => ($license->min_amt) ? (int) ($license->min_amt) : null,
             'license_name' =>  ($license->license_name) ? e($license->license_name) : null,
             'license_email' => ($license->license_email) ? e($license->license_email) : null,
-            'discipline' => ($license->discipline) ? e($license->discipline) : null,
+            'discipline' => $license->discipline ? [
+                'id' => (int) $license->discipline->id,
+                'name' => e($license->discipline->name),
+            ] : null,
             'reassignable' => ($license->reassignable == 1) ? true : false,
             'maintained' => ($license->maintained == 1) ? true : false,
             'supplier' =>  ($license->supplier) ? [

@@ -23,8 +23,8 @@
                   @if(request('company_id'))
                     <span class="label label-default">{{ __('Company') }}: {{ optional(\App\Models\Company::find(request('company_id')))->name }}</span>
                   @endif
-                  @if(request('discipline'))
-                    <span class="label label-default">{{ __('Discipline') }}: {{ request('discipline') }}</span>
+                  @if(request('discipline_id'))
+                    <span class="label label-default">{{ __('Discipline') }}: {{ optional(\App\Models\Discipline::find(request('discipline_id')))->name }}</span>
                   @endif
                   <a class="btn btn-xs btn-default" style="margin-left: 6px;" href="{{ route('licenses.index') }}">
                     {{ __('Clear filters') }}
@@ -44,7 +44,7 @@
               id="licensesTable"
               data-buttons="licenseButtons"
               class="table table-striped snipe-table"
-              data-url="{{ route('api.licenses.index', ['status' => e(request('status')), 'company_id' => e(request('company_id')), 'discipline' => e(request('discipline'))]) }}"
+              data-url="{{ route('api.licenses.index', ['status' => e(request('status')), 'company_id' => e(request('company_id')), 'discipline_id' => e(request('discipline_id'))]) }}"
               data-export-options='{
             "fileName": "export-licenses-{{ date('Y-m-d') }}",
             "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
