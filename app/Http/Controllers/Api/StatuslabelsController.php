@@ -206,8 +206,9 @@ class StatuslabelsController extends Controller
     {
         $this->authorize('view', Statuslabel::class);
 
-        $disciplineColumn = \App\Models\CustomField::name_to_db_name('Discipline');
-        $hasDisciplineColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
+        $disciplineField = \App\Models\CustomField::whereRaw('LOWER(name) = ?', ['discipline'])->first();
+        $disciplineColumn = $disciplineField?->db_column;
+        $hasDisciplineColumn = $disciplineColumn && \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
         $selectedDiscipline = ($hasDisciplineColumn) ? $request->input('discipline') : null;
         $selectedCompany = $request->input('company_id');
 
@@ -251,8 +252,9 @@ class StatuslabelsController extends Controller
     {
         $this->authorize('view', Statuslabel::class);
 
-        $disciplineColumn = \App\Models\CustomField::name_to_db_name('Discipline');
-        $hasDisciplineColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
+        $disciplineField = \App\Models\CustomField::whereRaw('LOWER(name) = ?', ['discipline'])->first();
+        $disciplineColumn = $disciplineField?->db_column;
+        $hasDisciplineColumn = $disciplineColumn && \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
         $selectedDiscipline = ($hasDisciplineColumn) ? $request->input('discipline') : null;
         $selectedCompany = $request->input('company_id');
 
