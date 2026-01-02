@@ -85,7 +85,10 @@
 
     <!-- panel -->
     <div class="col-lg-2 col-xs-6">
-        <a href="{{ route('hardware.index', ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline]) }}">
+        @php
+            $assetLinkParams = ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline, 'advanced' => 1];
+        @endphp
+        <a href="{{ route('hardware.index', $assetLinkParams) }}">
             <!-- small hardware box -->
             <div class="dashboard small-box bg-teal">
                 <div class="inner">
@@ -98,6 +101,9 @@
                 <span class="small-box-footer">
                     {{ trans('general.view_all') }}
                     <x-icon type="arrow-circle-right" />
+                    @if($selectedCompany || $selectedDiscipline)
+                        <span class="label label-info" aria-label="{{ __('Filters applied') }}" title="{{ __('Filters applied') }}">Filtered</span>
+                    @endif
                 </span>
             </div>
         </a>

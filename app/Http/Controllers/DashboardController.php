@@ -86,10 +86,8 @@ class DashboardController extends Controller
 
             if ($hasDisciplineColumn) {
                 $disciplines = \App\Models\Asset::query()
-                    ->when($selectedCompany, function ($query) use ($selectedCompany) {
-                        return $query->where('company_id', $selectedCompany);
-                    })
                     ->whereNotNull($disciplineColumn)
+                    ->where($disciplineColumn, '!=', '')
                     ->select($disciplineColumn)
                     ->distinct()
                     ->orderBy($disciplineColumn)
