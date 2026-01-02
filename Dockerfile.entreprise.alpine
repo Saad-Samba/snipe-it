@@ -3,15 +3,20 @@ FROM alpine:3.19
 
 # Copy corporate root CA from host into container
 COPY LearCorpRootCA.crt /usr/local/share/ca-certificates/
+COPY LearCorporationRootCAv2.crt /usr/local/share/ca-certificates/
 
-# Update the CA certificates store
-RUN sed -i 's/https/http/g' /etc/apk/repositories \
-    && apk add --no-cache ca-certificates curl openssl bash \
-    #  Register certificates
-    && update-ca-certificates \
-    #  Switch repositories back to HTTPS for secure future installs
-    && sed -i 's/http/https/g' /etc/apk/repositories \
-    && apk update
+# Switch to HTTP to bootstrap CA install
+RUN sed -i 's/https/http/g' /etc/apk/repositories
+
+# Install base tools
+RUN apk add --no-cache ca-certificates curl openssl bash
+
+# Register CA
+RUN update-ca-certificates
+
+# Switch repositories back to HTTPS
+RUN sed -i 's/http/https/g' /etc/apk/repositories && apk update
+
 
 RUN  apk add --no-cache \
         apache2 \
@@ -63,6 +68,9 @@ RUN sed -i '/LoadModule rewrite_module/s/^#//g' /etc/apache2/httpd.conf
 
 # Set working directory (entire code will be mounted as volume)
 WORKDIR /var/www/html
+
+# Pre-populate the source tree so compose watch can sync only changes later
+COPY --chown=apache:apache . /var/www/html
 
 # Create persistent data directories (not part of mounted volume)
 # Symlinks will be created at runtime by startup script

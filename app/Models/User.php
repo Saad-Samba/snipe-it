@@ -443,6 +443,16 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
     }
 
     /**
+     * Assets this user owns (owner_id).
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\Relation
+     */
+    public function ownedAssets()
+    {
+        return $this->hasMany(\App\Models\Asset::class, 'owner_id')->withTrashed()->orderBy('id');
+    }
+
+    /**
      * Establishes the user -> maintenances relationship
      *
      * This would only be used to return maintenances that this user
