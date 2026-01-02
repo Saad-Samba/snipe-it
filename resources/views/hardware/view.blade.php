@@ -521,13 +521,31 @@
                                             <div class="col-md-3">
                                                 <strong>{{ trans('admin/hardware/form.serial') }}</strong>
                                             </div>
-                                            <div class="col-md-9">
-                                                <x-copy-to-clipboard copy_what="serial">
-                                                    {{ $asset->serial  }}
-                                                </x-copy-to-clipboard>
-                                            </div>
+                                        <div class="col-md-9">
+                                            <x-copy-to-clipboard copy_what="serial">
+                                                {{ $asset->serial  }}
+                                            </x-copy-to-clipboard>
                                         </div>
-                                    @endif
+                                    </div>
+                                @endif
+
+                                @if ($asset->owner)
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <strong>{{ trans('general.owner') }}</strong>
+                                        </div>
+                                        <div class="col-md-9">
+                                            <x-copy-to-clipboard copy_what="owner_name">
+                                                {!! $asset->owner->present()->nameUrl() !!}
+                                            </x-copy-to-clipboard>
+                                            @if ($asset->owner->employee_num)
+                                                <div class="text-muted">
+                                                    {{ trans('general.employee_number') }}: {{ $asset->owner->employee_num }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
 
                                     @if ($asset->last_checkout!='')
                                         <div class="row">
