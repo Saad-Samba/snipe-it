@@ -56,7 +56,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label for="discipline">{{ __('Discipline') }}</label>
-                                @if ($disciplineColumn)
+                                @if ($hasDisciplineColumn)
                                     <select class="form-control" id="discipline" name="discipline">
                                         <option value="">{{ __('All disciplines') }}</option>
                                         @foreach ($disciplines as $discipline)
@@ -85,7 +85,7 @@
 
     <!-- panel -->
     <div class="col-lg-2 col-xs-6">
-        <a href="{{ route('hardware.index') }}">
+        <a href="{{ route('hardware.index', ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline]) }}">
             <!-- small hardware box -->
             <div class="dashboard small-box bg-teal">
                 <div class="inner">

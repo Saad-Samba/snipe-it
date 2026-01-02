@@ -30,7 +30,8 @@ class DashboardController extends Controller
         if (auth()->user()->hasAccess('admin')) {
             $asset_stats = null;
 
-            $disciplineColumn = \App\Models\CustomField::name_to_db_name('Discipline');
+            $disciplineField = \App\Models\CustomField::where('name', 'Discipline')->first();
+            $disciplineColumn = $disciplineField->db_column ?? \App\Models\CustomField::name_to_db_name('Discipline');
             $hasDisciplineColumn = \Illuminate\Support\Facades\Schema::hasColumn('assets', $disciplineColumn);
             $selectedDiscipline = ($hasDisciplineColumn) ? $request->input('discipline') : null;
             $selectedCompany = $request->input('company_id');
@@ -109,6 +110,7 @@ class DashboardController extends Controller
                 ->with('disciplines', $disciplines)
                 ->with('companies', $companies)
                 ->with('disciplineColumn', $hasDisciplineColumn ? $disciplineColumn : null)
+                ->with('hasDisciplineColumn', $hasDisciplineColumn)
                 ->with('selectedDiscipline', $selectedDiscipline)
                 ->with('selectedCompany', $selectedCompany);
         } else {
