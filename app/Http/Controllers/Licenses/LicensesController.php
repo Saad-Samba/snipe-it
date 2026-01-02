@@ -87,6 +87,7 @@ class LicensesController extends Controller
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
+        $license->discipline        = $request->input('discipline');
         $license->maintained        = $request->input('maintained', 0);
         $license->manufacturer_id   = $request->input('manufacturer_id');
         $license->name              = $request->input('name');
@@ -170,6 +171,7 @@ class LicensesController extends Controller
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
+        $license->discipline        = $request->input('discipline');
         $license->maintained        = $request->input('maintained',0);
         $license->name              = $request->input('name');
         $license->notes             = $request->input('notes');
