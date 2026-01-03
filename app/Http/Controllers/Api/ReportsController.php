@@ -58,6 +58,15 @@ class ReportsController extends Controller
         if ($request->filled('action_source')) {
             $actionlogs = $actionlogs->where('action_source', '=', $request->input('action_source'));
         }
+
+        if ($request->filled('company_id')) {
+            $companyId = Company::getIdForCurrentUser($request->input('company_id'));
+            $actionlogs = $actionlogs->where('company_id', $companyId);
+        }
+
+        if ($request->filled('discipline_id')) {
+            $actionlogs = $actionlogs->where('discipline_id', $request->input('discipline_id'));
+        }
         
         if ($request->filled('remote_ip')) {
             $actionlogs = $actionlogs->where('remote_ip', '=', $request->input('remote_ip'));

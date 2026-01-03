@@ -301,7 +301,7 @@
                     data-sort-name="created_at"
                     id="dashActivityReport"
                     class="table table-striped snipe-table"
-                    data-url="{{ route('api.activity.index', ['limit' => 25]) }}">
+                    data-url="{{ route('api.activity.index', ['limit' => 25, 'company_id' => $selectedCompany, 'discipline_id' => $selectedDisciplineId]) }}">
                     <thead>
                     <tr>
                         <th data-field="icon" data-visible="true" style="width: 40px;" class="hidden-xs" data-formatter="iconFormatter"><span  class="sr-only">{{ trans('admin/hardware/table.icon') }}</span></th>
