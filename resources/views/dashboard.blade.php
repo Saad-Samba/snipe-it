@@ -567,6 +567,24 @@
 
         <script src="{{ url(mix('js/dist/Chart.min.js')) }}"></script>
 <script nonce="{{ csrf_token() }}">
+    // Auto-apply filters when Company or Discipline changes
+    (function () {
+        var filterForm = document.querySelector('form[action="{{ route('home') }}"]');
+        ['company_id', 'discipline_id'].forEach(function (id) {
+            var select = document.getElementById(id);
+            if (select && filterForm) {
+                select.addEventListener('change', function () {
+                    // requestSubmit preserves button semantics when available
+                    if (typeof filterForm.requestSubmit === 'function') {
+                        filterForm.requestSubmit();
+                    } else {
+                        filterForm.submit();
+                    }
+                });
+            }
+        });
+    })();
+
     // ---------------------------
     // - ASSET STATUS CHART -
     // ---------------------------
