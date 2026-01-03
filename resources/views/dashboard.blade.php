@@ -511,7 +511,7 @@
                                 data-sort-field="assets_count"
                                 id="dashCategorySummary"
                                 class="table table-striped snipe-table"
-                                data-url="{{ route('api.categories.index', ['sort' => 'assets_count', 'order' => 'asc']) }}">
+                                data-url="{{ route('api.categories.index', ['sort' => 'assets_count', 'order' => 'asc', 'company_id' => $selectedCompany, 'discipline_id' => $selectedDisciplineId]) }}">
                             <thead>
                             <tr>
                                 <th class="col-sm-3" data-visible="true" data-field="name" data-formatter="categoriesLinkFormatter" data-sortable="true">{{ trans('general.name') }}</th>

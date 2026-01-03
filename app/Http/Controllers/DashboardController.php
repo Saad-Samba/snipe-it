@@ -45,9 +45,12 @@ class DashboardController extends Controller
             }
 
             $counts['asset'] = (clone $assetQuery)->count();
-            $counts['accessory'] = \App\Models\Accessory::when($selectedCompany, function ($query) use ($selectedCompany) {
-                return $query->where('company_id', $selectedCompany);
-            })->count();
+            // Accessories are not discipline-aware; return 0 when a discipline filter is applied.
+            $counts['accessory'] = $selectedDisciplineId
+                ? 0
+                : \App\Models\Accessory::when($selectedCompany, function ($query) use ($selectedCompany) {
+                    return $query->where('company_id', $selectedCompany);
+                })->count();
             $licenseSeatsQuery = \App\Models\LicenseSeat::query()->whereNull('deleted_at');
 
             if ($selectedCompany) {
@@ -79,12 +82,16 @@ class DashboardController extends Controller
             }
 
             $counts['license'] = $licenseSeatsQuery->count();
-            $counts['consumable'] = \App\Models\Consumable::when($selectedCompany, function ($query) use ($selectedCompany) {
-                return $query->where('company_id', $selectedCompany);
-            })->count();
-            $counts['component'] = \App\Models\Component::when($selectedCompany, function ($query) use ($selectedCompany) {
-                return $query->where('company_id', $selectedCompany);
-            })->count();
+            $counts['consumable'] = $selectedDisciplineId
+                ? 0
+                : \App\Models\Consumable::when($selectedCompany, function ($query) use ($selectedCompany) {
+                    return $query->where('company_id', $selectedCompany);
+                })->count();
+            $counts['component'] = $selectedDisciplineId
+                ? 0
+                : \App\Models\Component::when($selectedCompany, function ($query) use ($selectedCompany) {
+                    return $query->where('company_id', $selectedCompany);
+                })->count();
             $counts['user'] = \App\Models\Company::scopeCompanyables(auth()->user())->count();
             $counts['grand_total'] = $counts['asset'] + $counts['accessory'] + $counts['license'] + $counts['consumable'];
 

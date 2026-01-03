@@ -89,10 +89,56 @@ class CategoriesController extends Controller
          *
          * @see \App\Models\Category::showableAssets()
          */
+        $assetFilter = function ($query) use ($request) {
+            if ($request->filled('company_id')) {
+                $query->where('company_id', $request->input('company_id'));
+            }
+            if ($request->filled('discipline_id')) {
+                $query->where('discipline_id', $request->input('discipline_id'));
+            }
+        };
+
+        $companyOnlyFilter = function ($query) use ($request) {
+            if ($request->filled('discipline_id')) {
+                // Not tracked for these relations; force empty result when discipline filter present.
+                $query->whereRaw('1 = 0');
+                return;
+            }
+            if ($request->filled('company_id')) {
+                $query->where('company_id', $request->input('company_id'));
+            }
+        };
+
         if ($request->input('archived')=='true') {
-            $categories = $categories->withCount('assets as assets_count');
+            $categories = $categories->withCount([
+                'assets as assets_count' => $assetFilter,
+                'accessories as accessories_count' => $companyOnlyFilter,
+                'consumables as consumables_count' => $companyOnlyFilter,
+                'components as components_count' => $companyOnlyFilter,
+                'licenses as licenses_count' => function ($query) use ($request) {
+                    if ($request->filled('company_id')) {
+                        $query->where('company_id', $request->input('company_id'));
+                    }
+                    if ($request->filled('discipline_id')) {
+                        $query->where('discipline_id', $request->input('discipline_id'));
+                    }
+                },
+            ]);
         } else {
-            $categories = $categories->withCount('showableAssets as assets_count');
+            $categories = $categories->withCount([
+                'showableAssets as assets_count' => $assetFilter,
+                'accessories as accessories_count' => $companyOnlyFilter,
+                'consumables as consumables_count' => $companyOnlyFilter,
+                'components as components_count' => $companyOnlyFilter,
+                'licenses as licenses_count' => function ($query) use ($request) {
+                    if ($request->filled('company_id')) {
+                        $query->where('company_id', $request->input('company_id'));
+                    }
+                    if ($request->filled('discipline_id')) {
+                        $query->where('discipline_id', $request->input('discipline_id'));
+                    }
+                },
+            ]);
         }
 
         if ($request->filled('name')) {
