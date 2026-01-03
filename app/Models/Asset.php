@@ -95,6 +95,7 @@ class Asset extends Depreciable
         'location_id'    => 'integer',
         'rtd_company_id' => 'integer',
         'supplier_id'    => 'integer',
+        'discipline_id'  => 'integer',
         'created_at'     => 'datetime',
         'updated_at'   => 'datetime',
         'deleted_at'  => 'datetime',
@@ -118,6 +119,7 @@ class Asset extends Depreciable
         'serial'            => ['nullable', 'string', 'unique_undeleted:assets,serial'],
         'purchase_cost'     => ['nullable', 'numeric', 'gte:0', 'max:99999999999999999.99'],
         'supplier_id'       => ['nullable', 'exists:suppliers,id'],
+        'discipline_id'     => ['nullable', 'integer', 'exists:disciplines,id'],
         'asset_eol_date'    => ['nullable', 'date'],
         'eol_explicit'      => ['nullable', 'boolean'],
         'byod'              => ['nullable', 'boolean'],
@@ -151,6 +153,7 @@ class Asset extends Depreciable
         'purchase_cost',
         'purchase_date',
         'rtd_location_id',
+        'discipline_id',
         'serial',
         'status_id',
         'supplier_id',
@@ -201,6 +204,7 @@ class Asset extends Depreciable
         'assetstatus'        => ['name'],
         'supplier'           => ['name'],
         'company'            => ['name'],
+        'discipline'         => ['name'],
         'defaultLoc'         => ['name'],
         'location'           => ['name'],
         'model'              => ['name', 'model_number', 'eol'],
@@ -425,6 +429,11 @@ class Asset extends Depreciable
     public function company()
     {
         return $this->belongsTo(\App\Models\Company::class, 'company_id');
+    }
+
+    public function discipline()
+    {
+        return $this->belongsTo(\App\Models\Discipline::class, 'discipline_id');
     }
 
     /**

@@ -14,6 +14,7 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\Company;
+use App\Models\Discipline;
 use App\Models\Location;
 use App\Models\Setting;
 use App\Models\Statuslabel;
@@ -85,7 +86,8 @@ class AssetsController extends Controller
         $view = view('hardware/edit')
             ->with('statuslabel_list', Helper::statusLabelList())
             ->with('item', new Asset)
-            ->with('statuslabel_types', Helper::statusTypeList());
+            ->with('statuslabel_types', Helper::statusTypeList())
+            ->with('disciplines', Discipline::orderBy('name')->get());
 
         if ($request->filled('model_id')) {
             $selected_model = AssetModel::find($request->input('model_id'));
@@ -154,6 +156,7 @@ class AssetsController extends Controller
             }
 
             $asset->company_id              = $companyId;
+            $asset->discipline_id           = $request->input('discipline_id', null);
             $asset->model_id                = $request->input('model_id');
             $asset->order_number            = $request->input('order_number');
             $asset->notes                   = $request->input('notes');
@@ -304,7 +307,8 @@ class AssetsController extends Controller
         return view('hardware/edit')
             ->with('item', $asset)
             ->with('statuslabel_list', Helper::statusLabelList())
-            ->with('statuslabel_types', Helper::statusTypeList());
+            ->with('statuslabel_types', Helper::statusTypeList())
+            ->with('disciplines', Discipline::orderBy('name')->get());
     }
 
 
@@ -363,6 +367,7 @@ class AssetsController extends Controller
 
         $asset->status_id = $request->input('status_id', null);
         $asset->warranty_months = $request->input('warranty_months', null);
+        $asset->discipline_id = $request->input('discipline_id', null);
         $asset->purchase_cost = $request->input('purchase_cost', null);
         $asset->purchase_date = $request->input('purchase_date', null);
         $asset->next_audit_date = $request->input('next_audit_date', null);

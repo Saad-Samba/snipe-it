@@ -21,6 +21,20 @@
     
     @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id'])
 
+    <div class="form-group {{ $errors->has('discipline_id') ? ' has-error' : '' }}">
+        <label for="discipline_id" class="col-md-3 control-label">{{ __('Discipline') }}</label>
+        <div class="col-md-7 col-sm-12">
+            <select class="form-control" id="discipline_id" name="discipline_id">
+                <option value="">{{ __('None') }}</option>
+                @foreach(($disciplines ?? collect()) as $discipline)
+                    <option value="{{ $discipline->id }}" {{ old('discipline_id', $item->discipline_id ?? null) == $discipline->id ? 'selected' : '' }}>
+                        {{ $discipline->name }}
+                    </option>
+                @endforeach
+            </select>
+            {!! $errors->first('discipline_id', '<span class="alert-msg"><i class="fas fa-times"></i> :message</span>') !!}
+        </div>
+    </div>
 
   <!-- Asset Tag -->
   <div class="form-group {{ $errors->has('asset_tag') ? ' has-error' : '' }}">
