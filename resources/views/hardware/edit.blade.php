@@ -33,6 +33,11 @@
                 @endforeach
             </select>
             {!! $errors->first('discipline_id', '<span class="alert-msg"><i class="fas fa-times"></i> :message</span>') !!}
+            @if(auth()->user()->isSuperUser())
+                <p class="help-block">
+                    <a href="{{ route('disciplines.index') }}">{{ __('Manage disciplines') }}</a>
+                </p>
+            @endif
         </div>
     </div>
 

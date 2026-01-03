@@ -13,6 +13,7 @@ use App\Http\Controllers\CompaniesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentsController;
 use App\Http\Controllers\DepreciationsController;
+use App\Http\Controllers\DisciplinesController;
 use App\Http\Controllers\GroupsController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LabelsController;
@@ -77,6 +78,11 @@ Route::group(['middleware' => 'auth'], function () {
     Route::resource('manufacturers', ManufacturersController::class);
 
     Route::post('manufacturers/bulk/delete', [BulkManufacturersController::class, 'destroy'])->name('manufacturers.bulk.delete');
+
+    /*
+    * Disciplines
+    */
+    Route::resource('disciplines', DisciplinesController::class)->only(['index', 'store', 'destroy']);
 
     /*
     * Suppliers

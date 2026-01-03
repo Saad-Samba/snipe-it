@@ -795,6 +795,14 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                             </a>
                                         </li>
                                     @endcan
+
+                                    @if(Auth::user()->isSuperUser())
+                                        <li {{!! (request()->is('disciplines') ? ' class="active"' : '') !!}}>
+                                            <a href="{{ route('disciplines.index') }}">
+                                                {{ __('Disciplines') }}
+                                            </a>
+                                        </li>
+                                    @endif
                                 </ul>
                             </li>
                         @endcan
