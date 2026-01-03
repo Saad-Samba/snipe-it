@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Licenses;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\Discipline;
 use App\Models\License;
 use App\Models\LicenseSeat;
 use App\Models\User;
@@ -36,9 +37,9 @@ class LicensesController extends Controller
         $this->authorize('view', License::class);
 
         return view('licenses/index')
-            ->with('hasDashboardFilters', $request->filled('company_id') || $request->filled('discipline'))
+            ->with('hasDashboardFilters', $request->filled('company_id') || $request->filled('discipline_id'))
             ->with('selectedCompany', $request->input('company_id'))
-            ->with('selectedDiscipline', $request->input('discipline'));
+            ->with('selectedDiscipline', $request->input('discipline_id'));
     }
 
     /**
@@ -62,7 +63,8 @@ class LicensesController extends Controller
         return view('licenses/edit')
             ->with('depreciation_list', Helper::depreciationList())
             ->with('maintained_list', $maintained_list)
-            ->with('item', new License);
+            ->with('item', new License)
+            ->with('disciplines', Discipline::orderBy('name')->get());
     }
 
     /**
@@ -87,7 +89,7 @@ class LicensesController extends Controller
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
-        $license->discipline        = $request->input('discipline');
+        $license->discipline_id     = $request->input('discipline_id');
         $license->maintained        = $request->input('maintained', 0);
         $license->manufacturer_id   = $request->input('manufacturer_id');
         $license->name              = $request->input('name');
@@ -144,7 +146,8 @@ class LicensesController extends Controller
         return view('licenses/edit')
             ->with('item', $license)
             ->with('depreciation_list', Helper::depreciationList())
-            ->with('maintained_list', $maintained_list);
+            ->with('maintained_list', $maintained_list)
+            ->with('disciplines', Discipline::orderBy('name')->get());
     }
 
 
@@ -171,7 +174,7 @@ class LicensesController extends Controller
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
-        $license->discipline        = $request->input('discipline');
+        $license->discipline_id     = $request->input('discipline_id');
         $license->maintained        = $request->input('maintained',0);
         $license->name              = $request->input('name');
         $license->notes             = $request->input('notes');
@@ -306,7 +309,8 @@ class LicensesController extends Controller
         return view('licenses/edit')
         ->with('depreciation_list', Helper::depreciationList())
         ->with('item', $license)
-        ->with('maintained_list', $maintained_list);
+        ->with('maintained_list', $maintained_list)
+        ->with('disciplines', Discipline::orderBy('name')->get());
     }
 
     /**
