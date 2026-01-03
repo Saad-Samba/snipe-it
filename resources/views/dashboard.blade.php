@@ -615,8 +615,8 @@
       $.ajax({
           type: 'GET',
           url: '{{ (\App\Models\Setting::getSettings()->dash_chart_type == 'name')
-                ? route('api.statuslabels.assets.byname', ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline])
-                : route('api.statuslabels.assets.bytype', ['company_id' => $selectedCompany, 'discipline' => $selectedDiscipline]) }}',
+                ? route('api.statuslabels.assets.byname', ['company_id' => $selectedCompany, 'discipline_id' => $selectedDisciplineId])
+                : route('api.statuslabels.assets.bytype', ['company_id' => $selectedCompany, 'discipline_id' => $selectedDisciplineId]) }}',
           headers: {
               "X-Requested-With": 'XMLHttpRequest',
               "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content')
