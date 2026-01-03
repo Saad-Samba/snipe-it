@@ -239,6 +239,12 @@
                           {{ trans('admin/users/general.email_assigned') }}
                       </button>
                     </form>
+                    @if(auth()->user()->isSuperUser() || auth()->user()->hasAccess('admin'))
+                      <button class="btn btn-block btn-sm btn-info btn-social hidden-print" id="transferAllAssetsButton" style="margin-top:5px;">
+                          <i class="fas fa-random" aria-hidden="true"></i>
+                          {{ trans('admin/users/general.transfer_assets') }}
+                      </button>
+                    @endif
                   @elseif(!empty($user->email) && ($user->allAssignedCount() == '0'))
                       <button class="btn btn-block btn-sm btn-primary btn-social hidden-print" rel="noopener" disabled title="{{ trans('admin/users/message.user_has_no_assets_assigned') }}">
                           <x-icon type="email" />
@@ -839,9 +845,11 @@
           <!-- checked out assets table -->
 
             @include('partials.asset-bulk-actions', [
-              'id_divname' => 'ownedAssetsBulkEditToolbar',
-              'id_formname' => 'ownedAssetsBulkForm',
-              'id_button' => 'ownedBulkAssetEditButton'
+              'id_divname' => 'assignedAssetsBulkEditToolbar',
+              'id_formname' => 'assignedAssetsBulkForm',
+              'id_button' => 'assignedBulkAssetEditButton',
+              'allow_transfer' => (auth()->user()->isSuperUser() || auth()->user()->hasAccess('admin')),
+              'from_user_id' => $user->id
             ])
 
             <div class="table table-responsive">
@@ -854,9 +862,9 @@
                     data-side-pagination="server"
                     data-show-footer="true"
                     data-sort-name="name"
-                    data-toolbar="#assetsBulkEditToolbar"
-                    data-bulk-button-id="#bulkAssetEditButton"
-                    data-bulk-form-id="#assetsBulkForm"
+                    data-toolbar="#assignedAssetsBulkEditToolbar"
+                    data-bulk-button-id="#assignedBulkAssetEditButton"
+                    data-bulk-form-id="#assignedAssetsBulkForm"
                     id="userAssetsListingTable"
                     data-buttons="assetButtons"
                     class="table table-striped snipe-table"
@@ -867,6 +875,7 @@
                 }'>
             </table>
           </div>
+
         </div><!-- /asset -->
 
         <div class="tab-pane" id="owned-assets">
@@ -884,9 +893,9 @@
                     data-side-pagination="server"
                     data-show-footer="true"
                     data-sort-name="name"
-                    data-toolbar="#ownedAssetsBulkEditToolbar"
-                    data-bulk-button-id="#ownedBulkAssetEditButton"
-                    data-bulk-form-id="#ownedAssetsBulkForm"
+                    data-toolbar="#assetsBulkEditToolbar"
+                    data-bulk-button-id="#bulkAssetEditButton"
+                    data-bulk-form-id="#assetsBulkForm"
                     id="userOwnedAssetsListingTable"
                     data-buttons="assetButtons"
                     class="table table-striped snipe-table"
@@ -1164,6 +1173,38 @@
     @include ('modals.upload-file', ['item_type' => 'user', 'item_id' => $user->id])
   @endcan
 
+  <div class="modal fade" id="transferAssetsModal" tabindex="-1" role="dialog" aria-labelledby="transferAssetsModalLabel">
+      <div class="modal-dialog" role="document">
+          <div class="modal-content">
+              <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-label="{{ trans('general.close') }}"><span aria-hidden="true">&times;</span></button>
+                  <h4 class="modal-title" id="transferAssetsModalLabel">{{ trans('admin/users/general.transfer_assets') }}</h4>
+              </div>
+              <div class="modal-body">
+                  @include('partials.forms.edit.user-select', [
+                    'fieldname' => 'transfer_target_user_id',
+                    'translated_name' => trans('admin/users/general.transfer_to_user'),
+                    'required' => 'true',
+                    'container_id' => 'transfer_target_user_container',
+                    'field_id' => 'transfer_target_user_select',
+                    'hide_new' => 'true'
+                  ])
+                  <p class="help-block">{{ trans('admin/users/general.transfer_assets_help') }}</p>
+              </div>
+              <div class="modal-footer">
+                  <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>
+                  <button type="button" class="btn btn-primary" id="confirmTransferAssets">{{ trans('button.transfer_assets') }}</button>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <form id="transferAllAssetsForm" action="{{ route('users.transfer.assets.all', $user) }}" method="POST" class="hidden" style="display:none;">
+      @csrf
+      <input type="hidden" name="transfer_all" value="1">
+      <input type="hidden" name="transfer_target_user_id" value="">
+  </form>
+
 
 
   @stop
@@ -1172,6 +1213,68 @@
   @include ('partials.bootstrap-table', ['simple_view' => true])
 <script nonce="{{ csrf_token() }}">
 $(function () {
+
+  var transferForm = $('#assignedAssetsBulkForm');
+  var transferAllForm = $('#transferAllAssetsForm');
+  var transferModal = $('#transferAssetsModal');
+  var transferRoute = "{{ route('users.transfer.assets', $user) }}";
+  var defaultBulkActionRoute = "{{ route('hardware/bulkedit') }}";
+  var currentTransferForm = null;
+
+  if (transferForm.length) {
+      var transferTargetField = transferForm.find('input[name="transfer_target_user_id"]');
+
+      transferForm.on('submit', function (e) {
+          var bulkAction = transferForm.find('select[name="bulk_actions"]').val();
+
+          if (transferForm.data('submitting-transfer') === true) {
+              transferForm.data('submitting-transfer', false);
+              return;
+          }
+
+          if (bulkAction === 'transfer') {
+              e.preventDefault();
+              transferModal.modal('show');
+              currentTransferForm = transferForm;
+          } else {
+              transferForm.attr('action', defaultBulkActionRoute);
+          }
+      });
+
+      $('#confirmTransferAssets').on('click', function () {
+          var targetUserId = $('#transfer_target_user_select').val();
+
+          if (!targetUserId) {
+              $('#transfer_target_user_container').addClass('has-error');
+              return;
+          }
+
+          $('#transfer_target_user_container').removeClass('has-error');
+          if (currentTransferForm && currentTransferForm.is(transferForm)) {
+              transferTargetField.val(targetUserId);
+              transferForm.attr('action', transferRoute);
+              transferForm.data('submitting-transfer', true);
+              transferModal.modal('hide');
+              transferForm.trigger('submit');
+          } else if (currentTransferForm && currentTransferForm.is(transferAllForm)) {
+              transferAllForm.find('input[name=\"transfer_target_user_id\"]').val(targetUserId);
+              transferModal.modal('hide');
+              transferAllForm.trigger('submit');
+          }
+          currentTransferForm = null;
+          transferModal.modal('hide');
+      });
+
+      transferModal.on('hidden.bs.modal', function () {
+          $('#transfer_target_user_container').removeClass('has-error');
+          currentTransferForm = null;
+      });
+  }
+
+  $('#transferAllAssetsButton').on('click', function () {
+      currentTransferForm = transferAllForm;
+      transferModal.modal('show');
+  });
 
 
 

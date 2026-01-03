@@ -19,6 +19,7 @@ return [
     'send_password_link'        => 'Send Password Reset Link',
     'go'                        => 'Go',
     'bulk_actions'              => 'Bulk Actions',
+    'transfer_assets'           => 'Transfer assets',
     'add_maintenance'           => 'Add Maintenance',
     'append'                    => 'Append',
     'new'                       => 'New',

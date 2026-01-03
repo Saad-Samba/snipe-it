@@ -16,6 +16,12 @@
             {{ trans('button.bulk_actions') }}
         </span>
     </label>
+    @isset($from_user_id)
+        <input type="hidden" name="from_user_id" value="{{ $from_user_id }}">
+    @endisset
+    @isset($allow_transfer)
+        <input type="hidden" name="transfer_target_user_id" value="">
+    @endisset
     <select name="bulk_actions" class="form-control select2" aria-label="bulk_actions" style="min-width: 350px !important;">
         @if ((isset($status)) && ($status == 'Deleted'))
             @can('delete', \App\Models\Asset::class)
@@ -32,6 +38,9 @@
                 @can('checkout', \App\Models\Asset::class)
                     <option value="checkout">{{ trans('general.bulk_checkout') }}</option>
                 @endcan
+            @endif
+            @if (!empty($allow_transfer))
+                <option value="transfer">{{ trans('button.transfer_assets') }}</option>
             @endif
 
             @can('delete', \App\Models\Asset::class)
