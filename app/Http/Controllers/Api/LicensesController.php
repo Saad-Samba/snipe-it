@@ -40,6 +40,10 @@ class LicensesController extends Controller
             $licenses->where('licenses.company_id', '=', $request->input('company_id'));
         }
 
+        if ($request->filled('project_id')) {
+            $licenses->where('licenses.project_id', '=', $request->input('project_id'));
+        }
+
         if ($request->filled('name')) {
             $licenses->where('licenses.name', '=', $request->input('name'));
         }
