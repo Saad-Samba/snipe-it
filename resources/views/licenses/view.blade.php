@@ -94,6 +94,17 @@
                     </div>
                   @endif
 
+                  @if ($license->project)
+                    <div class="row">
+                      <div class="col-md-3">
+                        <strong>{{ trans('general.project') }}</strong>
+                      </div>
+                      <div class="col-md-9">
+                          {!!  $license->project->present()->formattedNameLink !!}
+                      </div>
+                    </div>
+                  @endif
+
                   @if ($license->manufacturer)
                     <div class="row">
                       <div class="col-md-3">

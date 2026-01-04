@@ -298,6 +298,29 @@ class BreadcrumbsServiceProvider extends ServiceProvider
             ->push(trans('general.breadcrumb_button_actions.edit_item', ['name' => $department->name]), route('departments.edit', $department))
         );
 
+        /**
+         * Projects Breadcrumbs
+         */
+        Breadcrumbs::for('projects.index', fn (Trail $trail) =>
+        $trail->parent('settings.index', route('settings.index'))
+            ->push(trans('general.projects'), route('projects.index'))
+        );
+
+        Breadcrumbs::for('projects.create', fn (Trail $trail) =>
+        $trail->parent('projects.index', route('projects.index'))
+            ->push(trans('general.create'), route('projects.create'))
+        );
+
+        Breadcrumbs::for('projects.show', fn (Trail $trail, \App\Models\Project $project) =>
+        $trail->parent('projects.index', route('projects.index'))
+            ->push($project->name, route('projects.show', $project))
+        );
+
+        Breadcrumbs::for('projects.edit', fn (Trail $trail, \App\Models\Project $project) =>
+        $trail->parent('projects.index', route('projects.index'))
+            ->push(trans('general.breadcrumb_button_actions.edit_item', ['name' => $project->name]), route('projects.edit', $project))
+        );
+
 
         /**
          * Department Breadcrumbs

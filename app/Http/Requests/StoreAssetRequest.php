@@ -42,6 +42,7 @@ class StoreAssetRequest extends ImageUploadRequest
             'asset_tag' => $this->asset_tag ?? Asset::autoincrement_asset(),
             'company_id' => $idForCurrentUser,
             'owner_id' => $ownerId,
+            'project_id' => $this->project_id === '' ? null : $this->project_id,
         ]);
     }
 
