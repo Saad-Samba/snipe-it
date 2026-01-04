@@ -19,6 +19,7 @@ use App\Models\Manufacturer;
 use App\Models\PredefinedKit;
 use App\Models\Statuslabel;
 use App\Models\Supplier;
+use App\Models\Project;
 use App\Models\User;
 use App\Policies\AccessoryPolicy;
 use App\Policies\AssetModelPolicy;
@@ -37,6 +38,7 @@ use App\Policies\ManufacturerPolicy;
 use App\Policies\PredefinedKitPolicy;
 use App\Policies\StatuslabelPolicy;
 use App\Policies\SupplierPolicy;
+use App\Policies\ProjectPolicy;
 use App\Policies\UserPolicy;
 use Carbon\Carbon;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -63,6 +65,7 @@ class AuthServiceProvider extends ServiceProvider
         CustomFieldset::class => CustomFieldsetPolicy::class,
         Department::class => DepartmentPolicy::class,
         Depreciation::class => DepreciationPolicy::class,
+        Project::class => ProjectPolicy::class,
         License::class => LicensePolicy::class,
         Location::class => LocationPolicy::class,
         PredefinedKit::class => PredefinedKitPolicy::class,

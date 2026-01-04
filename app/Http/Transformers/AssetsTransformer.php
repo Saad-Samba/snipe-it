@@ -78,6 +78,10 @@ class AssetsTransformer
                 'name'=> e($asset->company->name),
                 'tag_color'=> ($asset->company->tag_color) ? e($asset->company->tag_color) : null,
             ] : null,
+            'project' => ($asset->project) ? [
+                'id' => (int) $asset->project->id,
+                'name'=> e($asset->project->name),
+            ] : null,
             'location' => ($asset->location) ? [
                 'id' => (int) $asset->location->id,
                 'name'=> e($asset->location->name),

@@ -162,6 +162,7 @@ class AssetsController extends Controller
                 'assignedTo',
                 'adminuser',
                 'owner',
+                'project',
                 'model.depreciation',
                 'model.category',
                 'model.manufacturer',

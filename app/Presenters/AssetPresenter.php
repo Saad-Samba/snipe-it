@@ -39,6 +39,14 @@ class AssetPresenter extends Presenter
                 'visible' => false,
                 'formatter' => 'companiesLinkObjFormatter',
             ], [
+                'field' => 'project',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.project'),
+                'visible' => false,
+                'formatter' => 'projectsLinkObjFormatter',
+            ], [
                 'field' => 'name',
                 'searchable' => true,
                 'sortable' => true,

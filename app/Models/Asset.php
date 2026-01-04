@@ -94,6 +94,7 @@ class Asset extends Depreciable
         'company_id'     => 'integer',
         'location_id'    => 'integer',
         'rtd_company_id' => 'integer',
+        'project_id'     => 'integer',
         'supplier_id'    => 'integer',
         'created_at'     => 'datetime',
         'updated_at'   => 'datetime',
@@ -107,6 +108,7 @@ class Asset extends Depreciable
         'asset_tag'         => ['required', 'min:1', 'max:255', 'unique_undeleted:assets,asset_tag', 'not_array'],
         'name'              => ['nullable', 'max:255'],
         'company_id'        => ['nullable', 'integer', 'exists:companies,id'],
+        'project_id'        => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
         'warranty_months'   => ['nullable', 'numeric', 'digits_between:0,240'],
         'last_checkout'     => ['nullable', 'date_format:Y-m-d H:i:s'],
         'last_checkin'      => ['nullable', 'date_format:Y-m-d H:i:s'],
@@ -144,6 +146,7 @@ class Asset extends Depreciable
         'assigned_to',
         'assigned_type',
         'company_id',
+        'project_id',
         'image',
         'location_id',
         'model_id',
@@ -209,8 +212,14 @@ class Asset extends Depreciable
         'model'              => ['name', 'model_number', 'eol'],
         'model.category'     => ['name'],
         'model.manufacturer' => ['name'],
+        'project'            => ['name'],
         'owner'              => ['first_name', 'last_name', 'username', 'employee_num'],
     ];
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
+    }
 
     protected static function booted(): void
     {

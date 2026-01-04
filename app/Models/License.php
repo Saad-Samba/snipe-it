@@ -44,6 +44,7 @@ class License extends Depreciable
         'termination_date' => 'date',
         'category_id'  => 'integer',
         'company_id'   => 'integer',
+        'project_id'   => 'integer',
     ];
 
     protected $rules = [
@@ -54,6 +55,7 @@ class License extends Depreciable
         'notes'   => 'string|nullable',
         'category_id' => 'required|exists:categories,id',
         'company_id' => 'integer|nullable',
+        'project_id' => 'integer|nullable|exists:projects,id,deleted_at,NULL',
         'purchase_cost'     =>  'numeric|nullable|gte:0|max:99999999999999999.99',
         'purchase_date'   => 'date_format:Y-m-d|nullable|max:10|required_with:depreciation_id',
         'expiration_date'   => 'date_format:Y-m-d|nullable|max:10',
@@ -76,6 +78,7 @@ class License extends Depreciable
         'manufacturer_id',
         'category_id',
         'name',
+        'project_id',
         'notes',
         'order_number',
         'purchase_cost',
@@ -116,6 +119,7 @@ class License extends Depreciable
     protected $searchableRelations = [
         'manufacturer' => ['name'],
         'company'      => ['name'],
+        'project'      => ['name'],
         'category'     => ['name'],
         'depreciation' => ['name'],
         'supplier'     => ['name'],
@@ -178,6 +182,11 @@ class License extends Depreciable
         return Attribute:: make(
             get: fn(mixed $value, array $attributes) => $attributes['termination_date'] ? Carbon::parse($attributes['termination_date'])->diffForHumans() : null,
         );
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class, 'project_id');
     }
 
 

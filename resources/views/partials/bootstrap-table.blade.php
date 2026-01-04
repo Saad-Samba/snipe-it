@@ -406,6 +406,26 @@
     });
     @endcan
 
+    @can('create', \App\Models\Project::class)
+    // Project table buttons
+    window.projectButtons = () => ({
+        btnAdd: {
+            text: '{{ trans('general.create') }}',
+            icon: 'fa fa-plus',
+            event () {
+                window.location.href = '{{ route('projects.create') }}';
+            },
+            attributes: {
+                class: 'btn-info',
+                title: '{{ trans('general.create') }}',
+                @if ($snipeSettings->shortcuts_enabled == 1)
+                accesskey: 'n'
+                @endif
+            }
+        },
+    });
+    @endcan
+
     @can('create', \App\Models\Accessory::class)
     // Accessory table buttons
     window.accessoryButtons = () => ({
@@ -1288,6 +1308,7 @@
         'maintenances',
         'manufacturers',
         'models',
+        'projects',
         'statuslabels',
         'suppliers',
         'users',

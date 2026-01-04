@@ -27,6 +27,7 @@ class UpdateAssetRequest extends ImageUploadRequest
 
         $this->merge([
             'owner_id' => $this->owner_id === '' ? null : $this->owner_id,
+            'project_id' => $this->project_id === '' ? null : $this->project_id,
         ]);
     }
 

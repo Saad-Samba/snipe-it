@@ -221,6 +221,34 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
         ]
     ); // end departments API routes
 
+     /**
+      * Projects API routes
+      */
+      Route::group(['prefix' => 'projects'], function () {
+        
+        Route::get('selectlist',
+            [
+                Api\ProjectsController::class, 
+                'selectlist'
+            ]
+        )->name('api.projects.selectlist');
+
+      }); 
+
+      Route::resource('projects', 
+        Api\ProjectsController::class,
+        ['names' => [
+                'index' => 'api.projects.index',
+                'show' => 'api.projects.show',
+                'update' => 'api.projects.update',
+                'store' => 'api.projects.store',
+                'destroy' => 'api.projects.destroy',
+            ],
+        'except' => ['create', 'edit'],
+        'parameters' => ['project' => 'project_id'],
+        ]
+    ); // end projects API routes
+
 
       /**
       * Components API routes
