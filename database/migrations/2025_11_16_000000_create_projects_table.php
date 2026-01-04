@@ -11,15 +11,13 @@ return new class extends Migration
         Schema::create('projects', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->unsignedBigInteger('company_id')->nullable();
             $table->text('notes')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedInteger('created_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('company_id')->references('id')->on('companies')->nullOnDelete();
             $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
-            $table->unique(['name', 'company_id', 'deleted_at']);
+            $table->unique(['name', 'deleted_at']);
         });
 
         Schema::table('assets', function (Blueprint $table) {

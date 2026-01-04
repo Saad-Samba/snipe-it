@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Company;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,7 +35,6 @@ class ProjectsController extends Controller
 
         $project = new Project;
         $project->fill($request->all());
-        $project->company_id = Company::getIdForCurrentUser($request->input('company_id'));
         $project->created_by = auth()->id();
 
         if ($project->save()) {
@@ -65,7 +63,6 @@ class ProjectsController extends Controller
         $this->authorize('update', $project);
 
         $project->fill($request->all());
-        $project->company_id = Company::getIdForCurrentUser($request->input('company_id'));
 
         if ($project->save()) {
             return redirect()->route('projects.index')->with('success', trans('admin/projects/message.update.success'));

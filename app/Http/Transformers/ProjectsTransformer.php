@@ -24,11 +24,6 @@ class ProjectsTransformer
         $array = [
             'id' => (int) $project->id,
             'name' => e($project->name),
-            'company' => $project->company ? [
-                'id' => (int) $project->company->id,
-                'name' => e($project->company->name),
-                'tag_color' => $project->company->tag_color ? e($project->company->tag_color) : null,
-            ] : null,
             'assets_count' => (int) $project->assets_count,
             'licenses_count' => (int) $project->licenses_count,
             'notes' => Helper::parseEscapedMarkedownInline($project->notes),

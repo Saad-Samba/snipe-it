@@ -15,7 +15,6 @@ class ProjectFactory extends Factory
         return [
             'name' => $this->faker->unique()->catchPhrase(),
             'notes' => $this->faker->optional()->sentence(),
-            'company_id' => null,
             'created_by' => User::factory()->superuser(),
         ];
     }

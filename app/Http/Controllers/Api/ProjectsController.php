@@ -6,7 +6,6 @@ use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Transformers\ProjectsTransformer;
 use App\Http\Transformers\SelectlistTransformer;
-use App\Models\Company;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +18,7 @@ class ProjectsController extends Controller
 
         $allowed_columns = ['id', 'name', 'notes', 'created_at'];
 
-        $projects = Project::with('company', 'creator')->withCount(['assets', 'licenses']);
+        $projects = Project::with('creator')->withCount(['assets', 'licenses']);
 
         if ($request->filled('search')) {
             $projects = $projects->TextSearch($request->input('search'));
@@ -27,10 +26,6 @@ class ProjectsController extends Controller
 
         if ($request->filled('name')) {
             $projects->where('name', '=', $request->input('name'));
-        }
-
-        if ($request->filled('company_id')) {
-            $projects->where('company_id', '=', $request->input('company_id'));
         }
 
         $offset = ($request->input('offset') > $projects->count()) ? $projects->count() : app('api_offset_value');
@@ -53,7 +48,6 @@ class ProjectsController extends Controller
 
         $project = new Project;
         $project->fill($request->all());
-        $project->company_id = Company::getIdForCurrentUser($request->input('company_id'));
         $project->created_by = auth()->id();
 
         if ($project->save()) {
@@ -76,7 +70,6 @@ class ProjectsController extends Controller
         $this->authorize('update', Project::class);
 
         $project->fill($request->all());
-        $project->company_id = Company::getIdForCurrentUser($request->input('company_id'));
 
         if ($project->save()) {
             return response()->json(Helper::formatStandardApiResponse('success', (new ProjectsTransformer)->transformProject($project), trans('admin/projects/message.update.success')));
@@ -105,15 +98,10 @@ class ProjectsController extends Controller
         $projects = Project::select([
             'id',
             'name',
-            'company_id',
         ]);
 
         if ($request->filled('search')) {
             $projects = $projects->where('name', 'LIKE', '%'.$request->get('search').'%');
-        }
-
-        if ($request->filled('company_id')) {
-            $projects->where('company_id', '=', $request->input('company_id'));
         }
 
         $projects = $projects->orderBy('name', 'ASC')->paginate(50);

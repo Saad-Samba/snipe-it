@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Http\Traits\UniqueUndeletedTrait;
-use App\Models\Traits\CompanyableTrait;
 use App\Models\Traits\Searchable;
 use App\Presenters\Presentable;
 use App\Presenters\ProjectPresenter;
@@ -12,7 +11,8 @@ use Watson\Validating\ValidatingTrait;
 
 class Project extends SnipeModel
 {
-    use CompanyableTrait;
+    protected $table = 'projects';
+
     use HasFactory;
     use Presentable;
     use Searchable;
@@ -24,13 +24,11 @@ class Project extends SnipeModel
     protected $injectUniqueIdentifier = true;
 
     protected $casts = [
-        'company_id' => 'integer',
         'created_by' => 'integer',
     ];
 
     protected $rules = [
-        'name' => 'required|string|max:255|is_unique_across_company:projects,name',
-        'company_id' => 'numeric|nullable|exists:companies,id',
+        'name' => 'required|string|max:255|unique_undeleted:projects,name',
         'notes' => 'string|nullable',
         'created_by' => 'numeric|nullable|exists:users,id',
     ];
@@ -38,18 +36,12 @@ class Project extends SnipeModel
     protected $fillable = [
         'name',
         'notes',
-        'company_id',
         'created_by',
     ];
 
     protected $searchableAttributes = ['name', 'notes'];
 
     protected $searchableRelations = [];
-
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
-    }
 
     public function assets()
     {
