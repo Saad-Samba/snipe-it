@@ -48,6 +48,8 @@ class ProjectsController extends Controller
     {
         $this->authorize('view', $project);
 
+        $project->loadCount(['assets', 'licenses']);
+
         return view('projects/view')->with('project', $project);
     }
 

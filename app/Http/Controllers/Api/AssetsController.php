@@ -366,6 +366,10 @@ class AssetsController extends Controller
             $assets->where('assets.owner_id', '=', $request->input('owner_id'));
         }
 
+        if ($request->filled('project_id')) {
+            $assets->where('assets.project_id', '=', $request->input('project_id'));
+        }
+
         if ($request->filled('company_id')) {
             $assets->where('assets.company_id', '=', $request->input('company_id'));
         }

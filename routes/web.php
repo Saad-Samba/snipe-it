@@ -100,6 +100,11 @@ Route::group(['middleware' => 'auth'], function () {
     * Departments
     */
     Route::resource('departments', DepartmentsController::class);
+
+    /*
+    * Projects
+    */
+    Route::resource('projects', ProjectsController::class);
 });
 
 /*
@@ -311,9 +316,6 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'authorize:superuser
     });
 
     Route::resource('groups', GroupsController::class);
-    Route::resource('projects', ProjectsController::class);
-
-
     /**
      * This breadcrumb is repeated for groups in the BreadcrumbServiceProvider, since groups uses resource routes
      * and that servcie provider cannot see the breadcrumbs defined below
