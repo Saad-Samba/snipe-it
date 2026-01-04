@@ -21,6 +21,7 @@ use App\Http\Controllers\ManufacturersController;
 use App\Http\Controllers\ModalController;
 use App\Http\Controllers\NotesController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProjectsController;
 use App\Http\Controllers\ReportTemplatesController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
@@ -310,6 +311,7 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'authorize:superuser
     });
 
     Route::resource('groups', GroupsController::class);
+    Route::resource('projects', ProjectsController::class);
 
 
     /**

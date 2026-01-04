@@ -764,6 +764,14 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         </li>
                                     @endcan
 
+                                    @can('view', \App\Models\Project::class)
+                                        <li {{!! (request()->is('admin/projects*') ? ' class="active"' : '') !!}}>
+                                            <a href="{{ route('projects.index') }}">
+                                                {{ trans('general.projects') }}
+                                            </a>
+                                        </li>
+                                    @endcan
+
                                     @can('view', \App\Models\Department::class)
                                         <li {{!! (request()->is('departments') ? ' class="active"' : '') !!}}>
                                             <a href="{{ route('departments.index') }}">
