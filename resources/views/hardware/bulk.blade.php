@@ -180,6 +180,31 @@
           <!-- Company -->
           @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id'])
 
+          <!-- Owner -->
+          <div class="form-group {{ $errors->has('owner_id') ? ' has-error' : '' }}">
+            <label for="owner_id" class="col-md-3 control-label">
+              {{ trans('general.owner') }}
+            </label>
+            <div class="col-md-5">
+              <select class="js-data-ajax" data-endpoint="users" data-placeholder="{{ trans('general.select_user') }}" name="owner_id" style="width: 100%" id="owner_id_select" aria-label="owner_id">
+                @if ($owner_id = old('owner_id'))
+                  <option value="{{ $owner_id }}" selected="selected" role="option" aria-selected="true">
+                    {{ optional(optional(\App\Models\User::find($owner_id))->present())->fullName }}
+                  </option>
+                @else
+                  <option value="">{{ trans('general.do_not_change') }}</option>
+                @endif
+              </select>
+              {!! $errors->first('owner_id', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+            </div>
+            <div class="col-md-4">
+              <label class="form-control">
+                <input type="checkbox" name="null_owner" value="1">
+                {{ trans_choice('general.set_to_null', count($assets),['selection_count' => count($assets)]) }}
+              </label>
+            </div>
+          </div>
+
           <!-- Order Number -->
           <div class="form-group {{ $errors->has('order_number') ? ' has-error' : '' }}">
             <label for="order_number" class="col-md-3 control-label">
