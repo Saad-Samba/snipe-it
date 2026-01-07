@@ -7,6 +7,7 @@ use App\Models\Traits\Searchable;
 use App\Presenters\Presentable;
 use App\Presenters\ProjectPresenter;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Watson\Validating\ValidatingTrait;
 
 class Project extends SnipeModel
@@ -16,6 +17,7 @@ class Project extends SnipeModel
     use HasFactory;
     use Presentable;
     use Searchable;
+    use SoftDeletes;
     use UniqueUndeletedTrait;
     use ValidatingTrait;
 

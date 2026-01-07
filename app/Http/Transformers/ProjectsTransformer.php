@@ -37,7 +37,7 @@ class ProjectsTransformer
 
         $permissions_array['available_actions'] = [
             'update' => Gate::allows('update', Project::class),
-            'delete' => Gate::allows('delete', Project::class),
+            'delete' => Gate::allows('delete', $project),
         ];
 
         $array += $permissions_array;
