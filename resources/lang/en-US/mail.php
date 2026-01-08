@@ -106,6 +106,8 @@ return [
     'type' => 'Type',
     'upcoming-audits' => 'There is :count asset that is coming up for audit within :threshold days.|There are :count assets that are coming up for audit within :threshold days. ',
     'upcoming-audits_click' => 'This email may not contain the full list so as not to exceed email size limits. Click on the button below to view all assets due for audit.',
+    'upcoming-maintenances' => 'There is :count maintenance that is scheduled to start within :threshold days.|There are :count maintenances that are scheduled to start within :threshold days. ',
+    'upcoming-maintenance_click' => 'This email may not contain the full list so as not to exceed email size limits. Click on the button below to view all upcoming maintenances.',
     'user' => 'User',
     'username' => 'Username',
     'unaccepted_asset_reminder' => 'Reminder: You have Unaccepted Items',
