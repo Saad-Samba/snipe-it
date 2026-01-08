@@ -7,7 +7,7 @@ return [
     'bulk_update_warn'	=> 'You are about to edit the properties of :user_count users. Please note that you cannot change your own user attributes using this form, and must make edits to your own user individually.',
     'bulk_update_help'	=> 'This form allows you to update multiple users at once. Only fill in the fields you need to change. Any fields left blank will remain unchanged.',
     'current_assets'    => 'Assets currently checked out to this user',
-    'transfer_assets'   => 'Transfer assets',
+    'transfer_assets'   => 'Transfer Assets',
     'transfer_to_user'  => 'Transfer to',
     'transfer_assets_help' => 'Selected assets will be checked in from this user and immediately checked out to the chosen user.',
     'clone'             => 'Clone User',

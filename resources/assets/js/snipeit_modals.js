@@ -71,6 +71,7 @@ $(function () {
                             search: params.term,
                             page: params.page || 1,
                             assetStatusType: link.data("asset-status-type"),
+                            exclude_user_id: link.data("exclude-user-id"),
                         };
                         return data;
                     },

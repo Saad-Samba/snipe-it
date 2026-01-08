@@ -407,6 +407,10 @@ class UsersController extends Controller
             });
         }
 
+        if ($request->filled('exclude_user_id')) {
+            $users = $users->where('users.id', '!=', $request->input('exclude_user_id'));
+        }
+
         $users = $users->orderBy('display_name', 'asc')->orderBy('last_name', 'asc')->orderBy('first_name', 'asc');
         $users = $users->paginate(50);
 
