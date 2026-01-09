@@ -92,6 +92,22 @@ Route::group(['prefix' => 'users', 'middleware' => ['auth']], function () {
     )->name('users.email');
 
     Route::post(
+        '{user}/transfer-assets',
+        [
+            Users\AssetTransferController::class,
+            'store'
+        ]
+    )->name('users.transfer.assets');
+
+    Route::post(
+        '{user}/transfer-assets/all',
+        [
+            Users\AssetTransferController::class,
+            'store'
+        ]
+    )->name('users.transfer.assets.all');
+
+    Route::post(
         'bulkedit',
         [
             Users\BulkUsersController::class, 

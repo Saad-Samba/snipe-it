@@ -30,6 +30,7 @@ return array(
         'unsuspend' => 'User was successfully unsuspended.',
         'restored'  => 'User was successfully restored.',
         'import'    => 'Users imported successfully.',
+        'transfer'  => 'Asset transferred successfully.|:count assets transferred successfully.',
     ),
 
     'error' => array(
@@ -53,7 +54,11 @@ return array(
         'ldap_could_not_search' => 'Could not search the LDAP server. Please check your LDAP server configuration in the LDAP config file. <br>Error from LDAP Server:',
         'ldap_could_not_get_entries' => 'Could not get entries from the LDAP server. Please check your LDAP server configuration in the LDAP config file. <br>Error from LDAP Server:',
         'password_ldap' => 'The password for this account is managed by LDAP/Active Directory. Please contact your IT department to change your password. ',
-        'multi_company_items_assigned' => 'This user has items assigned that belong to a different company. Please check them in or edit their company.'
+        'multi_company_items_assigned' => 'This user has items assigned that belong to a different company. Please check them in or edit their company.',
+        'transfer_no_assets' => 'No assets were selected for transfer.',
+        'transfer_invalid_assets' => 'One or more selected assets are no longer assigned to this user.',
+        'transfer_same_user' => 'Please select a different user to receive these assets.',
+        'transfer_company_mismatch' => 'You can only transfer assets between users in your company while Full Multiple Companies Support is enabled.',
     ),
 
     'deletefile' => array(
