@@ -1190,7 +1190,11 @@
                     'exclude_user_id' => $user->id,
                     'hide_new' => 'true'
                   ])
-                  <p class="help-block">{{ trans('admin/users/general.transfer_assets_help') }}</p>
+                  <div class="row">
+                      <div class="col-md-7 col-md-offset-3">
+                          <p class="help-block">{{ trans('admin/users/general.transfer_assets_help') }}</p>
+                      </div>
+                  </div>
               </div>
               <div class="modal-footer">
                   <span class="text-muted pull-left hidden" id="transferAssetsInProgress">
