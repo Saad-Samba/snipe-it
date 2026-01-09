@@ -71,8 +71,11 @@ $(function () {
                             search: params.term,
                             page: params.page || 1,
                             assetStatusType: link.data("asset-status-type"),
-                            exclude_user_id: link.data("excludeUserId"),
                         };
+                        var excludeUserId = link.attr("data-exclude-user-id");
+                        if (excludeUserId) {
+                            data.exclude_user_id = excludeUserId;
+                        }
                         return data;
                     },
                     /*processResults: function (data, params) {
