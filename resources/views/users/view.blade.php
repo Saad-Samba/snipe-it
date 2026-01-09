@@ -1189,9 +1189,17 @@
                     'field_id' => 'transfer_target_user_select',
                     'hide_new' => 'true'
                   ])
-                  <p class="help-block">{{ trans('admin/users/general.transfer_assets_help') }}</p>
+                  <div class="row">
+                      <div class="col-md-7 col-md-offset-3">
+                          <p class="help-block">{{ trans('admin/users/general.transfer_assets_help') }}</p>
+                      </div>
+                  </div>
               </div>
               <div class="modal-footer">
+                  <span class="text-muted pull-left hidden" id="transferAssetsInProgress">
+                      <x-icon type="spinner" class="fa-spin" />
+                      {{ trans('general.processing') }}
+                  </span>
                   <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>
                   <button type="button" class="btn btn-primary" id="confirmTransferAssets">{{ trans('button.transfer_assets') }}</button>
               </div>
@@ -1243,6 +1251,7 @@ $(function () {
 
       $('#confirmTransferAssets').on('click', function () {
           var targetUserId = $('#transfer_target_user_select').val();
+          var inProgressIndicator = $('#transferAssetsInProgress');
 
           if (!targetUserId) {
               $('#transfer_target_user_container').addClass('has-error');
@@ -1250,23 +1259,28 @@ $(function () {
           }
 
           $('#transfer_target_user_container').removeClass('has-error');
+          inProgressIndicator.removeClass('hidden');
+          transferModal.find('[data-dismiss="modal"]').prop('disabled', true);
+          transferModal.find('.close').prop('disabled', true);
+          $('#confirmTransferAssets').prop('disabled', true);
           if (currentTransferForm && currentTransferForm.is(transferForm)) {
               transferTargetField.val(targetUserId);
               transferForm.attr('action', transferRoute);
               transferForm.data('submitting-transfer', true);
-              transferModal.modal('hide');
               transferForm.trigger('submit');
           } else if (currentTransferForm && currentTransferForm.is(transferAllForm)) {
               transferAllForm.find('input[name=\"transfer_target_user_id\"]').val(targetUserId);
-              transferModal.modal('hide');
               transferAllForm.trigger('submit');
           }
           currentTransferForm = null;
-          transferModal.modal('hide');
       });
 
       transferModal.on('hidden.bs.modal', function () {
           $('#transfer_target_user_container').removeClass('has-error');
+          $('#transferAssetsInProgress').addClass('hidden');
+          transferModal.find('[data-dismiss="modal"]').prop('disabled', false);
+          transferModal.find('.close').prop('disabled', false);
+          $('#confirmTransferAssets').prop('disabled', false);
           currentTransferForm = null;
       });
   }
