@@ -74,7 +74,7 @@ class BulkAssetsController extends Controller
         }
 
         if ($request->input('bulk_actions') === 'checkin') {
-            return $this->handleBulkCheckin($request, $asset_ids);
+            return $this->showBulkCheckinForm($request, $asset_ids);
         }
 
         // Figure out where we need to send the user after the update is complete, and store that in the session
@@ -580,7 +580,7 @@ class BulkAssetsController extends Controller
     {
         $this->authorize('checkin', Asset::class);
 
-        $bulk_back_url = $request->headers->get('referer', route('hardware.index'));
+        $bulk_back_url = $request->input('back_url', $request->headers->get('referer', route('hardware.index')));
 
         $assets = Asset::with(['assignedTo', 'licenseseats'])
             ->whereIn('id', $assetIds)
@@ -590,7 +590,14 @@ class BulkAssetsController extends Controller
             return redirect($bulk_back_url)->with('error', trans('admin/hardware/message.update.no_assets_selected'));
         }
 
-        $results = app(AssetCheckinService::class)->checkinAssets($assets, $request->user());
+        $results = app(AssetCheckinService::class)->checkinAssets(
+            $assets,
+            $request->user(),
+            [
+                'status_id' => $request->input('status_id'),
+                'note' => $request->input('note'),
+            ]
+        );
 
         if ($results['checked_in'] === 0) {
             $message = trans('admin/hardware/message.bulk_checkin.error');
@@ -633,6 +640,42 @@ class BulkAssetsController extends Controller
         }
 
         return redirect($bulk_back_url)->with('success', $message);
+    }
+
+    public function storeCheckin(Request $request) : RedirectResponse
+    {
+        $this->authorize('checkin', Asset::class);
+
+        $assetIds = $request->input('ids', []);
+
+        if (empty($assetIds)) {
+            return redirect()->back()->with('error', trans('admin/hardware/message.update.no_assets_selected'));
+        }
+
+        return $this->handleBulkCheckin($request, $assetIds);
+    }
+
+    protected function showBulkCheckinForm(Request $request, array $assetIds) : View | RedirectResponse
+    {
+        $this->authorize('checkin', Asset::class);
+
+        $assets = Asset::with('assignedTo')->whereIn('id', $assetIds)->get();
+
+        if ($assets->isEmpty()) {
+            return redirect()->back()->with('error', trans('admin/hardware/message.update.no_assets_selected'));
+        }
+
+        $assetTags = $assets->map(fn (Asset $asset) => $asset->asset_tag ?: $asset->id)->implode(', ');
+
+        $bulk_back_url = $request->headers->get('referer', route('hardware.index'));
+        session(['bulk_back_url' => $bulk_back_url]);
+
+        return view('hardware/bulk-checkin', [
+            'assets' => $assets,
+            'asset_tags' => $assetTags,
+            'statusLabel_list' => Helper::statusLabelList(),
+            'bulk_back_url' => $bulk_back_url,
+        ]);
     }
 
     /**

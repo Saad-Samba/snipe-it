@@ -245,13 +245,10 @@
                           {{ trans('admin/users/general.transfer_assets') }}
                       </button>
                       @can('checkin', \App\Models\Asset::class)
-                        <form action="{{ route('users.checkin.assets.all', $user) }}" method="POST">
-                          {{ csrf_field() }}
-                          <button class="btn btn-block btn-sm btn-primary btn-social hidden-print" id="checkinAllAssetsButton" style="margin-top:5px;">
-                              <x-icon type="checkin" />
-                              {{ trans('admin/users/general.bulk_checkin_assets') }}
-                          </button>
-                        </form>
+                        <a class="btn btn-block btn-sm btn-primary btn-social hidden-print" id="checkinAllAssetsButton" style="margin-top:5px;" href="{{ route('users.checkin.assets.form', $user) }}">
+                            <x-icon type="checkin" />
+                            {{ trans('admin/users/general.bulk_checkin_assets') }}
+                        </a>
                       @endcan
                     @endif
                   @elseif(!empty($user->email) && ($user->allAssignedCount() == '0'))

@@ -3,22 +3,55 @@
 namespace App\Http\Controllers\Users;
 
 use App\Http\Controllers\Controller;
+use App\Helpers\Helper;
 use App\Models\Asset;
 use App\Models\User;
 use App\Services\AssetCheckinService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Contracts\View\View;
 
 class AssetCheckinController extends Controller
 {
+    public function create(Request $request, User $user): View | RedirectResponse
+    {
+        $this->authorize('view', $user);
+        $this->authorize('checkin', Asset::class);
+
+        $assets = Asset::with('assignedTo')
+            ->where('assigned_type', User::class)
+            ->where('assigned_to', $user->id)
+            ->get();
+
+        if ($assets->isEmpty()) {
+            return redirect()->back()->with('error', trans('admin/users/message.user_has_no_assets_assigned'));
+        }
+
+        $assetTags = $assets->map(fn (Asset $asset) => $asset->asset_tag ?: $asset->id)->implode(', ');
+        $backUrl = $request->headers->get('referer', route('users.show', $user));
+
+        return view('users/bulk-checkin-assets', [
+            'user' => $user,
+            'assets' => $assets,
+            'asset_tags' => $assetTags,
+            'statusLabel_list' => Helper::statusLabelList(),
+            'back_url' => $backUrl,
+        ]);
+    }
+
     public function store(Request $request, User $user, AssetCheckinService $checkinService): RedirectResponse
     {
         $this->authorize('view', $user);
         $this->authorize('checkin', Asset::class);
 
-        $redirectUrl = $request->headers->get('referer', route('users.show', $user));
+        $redirectUrl = $request->input('back_url', $request->headers->get('referer', route('users.show', $user)));
+
+        $assetIds = $request->input('ids', []);
 
         $assets = Asset::with(['assignedTo', 'licenseseats'])
+            ->when(! empty($assetIds), function ($query) use ($assetIds) {
+                return $query->whereIn('id', $assetIds);
+            })
             ->where('assigned_type', User::class)
             ->where('assigned_to', $user->id)
             ->get();
@@ -27,7 +60,14 @@ class AssetCheckinController extends Controller
             return redirect()->to($redirectUrl)->with('error', trans('admin/users/message.user_has_no_assets_assigned'));
         }
 
-        $results = $checkinService->checkinAssets($assets, $request->user());
+        $results = $checkinService->checkinAssets(
+            $assets,
+            $request->user(),
+            [
+                'status_id' => $request->input('status_id'),
+                'note' => $request->input('note'),
+            ]
+        );
 
         if ($results['checked_in'] === 0) {
             $message = trans('admin/hardware/message.bulk_checkin.error');

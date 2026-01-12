@@ -107,6 +107,14 @@ Route::group(['prefix' => 'users', 'middleware' => ['auth']], function () {
         ]
     )->name('users.transfer.assets.all');
 
+    Route::get(
+        '{user}/checkin-assets',
+        [
+            Users\AssetCheckinController::class,
+            'create'
+        ]
+    )->name('users.checkin.assets.form');
+
     Route::post(
         '{user}/checkin-assets/all',
         [

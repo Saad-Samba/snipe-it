@@ -19,11 +19,13 @@ class AssetCheckinService
     /**
      * @return array{checked_in:int,already_checked_in:array,failures:array}
      */
-    public function checkinAssets(Collection $assets, User $actor): array
+    public function checkinAssets(Collection $assets, User $actor, array $options = []): array
     {
         $checkedIn = 0;
         $alreadyCheckedIn = [];
         $failures = [];
+        $statusId = $options['status_id'] ?? null;
+        $note = $options['note'] ?? null;
 
         foreach ($assets as $asset) {
             if (empty($asset->assigned_to) || empty($asset->assigned_type)) {
@@ -36,7 +38,7 @@ class AssetCheckinService
                 continue;
             }
 
-            DB::transaction(function () use ($asset, $actor, &$checkedIn, &$failures) {
+            DB::transaction(function () use ($asset, $actor, $note, $statusId, &$checkedIn, &$failures) {
                 $previousAssignee = $asset->assignedTo;
                 $originalValues = $asset->getRawOriginal();
                 $checkinAt = now();
@@ -48,6 +50,10 @@ class AssetCheckinService
                 $asset->assignedTo()->disassociate($asset);
                 $asset->accepted = null;
                 $asset->location_id = $asset->rtd_location_id;
+
+                if (! empty($statusId)) {
+                    $asset->status_id = $statusId;
+                }
 
                 $asset->licenseseats->each(function (LicenseSeat $seat) {
                     $seat->update(['assigned_to' => null]);
@@ -70,7 +76,7 @@ class AssetCheckinService
                     return;
                 }
 
-                event(new CheckoutableCheckedIn($asset, $previousAssignee, $actor, null, $checkinAt, $originalValues));
+                event(new CheckoutableCheckedIn($asset, $previousAssignee, $actor, $note, $checkinAt, $originalValues));
                 $checkedIn++;
             });
         }
