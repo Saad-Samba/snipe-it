@@ -9,7 +9,6 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Statuslabel;
 use App\Models\Setting;
-use App\Services\AssetCheckinService;
 use App\View\Label;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -582,57 +581,22 @@ class BulkAssetsController extends Controller
 
         $bulk_back_url = $request->headers->get('referer', route('hardware.index'));
 
-        $assets = Asset::with(['assignedTo', 'licenseseats'])
-            ->whereIn('id', $assetIds)
-            ->get();
+        $assetTags = Asset::whereIn('id', $assetIds)
+            ->pluck('asset_tag')
+            ->filter()
+            ->values()
+            ->all();
 
-        if ($assets->isEmpty()) {
+        if (empty($assetTags)) {
             return redirect($bulk_back_url)->with('error', trans('admin/hardware/message.update.no_assets_selected'));
         }
 
-        $results = app(AssetCheckinService::class)->checkinAssets($assets, $request->user());
+        session([
+            'bulk_checkin_asset_tags' => $assetTags,
+            'bulk_checkin_back_url' => $bulk_back_url,
+        ]);
 
-        if ($results['checked_in'] === 0) {
-            $message = trans('admin/hardware/message.bulk_checkin.error');
-
-            if (! empty($results['already_checked_in'])) {
-                $message .= ' ' . trans_choice(
-                    'admin/hardware/message.bulk_checkin.already_checked_in',
-                    count($results['already_checked_in']),
-                    ['asset_tags' => implode(', ', $results['already_checked_in'])]
-                );
-            }
-
-            if (! empty($results['failures'])) {
-                $message .= ' ' . trans_choice(
-                    'admin/hardware/message.bulk_checkin.failed',
-                    count($results['failures']),
-                    ['asset_tags' => implode(', ', $results['failures'])]
-                );
-            }
-
-            return redirect($bulk_back_url)->with('error', $message);
-        }
-
-        $message = trans_choice('admin/hardware/message.bulk_checkin.success', $results['checked_in'], ['count' => $results['checked_in']]);
-
-        if (! empty($results['already_checked_in'])) {
-            $message .= ' ' . trans_choice(
-                'admin/hardware/message.bulk_checkin.already_checked_in',
-                count($results['already_checked_in']),
-                ['asset_tags' => implode(', ', $results['already_checked_in'])]
-            );
-        }
-
-        if (! empty($results['failures'])) {
-            $message .= ' ' . trans_choice(
-                'admin/hardware/message.bulk_checkin.failed',
-                count($results['failures']),
-                ['asset_tags' => implode(', ', $results['failures'])]
-            );
-        }
-
-        return redirect($bulk_back_url)->with('success', $message);
+        return redirect()->route('hardware/quickscancheckin');
     }
 
     /**

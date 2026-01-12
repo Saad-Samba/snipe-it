@@ -5,42 +5,32 @@ namespace App\Http\Controllers\Users;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
 use App\Models\User;
-use App\Services\AssetCheckinService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class AssetCheckinController extends Controller
 {
-    public function store(Request $request, User $user, AssetCheckinService $checkinService): RedirectResponse
+    public function store(Request $request, User $user): RedirectResponse
     {
         $this->authorize('view', $user);
         $this->authorize('checkin', Asset::class);
 
-        $assets = Asset::with(['assignedTo', 'licenseseats'])
-            ->where('assigned_type', User::class)
+        $assetTags = Asset::where('assigned_type', User::class)
             ->where('assigned_to', $user->id)
-            ->get();
+            ->pluck('asset_tag')
+            ->filter()
+            ->values()
+            ->all();
 
-        if ($assets->isEmpty()) {
+        if (empty($assetTags)) {
             return redirect()->route('users.show', $user)->with('error', trans('admin/users/message.user_has_no_assets_assigned'));
         }
 
-        $results = $checkinService->checkinAssets($assets, $request->user());
+        session([
+            'bulk_checkin_asset_tags' => $assetTags,
+            'bulk_checkin_back_url' => route('users.show', $user),
+        ]);
 
-        if ($results['checked_in'] === 0) {
-            return redirect()->route('users.show', $user)->with('error', trans('admin/hardware/message.bulk_checkin.error'));
-        }
-
-        $message = trans_choice('admin/users/message.success.checkin', $results['checked_in'], ['count' => $results['checked_in']]);
-
-        if (! empty($results['failures'])) {
-            $message .= ' ' . trans_choice(
-                'admin/hardware/message.bulk_checkin.failed',
-                count($results['failures']),
-                ['asset_tags' => implode(', ', $results['failures'])]
-            );
-        }
-
-        return redirect()->route('users.show', $user)->with('success', $message);
+        return redirect()->route('hardware/quickscancheckin');
     }
 }

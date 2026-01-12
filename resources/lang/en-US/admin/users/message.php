@@ -31,7 +31,6 @@ return array(
         'restored'  => 'User was successfully restored.',
         'import'    => 'Users imported successfully.',
         'transfer'  => 'Asset transferred successfully.|:count assets transferred successfully.',
-        'checkin'   => 'Asset checked in successfully.|:count assets checked in successfully.',
     ),
 
     'error' => array(

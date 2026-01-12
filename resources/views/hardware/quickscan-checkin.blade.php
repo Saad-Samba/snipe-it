@@ -35,7 +35,6 @@
                         <div class="col-md-9">
                             <div class="input-group col-md-11 required">
                                 <input type="text" class="form-control" name="asset_tag" id="asset_tag" value="{{ old('asset_tag') }}" required>
-
                             </div>
                             {!! $errors->first('asset_tag', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
                         </div>
@@ -74,7 +73,7 @@
 
                 </div> <!--/.box-body-->
                 <div class="box-footer">
-                    <a class="btn btn-link" href="{{ route('hardware.index') }}"> {{ trans('button.cancel') }}</a>
+                    <a class="btn btn-link" href="{{ $bulk_back_url ?? route('hardware.index') }}"> {{ trans('button.cancel') }}</a>
                     <button type="submit" id="checkin_button" class="btn btn-success pull-right"><x-icon type="checkmark" /> {{ trans('general.checkin') }}</button>
                 </div>
 
@@ -124,17 +123,63 @@
 
 @section('moar_scripts')
     <script nonce="{{ csrf_token() }}">
+        const bulkAssetTags = @json($bulk_asset_tags ?? []);
+        let bulkInProgress = false;
+
+        if (bulkAssetTags.length > 0) {
+            $('#asset_tag').prop('required', false).prop('disabled', true);
+        }
 
         $("#checkin-form").submit(function (event) {
+            event.preventDefault();
+
+            if (bulkInProgress) {
+                return false;
+            }
+
             $('#checkedin-div').show();
             $('#checkin-loader').show();
 
-            event.preventDefault();
+            bulkInProgress = true;
 
-            var form = $("#checkin-form").get(0);
-            var formData = $('#checkin-form').serializeArray();
+            if (bulkAssetTags.length > 0) {
+                processBulkCheckins(bulkAssetTags.slice());
+                return false;
+            }
 
-            $.ajax({
+            processSingleCheckin($('#asset_tag').val()).always(function () {
+                bulkInProgress = false;
+                $('#checkin-loader').hide();
+            });
+
+            return false;
+        });
+
+        function processBulkCheckins(tags) {
+            if (tags.length === 0) {
+                bulkInProgress = false;
+                $('#checkin-loader').hide();
+                return;
+            }
+
+            processSingleCheckin(tags.shift()).always(function () {
+                processBulkCheckins(tags);
+            });
+        }
+
+        function processSingleCheckin(assetTag) {
+            if (!assetTag) {
+                bulkInProgress = false;
+                $('#checkin-loader').hide();
+                return $.Deferred().resolve().promise();
+            }
+
+            const formData = $('#checkin-form').serializeArray().filter(function (item) {
+                return item.name !== 'asset_tag';
+            });
+            formData.push({ name: 'asset_tag', value: assetTag });
+
+            return $.ajax({
                 url: "{{ route('api.asset.checkinbytag') }}",
                 type : 'POST',
                 headers: {
@@ -160,15 +205,10 @@
                 },
                 error: function (data) {
                     handlecheckinFail(data);
-                },
-                complete: function() {
-                    $('#checkin-loader').hide();
                 }
 
             });
-
-            return false;
-        });
+        }
 
         function handlecheckinFail (data) {
 

@@ -930,7 +930,13 @@ class AssetsController extends Controller
     {
         $this->authorize('checkin', Asset::class);
 
-        return view('hardware/quickscan-checkin')->with('statusLabel_list', Helper::statusLabelList());
+        $bulkAssetTags = session()->pull('bulk_checkin_asset_tags', []);
+        $bulkBackUrl = session()->pull('bulk_checkin_back_url', route('hardware.index'));
+
+        return view('hardware/quickscan-checkin')
+            ->with('statusLabel_list', Helper::statusLabelList())
+            ->with('bulk_asset_tags', $bulkAssetTags)
+            ->with('bulk_back_url', $bulkBackUrl);
     }
 
 
