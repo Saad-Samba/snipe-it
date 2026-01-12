@@ -15,11 +15,17 @@
             padding-left: 0px !important;
         }
 
-        .quickscan-hidden-input {
-            left: -9999px;
+        .quickscan-input-group {
+            position: relative;
+        }
+
+        .quickscan-input-overlay {
+            height: 100%;
+            left: 0;
             opacity: 0;
             position: absolute;
-            width: 1px;
+            top: 0;
+            width: 100%;
         }
 
         .quickscan-tag-display {
@@ -44,9 +50,9 @@
                     <div class="form-group {{ $errors->has('asset_tag') ? 'error' : '' }}">
                         <label for="asset_tag_display" class="col-md-3 control-label" id="checkin_tag">{{ trans('general.asset_tag') }}</label>
                         <div class="col-md-9">
-                            <div class="input-group col-md-11 required">
+                            <div class="input-group col-md-11 required quickscan-input-group">
                                 <input type="text" class="form-control quickscan-tag-display" id="asset_tag_display" value="" readonly>
-                                <input type="text" class="form-control quickscan-hidden-input" name="asset_tag" id="asset_tag_input" value="{{ old('asset_tag') }}" required autocomplete="off">
+                                <input type="text" class="form-control quickscan-input-overlay" name="asset_tag" id="asset_tag_input" value="{{ old('asset_tag') }}" required autocomplete="off">
 
                             </div>
                             {!! $errors->first('asset_tag', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
