@@ -14,12 +14,23 @@
         .input-group {
             padding-left: 0px !important;
         }
+
+        .quickscan-tag-display {
+            background-color: #f0f0f0;
+        }
+
+        .quickscan-hidden-input {
+            left: -9999px;
+            opacity: 0;
+            position: absolute;
+            width: 1px;
+        }
     </style>
 
 
 
     <div class="row">
-    <form method="POST" action="{{ route('hardware/quickscancheckin') }}" accept-charset="UTF-8" class="form-horizontal" role="form" id="checkin-form">
+    <form method="POST" action="{{ $form_action ?? route('hardware/quickscancheckin') }}" accept-charset="UTF-8" class="form-horizontal" role="form" id="checkin-form">
         <!-- left column -->
         <div class="col-md-6">
             <div class="box box-default">
@@ -28,13 +39,24 @@
                 </div>
                 <div class="box-body">
                     {{csrf_field()}}
+                    @if (!empty($bulk_checkin))
+                        <input type="hidden" name="back_url" value="{{ $bulk_back_url }}">
+                        @foreach ($assets as $asset)
+                            <input type="hidden" name="ids[]" value="{{ $asset->id }}">
+                        @endforeach
+                    @endif
 
                     <!-- Asset Tag -->
                     <div class="form-group {{ $errors->has('asset_tag') ? 'error' : '' }}">
-                        <label for="asset_tag" class="col-md-3 control-label" id="checkin_tag">{{ trans('general.asset_tag') }}</label>
+                        <label for="asset_tag_display" class="col-md-3 control-label" id="checkin_tag">{{ trans('general.asset_tag') }}</label>
                         <div class="col-md-9">
                             <div class="input-group col-md-11 required">
-                                <input type="text" class="form-control" name="asset_tag" id="asset_tag" value="{{ old('asset_tag') }}" required>
+                                @if (!empty($bulk_checkin))
+                                    <textarea class="form-control quickscan-tag-display" id="asset_tag_display" rows="3" readonly>{{ $asset_tags }}</textarea>
+                                @else
+                                    <input type="text" class="form-control quickscan-tag-display" id="asset_tag_display" value="" readonly>
+                                    <input type="text" class="form-control quickscan-hidden-input" name="asset_tag" id="asset_tag_input" value="{{ old('asset_tag') }}" required autocomplete="off">
+                                @endif
 
                             </div>
                             {!! $errors->first('asset_tag', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -74,7 +96,7 @@
 
                 </div> <!--/.box-body-->
                 <div class="box-footer">
-                    <a class="btn btn-link" href="{{ route('hardware.index') }}"> {{ trans('button.cancel') }}</a>
+                    <a class="btn btn-link" href="{{ $bulk_back_url ?? route('hardware.index') }}"> {{ trans('button.cancel') }}</a>
                     <button type="submit" id="checkin_button" class="btn btn-success pull-right"><x-icon type="checkmark" /> {{ trans('general.checkin') }}</button>
                 </div>
 
@@ -87,6 +109,7 @@
             </form>
         </div> <!--/.col-md-6-->
 
+        @if (empty($bulk_checkin))
         <div class="col-md-6">
             <div class="box box-default" id="checkedin-div" style="display: none">
                 <div class="box-header with-border">
@@ -115,6 +138,7 @@
                 </div>
             </div>
         </div>
+        @endif
 
     </div>
 
@@ -123,7 +147,9 @@
 
 
 @section('moar_scripts')
+    @if (empty($bulk_checkin))
     <script nonce="{{ csrf_token() }}">
+        var lastSubmittedTag = '';
 
         $("#checkin-form").submit(function (event) {
             $('#checkedin-div').show();
@@ -133,6 +159,7 @@
 
             var form = $("#checkin-form").get(0);
             var formData = $('#checkin-form').serializeArray();
+            lastSubmittedTag = $('#asset_tag_input').val();
 
             $.ajax({
                 url: "{{ route('api.asset.checkinbytag') }}",
@@ -146,6 +173,7 @@
                 success : function (data) {
                     if (data.status == 'success') {
                         $('#checkedin tbody').prepend("<tr class='success'><td>" + data.payload.asset_tag + "</td><td>" + data.payload.model + "</td><td>" + data.payload.model_number + "</td><td>" + data.messages + "</td><td><i class='fas fa-check text-success'></i></td></tr>");
+                        appendAssetTag(data.payload.asset_tag || lastSubmittedTag);
 
                         @if ($user?->enable_sounds)
                         var audio = new Audio('{{ config('app.url') }}/sounds/success.mp3');
@@ -156,7 +184,7 @@
                     } else {
                         handlecheckinFail(data);
                     }
-                    $('input#asset_tag').val('');
+                    $('#asset_tag_input').val('');
                 },
                 error: function (data) {
                     handlecheckinFail(data);
@@ -182,7 +210,7 @@
                 var model = data.payload.model;
                 var model_number = data.payload.model_number;
             } else {
-                var asset_tag = '';
+                var asset_tag = lastSubmittedTag || '';
                 var model = '';
                 var model_number = '';
             }
@@ -192,6 +220,7 @@
                 var messages = '';
             }
             $('#checkedin tbody').prepend("<tr class='danger'><td>" + asset_tag + "</td><td>" + model + "</td><td>" + model_number + "</td><td>" + messages + "</td><td><i class='fas fa-times text-danger'></i></td></tr>");
+            appendAssetTag(asset_tag);
         }
 
         function incrementOnSuccess() {
@@ -200,7 +229,18 @@
             $('#checkin-counter').html(y);
         }
 
-        $("#checkin_tag").focus();
+        function appendAssetTag(tag) {
+            if (!tag) {
+                return;
+            }
+
+            var displayField = $('#asset_tag_display');
+            var currentTags = displayField.val().trim();
+            displayField.val(currentTags ? currentTags + ', ' + tag : tag);
+        }
+
+        $("#asset_tag_input").focus();
 
     </script>
+    @endif
 @stop
