@@ -7,12 +7,12 @@
 | {{ trans('general.name') }} | {{ trans('admin/maintenances/form.start_date') }} | {{ trans('admin/hardware/form.tag') }} | {{ trans('admin/maintenances/table.asset_name') }} | {{ trans('general.supplier') }} |
 | :--- | :--- | :--- | :--- | :--- |
 @foreach ($maintenances as $maintenance)
-| {{ $maintenance->name }} | {{ \App\Helpers\Helper::getFormattedDateObject($maintenance->start_date, 'date', false) }} | {{ $maintenance->asset?->asset_tag }} | {{ $maintenance->asset?->name }} | {{ $maintenance->supplier?->name }} |
+| {{ $maintenance->name }} | {{ \App\Helpers\Helper::getFormattedDateObject($maintenance->start_date, 'date', false) }} | @if ($maintenance->asset) <a href="{{ route('hardware.show', $maintenance->asset->id) }}#maintenances">{{ $maintenance->asset->asset_tag }}</a> @endif | {{ $maintenance->asset?->name }} | {{ $maintenance->supplier?->name }} |
 @endforeach
 @endcomponent
 
 @component('mail::button', ['url' => route('maintenances.index')])
-{{ trans('general.maintenance') }}
+All Maintenances
 @endcomponent
 
 @endcomponent
