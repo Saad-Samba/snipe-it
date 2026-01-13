@@ -26,6 +26,8 @@ class AssetCheckinService
         $failures = [];
         $statusId = $options['status_id'] ?? null;
         $note = $options['note'] ?? null;
+        $locationId = $options['location_id'] ?? null;
+        $updateDefaultLocation = $options['update_default_location'] ?? null;
 
         foreach ($assets as $asset) {
             if (empty($asset->assigned_to) || empty($asset->assigned_type)) {
@@ -38,7 +40,7 @@ class AssetCheckinService
                 continue;
             }
 
-            DB::transaction(function () use ($asset, $actor, $note, $statusId, &$checkedIn, &$failures) {
+            DB::transaction(function () use ($asset, $actor, $note, $statusId, $locationId, $updateDefaultLocation, &$checkedIn, &$failures) {
                 $previousAssignee = $asset->assignedTo;
                 $originalValues = $asset->getRawOriginal();
                 $checkinAt = now();
@@ -53,6 +55,14 @@ class AssetCheckinService
 
                 if (! empty($statusId)) {
                     $asset->status_id = $statusId;
+                }
+
+                if (! empty($locationId)) {
+                    $asset->location_id = $locationId;
+
+                    if ((string) $updateDefaultLocation === '0') {
+                        $asset->rtd_location_id = $locationId;
+                    }
                 }
 
                 $asset->licenseseats->each(function (LicenseSeat $seat) {

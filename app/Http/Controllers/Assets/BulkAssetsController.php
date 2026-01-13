@@ -596,6 +596,8 @@ class BulkAssetsController extends Controller
             [
                 'status_id' => $request->input('status_id'),
                 'note' => $request->input('note'),
+                'location_id' => $request->input('location_id'),
+                'update_default_location' => $request->input('update_default_location'),
             ]
         );
 
@@ -659,24 +661,29 @@ class BulkAssetsController extends Controller
     {
         $this->authorize('checkin', Asset::class);
 
-        $assets = Asset::with('assignedTo')->whereIn('id', $assetIds)->get();
+        $assets = Asset::with(['assignedTo', 'defaultLoc'])->whereIn('id', $assetIds)->get();
 
         if ($assets->isEmpty()) {
             return redirect()->back()->with('error', trans('admin/hardware/message.update.no_assets_selected'));
         }
 
         $assetTags = $assets->map(fn (Asset $asset) => $asset->asset_tag ?: $asset->id)->implode(', ');
+        $defaultLocationName = null;
+        $defaultLocationIds = $assets->pluck('rtd_location_id')->filter()->unique();
+        if ($defaultLocationIds->count() === 1) {
+            $defaultLocationName = $assets->first()?->defaultLoc?->name;
+        }
 
         $bulk_back_url = $request->headers->get('referer', route('hardware.index'));
         session(['bulk_back_url' => $bulk_back_url]);
 
-        return view('hardware/quickscan-checkin', [
+        return view('hardware/bulk-checkin', [
             'assets' => $assets,
             'asset_tags' => $assetTags,
             'statusLabel_list' => Helper::statusLabelList(),
             'bulk_back_url' => $bulk_back_url,
-            'bulk_checkin' => true,
             'form_action' => route('hardware.bulkcheckin.store'),
+            'default_location_name' => $defaultLocationName,
         ]);
     }
 

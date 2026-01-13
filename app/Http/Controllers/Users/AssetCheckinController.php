@@ -18,7 +18,7 @@ class AssetCheckinController extends Controller
         $this->authorize('view', $user);
         $this->authorize('checkin', Asset::class);
 
-        $assets = Asset::with('assignedTo')
+        $assets = Asset::with(['assignedTo', 'defaultLoc'])
             ->where('assigned_type', User::class)
             ->where('assigned_to', $user->id)
             ->get();
@@ -28,16 +28,21 @@ class AssetCheckinController extends Controller
         }
 
         $assetTags = $assets->map(fn (Asset $asset) => $asset->asset_tag ?: $asset->id)->implode(', ');
+        $defaultLocationName = null;
+        $defaultLocationIds = $assets->pluck('rtd_location_id')->filter()->unique();
+        if ($defaultLocationIds->count() === 1) {
+            $defaultLocationName = $assets->first()?->defaultLoc?->name;
+        }
         $backUrl = $request->headers->get('referer', route('users.show', $user));
 
-        return view('hardware/quickscan-checkin', [
+        return view('hardware/bulk-checkin', [
             'user' => $user,
             'assets' => $assets,
             'asset_tags' => $assetTags,
             'statusLabel_list' => Helper::statusLabelList(),
             'bulk_back_url' => $backUrl,
-            'bulk_checkin' => true,
             'form_action' => route('users.checkin.assets.all', $user),
+            'default_location_name' => $defaultLocationName,
         ]);
     }
 
@@ -68,6 +73,8 @@ class AssetCheckinController extends Controller
             [
                 'status_id' => $request->input('status_id'),
                 'note' => $request->input('note'),
+                'location_id' => $request->input('location_id'),
+                'update_default_location' => $request->input('update_default_location'),
             ]
         );
 

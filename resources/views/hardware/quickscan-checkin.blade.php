@@ -30,7 +30,7 @@
 
 
     <div class="row">
-    <form method="POST" action="{{ $form_action ?? route('hardware/quickscancheckin') }}" accept-charset="UTF-8" class="form-horizontal" role="form" id="checkin-form">
+    <form method="POST" action="{{ route('hardware/quickscancheckin') }}" accept-charset="UTF-8" class="form-horizontal" role="form" id="checkin-form">
         <!-- left column -->
         <div class="col-md-6">
             <div class="box box-default">
@@ -39,24 +39,14 @@
                 </div>
                 <div class="box-body">
                     {{csrf_field()}}
-                    @if (!empty($bulk_checkin))
-                        <input type="hidden" name="back_url" value="{{ $bulk_back_url }}">
-                        @foreach ($assets as $asset)
-                            <input type="hidden" name="ids[]" value="{{ $asset->id }}">
-                        @endforeach
-                    @endif
 
                     <!-- Asset Tag -->
                     <div class="form-group {{ $errors->has('asset_tag') ? 'error' : '' }}">
                         <label for="asset_tag_display" class="col-md-3 control-label" id="checkin_tag">{{ trans('general.asset_tag') }}</label>
                         <div class="col-md-9">
                             <div class="input-group col-md-11 required">
-                                @if (!empty($bulk_checkin))
-                                    <textarea class="form-control quickscan-tag-display" id="asset_tag_display" rows="3" readonly>{{ $asset_tags }}</textarea>
-                                @else
-                                    <input type="text" class="form-control quickscan-tag-display" id="asset_tag_display" value="" readonly>
-                                    <input type="text" class="form-control quickscan-hidden-input" name="asset_tag" id="asset_tag_input" value="{{ old('asset_tag') }}" required autocomplete="off">
-                                @endif
+                                <input type="text" class="form-control quickscan-tag-display" id="asset_tag_display" value="" readonly>
+                                <input type="text" class="form-control quickscan-hidden-input" name="asset_tag" id="asset_tag_input" value="{{ old('asset_tag') }}" required autocomplete="off">
 
                             </div>
                             {!! $errors->first('asset_tag', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -96,7 +86,7 @@
 
                 </div> <!--/.box-body-->
                 <div class="box-footer">
-                    <a class="btn btn-link" href="{{ $bulk_back_url ?? route('hardware.index') }}"> {{ trans('button.cancel') }}</a>
+                    <a class="btn btn-link" href="{{ route('hardware.index') }}"> {{ trans('button.cancel') }}</a>
                     <button type="submit" id="checkin_button" class="btn btn-success pull-right"><x-icon type="checkmark" /> {{ trans('general.checkin') }}</button>
                 </div>
 
@@ -109,7 +99,6 @@
             </form>
         </div> <!--/.col-md-6-->
 
-        @if (empty($bulk_checkin))
         <div class="col-md-6">
             <div class="box box-default" id="checkedin-div" style="display: none">
                 <div class="box-header with-border">
@@ -138,7 +127,6 @@
                 </div>
             </div>
         </div>
-        @endif
 
     </div>
 
@@ -147,7 +135,6 @@
 
 
 @section('moar_scripts')
-    @if (empty($bulk_checkin))
     <script nonce="{{ csrf_token() }}">
         var lastSubmittedTag = '';
 
@@ -242,5 +229,4 @@
         $("#asset_tag_input").focus();
 
     </script>
-    @endif
 @stop
