@@ -166,6 +166,7 @@ class AssetsController extends Controller
             $asset->rtd_location_id         = request('rtd_location_id', null);
             $asset->byod                    = request('byod', 0);
             $asset->owner_id                = $request->filled('owner_id') ? $request->input('owner_id') : null;
+            $asset->discipline_id           = request('discipline_id', null);
 
             if (! empty($settings->audit_interval)) {
                 $asset->next_audit_date = Carbon::now()->addMonths((int) $settings->audit_interval)->toDateString();
@@ -389,6 +390,7 @@ class AssetsController extends Controller
         $asset->requestable = $request->input('requestable', 0);
         $asset->rtd_location_id = $request->input('rtd_location_id', null);
         $asset->byod = $request->input('byod', 0);
+        $asset->discipline_id = $request->input('discipline_id', null);
 
         $status = Statuslabel::find($request->input('status_id'));
 

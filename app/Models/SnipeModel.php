@@ -166,6 +166,14 @@ class SnipeModel extends Model
         $this->attributes['department_id'] = $value;
     }
 
+    public function setDisciplineIdAttribute($value)
+    {
+        if ($value == '') {
+            $value = null;
+        }
+        $this->attributes['discipline_id'] = $value;
+    }
+
     public function setManagerIdAttribute($value)
     {
         if ($value == '') {

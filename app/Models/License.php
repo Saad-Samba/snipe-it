@@ -44,6 +44,7 @@ class License extends Depreciable
         'termination_date' => 'date',
         'category_id'  => 'integer',
         'company_id'   => 'integer',
+        'discipline_id' => 'integer',
     ];
 
     protected $rules = [
@@ -53,6 +54,7 @@ class License extends Depreciable
         'license_name'   => 'string|nullable|max:100',
         'notes'   => 'string|nullable',
         'category_id' => 'required|exists:categories,id',
+        'discipline_id' => 'nullable|exists:disciplines,id',
         'company_id' => 'integer|nullable',
         'purchase_cost'     =>  'numeric|nullable|gte:0|max:99999999999999999.99',
         'purchase_date'   => 'date_format:Y-m-d|nullable|max:10|required_with:depreciation_id',
@@ -75,6 +77,7 @@ class License extends Depreciable
         'maintained',
         'manufacturer_id',
         'category_id',
+        'discipline_id',
         'name',
         'notes',
         'order_number',
@@ -117,6 +120,7 @@ class License extends Depreciable
         'manufacturer' => ['name'],
         'company'      => ['name'],
         'category'     => ['name'],
+        'discipline'   => ['name'],
         'depreciation' => ['name'],
         'supplier'     => ['name'],
     ];
@@ -388,6 +392,18 @@ class License extends Depreciable
     public function category()
     {
         return $this->belongsTo(\App\Models\Category::class, 'category_id');
+    }
+
+    /**
+     * Establishes the license -> discipline relationship
+     *
+     * @author A. Gianotto <snipe@snipe.net>
+     * @since  [v8.0]
+     * @return \Illuminate\Database\Eloquent\Relations\Relation
+     */
+    public function discipline()
+    {
+        return $this->belongsTo(\App\Models\Discipline::class, 'discipline_id');
     }
 
     /**

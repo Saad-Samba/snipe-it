@@ -1,0 +1,83 @@
+<?php
+
+namespace App\Presenters;
+
+class DisciplinePresenter extends Presenter
+{
+    public static function dataTableLayout()
+    {
+        $layout = [
+            [
+                'field' => 'id',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.id'),
+                'visible' => false,
+            ],
+            [
+                'field' => 'name',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => false,
+                'title' => trans('general.name'),
+                'visible' => true,
+                'formatter' => 'disciplinesLinkFormatter',
+            ],
+            [
+                'field' => 'assets_count',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.assets'),
+                'visible' => true,
+            ],
+            [
+                'field' => 'licenses_count',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.licenses'),
+                'visible' => true,
+            ],
+            [
+                'field' => 'created_at',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.created_at'),
+                'visible' => false,
+                'formatter' => 'dateDisplayFormatter',
+            ],
+            [
+                'field' => 'created_by',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.created_by'),
+                'visible' => false,
+                'formatter' => 'usersLinkObjFormatter',
+            ],
+            [
+                'field' => 'actions',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => false,
+                'title' => trans('table.actions'),
+                'visible' => true,
+                'formatter' => 'disciplinesActionsFormatter',
+            ],
+        ];
+
+        return json_encode($layout);
+    }
+
+    public function formattedNameLink()
+    {
+        if (auth()->user()->can('view', ['\App\Models\Discipline', $this])) {
+            return '<a href="'.route('disciplines.show', e($this->id)).'">'.e($this->name).'</a>';
+        }
+
+        return $this->name;
+    }
+}

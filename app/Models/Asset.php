@@ -99,6 +99,7 @@ class Asset extends Depreciable
         'updated_at'   => 'datetime',
         'deleted_at'  => 'datetime',
         'owner_id'       => 'integer',
+        'discipline_id'  => 'integer',
     ];
 
     protected $rules = [
@@ -131,6 +132,7 @@ class Asset extends Depreciable
         'assigned_location' => ['integer', 'nullable', 'exists:locations,id,deleted_at,NULL', 'fmcs_location'],
         'assigned_asset'    => ['integer', 'nullable', 'exists:assets,id,deleted_at,NULL'],
         'owner_id'          => ['nullable', 'integer', 'exists:users,id,deleted_at,NULL'],
+        'discipline_id'     => ['nullable', 'integer', 'exists:disciplines,id'],
     ];
 
 
@@ -168,6 +170,7 @@ class Asset extends Depreciable
         'last_checkin',
         'last_checkout',
         'owner_id',
+        'discipline_id',
     ];
 
     use Searchable;
@@ -210,6 +213,7 @@ class Asset extends Depreciable
         'model.category'     => ['name'],
         'model.manufacturer' => ['name'],
         'owner'              => ['first_name', 'last_name', 'username', 'employee_num'],
+        'discipline'         => ['name'],
     ];
 
     protected static function booted(): void
@@ -924,6 +928,11 @@ class Asset extends Depreciable
     public function owner()
     {
         return $this->belongsTo(\App\Models\User::class, 'owner_id')->withTrashed();
+    }
+
+    public function discipline()
+    {
+        return $this->belongsTo(\App\Models\Discipline::class, 'discipline_id');
     }
 
 

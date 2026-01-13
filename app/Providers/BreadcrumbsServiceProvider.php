@@ -12,6 +12,7 @@ use App\Models\CustomField;
 use App\Models\CustomFieldset;
 use App\Models\Department;
 use App\Models\Depreciation;
+use App\Models\Discipline;
 use App\Models\Group;
 use App\Models\License;
 use App\Models\LicenseSeat;
@@ -296,6 +297,29 @@ class BreadcrumbsServiceProvider extends ServiceProvider
         Breadcrumbs::for('departments.edit', fn (Trail $trail, Department $department) =>
         $trail->parent('departments.index', route('departments.index'))
             ->push(trans('general.breadcrumb_button_actions.edit_item', ['name' => $department->name]), route('departments.edit', $department))
+        );
+
+        /**
+         * Discipline Breadcrumbs
+         */
+        Breadcrumbs::for('disciplines.index', fn (Trail $trail) =>
+        $trail->parent('home', route('home'))
+            ->push(trans('general.disciplines'), route('disciplines.index'))
+        );
+
+        Breadcrumbs::for('disciplines.create', fn (Trail $trail) =>
+        $trail->parent('disciplines.index', route('disciplines.index'))
+            ->push(trans('general.create'), route('disciplines.create'))
+        );
+
+        Breadcrumbs::for('disciplines.show', fn (Trail $trail, Discipline $discipline) =>
+        $trail->parent('disciplines.index', route('disciplines.index'))
+            ->push($discipline->name, route('disciplines.show', $discipline))
+        );
+
+        Breadcrumbs::for('disciplines.edit', fn (Trail $trail, Discipline $discipline) =>
+        $trail->parent('disciplines.index', route('disciplines.index'))
+            ->push(trans('general.breadcrumb_button_actions.edit_item', ['name' => $discipline->name]), route('disciplines.edit', $discipline))
         );
 
 

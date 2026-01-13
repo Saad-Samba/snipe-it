@@ -76,6 +76,10 @@ class LicensesController extends Controller
             $licenses->where('category_id', '=', $request->input('category_id'));
         }
 
+        if ($request->filled('discipline_id')) {
+            $licenses->where('discipline_id', '=', $request->input('discipline_id'));
+        }
+
         if ($request->filled('depreciation_id')) {
             $licenses->where('depreciation_id', '=', $request->input('depreciation_id'));
         }

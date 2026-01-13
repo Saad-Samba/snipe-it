@@ -98,6 +98,7 @@ class LicensesController extends Controller
         $license->serial            = $request->input('serial');
         $license->supplier_id       = $request->input('supplier_id');
         $license->category_id       = $request->input('category_id');
+        $license->discipline_id     = $request->input('discipline_id');
         $license->termination_date  = $request->input('termination_date');
         $license->created_by           = auth()->id();
         $license->min_amt           = $request->input('min_amt');
@@ -181,6 +182,7 @@ class LicensesController extends Controller
         $license->manufacturer_id   =  $request->input('manufacturer_id');
         $license->supplier_id       = $request->input('supplier_id');
         $license->category_id       = $request->input('category_id');
+        $license->discipline_id     = $request->input('discipline_id');
         $license->min_amt           = $request->input('min_amt');
 
         session()->put(['redirect_option' => $request->get('redirect_option')]);

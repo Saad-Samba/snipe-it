@@ -600,6 +600,26 @@
     });
     @endcan
 
+    @can('create', \App\Models\Discipline::class)
+    // Discipline table buttons
+    window.disciplineButtons = () => ({
+        btnAdd: {
+            text: '{{ trans('general.create') }}',
+            icon: 'fa fa-plus',
+            event () {
+                window.location.href = '{{ route('disciplines.create') }}';
+            },
+            attributes: {
+                class: 'btn-info',
+                title: '{{ trans('general.create') }}',
+                @if ($snipeSettings->shortcuts_enabled == 1)
+                accesskey: 'n'
+                @endif
+            }
+        },
+    });
+    @endcan
+
     @can('create', \App\Models\Department::class)
     // Custom Field table buttons
     window.departmentButtons = () => ({
@@ -1278,6 +1298,7 @@
         'components',
         'consumables',
         'departments',
+        'disciplines',
         'depreciations',
         'fieldsets',
         'groups',

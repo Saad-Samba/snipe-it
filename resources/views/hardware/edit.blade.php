@@ -61,6 +61,7 @@
     </div>
 
     @include ('partials.forms.edit.model-select', ['translated_name' => trans('admin/hardware/form.model'), 'fieldname' => 'model_id', 'field_req' => true])
+    @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id'])
 
 
     @include ('partials.forms.edit.status', [ 'required' => 'true'])

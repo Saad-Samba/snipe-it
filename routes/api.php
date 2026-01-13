@@ -221,6 +221,34 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
         ]
     ); // end departments API routes
 
+     /**
+      * Disciplines API routes
+      */
+      Route::group(['prefix' => 'disciplines'], function () {
+
+        Route::get('selectlist',
+            [
+                Api\DisciplinesController::class,
+                'selectlist'
+            ]
+        )->name('api.disciplines.selectlist');
+
+      });
+
+      Route::resource('disciplines',
+        Api\DisciplinesController::class,
+        ['names' => [
+                'index' => 'api.disciplines.index',
+                'show' => 'api.disciplines.show',
+                'update' => 'api.disciplines.update',
+                'store' => 'api.disciplines.store',
+                'destroy' => 'api.disciplines.destroy',
+            ],
+        'except' => ['create', 'edit'],
+        'parameters' => ['discipline' => 'discipline_id'],
+        ]
+    ); // end disciplines API routes
+
 
       /**
       * Components API routes
