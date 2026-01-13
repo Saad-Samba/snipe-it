@@ -56,6 +56,8 @@
                             </div>
                         </div>
 
+                        @include ('partials.forms.edit.location-select', ['translated_name' => trans('general.location'), 'fieldname' => 'location_id'])
+
                         <div class="form-group {{ $errors->has('note') ? 'error' : '' }}">
                             <label for="note" class="col-md-3 control-label">{{ trans('admin/hardware/form.notes') }}</label>
                             <div class="col-md-8">

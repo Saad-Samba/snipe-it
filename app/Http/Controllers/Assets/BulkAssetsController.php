@@ -596,6 +596,7 @@ class BulkAssetsController extends Controller
             [
                 'status_id' => $request->input('status_id'),
                 'note' => $request->input('note'),
+                'location_id' => $request->input('location_id'),
             ]
         );
 
