@@ -25,7 +25,7 @@ class LicensesController extends Controller
     {
         $this->authorize('view', License::class);
 
-        $licenses = License::with('company', 'manufacturer', 'supplier','category', 'adminuser', 'project')->withCount('freeSeats as free_seats_count');
+        $licenses = License::with('company', 'manufacturer', 'supplier','category', 'adminuser', 'project', 'discipline')->withCount('freeSeats as free_seats_count');
         $settings = Setting::getSettings();
 
         if ($request->input('status')=='inactive') {

@@ -132,6 +132,7 @@ class AssetsController extends Controller
             'assigned_to',
             'created_by',
             'owner',
+            'discipline',
 
         ];
 
@@ -163,6 +164,7 @@ class AssetsController extends Controller
                 'adminuser',
                 'owner',
                 'project',
+                'discipline',
                 'model.depreciation',
                 'model.category',
                 'model.manufacturer',
