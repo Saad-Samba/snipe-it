@@ -13,6 +13,7 @@ use App\Http\Controllers\CompaniesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentsController;
 use App\Http\Controllers\DepreciationsController;
+use App\Http\Controllers\DisciplinesController;
 use App\Http\Controllers\GroupsController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LabelsController;
@@ -105,6 +106,11 @@ Route::group(['middleware' => 'auth'], function () {
     * Projects
     */
     Route::resource('projects', ProjectsController::class);
+
+    /*
+    * Disciplines
+    */
+    Route::resource('disciplines', DisciplinesController::class);
 });
 
 /*

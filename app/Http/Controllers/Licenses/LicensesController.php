@@ -81,6 +81,7 @@ class LicensesController extends Controller
         // Save the license data
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
+        $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $license->depreciation_id   = $request->input('depreciation_id');
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
@@ -171,6 +172,7 @@ class LicensesController extends Controller
         $license->maintained        = $request->input('maintained',0);
         $license->name              = $request->input('name');
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
+        $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $license->notes             = $request->input('notes');
         $license->order_number      = $request->input('order_number');
         $license->purchase_cost     = $request->input('purchase_cost');
