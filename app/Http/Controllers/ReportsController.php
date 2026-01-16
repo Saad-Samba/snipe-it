@@ -460,6 +460,10 @@ class ReportsController extends Controller
                 $header[] = trans('general.company');
             }
 
+            if ($request->filled('project')) {
+                $header[] = trans('general.project');
+            }
+
             if ($request->filled('asset_name')) {
                 $header[] = trans('admin/hardware/form.name');
             }
@@ -648,7 +652,7 @@ class ReportsController extends Controller
 
             $assets = Asset::select('assets.*')->with(
                 'location', 'assetstatus', 'company', 'defaultLoc', 'assignedTo',
-                'model.category', 'model.manufacturer', 'supplier');
+                'model.category', 'model.manufacturer', 'supplier', 'project');
             
             if ($request->filled('by_location_id')) {
                 $assets->whereIn('assets.location_id', $request->input('by_location_id'));
@@ -782,6 +786,10 @@ class ReportsController extends Controller
 
                     if ($request->filled('company')) {
                         $row[] = ($asset->company) ? $asset->company->name : '';
+                    }
+
+                    if ($request->filled('project')) {
+                        $row[] = ($asset->project) ? $asset->project->name : '';
                     }
 
                     if ($request->filled('asset_name')) {
