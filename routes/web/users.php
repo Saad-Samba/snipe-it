@@ -108,6 +108,14 @@ Route::group(['prefix' => 'users', 'middleware' => ['auth']], function () {
     )->name('users.transfer.assets.all');
 
     Route::post(
+        '{user}/checkin-assets/all',
+        [
+            Users\AssetCheckinController::class,
+            'store'
+        ]
+    )->name('users.checkin.assets.all');
+
+    Route::post(
         'bulkedit',
         [
             Users\BulkUsersController::class, 
