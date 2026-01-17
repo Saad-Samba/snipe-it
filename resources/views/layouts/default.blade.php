@@ -748,6 +748,14 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         </li>
                                     @endcan
 
+                                    @can('view', \App\Models\Discipline::class)
+                                        <li {{!! (request()->is('disciplines*') ? ' class="active"' : '') !!}}>
+                                            <a href="{{ route('disciplines.index') }}">
+                                                {{ trans('general.disciplines') }}
+                                            </a>
+                                        </li>
+                                    @endcan
+
                                     @can('view', \App\Models\Manufacturer::class)
                                         <li {{!! (request()->is('manufacturers') ? ' class="active"' : '') !!}}>
                                             <a href="{{ route('manufacturers.index') }}">

@@ -293,6 +293,25 @@ return [
         ],
     ],
 
+    'Disciplines' => [
+        [
+            'permission' => 'disciplines.view',
+            'display'    => true,
+        ],
+        [
+            'permission' => 'disciplines.create',
+            'display'    => true,
+        ],
+        [
+            'permission' => 'disciplines.edit',
+            'display'    => true,
+        ],
+        [
+            'permission' => 'disciplines.delete',
+            'display'    => true,
+        ],
+    ],
+
     'Departments' => [
         [
             'permission' => 'departments.view',

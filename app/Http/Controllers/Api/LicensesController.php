@@ -25,7 +25,7 @@ class LicensesController extends Controller
     {
         $this->authorize('view', License::class);
 
-        $licenses = License::with('company', 'manufacturer', 'supplier','category', 'adminuser', 'project')->withCount('freeSeats as free_seats_count');
+        $licenses = License::with('company', 'manufacturer', 'supplier','category', 'adminuser', 'project', 'discipline')->withCount('freeSeats as free_seats_count');
         $settings = Setting::getSettings();
 
         if ($request->input('status')=='inactive') {
@@ -42,6 +42,10 @@ class LicensesController extends Controller
 
         if ($request->filled('project_id')) {
             $licenses->where('licenses.project_id', '=', $request->input('project_id'));
+        }
+
+        if ($request->filled('discipline_id')) {
+            $licenses->where('licenses.discipline_id', '=', $request->input('discipline_id'));
         }
 
         if ($request->filled('name')) {
@@ -182,6 +186,7 @@ class LicensesController extends Controller
         $license = new License;
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
+        $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
 
         if ($license->save()) {
             return response()->json(Helper::formatStandardApiResponse('success', $license, trans('admin/licenses/message.create.success')));
@@ -221,6 +226,7 @@ class LicensesController extends Controller
         $license = License::findOrFail($id);
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
+        $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
 
         if ($license->save()) {
             return response()->json(Helper::formatStandardApiResponse('success', $license, trans('admin/licenses/message.update.success')));
