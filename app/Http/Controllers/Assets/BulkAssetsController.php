@@ -72,6 +72,10 @@ class BulkAssetsController extends Controller
             return redirect()->route('maintenances.create');
         }
 
+        if ($request->input('bulk_actions') === 'checkin') {
+            return $this->handleBulkCheckin($request, $asset_ids);
+        }
+
         // Figure out where we need to send the user after the update is complete, and store that in the session
         $bulk_back_url = request()->headers->get('referer');
         session(['bulk_back_url' => $bulk_back_url]);
@@ -569,6 +573,30 @@ class BulkAssetsController extends Controller
         }
 
         return $this;
+    }
+
+    protected function handleBulkCheckin(Request $request, array $assetIds) : RedirectResponse
+    {
+        $this->authorize('checkin', Asset::class);
+
+        $bulk_back_url = $request->headers->get('referer', route('hardware.index'));
+
+        $assetTags = Asset::whereIn('id', $assetIds)
+            ->pluck('asset_tag')
+            ->filter()
+            ->values()
+            ->all();
+
+        if (empty($assetTags)) {
+            return redirect($bulk_back_url)->with('error', trans('admin/hardware/message.update.no_assets_selected'));
+        }
+
+        session([
+            'bulk_checkin_asset_tags' => $assetTags,
+            'bulk_checkin_back_url' => $bulk_back_url,
+        ]);
+
+        return redirect()->route('hardware/quickscancheckin');
     }
 
     /**

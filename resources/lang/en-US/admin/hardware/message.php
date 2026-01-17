@@ -103,7 +103,6 @@ return [
         'already_checked_in'  => 'That asset is already checked in.',
 
     ],
-
     'requests' => [
         'error'   		=> 'Request was not successful, please try again.',
         'success' 		=> 'Request successfully submitted.',
