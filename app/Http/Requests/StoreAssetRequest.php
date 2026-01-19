@@ -43,6 +43,7 @@ class StoreAssetRequest extends ImageUploadRequest
             'company_id' => $idForCurrentUser,
             'owner_id' => $ownerId,
             'project_id' => $this->project_id === '' ? null : $this->project_id,
+            'discipline_id' => $this->discipline_id === '' ? null : $this->discipline_id,
         ]);
     }
 

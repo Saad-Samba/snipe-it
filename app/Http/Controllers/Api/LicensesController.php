@@ -44,6 +44,10 @@ class LicensesController extends Controller
             $licenses->where('licenses.project_id', '=', $request->input('project_id'));
         }
 
+        if ($request->filled('discipline_id')) {
+            $licenses->where('licenses.discipline_id', '=', $request->input('discipline_id'));
+        }
+
         if ($request->filled('name')) {
             $licenses->where('licenses.name', '=', $request->input('name'));
         }
@@ -182,6 +186,7 @@ class LicensesController extends Controller
         $license = new License;
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
+        $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
 
         if ($license->save()) {
             return response()->json(Helper::formatStandardApiResponse('success', $license, trans('admin/licenses/message.create.success')));
@@ -221,6 +226,7 @@ class LicensesController extends Controller
         $license = License::findOrFail($id);
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
+        $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
 
         if ($license->save()) {
             return response()->json(Helper::formatStandardApiResponse('success', $license, trans('admin/licenses/message.update.success')));

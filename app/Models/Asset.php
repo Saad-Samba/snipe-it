@@ -95,6 +95,7 @@ class Asset extends Depreciable
         'location_id'    => 'integer',
         'rtd_company_id' => 'integer',
         'project_id'     => 'integer',
+        'discipline_id'  => 'integer',
         'supplier_id'    => 'integer',
         'created_at'     => 'datetime',
         'updated_at'   => 'datetime',
@@ -109,6 +110,7 @@ class Asset extends Depreciable
         'name'              => ['nullable', 'max:255'],
         'company_id'        => ['nullable', 'integer', 'exists:companies,id'],
         'project_id'        => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
+        'discipline_id'     => ['nullable', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
         'warranty_months'   => ['nullable', 'numeric', 'digits_between:0,240'],
         'last_checkout'     => ['nullable', 'date_format:Y-m-d H:i:s'],
         'last_checkin'      => ['nullable', 'date_format:Y-m-d H:i:s'],
@@ -147,6 +149,7 @@ class Asset extends Depreciable
         'assigned_type',
         'company_id',
         'project_id',
+        'discipline_id',
         'image',
         'location_id',
         'model_id',
@@ -213,12 +216,18 @@ class Asset extends Depreciable
         'model.category'     => ['name'],
         'model.manufacturer' => ['name'],
         'project'            => ['name'],
+        'discipline'         => ['name'],
         'owner'              => ['first_name', 'last_name', 'username', 'employee_num'],
     ];
 
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    public function discipline()
+    {
+        return $this->belongsTo(Discipline::class, 'discipline_id');
     }
 
     protected static function booted(): void
@@ -2331,6 +2340,19 @@ class Asset extends Depreciable
     public function scopeOrderSupplier($query, $order)
     {
         return $query->leftJoin('suppliers as suppliers_assets', 'assets.supplier_id', '=', 'suppliers_assets.id')->orderBy('suppliers_assets.name', $order);
+    }
+
+    /**
+     * Query builder scope to order on discipline name
+     *
+     * @param \Illuminate\Database\Query\Builder $query Query builder instance
+     * @param text                               $order Order
+     *
+     * @return \Illuminate\Database\Query\Builder          Modified query builder
+     */
+    public function scopeOrderDiscipline($query, $order)
+    {
+        return $query->leftJoin('disciplines as discipline_sort', 'assets.discipline_id', '=', 'discipline_sort.id')->orderBy('discipline_sort.name', $order);
     }
 
     /**
