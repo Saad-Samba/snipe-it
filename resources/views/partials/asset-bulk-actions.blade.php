@@ -43,6 +43,10 @@
                 <option value="transfer">{{ trans('button.transfer_assets') }}</option>
             @endif
 
+            @can('checkin', \App\Models\Asset::class)
+                <option value="checkin">{{ trans('admin/hardware/general.bulk_checkin') }}</option>
+            @endcan
+
             @can('delete', \App\Models\Asset::class)
                 <option value="delete">{{ trans('button.delete') }}</option>
             @endcan

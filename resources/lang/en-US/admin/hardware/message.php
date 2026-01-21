@@ -103,6 +103,12 @@ return [
         'already_checked_in'  => 'That asset is already checked in.',
 
     ],
+    'bulk_checkin' => [
+        'error' => 'No assets were checked in.',
+        'success' => 'Asset checked in successfully.|:count assets checked in successfully.',
+        'already_checked_in' => 'Asset already checked in: :asset_tags.|Assets already checked in: :asset_tags.',
+        'failed' => 'Asset could not be checked in: :asset_tags.|Assets could not be checked in: :asset_tags.',
+    ],
 
     'requests' => [
         'error'   		=> 'Request was not successful, please try again.',
