@@ -30,14 +30,16 @@ class AssetTransferController extends Controller
         $targetUser = User::withTrashed()->findOrFail($request->input('transfer_target_user_id'));
 
         if ($targetUser->id === $user->id) {
-            return redirect()->route('users.show', $user)->with('error', trans('admin/users/message.error.transfer_same_user'));
+            return redirect()->route('users.show', ['user' => $user->getKey()])
+                ->with('error', trans('admin/users/message.error.transfer_same_user'));
         }
 
         $settings = Setting::getSettings();
 
         if ($settings->full_multiple_companies_support == 1 && ! $actor->isSuperUser()) {
             if (($user->company_id !== $actor->company_id) || ($targetUser->company_id !== $actor->company_id)) {
-                return redirect()->route('users.show', $user)->with('error', trans('admin/users/message.error.transfer_company_mismatch'));
+                return redirect()->route('users.show', ['user' => $user->getKey()])
+                    ->with('error', trans('admin/users/message.error.transfer_company_mismatch'));
             }
         }
 
@@ -46,13 +48,15 @@ class AssetTransferController extends Controller
             : $request->input('ids', []);
 
         if (empty($assetIds)) {
-            return redirect()->route('users.show', $user)->with('error', trans('admin/users/message.error.transfer_no_assets'));
+            return redirect()->route('users.show', ['user' => $user->getKey()])
+                ->with('error', trans('admin/users/message.error.transfer_no_assets'));
         }
 
         $assets = Asset::with(['licenseseats', 'assignedTo'])->whereIn('id', $assetIds)->get();
 
         if ($assets->isEmpty()) {
-            return redirect()->route('users.show', $user)->with('error', trans('admin/users/message.error.transfer_no_assets'));
+            return redirect()->route('users.show', ['user' => $user->getKey()])
+                ->with('error', trans('admin/users/message.error.transfer_no_assets'));
         }
 
         $invalidAssets = $assets->filter(function (Asset $asset) use ($user) {
@@ -60,7 +64,8 @@ class AssetTransferController extends Controller
         });
 
         if ($invalidAssets->isNotEmpty()) {
-            return redirect()->route('users.show', $user)->with('error', trans('admin/users/message.error.transfer_invalid_assets'));
+            return redirect()->route('users.show', ['user' => $user->getKey()])
+                ->with('error', trans('admin/users/message.error.transfer_invalid_assets'));
         }
 
         $failures = [];
@@ -130,7 +135,8 @@ class AssetTransferController extends Controller
         }
 
         if ($transferred === 0) {
-            return redirect()->route('users.show', $user)->with('error', trans('admin/users/message.error.transfer_invalid_assets'));
+            return redirect()->route('users.show', ['user' => $user->getKey()])
+                ->with('error', trans('admin/users/message.error.transfer_invalid_assets'));
         }
 
         $message = trans_choice('admin/users/message.success.transfer', $transferred, ['count' => $transferred]);
@@ -139,6 +145,7 @@ class AssetTransferController extends Controller
             $message .= ' ' . trans('admin/hardware/message.undeployable', ['asset_tags' => implode(', ', $failures)]);
         }
 
-        return redirect()->route('users.show', $user)->with('success', $message);
+        return redirect()->route('users.show', ['user' => $user->getKey()])
+            ->with('success', $message);
     }
 }
