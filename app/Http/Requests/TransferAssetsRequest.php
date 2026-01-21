@@ -34,6 +34,13 @@ class TransferAssetsRequest extends FormRequest
                 ?? $this->route()->parameter('id');
         }
 
+        if (! $user) {
+            $path = $this->path();
+            if (preg_match('/^users\/(\d+)/', $path, $matches)) {
+                $user = $matches[1];
+            }
+        }
+
         if ($user) {
             return route('users.show', $user);
         }
