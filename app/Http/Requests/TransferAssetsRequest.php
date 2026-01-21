@@ -21,4 +21,30 @@ class TransferAssetsRequest extends FormRequest
             'transfer_target_user_id' => ['required', 'integer', 'exists:users,id'],
         ];
     }
+
+    protected function getRedirectUrl(): string
+    {
+        $user = $this->route('user')
+            ?? $this->route('userId')
+            ?? $this->route('id');
+
+        if (! $user && $this->route()) {
+            $user = $this->route()->parameter('user')
+                ?? $this->route()->parameter('userId')
+                ?? $this->route()->parameter('id');
+        }
+
+        if (! $user) {
+            $path = $this->path();
+            if (preg_match('/^users\/(\d+)/', $path, $matches)) {
+                $user = $matches[1];
+            }
+        }
+
+        if ($user) {
+            return route('users.show', $user);
+        }
+
+        return parent::getRedirectUrl();
+    }
 }
