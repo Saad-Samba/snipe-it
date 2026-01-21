@@ -65,6 +65,7 @@ class AssetTransferController extends Controller
 
         $failures = [];
         $transferred = 0;
+        $updateDefaultLocation = $request->boolean('update_default_location');
 
         foreach ($assets as $asset) {
             // Respect FMCS for the asset/company combination
@@ -76,7 +77,7 @@ class AssetTransferController extends Controller
                 continue;
             }
 
-            DB::transaction(function () use ($asset, $actor, $targetUser, $settings, &$transferred, &$failures, $user) {
+            DB::transaction(function () use ($asset, $actor, $targetUser, $settings, $updateDefaultLocation, &$transferred, &$failures, $user) {
                 $previousAssignee = $asset->assignedTo;
                 $originalValues = $asset->getRawOriginal();
 
@@ -86,6 +87,9 @@ class AssetTransferController extends Controller
                 $asset->last_checkin = now();
                 $asset->assignedTo()->disassociate($asset);
                 $asset->accepted = null;
+                if ($updateDefaultLocation && $targetUser->location_id) {
+                    $asset->rtd_location_id = $targetUser->location_id;
+                }
                 $asset->location_id = $asset->rtd_location_id;
 
                 $asset->licenseseats->each(function (LicenseSeat $seat) {

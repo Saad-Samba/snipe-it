@@ -1191,6 +1191,16 @@
                   ])
                   <div class="row">
                       <div class="col-md-7 col-md-offset-3">
+                          <div class="checkbox">
+                              <label for="transfer_update_default_location">
+                                  <input type="checkbox" id="transfer_update_default_location">
+                                  {{ trans('admin/users/general.transfer_assets_update_default_location') }}
+                              </label>
+                          </div>
+                      </div>
+                  </div>
+                  <div class="row">
+                      <div class="col-md-7 col-md-offset-3">
                           <p class="help-block">{{ trans('admin/users/general.transfer_assets_help') }}</p>
                       </div>
                   </div>
@@ -1211,6 +1221,7 @@
       @csrf
       <input type="hidden" name="transfer_all" value="1">
       <input type="hidden" name="transfer_target_user_id" value="">
+      <input type="hidden" name="update_default_location" value="0">
   </form>
 
 
@@ -1231,6 +1242,7 @@ $(function () {
 
   if (transferForm.length) {
       var transferTargetField = transferForm.find('input[name="transfer_target_user_id"]');
+      var transferDefaultLocationField = transferForm.find('input[name="update_default_location"]');
 
       transferForm.on('submit', function (e) {
           var bulkAction = transferForm.find('select[name="bulk_actions"]').val();
@@ -1251,6 +1263,7 @@ $(function () {
 
       $('#confirmTransferAssets').on('click', function () {
           var targetUserId = $('#transfer_target_user_select').val();
+          var updateDefaultLocation = $('#transfer_update_default_location').is(':checked') ? 1 : 0;
           var inProgressIndicator = $('#transferAssetsInProgress');
 
           if (!targetUserId) {
@@ -1265,11 +1278,13 @@ $(function () {
           $('#confirmTransferAssets').prop('disabled', true);
           if (currentTransferForm && currentTransferForm.is(transferForm)) {
               transferTargetField.val(targetUserId);
+              transferDefaultLocationField.val(updateDefaultLocation);
               transferForm.attr('action', transferRoute);
               transferForm.data('submitting-transfer', true);
               transferForm.trigger('submit');
           } else if (currentTransferForm && currentTransferForm.is(transferAllForm)) {
               transferAllForm.find('input[name=\"transfer_target_user_id\"]').val(targetUserId);
+              transferAllForm.find('input[name=\"update_default_location\"]').val(updateDefaultLocation);
               transferAllForm.trigger('submit');
           }
           currentTransferForm = null;
@@ -1281,6 +1296,7 @@ $(function () {
           transferModal.find('[data-dismiss="modal"]').prop('disabled', false);
           transferModal.find('.close').prop('disabled', false);
           $('#confirmTransferAssets').prop('disabled', false);
+          $('#transfer_update_default_location').prop('checked', false);
           currentTransferForm = null;
       });
   }

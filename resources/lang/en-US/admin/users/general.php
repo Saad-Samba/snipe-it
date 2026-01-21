@@ -10,6 +10,7 @@ return [
     'transfer_assets'   => 'Transfer Assets',
     'transfer_to_user'  => 'Transfer to',
     'transfer_assets_help' => 'Selected assets will be checked in from this user and immediately checked out to the chosen user.',
+    'transfer_assets_update_default_location' => 'Update asset default location to the new user\'s location',
     'clone'             => 'Clone User',
     'contact_user'      => 'Contact :name',
     'edit'              => 'Edit User',
