@@ -34,6 +34,10 @@ class LicensesTransformer
                 'id' => (int) $license->project->id,
                 'name'=> e($license->project->name),
             ] : null,
+            'discipline' => ($license->discipline) ? [
+                'id' => (int) $license->discipline->id,
+                'name'=> e($license->discipline->name),
+            ] : null,
             'product_key' => (Gate::allows('viewKeys', License::class)) ? e($license->serial) : '------------',
             'order_number' => ($license->order_number) ? e($license->order_number) : null,
             'purchase_order' => ($license->purchase_order) ? e($license->purchase_order) : null,

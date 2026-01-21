@@ -82,6 +82,10 @@ class AssetsTransformer
                 'id' => (int) $asset->project->id,
                 'name'=> e($asset->project->name),
             ] : null,
+            'discipline' => ($asset->discipline) ? [
+                'id' => (int) $asset->discipline->id,
+                'name'=> e($asset->discipline->name),
+            ] : null,
             'location' => ($asset->location) ? [
                 'id' => (int) $asset->location->id,
                 'name'=> e($asset->location->name),

@@ -273,6 +273,7 @@ class BulkAssetsController extends Controller
             || ($request->filled('rtd_location_id'))
             || ($request->filled('requestable'))
             || ($request->filled('company_id'))
+            || ($request->filled('discipline_id'))
             || ($request->filled('status_id'))
             || ($request->filled('model_id'))
             || ($request->filled('notes'))
@@ -309,7 +310,8 @@ class BulkAssetsController extends Controller
                     ->conditionallyAddItem('warranty_months')
                     ->conditionallyAddItem('next_audit_date')
                     ->conditionallyAddItem('asset_eol_date')
-                    ->conditionallyAddItem('notes');
+                    ->conditionallyAddItem('notes')
+                    ->conditionallyAddItem('discipline_id');
                     foreach ($custom_field_columns as $key => $custom_field_column) {
                         $this->conditionallyAddItem($custom_field_column); 
                    }
@@ -380,6 +382,13 @@ class BulkAssetsController extends Controller
                     $this->update_array['company_id'] = $request->input('company_id');
                     if ($request->input('company_id') == 'clear') {
                         $this->update_array['company_id'] = null;
+                    }
+                }
+
+                if ($request->filled('discipline_id')) {
+                    $this->update_array['discipline_id'] = $request->input('discipline_id');
+                    if ($request->input('discipline_id') == 'clear') {
+                        $this->update_array['discipline_id'] = null;
                     }
                 }
 

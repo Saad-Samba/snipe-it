@@ -21,6 +21,7 @@
     
     @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id'])
     @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id'])
+    @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id'])
     @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.owner'), 'fieldname' => 'owner_id', 'field_id' => 'owner_id_select', 'container_id' => 'asset_owner', 'hide_new' => 'true'])
 
 

@@ -259,6 +259,22 @@ return array(
     'categoriesdelete' => [
         'name' => 'Delete Categories',
     ],
+    'disciplines'   => [
+        'name' => 'Disciplines',
+        'note'       => 'Grants access to the Disciplines section of the application.',
+    ],
+    'disciplinesview' => [
+        'name' => 'View Disciplines',
+    ],
+    'disciplinescreate' => [
+        'name' => 'Create New Disciplines',
+    ],
+    'disciplinesedit' => [
+        'name' => 'Edit Disciplines',
+    ],
+    'disciplinesdelete' => [
+        'name' => 'Delete Disciplines',
+    ],
     'departments'   => [
         'name' => 'Departments',
         'note'       => 'Grants access to the Departments section of the application.',

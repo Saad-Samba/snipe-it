@@ -179,6 +179,8 @@
            @include ('partials.forms.edit.supplier-select', ['translated_name' => trans('general.supplier'), 'fieldname' => 'supplier_id'])
           <!-- Company -->
           @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id'])
+          <!-- Discipline -->
+          @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id'])
 
           <!-- Order Number -->
           <div class="form-group {{ $errors->has('order_number') ? ' has-error' : '' }}">

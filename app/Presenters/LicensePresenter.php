@@ -38,6 +38,14 @@ class LicensePresenter extends Presenter
                 'visible' => false,
                 'formatter' => 'projectsLinkObjFormatter',
             ], [
+                'field' => 'discipline',
+                'searchable' => true,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('general.discipline'),
+                'visible' => false,
+                'formatter' => 'disciplinesLinkObjFormatter',
+            ], [
                 'field' => 'name',
                 'searchable' => true,
                 'sortable' => true,

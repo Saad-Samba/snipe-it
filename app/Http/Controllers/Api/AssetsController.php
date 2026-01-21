@@ -132,6 +132,7 @@ class AssetsController extends Controller
             'assigned_to',
             'created_by',
             'owner',
+            'discipline',
 
         ];
 
@@ -163,6 +164,7 @@ class AssetsController extends Controller
                 'adminuser',
                 'owner',
                 'project',
+                'discipline',
                 'model.depreciation',
                 'model.category',
                 'model.manufacturer',
@@ -370,6 +372,10 @@ class AssetsController extends Controller
             $assets->where('assets.project_id', '=', $request->input('project_id'));
         }
 
+        if ($request->filled('discipline_id')) {
+            $assets->where('assets.discipline_id', '=', $request->input('discipline_id'));
+        }
+
         if ($request->filled('company_id')) {
             $assets->where('assets.company_id', '=', $request->input('company_id'));
         }
@@ -413,6 +419,9 @@ class AssetsController extends Controller
                 break;
             case 'manufacturer':
                 $assets->OrderManufacturer($order);
+                break;
+            case 'discipline':
+                $assets->OrderDiscipline($order);
                 break;
             case 'company':
                 $assets->OrderCompany($order);

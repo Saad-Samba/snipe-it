@@ -152,6 +152,7 @@ class AssetsController extends Controller
 
             $asset->company_id              = $companyId;
             $asset->project_id              = $request->filled('project_id') ? $request->input('project_id') : null;
+            $asset->discipline_id           = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
             $asset->model_id                = $request->input('model_id');
             $asset->order_number            = $request->input('order_number');
             $asset->notes                   = $request->input('notes');
@@ -425,6 +426,7 @@ class AssetsController extends Controller
         $asset->name = $request->input('name');
         $asset->company_id = Company::getIdForCurrentUser($request->input('company_id'));
         $asset->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
+        $asset->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $asset->model_id = $request->input('model_id');
         $asset->order_number = $request->input('order_number');
 
