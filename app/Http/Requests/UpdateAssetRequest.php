@@ -21,17 +21,6 @@ class UpdateAssetRequest extends ImageUploadRequest
         return Gate::allows('update', $this->asset);
     }
 
-    protected function prepareForValidation(): void
-    {
-        parent::prepareForValidation();
-
-        $this->merge([
-            'owner_id' => $this->owner_id === '' ? null : $this->owner_id,
-            'project_id' => $this->project_id === '' ? null : $this->project_id,
-            'discipline_id' => $this->discipline_id === '' ? null : $this->discipline_id,
-        ]);
-    }
-
     /**
      * Get the validation rules that apply to the request.
      *
