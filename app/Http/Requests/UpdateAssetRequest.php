@@ -24,17 +24,6 @@ class UpdateAssetRequest extends ImageUploadRequest
     protected function prepareForValidation(): void
     {
         parent::prepareForValidation();
-
-        $fields = ['owner_id', 'project_id', 'discipline_id'];
-        $mergeData = [];
-        foreach ($fields as $field) {
-            if ($this->has($field)) {
-                $mergeData[$field] = $this->{$field} === '' ? null : $this->{$field};
-            }
-        }
-        if ($mergeData) {
-            $this->merge($mergeData);
-        }
     }
 
     /**
@@ -71,6 +60,8 @@ class UpdateAssetRequest extends ImageUploadRequest
         if ($setting->digit_separator === '1.234,56' && is_string($this->input('purchase_cost'))) {
             $rules['purchase_cost'] = ['nullable', 'string'];
         }
+
+        unset($rules['owner_id'], $rules['project_id'], $rules['discipline_id']);
 
         return $rules;
     }
