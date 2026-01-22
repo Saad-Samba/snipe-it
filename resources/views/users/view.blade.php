@@ -1199,7 +1199,8 @@
                     'fieldname' => 'transfer_location_id',
                     'translated_name' => trans('admin/hardware/form.default_location'),
                     'help_text' => trans('admin/users/general.transfer_default_location_help'),
-                    'hide_new' => 'true'
+                    'hide_new' => 'true',
+                    'style' => 'margin-top: 15px;'
                   ])
                   <div class="row">
                       <div class="col-md-7 col-md-offset-3">
