@@ -19,6 +19,7 @@ class TransferAssetsRequest extends FormRequest
             'ids.*' => ['integer', 'exists:assets,id'],
             'transfer_all' => ['sometimes', 'boolean'],
             'transfer_target_user_id' => ['required', 'integer', 'exists:users,id'],
+            'transfer_location_id' => ['nullable', 'integer', 'exists:locations,id'],
         ];
     }
 
