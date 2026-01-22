@@ -90,6 +90,9 @@ class AssetTransferController extends Controller
                 $asset->last_checkin = now();
                 $asset->assignedTo()->disassociate($asset);
                 $asset->accepted = null;
+                if ($transferLocationId) {
+                    $asset->rtd_location_id = $transferLocationId;
+                }
                 $asset->location_id = $asset->rtd_location_id;
 
                 $asset->licenseseats->each(function (LicenseSeat $seat) {
@@ -124,7 +127,7 @@ class AssetTransferController extends Controller
                     return;
                 }
 
-                if ($asset->checkOut($targetUser, $actor, now(), null, null, null, $transferLocationId)) {
+                if ($asset->checkOut($targetUser, $actor, now())) {
                     $transferred++;
                     return;
                 }
