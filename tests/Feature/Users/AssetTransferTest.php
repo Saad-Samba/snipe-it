@@ -12,6 +12,13 @@ use Tests\TestCase;
 
 class AssetTransferTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+    }
+
     public function test_admin_can_transfer_assets_within_company_when_fmcs_enabled(): void
     {
         Event::fake([CheckoutableCheckedIn::class, CheckoutableCheckedOut::class]);
@@ -25,13 +32,14 @@ class AssetTransferTest extends TestCase
 
         $asset = Asset::factory()->for($company)->assignedToUser($fromUser)->create();
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->post(route('users.transfer.assets', $fromUser), [
                 'bulk_actions' => 'transfer',
                 'ids' => [$asset->id],
                 'transfer_target_user_id' => $targetUser->id,
-            ])
-            ->assertRedirect(route('users.show', $fromUser))
+            ]);
+
+        $response->assertRedirect(route('users.show', $fromUser))
             ->assertSessionHas('success');
 
         $this->assertEquals($targetUser->id, $asset->fresh()->assigned_to);
@@ -54,13 +62,15 @@ class AssetTransferTest extends TestCase
 
         $asset = Asset::factory()->for($adminCompany)->assignedToUser($fromUser)->create();
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->post(route('users.transfer.assets', $fromUser), [
                 'bulk_actions' => 'transfer',
                 'ids' => [$asset->id],
                 'transfer_target_user_id' => $targetUser->id,
-            ])
-            ->assertRedirect(route('users.show', $fromUser))
+            ]);
+
+        $response->assertSessionDoesntHaveErrors();
+        $response->assertRedirect(route('users.show', $fromUser))
             ->assertSessionHas('error');
 
         $this->assertEquals($fromUser->id, $asset->fresh()->assigned_to);

@@ -8,6 +8,7 @@ use App\Http\Requests\TransferAssetsRequest;
 use App\Http\Traits\MigratesLegacyAssetLocations;
 use App\Models\Asset;
 use App\Models\CheckoutAcceptance;
+use App\Models\CompanyableScope;
 use App\Models\LicenseSeat;
 use App\Models\Setting;
 use App\Models\User;
@@ -27,7 +28,9 @@ class AssetTransferController extends Controller
             abort(403);
         }
 
-        $targetUser = User::withTrashed()->findOrFail($request->input('transfer_target_user_id'));
+        $targetUser = User::withTrashed()
+            ->withoutGlobalScope(CompanyableScope::class)
+            ->findOrFail($request->input('transfer_target_user_id'));
 
         if ($targetUser->id === $user->id) {
             return redirect()->route('users.show', $user)->with('error', trans('admin/users/message.error.transfer_same_user'));
