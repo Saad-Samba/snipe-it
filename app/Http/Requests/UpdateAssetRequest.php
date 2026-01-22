@@ -21,11 +21,6 @@ class UpdateAssetRequest extends ImageUploadRequest
         return Gate::allows('update', $this->asset);
     }
 
-    protected function prepareForValidation(): void
-    {
-        parent::prepareForValidation();
-    }
-
     /**
      * Get the validation rules that apply to the request.
      *
