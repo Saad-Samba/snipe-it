@@ -61,8 +61,6 @@ class UpdateAssetRequest extends ImageUploadRequest
             $rules['purchase_cost'] = ['nullable', 'string'];
         }
 
-        unset($rules['owner_id'], $rules['project_id'], $rules['discipline_id']);
-
         return $rules;
     }
 }
