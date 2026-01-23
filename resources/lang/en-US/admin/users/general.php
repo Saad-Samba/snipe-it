@@ -10,6 +10,7 @@ return [
     'transfer_assets'   => 'Transfer Assets',
     'transfer_to_user'  => 'Transfer to',
     'transfer_assets_help' => 'Selected assets will be checked in from this user and immediately checked out to the chosen user.',
+    'transfer_default_location_help' => 'Leave blank to keep the asset\'s default location unchanged. Current location will follow the recipient.',
     'bulk_checkin_assets' => 'Bulk Checkin All Assets',
     'clone'             => 'Clone User',
     'contact_user'      => 'Contact :name',

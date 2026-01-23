@@ -1193,7 +1193,15 @@
                     'required' => 'true',
                     'container_id' => 'transfer_target_user_container',
                     'field_id' => 'transfer_target_user_select',
-                    'hide_new' => 'true'
+                    'hide_new' => 'true',
+                    'style' => 'margin-bottom: 12px;'
+                  ])
+                  @include('partials.forms.edit.location-select', [
+                    'fieldname' => 'transfer_location_id',
+                    'translated_name' => trans('admin/hardware/form.default_location'),
+                    'help_text' => trans('admin/users/general.transfer_default_location_help'),
+                    'hide_new' => 'true',
+                    'style' => 'clear: both; padding-top: 12px;'
                   ])
                   <div class="row">
                       <div class="col-md-7 col-md-offset-3">
@@ -1217,6 +1225,7 @@
       @csrf
       <input type="hidden" name="transfer_all" value="1">
       <input type="hidden" name="transfer_target_user_id" value="">
+      <input type="hidden" name="transfer_location_id" value="">
   </form>
 
 
@@ -1237,6 +1246,7 @@ $(function () {
 
   if (transferForm.length) {
       var transferTargetField = transferForm.find('input[name="transfer_target_user_id"]');
+      var transferLocationField = transferForm.find('input[name="transfer_location_id"]');
 
       transferForm.on('submit', function (e) {
           var bulkAction = transferForm.find('select[name="bulk_actions"]').val();
@@ -1257,6 +1267,7 @@ $(function () {
 
       $('#confirmTransferAssets').on('click', function () {
           var targetUserId = $('#transfer_target_user_select').val();
+          var targetLocationId = $('#transfer_location_id_location_select').val();
           var inProgressIndicator = $('#transferAssetsInProgress');
 
           if (!targetUserId) {
@@ -1271,11 +1282,13 @@ $(function () {
           $('#confirmTransferAssets').prop('disabled', true);
           if (currentTransferForm && currentTransferForm.is(transferForm)) {
               transferTargetField.val(targetUserId);
+              transferLocationField.val(targetLocationId);
               transferForm.attr('action', transferRoute);
               transferForm.data('submitting-transfer', true);
               transferForm.trigger('submit');
           } else if (currentTransferForm && currentTransferForm.is(transferAllForm)) {
               transferAllForm.find('input[name=\"transfer_target_user_id\"]').val(targetUserId);
+              transferAllForm.find('input[name=\"transfer_location_id\"]').val(targetLocationId);
               transferAllForm.trigger('submit');
           }
           currentTransferForm = null;

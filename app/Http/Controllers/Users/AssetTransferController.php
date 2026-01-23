@@ -8,6 +8,7 @@ use App\Http\Requests\TransferAssetsRequest;
 use App\Http\Traits\MigratesLegacyAssetLocations;
 use App\Models\Asset;
 use App\Models\CheckoutAcceptance;
+use App\Models\CompanyableScope;
 use App\Models\LicenseSeat;
 use App\Models\Setting;
 use App\Models\User;
@@ -27,7 +28,9 @@ class AssetTransferController extends Controller
             abort(403);
         }
 
-        $targetUser = User::withTrashed()->findOrFail($request->input('transfer_target_user_id'));
+        $targetUser = User::withTrashed()
+            ->withoutGlobalScope(CompanyableScope::class)
+            ->findOrFail($request->input('transfer_target_user_id'));
 
         if ($targetUser->id === $user->id) {
             return redirect()->route('users.show', $user)->with('error', trans('admin/users/message.error.transfer_same_user'));
@@ -66,6 +69,10 @@ class AssetTransferController extends Controller
         $failures = [];
         $transferred = 0;
 
+        $transferLocationId = $request->filled('transfer_location_id')
+            ? (int) $request->input('transfer_location_id')
+            : null;
+
         foreach ($assets as $asset) {
             // Respect FMCS for the asset/company combination
             if ($settings->full_multiple_companies_support == 1
@@ -76,7 +83,7 @@ class AssetTransferController extends Controller
                 continue;
             }
 
-            DB::transaction(function () use ($asset, $actor, $targetUser, $settings, &$transferred, &$failures, $user) {
+            DB::transaction(function () use ($asset, $actor, $targetUser, $settings, &$transferred, &$failures, $user, $transferLocationId) {
                 $previousAssignee = $asset->assignedTo;
                 $originalValues = $asset->getRawOriginal();
 
@@ -86,6 +93,9 @@ class AssetTransferController extends Controller
                 $asset->last_checkin = now();
                 $asset->assignedTo()->disassociate($asset);
                 $asset->accepted = null;
+                if ($transferLocationId) {
+                    $asset->rtd_location_id = $transferLocationId;
+                }
                 $asset->location_id = $asset->rtd_location_id;
 
                 $asset->licenseseats->each(function (LicenseSeat $seat) {
