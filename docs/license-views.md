@@ -1,51 +1,65 @@
-# Viewing licenses assigned to a project or company
+# Project management guide
 
-Use the following options in the Snipe-IT UI to see which licenses are assigned to a specific project or company.
+Use this guide to create projects, link them to assets and licenses, and review related records in the Snipe-IT UI.
 
-## 1) Project detail page (licenses tab)
+## 1) Create a project
 
-**Goal:** See all licenses assigned to a single project.
-**Navigation:** Projects → {Project Name} → Licenses tab.
-**PUR placeholder:** [PUR-PLACEHOLDER: project licenses tab GIF]
+**Goal:** Add a new project to organize assets and licenses.
+**Navigation:** Projects → Create Project.
+**PUR placeholder:** [PUR-PLACEHOLDER: project creation GIF]
 
-1. Open the project you want to review.
-2. Select the **Licenses** tab to see all licenses assigned to that project.
-3. Use the table controls (search, sort, export) to inspect or export the list.
+1. Open **Projects** and select **Create Project**.
+2. Enter the project details (name, description, owner, and any required metadata).
+3. Save the project to make it available for assignment.
 
-This tab is backed by the project license table, which loads license data filtered by the project’s ID.
+## 2) Link assets to a project
 
-## 2) Company detail page (licenses tab)
+**Goal:** Associate assets with a project for tracking and reporting.
+**Navigation:** Hardware → {Asset} → Edit → Project field.
+**PUR placeholder:** [PUR-PLACEHOLDER: asset project field GIF]
 
-**Goal:** See all licenses assigned to a single company.
-**Navigation:** Companies → {Company Name} → Licenses tab.
-**PUR placeholder:** [PUR-PLACEHOLDER: company licenses tab GIF]
+1. Open the asset you want to associate.
+2. Select **Edit** and locate the **Project** field.
+3. Choose the project and save the asset.
 
-1. Open the company you want to review.
-2. Select the **Licenses** tab to see all licenses assigned to that company.
-3. Use the table controls (search, sort, export) to inspect or export the list.
+Repeat for each asset that should be tied to the project.
 
-This tab is backed by the company license table, which loads license data filtered by the company’s ID.
+## 3) Link licenses to a project
 
-## 3) License detail page (company/project attribution)
+**Goal:** Associate licenses with a project for tracking and reporting.
+**Navigation:** Licenses → {License} → Edit → Project field.
+**PUR placeholder:** [PUR-PLACEHOLDER: license project field GIF]
 
-**Goal:** Jump from a license to its related company or project.
-**Navigation:** Licenses → {License Name} → Details panel.
-**PUR placeholder:** [PUR-PLACEHOLDER: license detail links GIF]
+1. Open the license you want to associate.
+2. Select **Edit** and locate the **Project** field.
+3. Choose the project and save the license.
 
-If you are already viewing a specific license, the **Details** section displays the associated company and project (when present). You can follow those links to jump directly to the company or project detail pages for a full license list.
+Repeat for each license that should be tied to the project.
 
-## 4) Third-party integrations (API or BI tools)
+## 4) Review project assets and licenses
 
-**Goal:** Report on license assignments outside the UI.
-**Navigation:** External tool → Snipe-IT API connection → License query.
-**PUR placeholder:** [PUR-PLACEHOLDER: third-party reporting GIF]
+**Goal:** View everything linked to a project in one place.
+**Navigation:** Projects → {Project Name} → Assets tab / Licenses tab.
+**PUR placeholder:** [PUR-PLACEHOLDER: project detail tabs GIF]
 
-Use third-party tools that can connect to the Snipe-IT API (such as BI platforms, reporting tools, or internal dashboards) to query license assignments by project or company. The license data can be filtered by the project or company identifiers that your integration supports.
+1. Open the project.
+2. Use the **Assets** tab to review associated assets.
+3. Use the **Licenses** tab to review associated licenses.
+4. Use table controls (search, sort, export) to inspect or export the lists.
 
-## 5) Exported reports (CSV)
+## 5) Reporting and exports
 
-**Goal:** Export license assignments to CSV.
-**Navigation:** Projects/Companies → {Name} → Licenses tab → Export, or Reports → Licenses.
-**PUR placeholder:** [PUR-PLACEHOLDER: export/report GIF]
+**Goal:** Export project-related data for analysis or audits.
+**Navigation:** Projects → {Project Name} → Assets/Licenses tab → Export, or Reports → Licenses.
+**PUR placeholder:** [PUR-PLACEHOLDER: project export GIF]
 
-From the project or company **Licenses** tab, use the export control to download a CSV of assigned licenses. You can also use the global **Reports → Licenses** export and filter the file by company or project as needed in a spreadsheet tool.
+1. Export assets or licenses directly from the project’s tabs.
+2. Use **Reports → Licenses** for a global export, then filter by project in a spreadsheet tool if needed.
+
+## 6) Third-party integrations
+
+**Goal:** Use external tools to report on project assignments.
+**Navigation:** External tool → Snipe-IT API connection → Project-filtered query.
+**PUR placeholder:** [PUR-PLACEHOLDER: third-party project reporting GIF]
+
+Use third-party tools that connect to the Snipe-IT API (BI platforms, reporting tools, or internal dashboards) to query assets and licenses filtered by project identifiers supported by your integration.
