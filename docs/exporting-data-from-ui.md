@@ -57,8 +57,20 @@ Some reports have their own export or download options. Use report-specific expo
 
 ---
 
+## 5) Export a custom assets report
+Use the **Custom Report** screen when you need a tailored assets export with specific fields. Build the report by selecting the fields you want to include, adjusting any filters, and then click **Generate** to download the report. If you’ll run this report again, save it as a template so you can reopen and re-export it later. This section replaces the previous Stages guideline on exporting a custom assets report.
+
+**When to use it**
+- You need a one-off export with a specific set of asset fields.
+- You want a saved template you can reuse for recurring exports.
+
+**GIF placeholder**
+- [Insert GIF: Generating a custom assets report]
+
+---
+
 ## Choosing the right export method
 - **List view export** for fast, ad-hoc exports.
 - **Filtered view export** for targeted datasets.
 - **Print-to-PDF** for human-friendly snapshots.
-- **Report exports** for specialized or summarized data.
+- **Report exports** for specialized or summarized data, including custom assets reports.
