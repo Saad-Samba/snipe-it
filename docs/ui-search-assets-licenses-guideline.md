@@ -1,88 +1,59 @@
-# UI Search Guideline: Assets & Licenses
+# UI Search Guideline: General List Search (with Asset Exceptions)
 
 ## Quick note on reports and API searches
 If you need to search through reports or the API instead of the UI, follow your existing **Reports Search Guideline** or **API Search Guideline**. This document focuses only on the UI experience.
 
 ## Purpose
-Use this guide to quickly and consistently find **assets** and **licenses** in the Snipe-IT UI. It covers the primary navigation paths, search fields, and filtering options so you can locate records by tag, name, serial, assignment, or other attributes.
+Use this guide to search for data in the Snipe-IT UI. Most sections share a common table-list layout with a search field and filters. Assets are the main exception, because the Assets list includes **Advanced Search** and the Dashboard provides **Search by Asset Tag**.
 
-## Before you start
-- Ensure you can log in to the Snipe-IT web interface.
-- Confirm you have permission to view Assets and Licenses.
+## Common UI search pattern (most list pages)
+### 1) Navigate to the list page
+1. Use the left navigation to open the section you need (for example, **Licenses**, **Users**, **Accessories**, **Components**, etc.).
+2. Choose the main list view such as **All [Items]** or the most appropriate scoped list.
 
-## Asset search (UI)
-### 1) Navigate to the Assets list
-1. In the left navigation, select **Assets**.
-2. Choose **All Assets** (or a scoped view like **Assigned**, **Checked Out**, or **Ready to Deploy** if you already know the status).
-
-### 2) Use the global list search
-1. Locate the **Search** field above the assets table.
-2. Enter the most specific identifier you have first, such as:
-   - **Asset Tag** (best for exact matches)
-   - **Serial Number**
-   - **Name/Hostname**
-   - **Assigned To** (person or location)
-   - **Model** or **Category**
+### 2) Use the list search field
+1. Locate the **Search** field above the table list.
+2. Enter your most specific identifier first (for example, name, ID, serial number, or assigned user).
 3. Press **Enter** to run the search.
 
 ### 3) Refine with filters
-1. Use the column filters or dropdown filters (if available) to narrow results, for example:
-   - **Status** (e.g., Ready to Deploy, Deployed, Pending)
-   - **Location**
-   - **Company**
-   - **Category**
+1. Use column filters or dropdown filters (if available) to narrow results.
 2. Combine filters with the search field to reduce large result sets.
 
-### 4) Open the asset record
-1. Click the asset row to open the detail page.
-2. Confirm the record by checking key fields such as **Asset Tag**, **Serial**, **Assigned To**, and **Status**.
+### 4) Open the record
+1. Click the row to open the detail page.
+2. Confirm the record by verifying key fields relevant to the item type.
 
-### 5) If you cannot find the asset
-- Try fewer search terms (e.g., use only the asset tag or only the serial number).
-- Check if you are in a filtered view (Assigned, Ready to Deploy, etc.) and switch to **All Assets**.
-- Verify you have access to the appropriate company or location scope.
+### 5) If you cannot find the record
+- Try fewer or more specific search terms.
+- Remove filters and try again.
+- Verify your permission scope for company, location, or status-based access.
 
-## License search (UI)
-### 1) Navigate to the Licenses list
-1. In the left navigation, select **Licenses**.
-2. Choose **All Licenses** (or a scoped view if available).
+## Asset-specific exceptions
+Assets follow the common list pattern above, but they also include two extra options:
 
-### 2) Use the license list search
-1. Locate the **Search** field above the licenses table.
-2. Enter a key identifier, such as:
-   - **License Name**
-   - **Product Key**
-   - **Licensed User/Assigned To**
-   - **Expiration Date** (if the UI supports date filtering)
-3. Press **Enter** to run the search.
+### 1) Advanced Search on the Assets list
+1. Go to **Assets** → **All Assets**.
+2. Select **Advanced Search** to search by multiple fields at once.
+3. Add or adjust criteria such as **Asset Tag**, **Serial**, **Model**, **Status**, or **Location**.
+4. Run the search and review the filtered results.
 
-### 3) Refine with filters
-1. Apply filters to limit results, such as:
-   - **Expiration status** (e.g., Expired, Expiring Soon)
-   - **Seats Available** or **Seats Used**
-   - **Company**
-2. Combine filters with the search field for more precise results.
-
-### 4) Open the license record
-1. Click the license row to open the detail page.
-2. Confirm the record by checking **License Name**, **Product Key**, **Seats**, **Expiration**, and **Assigned To**.
-
-### 5) If you cannot find the license
-- Remove extra filters and try a broader search.
-- Search by the license name first, then refine by seat or assignment details.
-- Verify your permission scope for the license’s company or location.
+### 2) Search by Asset Tag on the Dashboard
+1. Go to the **Dashboard**.
+2. Use **Search by Asset Tag** for a quick lookup.
+3. Enter the tag and submit to jump directly to the asset result.
 
 ## Tips and best practices
-- Start with the most unique identifier (asset tag or product key).
+- Start with the most unique identifier (asset tag, serial, or record ID).
 - Avoid abbreviations unless they are part of the official record.
 - If you frequently use the same filters, save a view (if your UI supports saved views).
-- When searching for assigned hardware or licenses, verify the assignee name is spelled exactly as stored.
+- When searching for assigned items, verify the assignee name is spelled exactly as stored.
 
 ## Troubleshooting checklist
-- Are you on **All Assets** or **All Licenses**?
+- Are you on the correct list page (**All [Items]**)?
 - Are any filters still active?
 - Do you have permission to view the record?
-- Is the record archived or in a different company scope?
+- Is the record archived or scoped to a different company or location?
 
 ## Related guidance
 - Reports Search Guideline (for report-based searches)
