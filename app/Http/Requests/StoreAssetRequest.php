@@ -36,10 +36,12 @@ class StoreAssetRequest extends ImageUploadRequest
             : $this->company_id;
 
         $this->parseLastAuditDate();
+        $ownerId = $this->owner_id === '' ? null : $this->owner_id;
 
         $this->merge([
             'asset_tag' => $this->asset_tag ?? Asset::autoincrement_asset(),
             'company_id' => $idForCurrentUser,
+            'owner_id' => $ownerId,
         ]);
     }
 

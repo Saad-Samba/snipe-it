@@ -103,6 +103,13 @@ class AssetPresenter extends Presenter
                 'visible' => true,
                 'formatter' => 'polymorphicItemFormatter',
             ], [
+                'field' => 'owner',
+                'searchable' => true,
+                'sortable' => true,
+                'title' => trans('general.owner'),
+                'visible' => true,
+                'formatter' => 'usersLinkObjFormatter',
+            ], [
                 'field' => 'employee_number',
                 'searchable' => false,
                 'sortable' => false,

@@ -92,6 +92,8 @@ class AssetsTransformer
             'qr' => ($setting->qr_code=='1') ? config('app.url').'/uploads/barcodes/qr-'.str_slug($asset->asset_tag).'-'.str_slug($asset->id).'.png' : null,
             'alt_barcode' => ($setting->alt_barcode_enabled=='1') ? config('app.url').'/uploads/barcodes/'.str_slug($setting->alt_barcode).'-'.str_slug($asset->asset_tag).'.png' : null,
             'assigned_to' => $this->transformAssignedTo($asset),
+            'owner' => $this->transformOwner($asset),
+            'owner_id' => $asset->owner_id ? (int) $asset->owner_id : null,
             'warranty_months' =>  ($asset->warranty_months > 0) ? e($asset->warranty_months.' '.trans('admin/hardware/form.months')) : null,
             'warranty_expires' => ($asset->warranty_months > 0) ? Helper::getFormattedDateObject($asset->warranty_expires, 'date') : null,
             'created_by' => ($asset->adminuser) ? [
@@ -225,6 +227,22 @@ class AssetsTransformer
             'name' => e($asset->assigned->display_name),
             'type' => $asset->assignedType()
         ] : null;
+    }
+
+    public function transformOwner($asset)
+    {
+        if (! $asset->owner) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $asset->owner->id,
+            'username' => e($asset->owner->username),
+            'name' => e($asset->owner->getFullNameAttribute()),
+            'first_name'=> e($asset->owner->first_name),
+            'last_name'=> ($asset->owner->last_name) ? e($asset->owner->last_name) : null,
+            'email'=> ($asset->owner->email) ? e($asset->owner->email) : null,
+        ];
     }
 
 

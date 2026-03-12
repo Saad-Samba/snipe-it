@@ -171,4 +171,55 @@ class AssetIndexTest extends TestCase
             ->assertResponseDoesNotContainInRows($assetA, 'asset_tag')
             ->assertResponseContainsInRows($assetB, 'asset_tag');
     }
+
+    public function testAssetApiIndexFiltersByOwnerId()
+    {
+        $ownerA = User::factory()->create();
+        $ownerB = User::factory()->create();
+
+        $ownedAsset = Asset::factory()->create(['owner_id' => $ownerA->id]);
+        $otherOwnedAsset = Asset::factory()->create(['owner_id' => $ownerB->id]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.assets.index', ['owner_id' => $ownerA->id]))
+            ->assertOk()
+            ->assertResponseContainsInRows($ownedAsset, 'asset_tag')
+            ->assertResponseDoesNotContainInRows($otherOwnedAsset, 'asset_tag');
+    }
+
+    public function testAssetApiIndexSeparatesOwnedFromAssignedFilters()
+    {
+        $owner = User::factory()->create();
+        $assignee = User::factory()->create();
+        $otherUser = User::factory()->create();
+
+        $ownedOnlyAsset = Asset::factory()->create([
+            'owner_id' => $owner->id,
+            'assigned_to' => null,
+            'assigned_type' => null,
+        ]);
+
+        $assignedOnlyAsset = Asset::factory()->create([
+            'owner_id' => $otherUser->id,
+            'assigned_to' => $assignee->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $super = User::factory()->superuser()->create();
+
+        $this->actingAsForApi($super)
+            ->getJson(route('api.assets.index', ['owner_id' => $owner->id]))
+            ->assertOk()
+            ->assertResponseContainsInRows($ownedOnlyAsset, 'asset_tag')
+            ->assertResponseDoesNotContainInRows($assignedOnlyAsset, 'asset_tag');
+
+        $this->actingAsForApi($super)
+            ->getJson(route('api.assets.index', [
+                'assigned_to' => $assignee->id,
+                'assigned_type' => User::class,
+            ]))
+            ->assertOk()
+            ->assertResponseContainsInRows($assignedOnlyAsset, 'asset_tag')
+            ->assertResponseDoesNotContainInRows($ownedOnlyAsset, 'asset_tag');
+    }
 }

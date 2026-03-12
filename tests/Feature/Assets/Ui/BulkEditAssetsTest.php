@@ -75,6 +75,8 @@ class BulkEditAssetsTest extends TestCase
         $supplier2 = Supplier::factory()->create();
         $company1 = Company::factory()->create();
         $company2 = Company::factory()->create();
+        $owner1 = User::factory()->create();
+        $owner2 = User::factory()->create();
         $assets = Asset::factory()->count(10)->create([
             'name'             => 'Old Asset Name',
             'purchase_date'    => '2023-01-01',
@@ -90,6 +92,7 @@ class BulkEditAssetsTest extends TestCase
             'next_audit_date'  => '2024-06-01',
             'requestable'      => false,
             'notes'            => 'This is a new note!',
+            'owner_id'         => $owner1->id,
         ]);
 
         // gets the ids together to submit to the endpoint
@@ -111,12 +114,13 @@ class BulkEditAssetsTest extends TestCase
             'next_audit_date'  => '2025-01-01',
             'requestable'      => true,
             'notes'            => 'This is a newer note!',
+            'owner_id'         => $owner2->id,
         ])
             ->assertStatus(302)
             ->assertSessionHasNoErrors();
 
         // asserts that each asset has the updated values
-        Asset::findMany($id_array)->each(function (Asset $asset) use ($status2, $model2, $supplier2, $company2) {
+        Asset::findMany($id_array)->each(function (Asset $asset) use ($status2, $model2, $supplier2, $company2, $owner2) {
             $this->assertEquals('2024-01-01', $asset->purchase_date->format('Y-m-d'));
             $this->assertEquals('2024-01-01', $asset->expected_checkin->format('Y-m-d'));
             $this->assertEquals($status2->id, $asset->status_id);
@@ -131,6 +135,27 @@ class BulkEditAssetsTest extends TestCase
             // shouldn't requestable be cast as a boolean??? it's not.
             $this->assertEquals(1, $asset->requestable);
             $this->assertEquals('This is a newer note!', $asset->notes);
+            $this->assertEquals($owner2->id, $asset->owner_id);
+        });
+    }
+
+    public function test_bulk_edit_assets_can_clear_owner()
+    {
+        $owner = User::factory()->create();
+        $assets = Asset::factory()->count(5)->create([
+            'owner_id' => $owner->id,
+        ]);
+
+        $id_array = $assets->pluck('id')->toArray();
+
+        $this->actingAs(User::factory()->editAssets()->create())->post(route('hardware/bulksave'), [
+            'ids' => $id_array,
+            'null_owner_id' => '1',
+        ])->assertStatus(302)
+            ->assertSessionHasNoErrors();
+
+        Asset::findMany($id_array)->each(function (Asset $asset) {
+            $this->assertNull($asset->owner_id);
         });
     }
 
