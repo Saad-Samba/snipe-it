@@ -268,6 +268,7 @@ class BulkAssetsController extends Controller
             || ($request->filled('expected_checkin'))
             || ($request->filled('purchase_cost'))
             || ($request->filled('supplier_id'))
+            || ($request->filled('owner_id'))
             || ($request->filled('order_number'))
             || ($request->filled('warranty_months'))
             || ($request->filled('rtd_location_id'))
@@ -285,6 +286,7 @@ class BulkAssetsController extends Controller
             || ($request->filled('null_next_audit_date'))
             || ($request->filled('null_asset_eol_date'))
             || ($request->filled('null_notes'))
+            || ($request->filled('null_owner_id'))
             || ($request->anyFilled($custom_field_columns))
             || ($request->anyFilled(array_keys($null_custom_fields_inputs)))
 
@@ -307,6 +309,7 @@ class BulkAssetsController extends Controller
                     ->conditionallyAddItem('order_number')
                     ->conditionallyAddItem('requestable')
                     ->conditionallyAddItem('supplier_id')
+                    ->conditionallyAddItem('owner_id')
                     ->conditionallyAddItem('warranty_months')
                     ->conditionallyAddItem('next_audit_date')
                     ->conditionallyAddItem('asset_eol_date')
@@ -370,6 +373,10 @@ class BulkAssetsController extends Controller
 
                 if ($request->input('null_notes')=='1') {
                     $this->update_array['notes'] = null;
+                }
+
+                if ($request->input('null_owner_id')=='1') {
+                    $this->update_array['owner_id'] = null;
                 }
 
 
