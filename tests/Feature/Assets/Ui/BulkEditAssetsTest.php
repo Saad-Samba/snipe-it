@@ -75,6 +75,8 @@ class BulkEditAssetsTest extends TestCase
         $supplier2 = Supplier::factory()->create();
         $company1 = Company::factory()->create();
         $company2 = Company::factory()->create();
+        $owner1 = User::factory()->create();
+        $owner2 = User::factory()->create();
         $assets = Asset::factory()->count(10)->create([
             'name'             => 'Old Asset Name',
             'purchase_date'    => '2023-01-01',
@@ -85,6 +87,7 @@ class BulkEditAssetsTest extends TestCase
             'purchase_cost'    => 1234.90,
             'supplier_id'      => $supplier1->id,
             'company_id'       => $company1->id,
+            'owner_id'         => $owner1->id,
             'order_number'     => '123456',
             'warranty_months'  => 24,
             'next_audit_date'  => '2024-06-01',
@@ -106,6 +109,7 @@ class BulkEditAssetsTest extends TestCase
             'purchase_cost'    => 5678.92,
             'supplier_id'      => $supplier2->id,
             'company_id'       => $company2->id,
+            'owner_id'         => $owner2->id,
             'order_number'     => '7890',
             'warranty_months'  => 36,
             'next_audit_date'  => '2025-01-01',
@@ -116,7 +120,7 @@ class BulkEditAssetsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         // asserts that each asset has the updated values
-        Asset::findMany($id_array)->each(function (Asset $asset) use ($status2, $model2, $supplier2, $company2) {
+        Asset::findMany($id_array)->each(function (Asset $asset) use ($status2, $model2, $supplier2, $company2, $owner2) {
             $this->assertEquals('2024-01-01', $asset->purchase_date->format('Y-m-d'));
             $this->assertEquals('2024-01-01', $asset->expected_checkin->format('Y-m-d'));
             $this->assertEquals($status2->id, $asset->status_id);
@@ -125,6 +129,7 @@ class BulkEditAssetsTest extends TestCase
             $this->assertEquals(5678.92, $asset->purchase_cost);
             $this->assertEquals($supplier2->id, $asset->supplier_id);
             $this->assertEquals($company2->id, $asset->company_id);
+            $this->assertEquals($owner2->id, $asset->owner_id);
             $this->assertEquals(7890, $asset->order_number);
             $this->assertEquals(36, $asset->warranty_months);
             $this->assertEquals('2025-01-01', $asset->next_audit_date);
@@ -146,6 +151,7 @@ class BulkEditAssetsTest extends TestCase
         $supplier2 = Supplier::factory()->create();
         $company1 = Company::factory()->create();
         $company2 = Company::factory()->create();
+        $owner1 = User::factory()->create();
         $assets = Asset::factory()->count(10)->create([
             'name'             => 'Old Asset Name',
             'purchase_date'    => '2023-01-01',
@@ -156,6 +162,7 @@ class BulkEditAssetsTest extends TestCase
             'purchase_cost'    => 1234.90,
             'supplier_id'      => $supplier1->id,
             'company_id'       => $company1->id,
+            'owner_id'         => $owner1->id,
             'order_number'     => '123456',
             'warranty_months'  => 24,
             'next_audit_date'  => '2024-06-01',
@@ -174,6 +181,7 @@ class BulkEditAssetsTest extends TestCase
             'null_expected_checkin_date' => '1',
             'null_next_audit_date'        => '1',
             'null_notes'            => '1',
+            'null_owner_id'         => '1',
             'status_id'        => $status2->id,
             'model_id'         => $model2->id,
         ])
@@ -181,12 +189,13 @@ class BulkEditAssetsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         // asserts that each asset has the updated values
-        Asset::findMany($id_array)->each(function (Asset $asset) use ($status2, $model2, $supplier2, $company2) {
+        Asset::findMany($id_array)->each(function (Asset $asset) {
             $this->assertNull($asset->name);
             $this->assertNull($asset->purchase_date);
             $this->assertNull($asset->expected_checkin);
             $this->assertNull($asset->next_audit_date);
             $this->assertNull($asset->notes);
+            $this->assertNull($asset->owner_id);
         });
     }
 
