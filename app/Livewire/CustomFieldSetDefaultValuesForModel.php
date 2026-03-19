@@ -45,13 +45,23 @@ class CustomFieldSetDefaultValuesForModel extends Component
     #[Computed]
     public function fields()
     {
-        $customFieldset = CustomFieldset::find($this->fieldset_id);
+        $customFieldset = CustomFieldset::find($this->effectiveFieldsetId());
 
         if ($customFieldset) {
             return $customFieldset?->fields;
         }
 
         return collect();
+    }
+
+    #[Computed]
+    public function inheritedFieldset()
+    {
+        if ($this->fieldset_id || ! $this->model) {
+            return null;
+        }
+
+        return $this->model->category?->fieldset;
     }
 
     public function render()
@@ -118,5 +128,10 @@ class CustomFieldSetDefaultValuesForModel extends Component
         }
 
         return $defaultValue;
+    }
+
+    private function effectiveFieldsetId()
+    {
+        return $this->fieldset_id ?: $this->model?->category?->fieldset_id;
     }
 }

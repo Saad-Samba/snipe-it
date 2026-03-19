@@ -4,6 +4,7 @@ namespace Tests\Feature\Categories\Ui;
 
 use App\Models\Category;
 use App\Models\Asset;
+use App\Models\CustomFieldset;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -48,12 +49,14 @@ class UpdateCategoriesTest extends TestCase
             'require_acceptance' => false,
             'alert_on_response' => false,
         ]);
+        $fieldset = CustomFieldset::factory()->create();
 
         $this->assertTrue(Category::where('name', 'Test Category')->exists());
 
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->put(route('categories.update', $category), [
                 'name' => 'Test Category Edited',
+                'fieldset_id' => $fieldset->id,
                 'notes' => 'Test Note Edited',
                 'require_acceptance' => '1',
                 'alert_on_response' => '1',
@@ -66,6 +69,7 @@ class UpdateCategoriesTest extends TestCase
 
         $this->assertDatabaseHas('categories', [
             'name' => 'Test Category Edited',
+            'fieldset_id' => $fieldset->id,
             'notes' => 'Test Note Edited',
             'require_acceptance' => 1,
             'alert_on_response' => 1,

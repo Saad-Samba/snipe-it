@@ -187,10 +187,27 @@ class AssetModel extends SnipeModel
     {
         return $this->belongsTo(\App\Models\CustomFieldset::class, 'fieldset_id');
     }
+
+    public function getFieldsetAttribute($value = null)
+    {
+        $explicitFieldset = $this->relationLoaded('fieldset')
+            ? $this->relations['fieldset']
+            : $this->fieldset()->getResults();
+
+        if ($explicitFieldset) {
+            return $explicitFieldset;
+        }
+
+        $category = $this->relationLoaded('category')
+            ? $this->relations['category']
+            : $this->category()->getResults();
+
+        return $category?->fieldset;
+    }
    
     public function customFields()
     {
-        return $this->fieldset()->first()->fields(); 
+        return $this->fieldset?->fields();
     }
 
     /**

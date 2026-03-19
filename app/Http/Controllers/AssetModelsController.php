@@ -104,7 +104,7 @@ class AssetModelsController extends Controller
 
 
         if ($model->save()) {
-            if ($this->shouldAddDefaultValues($request->input())) {
+            if ($this->shouldAddDefaultValues($request->input(), $model)) {
                 if (!$this->assignCustomFieldsDefaultValues($model, $request->input('default_values'))){
                     return redirect()->back()->withInput()->with('error', trans('admin/custom_fields/message.fieldset_default_value.error'));
                 }
@@ -162,7 +162,7 @@ class AssetModelsController extends Controller
         if ($model->save()) {
             $this->removeCustomFieldsDefaultValues($model);
 
-            if ($this->shouldAddDefaultValues($request->input())) {
+            if ($this->shouldAddDefaultValues($request->input(), $model)) {
                 if (!$this->assignCustomFieldsDefaultValues($model, $request->input('default_values'))) {
                     return redirect()->back()->withInput()->withErrors($this->validatorErrors);
                 }
@@ -431,11 +431,11 @@ class AssetModelsController extends Controller
      *
      * @param  array  $input
      */
-    private function shouldAddDefaultValues(array $input) : bool
+    private function shouldAddDefaultValues(array $input, AssetModel $model) : bool
     {
         return ! empty($input['add_default_values'])
             && ! empty($input['default_values'])
-            && ! empty($input['fieldset_id']);
+            && ! is_null($model->fieldset);
     }
 
     /**

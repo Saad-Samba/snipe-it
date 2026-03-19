@@ -32,6 +32,13 @@
                 </label>
             @endif
         </div>
+        @if ($this->inheritedFieldset)
+            <div class="col-md-7 col-md-offset-3">
+                <p class="help-block">
+                    This model inherits the fieldset <strong>{{ $this->inheritedFieldset->name }}</strong> from its category. Select a fieldset here only if this model should override the category default.
+                </p>
+            </div>
+        @endif
     </div>
 
     @if ($add_default_values)

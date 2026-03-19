@@ -3,6 +3,7 @@
 namespace Tests\Feature\Categories\Api;
 
 use App\Models\Category;
+use App\Models\CustomFieldset;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -24,10 +25,12 @@ class UpdateCategoriesTest extends TestCase
             'require_acceptance' => false,
             'alert_on_response' => false,
         ]);
+        $fieldset = CustomFieldset::factory()->create();
 
         $this->actingAsForApi(User::factory()->superuser()->create())
             ->patchJson(route('api.categories.update', $category), [
                 'name' => 'Test Category Edited',
+                'fieldset_id' => $fieldset->id,
                 'notes' => 'Test Note Edited',
                 'require_acceptance' => true,
                 'alert_on_response' => true,
@@ -39,6 +42,7 @@ class UpdateCategoriesTest extends TestCase
         $category->refresh();
         $this->assertEquals('Test Category Edited', $category->name, 'Name was not updated');
         $this->assertEquals('Test Note Edited', $category->notes, 'Note was not updated');
+        $this->assertEquals($fieldset->id, $category->fieldset_id, 'Fieldset was not updated');
         $this->assertEquals(1, $category->require_acceptance, 'Require acceptance was not updated');
         $this->assertTrue($category->alert_on_response, 'Alert on response was not updated');
     }

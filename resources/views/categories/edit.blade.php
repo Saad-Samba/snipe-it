@@ -36,6 +36,23 @@
     </div>
 </div>
 
+<div class="form-group {{ $errors->has('fieldset_id') ? ' has-error' : '' }}">
+    <label for="fieldset_id" class="col-md-3 control-label">{{ trans('admin/models/general.fieldset') }}</label>
+    <div class="col-md-7">
+        <x-input.select
+            name="fieldset_id"
+            :options="\App\Helpers\Helper::customFieldsetList()"
+            :selected="old('fieldset_id', $item->fieldset_id)"
+            style="min-width:350px"
+            aria-label="fieldset_id"
+        />
+        {!! $errors->first('fieldset_id', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+    </div>
+    <div class="col-md-7 col-md-offset-3">
+        <p class="help-block">Used as the default fieldset for asset models in this category. A model can still override it.</p>
+    </div>
+</div>
+
 <livewire:category-edit-form
     :alert-on-response="(bool) old('alert_on_response', $item->alert_on_response)"
     :default-eula-text="$snipeSettings->default_eula_text"
