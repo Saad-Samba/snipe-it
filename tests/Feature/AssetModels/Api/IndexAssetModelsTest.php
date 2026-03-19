@@ -95,4 +95,40 @@ class IndexAssetModelsTest extends TestCase
                 ->etc());
     }
 
+    public function testAssetModelIndexSortsByInheritedCategoryFieldsetName()
+    {
+        $inheritedFieldset = CustomFieldset::factory()->create(['name' => 'Alpha Fieldset']);
+        $explicitFieldset = CustomFieldset::factory()->create(['name' => 'Zulu Fieldset']);
+
+        $category = Category::factory()->forAssets()->create([
+            'fieldset_id' => $inheritedFieldset->id,
+        ]);
+
+        AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'fieldset_id' => null,
+            'name' => 'Inherited sort model',
+        ]);
+
+        AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'fieldset_id' => $explicitFieldset->id,
+            'name' => 'Explicit sort model',
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(
+                route('api.models.index', [
+                    'sort' => 'fieldset',
+                    'order' => 'asc',
+                    'offset' => '0',
+                    'limit' => '20',
+                ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.name', 'Inherited sort model')
+                ->where('rows.1.name', 'Explicit sort model')
+                ->etc());
+    }
+
 }

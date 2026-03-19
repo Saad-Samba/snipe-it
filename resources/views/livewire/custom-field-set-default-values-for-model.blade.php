@@ -17,7 +17,7 @@
             {!! $errors->first('custom_fieldset', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
         </div>
         <div class="col-md-3">
-            @if ($fieldset_id)
+            @if ($fieldset_id || $this->inheritedFieldset)
                 <label class="form-control">
                     <input
                         type="checkbox"
@@ -161,4 +161,49 @@
             @endif
 
     @endif
+    <script>
+        (() => {
+            const componentId = @js($this->getId());
+            const namespace = `.fieldset-default-values-${componentId}`;
+            window.fieldsetDefaultValuesHookedComponents = window.fieldsetDefaultValuesHookedComponents || {};
+
+            const installCategorySync = () => {
+                const syncCategorySelection = () => {
+                    const categorySelect = $('#category_select_id');
+                    if (! categorySelect.length) {
+                        return;
+                    }
+
+                    categorySelect.off(namespace);
+
+                    const sync = () => {
+                        const component = Livewire.find(componentId);
+                        if (component) {
+                            component.set('category_id', categorySelect.val());
+                        }
+                    };
+
+                    categorySelect.on(`change${namespace} select2:select${namespace} select2:clear${namespace}`, sync);
+                    sync();
+                };
+
+                syncCategorySelection();
+
+                if (! window.fieldsetDefaultValuesHookedComponents[componentId]) {
+                    Livewire.hook('request', ({ succeed }) => {
+                        succeed(() => {
+                            queueMicrotask(syncCategorySelection);
+                        });
+                    });
+                    window.fieldsetDefaultValuesHookedComponents[componentId] = true;
+                }
+            };
+
+            if (window.Livewire) {
+                installCategorySync();
+            } else {
+                document.addEventListener('livewire:init', installCategorySync, { once: true });
+            }
+        })();
+    </script>
 </span>
