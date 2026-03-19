@@ -67,6 +67,11 @@ class CustomFieldset extends Model
         return $this->hasMany(\App\Models\AssetModel::class, 'fieldset_id');
     }
 
+    public function categories()
+    {
+        return $this->hasMany(\App\Models\Category::class, 'fieldset_id');
+    }
+
     /**
      * Establishes the fieldset -> admin user relationship
      *

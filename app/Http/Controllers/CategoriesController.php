@@ -79,6 +79,7 @@ class CategoriesController extends Controller
         $category->alert_on_response = $request->input('alert_on_response', '0');
         $category->checkin_email = $request->input('checkin_email', '0');
         $category->tag_color  = $request->input('tag_color');
+        $category->fieldset_id = $request->input('fieldset_id');
         $category->notes = $request->input('notes');
         $category->created_by = auth()->id();
 
@@ -134,6 +135,7 @@ class CategoriesController extends Controller
         $category->alert_on_response = $request->input('alert_on_response', '0');
         $category->checkin_email = $request->input('checkin_email', '0');
         $category->tag_color  = $request->input('tag_color');
+        $category->fieldset_id = $request->input('fieldset_id');
         $category->notes = $request->input('notes');
 
         $category = $request->handleImages($category);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AssetModel;
+use App\Models\Category;
 use App\Models\CustomField;
 use App\Models\CustomFieldset;
 use Illuminate\Http\Request;
@@ -166,7 +167,8 @@ class CustomFieldsetsController extends Controller
 
         if ($fieldset) {
             $models = AssetModel::where('fieldset_id', '=', $id);
-            if ($models->count() == 0) {
+            $categories = Category::where('fieldset_id', '=', $id);
+            if (($models->count() == 0) && ($categories->count() == 0)) {
                 $fieldset->delete();
 
                 return redirect()->route('fields.index')->with('success', trans('admin/custom_fields/message.fieldset.delete.success'));

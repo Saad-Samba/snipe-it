@@ -11,6 +11,17 @@
 {{-- Page content --}}
 @section('content')
 
+    @if ($category->fieldset)
+        <div class="row">
+            <div class="col-md-12">
+                <div class="alert alert-info">
+                    <strong>{{ trans('admin/models/general.fieldset') }}:</strong>
+                    <a href="{{ route('fieldsets.show', $category->fieldset->id) }}">{{ $category->fieldset->name }}</a>
+                </div>
+            </div>
+        </div>
+    @endif
+
 
 
     <div class="row">

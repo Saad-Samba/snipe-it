@@ -5,6 +5,7 @@ namespace Tests\Feature\Categories\Api;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\CustomFieldset;
 use App\Models\User;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Tests\TestCase;
@@ -20,11 +21,14 @@ class CreateCategoriesTest extends TestCase
 
     public function testCanCreateCategoryWithValidCategoryType()
     {
+        $fieldset = CustomFieldset::factory()->create();
+
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
             ->postJson(route('api.categories.store'), [
                 'name' => 'Test Category',
                 'eula_text' => 'Test EULA',
-                'category_type' => 'accessory',
+                'category_type' => 'asset',
+                'fieldset_id' => $fieldset->id,
                 'notes' => 'Test Note',
                 'require_acceptance' => true,
                 'alert_on_response' => true,
@@ -40,7 +44,8 @@ class CreateCategoriesTest extends TestCase
         $this->assertEquals('Test Category', $category->name);
         $this->assertEquals('Test EULA', $category->eula_text);
         $this->assertEquals('Test Note', $category->notes);
-        $this->assertEquals('accessory', $category->category_type);
+        $this->assertEquals('asset', $category->category_type);
+        $this->assertEquals($fieldset->id, $category->fieldset_id);
         $this->assertEquals(1, $category->require_acceptance);
         $this->assertEquals(1, $category->alert_on_response);
     }

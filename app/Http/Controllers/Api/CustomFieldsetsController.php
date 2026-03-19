@@ -33,7 +33,7 @@ class CustomFieldsetsController extends Controller
     public function index() : array
     {
         $this->authorize('index', CustomField::class);
-        $fieldsets = CustomFieldset::withCount('fields as fields_count', 'models as models_count')->get();
+        $fieldsets = CustomFieldset::withCount('fields as fields_count', 'models as models_count', 'categories as categories_count')->get();
 
         return (new CustomFieldsetsTransformer)->transformCustomFieldsets($fieldsets, $fieldsets->count());
     }
@@ -120,9 +120,10 @@ class CustomFieldsetsController extends Controller
         $fieldset = CustomFieldset::findOrFail($id);
 
         $modelsCount = $fieldset->models->count();
+        $categoriesCount = $fieldset->categories->count();
         $fieldsCount = $fieldset->fields->count();
 
-        if (($modelsCount > 0) || ($fieldsCount > 0)) {
+        if (($modelsCount > 0) || ($categoriesCount > 0) || ($fieldsCount > 0)) {
             return response()->json(Helper::formatStandardApiResponse('error', null, 'Fieldset is in use.'));
         }
 

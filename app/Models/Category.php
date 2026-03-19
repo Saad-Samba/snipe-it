@@ -44,6 +44,7 @@ class Category extends SnipeModel
         'name'   => 'required|min:1|max:255|two_column_unique_undeleted:category_type',
         'require_acceptance'   => 'boolean',
         'use_default_eula'   => 'boolean',
+        'fieldset_id' => 'nullable|exists:custom_fieldsets,id',
         'category_type'   => 'required|in:asset,accessory,consumable,component,license',
     ];
 
@@ -68,6 +69,7 @@ class Category extends SnipeModel
         'category_type',
         'checkin_email',
         'eula_text',
+        'fieldset_id',
         'name',
         'require_acceptance',
         'alert_on_response',
@@ -238,6 +240,11 @@ class Category extends SnipeModel
     public function models()
     {
         return $this->hasMany(\App\Models\AssetModel::class, 'category_id');
+    }
+
+    public function fieldset()
+    {
+        return $this->belongsTo(\App\Models\CustomFieldset::class, 'fieldset_id');
     }
 
     public function adminuser()
