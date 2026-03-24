@@ -120,7 +120,7 @@ class SendFinancialChangeReport extends Command
             ->filter()
             ->unique()
             ->each(function (string $email) use (&$validUsers, &$issues) {
-                $users = User::withTrashed()->whereRaw('LOWER(email) = ?', [$email])->get();
+                $users = User::query()->whereRaw('LOWER(email) = ?', [$email])->get();
 
                 if ($users->count() === 0) {
                     $issues->push(['email' => $email, 'reason' => 'No matching user found.']);
@@ -134,8 +134,8 @@ class SendFinancialChangeReport extends Command
 
                 $user = $users->first();
 
-                if ($user->trashed() || ! $user->activated) {
-                    $issues->push(['email' => $email, 'reason' => 'User is inactive or deleted.']);
+                if (! $user->activated) {
+                    $issues->push(['email' => $email, 'reason' => 'User is inactive.']);
                     return;
                 }
 
