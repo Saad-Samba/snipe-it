@@ -837,6 +837,8 @@ class BulkAssetsController extends Controller
                         $asset->status_id = $request->get('status_id');
                     }
 
+                    $asset->financialChangeEffectiveAt = $checkout_at;
+
                     $checkout_success = $asset->checkOut($target, $admin, $checkout_at, $expected_checkin, e($request->get('note')), $asset->name, null);
 
                     //TODO - I think this logic is duplicated in the checkOut method?

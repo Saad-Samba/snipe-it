@@ -75,6 +75,8 @@ class Setting extends Model
         'label2_asset_logo' => 'boolean',
         'require_checkinout_notes' => 'boolean',
         'manager_view_enabled' => 'boolean',
+        'finance_report_enabled' => 'boolean',
+        'finance_report_last_sent_at' => 'datetime',
     ];
 
     /**

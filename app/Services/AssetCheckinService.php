@@ -65,6 +65,8 @@ class AssetCheckinService
                     }
                 }
 
+                $asset->financialChangeEffectiveAt = $checkinAt->toDateTimeString();
+
                 $asset->licenseseats->each(function (LicenseSeat $seat) {
                     $seat->update(['assigned_to' => null]);
                 });

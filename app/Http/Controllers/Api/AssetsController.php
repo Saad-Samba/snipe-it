@@ -988,6 +988,7 @@ class AssetsController extends Controller
         $note = request('note', null);
         // Using `->has` preserves the asset name if the name parameter was not included in request.
         $asset_name = request()->has('name') ? request('name') : $asset->name;
+        $asset->financialChangeEffectiveAt = $checkout_at;
 
         // Set the location ID to the RTD location id if there is one
         // Wait, why are we doing this? This overrides the stuff we set further up, which makes no sense.
@@ -1055,6 +1056,7 @@ class AssetsController extends Controller
 
         $checkin_at = $request->filled('checkin_at') ? $request->input('checkin_at') . ' ' . date('H:i:s') : date('Y-m-d H:i:s');
         $originalValues = $asset->getRawOriginal();
+        $asset->financialChangeEffectiveAt = $checkin_at;
 
         if (($request->filled('checkin_at')) && ($request->get('checkin_at') != date('Y-m-d'))) {
             $originalValues['action_date'] = $checkin_at;

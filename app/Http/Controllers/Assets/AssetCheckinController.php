@@ -130,6 +130,7 @@ class AssetCheckinController extends Controller
 
         }
         $asset->last_checkin = $checkin_at;
+        $asset->financialChangeEffectiveAt = $checkin_at;
 
         $asset->licenseseats->each(function (LicenseSeat $seat) {
             $seat->update(['assigned_to' => null]);

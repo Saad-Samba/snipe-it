@@ -66,6 +66,15 @@
                                 </div>
                             </div>
 
+                            <div class="form-group {{ $errors->has('finance_report_enabled') ? 'error' : '' }}">
+                                <div class="col-md-9 col-md-offset-3">
+                                    <label class="form-control">
+                                        <input type="checkbox" name="finance_report_enabled" value="1" @checked(old('finance_report_enabled', $setting->finance_report_enabled))>
+                                        Enable finance change reports
+                                    </label>
+                                </div>
+                            </div>
+
                         </fieldset>
 
                         <fieldset name="alert-addresses">
@@ -126,6 +135,20 @@
                                         >
                                         {{ trans('admin/settings/general.admin_cc_when_acceptance_required') }}
                                     </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group {{ $errors->has('finance_report_email') ? 'error' : '' }}">
+                                <label for="finance_report_email" class="col-md-3 control-label">Finance report recipients</label>
+                                <div class="col-md-8 input-group">
+                                    <input type="text" name="finance_report_email" value="{{ old('finance_report_email', $setting->finance_report_email) }}" class="form-control" placeholder="finance@example.com" maxlength="191">
+                                    <span class="input-group-addon">
+                                        <x-icon type="email" />
+                                    </span>
+                                </div>
+                                <div class="col-md-8 col-md-offset-3">
+                                    <p class="help-block">Enter internal user email addresses. Each recipient only receives events for that user&apos;s company.</p>
+                                    {!! $errors->first('finance_report_email', '<span class="alert-msg" aria-hidden="true">:message</span><br>') !!}
                                 </div>
                             </div>
                         </fieldset>
@@ -227,4 +250,3 @@
     </form>
 
 @stop
-

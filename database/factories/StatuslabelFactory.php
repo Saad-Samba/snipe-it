@@ -31,6 +31,7 @@ class StatuslabelFactory extends Factory
             'deployable' => 0,
             'pending' => 0,
             'archived' => 0,
+            'finance_relevant' => 0,
             'notes' => '',
         ];
     }

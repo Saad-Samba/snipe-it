@@ -48,4 +48,21 @@ class AlertsSettingTest extends TestCase
 
         $this->assertDatabaseHas('settings', ['admin_cc_always' => '0']);
     }
+
+    public function testFinanceReportSettingsCanBeSaved()
+    {
+        $this->actingAs(User::factory()->superuser()->create())
+            ->post(route('settings.alerts.save', [
+                'admin_cc_always' => '1',
+                'finance_report_enabled' => '1',
+                'finance_report_email' => 'finance@example.com,finance2@example.com',
+            ]))
+            ->assertRedirect(route('settings.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('settings', [
+            'finance_report_enabled' => 1,
+            'finance_report_email' => 'finance@example.com,finance2@example.com',
+        ]);
+    }
 }

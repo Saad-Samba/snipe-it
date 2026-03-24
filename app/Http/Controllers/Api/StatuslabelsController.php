@@ -32,7 +32,8 @@ class StatuslabelsController extends Controller
             'assets_count',
             'color',
             'notes',
-            'default_label'
+            'default_label',
+            'finance_relevant',
         ];
 
         $statuslabels = Statuslabel::with('adminuser')->withCount('assets as assets_count');
@@ -109,6 +110,7 @@ class StatuslabelsController extends Controller
         $statuslabel->color             =  $request->input('color');
         $statuslabel->show_in_nav       =  $request->input('show_in_nav', 0);
         $statuslabel->default_label     =  $request->input('default_label', 0);
+        $statuslabel->finance_relevant  =  $request->input('finance_relevant', 0);
 
 
         if ($statuslabel->save()) {
@@ -163,6 +165,7 @@ class StatuslabelsController extends Controller
         $statuslabel->color             =  $request->input('color');
         $statuslabel->show_in_nav       =  $request->input('show_in_nav', 0);
         $statuslabel->default_label     =  $request->input('default_label', 0);
+        $statuslabel->finance_relevant  =  $request->input('finance_relevant', 0);
 
         if ($statuslabel->save()) {
             return response()->json(Helper::formatStandardApiResponse('success', $statuslabel, trans('admin/statuslabels/message.update.success')));

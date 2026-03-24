@@ -27,6 +27,7 @@ class StoreNotificationSettings extends FormRequest
         return [
             'alert_email'                         => 'email_array|nullable',
             'admin_cc_email'                      => 'email_array|nullable',
+            'finance_report_email'                => 'email_array|nullable',
             'admin_cc_always' => [
                 Rule::in('0', '1'),
             ],
@@ -35,6 +36,7 @@ class StoreNotificationSettings extends FormRequest
             'audit_warning_days'                  => 'numeric|nullable|gte:0',
             'due_checkin_days'                    => 'numeric|nullable|gt:0',
             'audit_interval'                      => 'numeric|nullable|gt:0',
+            'finance_report_last_sent_at'         => 'date|nullable',
         ];
     }
 

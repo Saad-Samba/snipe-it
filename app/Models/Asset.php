@@ -31,6 +31,8 @@ use Watson\Validating\ValidatingTrait;
  */
 class Asset extends Depreciable
 {
+    public ?string $financialChangeEffectiveAt = null;
+    public array $pendingFinancialChangeEvents = [];
 
     protected $presenter = AssetPresenter::class;
     protected $with = ['model', 'adminuser'];
