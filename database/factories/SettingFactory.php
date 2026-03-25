@@ -29,6 +29,7 @@ class SettingFactory extends Factory
             'alerts_enabled' => true,
             'finance_report_enabled' => false,
             'finance_report_email' => null,
+            'finance_report_anchor_date' => null,
             'finance_report_last_sent_at' => null,
             'brand' => 1,
             'default_currency' => $this->faker->currencyCode(),

@@ -16,13 +16,14 @@ use Illuminate\Support\Facades\Mail;
 
 class SendFinancialChangeReport extends Command
 {
-    protected $signature = 'snipeit:financial-change-report';
+    protected $signature = 'snipeit:financial-change-report {--force : Bypass the 14-day cadence check for a manual run}';
 
     protected $description = 'Send company-scoped finance reports for asset status and company changes.';
 
     public function handle(): int
     {
         $settings = Setting::getSettings();
+        $forcedRun = (bool) $this->option('force');
 
         if (! $settings?->finance_report_enabled) {
             $this->info('Finance reporting is disabled.');
@@ -34,8 +35,7 @@ class SendFinancialChangeReport extends Command
             return self::SUCCESS;
         }
 
-        if ($settings->finance_report_last_sent_at instanceof Carbon
-            && $settings->finance_report_last_sent_at->gt(now()->subDays(14))) {
+        if (! $forcedRun && ! $this->shouldRunForCurrentCadence($settings)) {
             $this->info('Finance report cadence has not elapsed yet.');
             return self::SUCCESS;
         }
@@ -104,10 +104,29 @@ class SendFinancialChangeReport extends Command
             }
         }
 
-        $settings->finance_report_last_sent_at = now();
-        $settings->save();
+        if (! $forcedRun) {
+            $settings->finance_report_last_sent_at = now();
+            $settings->save();
+        }
 
         return self::SUCCESS;
+    }
+
+    protected function shouldRunForCurrentCadence(Setting $settings): bool
+    {
+        $runDate = now()->startOfDay();
+
+        if (! $settings->finance_report_anchor_date instanceof Carbon) {
+            $settings->finance_report_anchor_date = $runDate;
+            $settings->save();
+
+            return true;
+        }
+
+        return $settings->finance_report_anchor_date
+            ->copy()
+            ->startOfDay()
+            ->diffInWeeks($runDate) % 2 === 0;
     }
 
     protected function resolveRecipients(string $recipientList): array

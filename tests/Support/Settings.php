@@ -51,6 +51,7 @@ class Settings
         return $this->update([
             'finance_report_enabled' => 1,
             'finance_report_email' => $emails,
+            'finance_report_anchor_date' => null,
             'finance_report_last_sent_at' => null,
         ]);
     }
@@ -60,6 +61,7 @@ class Settings
         return $this->update([
             'finance_report_enabled' => 0,
             'finance_report_email' => null,
+            'finance_report_anchor_date' => null,
             'finance_report_last_sent_at' => null,
         ]);
     }

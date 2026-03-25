@@ -8,6 +8,7 @@ use App\Models\Asset;
 use App\Models\Company;
 use App\Models\FinancialChangeDelivery;
 use App\Models\FinancialChangeEvent;
+use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
@@ -127,6 +128,66 @@ class SendFinancialChangeReportTest extends TestCase
         $this->settings->enableFinanceReport('finance@example.com');
 
         $this->artisan('snipeit:financial-change-report')->assertExitCode(0);
+
+        Mail::assertNotSent(FinancialChangeReportMail::class);
+    }
+
+    public function testCommandCanBypassCadenceWithForceOption()
+    {
+        Mail::fake();
+
+        $company = Company::factory()->create();
+        $recipient = User::factory()->create(['email' => 'finance@example.com', 'company_id' => $company->id, 'activated' => 1]);
+        $event = FinancialChangeEvent::create([
+            'asset_id' => Asset::factory()->create(['company_id' => $company->id])->id,
+            'event_type' => 'status_change',
+            'company_id' => $company->id,
+            'previous_status_id' => Statuslabel::factory()->create()->id,
+            'new_status_id' => Statuslabel::factory()->create()->id,
+            'effective_at' => now()->subDay(),
+        ]);
+
+        $this->settings->enableFinanceReport('finance@example.com')->set([
+            'finance_report_anchor_date' => now()->subWeek(),
+            'finance_report_last_sent_at' => now()->subWeeks(2),
+        ]);
+
+        $this->artisan('snipeit:financial-change-report --force')->assertExitCode(0);
+
+        Mail::assertSent(FinancialChangeReportMail::class, function (FinancialChangeReportMail $mail) use ($recipient, $event) {
+            return $mail->hasTo($recipient->email)
+                && $mail->statusEvents->pluck('id')->contains($event->id);
+        });
+
+        $this->assertEquals(
+            now()->subWeeks(2)->toDateTimeString(),
+            Setting::getSettings()->finance_report_last_sent_at?->toDateTimeString()
+        );
+    }
+
+    public function testCommandSkipsOffWeeksForScheduledCadence()
+    {
+        Mail::fake();
+
+        $company = Company::factory()->create();
+        User::factory()->create(['email' => 'finance@example.com', 'company_id' => $company->id, 'activated' => 1]);
+
+        FinancialChangeEvent::create([
+            'asset_id' => Asset::factory()->create(['company_id' => $company->id])->id,
+            'event_type' => 'status_change',
+            'company_id' => $company->id,
+            'previous_status_id' => Statuslabel::factory()->create()->id,
+            'new_status_id' => Statuslabel::factory()->create()->id,
+            'effective_at' => now()->subDay(),
+        ]);
+
+        $this->settings->enableFinanceReport('finance@example.com')->set([
+            'finance_report_anchor_date' => now()->subWeek(),
+        ]);
+
+        $this->artisan('snipeit:financial-change-report')
+            ->expectsOutput('Finance report cadence has not elapsed yet.')
+            ->assertExitCode(0);
 
         Mail::assertNotSent(FinancialChangeReportMail::class);
     }
