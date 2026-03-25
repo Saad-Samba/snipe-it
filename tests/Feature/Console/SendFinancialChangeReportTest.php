@@ -127,9 +127,12 @@ class SendFinancialChangeReportTest extends TestCase
 
         $this->settings->enableFinanceReport('finance@example.com');
 
-        $this->artisan('snipeit:financial-change-report')->assertExitCode(0);
+        $this->artisan('snipeit:financial-change-report')
+            ->expectsOutput('No undelivered financial change events found for configured recipients.')
+            ->assertExitCode(0);
 
         Mail::assertNotSent(FinancialChangeReportMail::class);
+        $this->assertNull(Setting::getSettings()->finance_report_last_sent_at);
     }
 
     public function testCommandCanBypassCadenceWithForceOption()
@@ -190,6 +193,23 @@ class SendFinancialChangeReportTest extends TestCase
             ->assertExitCode(0);
 
         Mail::assertNotSent(FinancialChangeReportMail::class);
+    }
+
+    public function testCommandReportsWhenNoEventsNeedDelivery()
+    {
+        Mail::fake();
+
+        $company = Company::factory()->create();
+        User::factory()->create(['email' => 'finance@example.com', 'company_id' => $company->id, 'activated' => 1]);
+
+        $this->settings->enableFinanceReport('finance@example.com');
+
+        $this->artisan('snipeit:financial-change-report')
+            ->expectsOutput('No undelivered financial change events found for configured recipients.')
+            ->assertExitCode(0);
+
+        Mail::assertNotSent(FinancialChangeReportMail::class);
+        $this->assertNull(Setting::getSettings()->finance_report_last_sent_at);
     }
 
     public function testCommandIgnoresSoftDeletedUsersWhenResolvingRecipients()

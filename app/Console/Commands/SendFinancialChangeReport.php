@@ -41,6 +41,8 @@ class SendFinancialChangeReport extends Command
         }
 
         [$validUsers, $issues] = $this->resolveRecipients($settings->finance_report_email);
+        $sentReports = 0;
+        $deliveredEvents = 0;
 
         foreach ($validUsers as $user) {
             $statusEvents = FinancialChangeEvent::query()
@@ -72,6 +74,8 @@ class SendFinancialChangeReport extends Command
 
             Mail::to($user)->send(new FinancialChangeReportMail($user, $statusEvents, $companyEvents, $user->company));
 
+            $eventCount = $statusEvents->count() + $companyEvents->count();
+
             $deliveries = $statusEvents
                 ->concat($companyEvents)
                 ->map(fn (FinancialChangeEvent $event) => [
@@ -84,6 +88,8 @@ class SendFinancialChangeReport extends Command
                 ->all();
 
             FinancialChangeDelivery::insertOrIgnore($deliveries);
+            $sentReports++;
+            $deliveredEvents += $eventCount;
 
             $this->info('Sent finance report to '.$user->email);
         }
@@ -103,6 +109,26 @@ class SendFinancialChangeReport extends Command
                 Mail::to($recipients)->send(new FinancialChangeRecipientIssuesMail($issues));
             }
         }
+
+        if ($sentReports === 0) {
+            $message = $validUsers->isEmpty()
+                ? 'No valid finance report recipients resolved.'
+                : 'No undelivered financial change events found for configured recipients.';
+
+            $this->info($message);
+            Log::info('Finance report completed without deliveries.', [
+                'valid_recipient_count' => $validUsers->count(),
+                'recipient_issue_count' => $issues->count(),
+            ]);
+
+            return self::SUCCESS;
+        }
+
+        $this->info(sprintf(
+            'Sent %d finance report(s) covering %d event(s).',
+            $sentReports,
+            $deliveredEvents
+        ));
 
         if (! $forcedRun) {
             $settings->finance_report_last_sent_at = now();
