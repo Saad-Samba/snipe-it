@@ -4,8 +4,10 @@ namespace App\Mail;
 
 use App\Models\Company;
 use App\Models\User;
+use App\Support\FinancialChangeCsvExport;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailables\Address;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -40,12 +42,38 @@ class FinancialChangeReportMail extends BaseMailable
                 'company' => $this->company,
                 'statusEvents' => $this->statusEvents,
                 'companyEvents' => $this->companyEvents,
+                'statusEventCount' => $this->statusEvents->count(),
+                'companyEventCount' => $this->companyEvents->count(),
+                'totalEventCount' => $this->statusEvents->count() + $this->companyEvents->count(),
             ],
         );
     }
 
     public function attachments(): array
     {
-        return [];
+        return [
+            Attachment::fromData(fn () => $this->csvExport()->toString(), $this->csvFilename())
+                ->withMime('text/csv'),
+        ];
+    }
+
+    protected function csvFilename(): string
+    {
+        $date = now()->format('Y-m-d');
+        $companySlug = str($this->company?->name ?? 'company')
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', '-')
+            ->trim('-');
+
+        return "financial-change-report-{$companySlug}-{$date}.csv";
+    }
+
+    protected function csvExport(): FinancialChangeCsvExport
+    {
+        return new FinancialChangeCsvExport(
+            $this->statusEvents,
+            $this->companyEvents,
+            $this->company,
+        );
     }
 }

@@ -50,9 +50,13 @@ class SendFinancialChangeReportTest extends TestCase
         $this->artisan('snipeit:financial-change-report')->assertExitCode(0);
 
         Mail::assertSent(FinancialChangeReportMail::class, function (FinancialChangeReportMail $mail) use ($recipientA, $eventA) {
+            $attachments = $mail->attachments();
+
             return $mail->hasTo($recipientA->email)
                 && $mail->statusEvents->pluck('id')->contains($eventA->id)
-                && $mail->statusEvents->count() === 1;
+                && $mail->statusEvents->count() === 1
+                && count($attachments) === 1
+                && str_contains(($attachments[0]->as ?? ''), 'financial-change-report-');
         });
 
         Mail::assertSent(FinancialChangeReportMail::class, function (FinancialChangeReportMail $mail) use ($recipientB, $eventB) {
@@ -249,5 +253,50 @@ class SendFinancialChangeReportTest extends TestCase
         });
 
         Mail::assertNotSent(FinancialChangeRecipientIssuesMail::class);
+    }
+
+    public function testFinancialChangeReportMailBuildsCsvAttachment()
+    {
+        $company = Company::factory()->create(['name' => 'REC']);
+        $actor = User::factory()->create(['first_name' => 'Saad', 'last_name' => 'Samba', 'activated' => 1]);
+        $recipient = User::factory()->create(['email' => 'finance@example.com', 'company_id' => $company->id, 'activated' => 1]);
+        $statusEvent = FinancialChangeEvent::create([
+            'asset_id' => Asset::factory()->create([
+                'company_id' => $company->id,
+                'asset_tag' => '50400001712',
+            ])->id,
+            'event_type' => 'status_change',
+            'company_id' => $company->id,
+            'previous_status_id' => Statuslabel::factory()->create(['name' => 'In Stock'])->id,
+            'new_status_id' => Statuslabel::factory()->create(['name' => 'Capitalized'])->id,
+            'changed_by' => $actor->id,
+            'effective_at' => now()->subDay(),
+        ]);
+
+        $statusEvent->load(['asset', 'company', 'previousStatus', 'newStatus', 'changedBy']);
+
+        $mail = new FinancialChangeReportMail(
+            $recipient,
+            collect([$statusEvent]),
+            collect(),
+            $company,
+        );
+
+        $attachment = $mail->attachments()[0];
+        $csv = null;
+
+        $attachment->attachWith(
+            fn () => null,
+            function ($data, $attachment) use (&$csv) {
+                $csv = $data();
+
+                return [$attachment->as ?? null, $attachment->mime ?? null];
+            }
+        );
+
+        $this->assertStringContainsString('event_type,asset_id,asset_tag,direction,company,previous_status,new_status,previous_company,new_company,effective_at,changed_by', $csv);
+        $this->assertStringContainsString('status_change', $csv);
+        $this->assertStringContainsString('50400001712', $csv);
+        $this->assertStringContainsString('Capitalized', $csv);
     }
 }
