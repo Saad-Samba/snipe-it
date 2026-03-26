@@ -7,6 +7,7 @@ The latest finance report run completed with recipient resolution issues:
 - **{{ $issue['email'] }}**: {{ $issue['reason'] }}
 @endforeach
 
-Thanks,<br>
-{{ config('app.name') }}
+{{ trans('mail.best_regards') }}
+
+{{ $snipeSettings->site_name ?? config('app.name') }}
 @endcomponent

@@ -8,19 +8,64 @@ Company: **{{ $company->name }}**
 @if($statusEvents->isNotEmpty())
 ## Financially Relevant Status Changes
 
-@foreach($statusEvents as $event)
-- Asset #{{ $event->asset_id }} ({{ $event->asset?->asset_tag ?? 'No tag' }}) changed from **{{ $event->previousStatus?->name ?? 'Unassigned' }}** to **{{ $event->newStatus?->name ?? 'Unassigned' }}** on {{ $event->effective_at->format('Y-m-d H:i') }} by {{ $event->changedBy?->display_name ?? $event->changedBy?->username ?? 'System' }}.
-@endforeach
+<table class="table" width="100%" cellpadding="6" cellspacing="0" role="presentation">
+    <thead>
+    <tr>
+        <th align="left">Asset ID</th>
+        <th align="left">Asset Tag</th>
+        <th align="left">Previous Status</th>
+        <th align="left">New Status</th>
+        <th align="left">Effective At</th>
+        <th align="left">Changed By</th>
+    </tr>
+    </thead>
+    <tbody>
+    @foreach($statusEvents as $event)
+    <tr>
+        <td>{{ $event->asset_id }}</td>
+        <td>{{ $event->asset?->asset_tag ?? 'No tag' }}</td>
+        <td>{{ $event->previousStatus?->name ?? 'Unassigned' }}</td>
+        <td>{{ $event->newStatus?->name ?? 'Unassigned' }}</td>
+        <td>{{ $event->effective_at->format('Y-m-d H:i') }}</td>
+        <td>{{ $event->changedBy?->display_name ?? $event->changedBy?->username ?? 'System' }}</td>
+    </tr>
+    @endforeach
+    </tbody>
+</table>
 @endif
 
 @if($companyEvents->isNotEmpty())
 ## Company Changes
 
-@foreach($companyEvents as $event)
-- Asset #{{ $event->asset_id }} ({{ $event->asset?->asset_tag ?? 'No tag' }}) {{ $event->direction === 'entered' ? 'entered' : 'left' }} your company on {{ $event->effective_at->format('Y-m-d H:i') }}. Previous company: **{{ $event->previousCompany?->name ?? 'Unassigned' }}**. New company: **{{ $event->newCompany?->name ?? 'Unassigned' }}**. Changed by {{ $event->changedBy?->display_name ?? $event->changedBy?->username ?? 'System' }}.
-@endforeach
+<table class="table" width="100%" cellpadding="6" cellspacing="0" role="presentation">
+    <thead>
+    <tr>
+        <th align="left">Asset ID</th>
+        <th align="left">Asset Tag</th>
+        <th align="left">Direction</th>
+        <th align="left">Previous Company</th>
+        <th align="left">New Company</th>
+        <th align="left">Effective At</th>
+        <th align="left">Changed By</th>
+    </tr>
+    </thead>
+    <tbody>
+    @foreach($companyEvents as $event)
+    <tr>
+        <td>{{ $event->asset_id }}</td>
+        <td>{{ $event->asset?->asset_tag ?? 'No tag' }}</td>
+        <td>{{ $event->direction === 'entered' ? 'Entered' : 'Left' }}</td>
+        <td>{{ $event->previousCompany?->name ?? 'Unassigned' }}</td>
+        <td>{{ $event->newCompany?->name ?? 'Unassigned' }}</td>
+        <td>{{ $event->effective_at->format('Y-m-d H:i') }}</td>
+        <td>{{ $event->changedBy?->display_name ?? $event->changedBy?->username ?? 'System' }}</td>
+    </tr>
+    @endforeach
+    </tbody>
+</table>
 @endif
 
-Thanks,<br>
-{{ config('app.name') }}
+{{ trans('mail.best_regards') }}
+
+{{ $snipeSettings->site_name ?? config('app.name') }}
 @endcomponent
