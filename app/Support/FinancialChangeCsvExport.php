@@ -23,7 +23,6 @@ class FinancialChangeCsvExport
         $csv->insertOne([
             'event_type',
             'asset_id',
-            'direction',
             'previous_status',
             'new_status',
             'previous_company',
@@ -36,7 +35,6 @@ class FinancialChangeCsvExport
             $csv->insertOne([
                 'status_change',
                 $event->asset_id,
-                '',
                 $event->previousStatus?->name ?? 'Unassigned',
                 $event->newStatus?->name ?? 'Unassigned',
                 '',
@@ -50,7 +48,6 @@ class FinancialChangeCsvExport
             $csv->insertOne([
                 'company_change',
                 $event->asset_id,
-                $event->direction === 'entered' ? 'Entered' : 'Left',
                 '',
                 '',
                 $event->previousCompany?->name ?? 'Unassigned',
