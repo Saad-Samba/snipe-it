@@ -294,9 +294,9 @@ class SendFinancialChangeReportTest extends TestCase
             }
         );
 
-        $this->assertStringContainsString('event_type,asset_id,asset_tag,direction,company,previous_status,new_status,previous_company,new_company,effective_at,changed_by', $csv);
+        $this->assertStringContainsString('event_type,asset_id,direction,previous_status,new_status,previous_company,new_company,effective_at,changed_by', $csv);
         $this->assertStringContainsString('status_change', $csv);
-        $this->assertStringContainsString('50400001712', $csv);
+        $this->assertStringContainsString((string) $statusEvent->asset_id, $csv);
         $this->assertStringContainsString('Capitalized', $csv);
     }
 }
