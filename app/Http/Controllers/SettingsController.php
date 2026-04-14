@@ -649,11 +649,15 @@ class SettingsController extends Controller
         $alert_email = trim($alert_email);
         $admin_cc_email = rtrim($request->input('admin_cc_email'), ',');
         $admin_cc_email = trim($admin_cc_email);
+        $finance_report_email = rtrim($request->input('finance_report_email'), ',');
+        $finance_report_email = trim($finance_report_email);
 
         $setting->alert_email = $alert_email;
         $setting->admin_cc_email = $admin_cc_email;
+        $setting->finance_report_email = $finance_report_email;
         $setting->admin_cc_always = $request->validated('admin_cc_always');
         $setting->alerts_enabled = $request->input('alerts_enabled', '0');
+        $setting->finance_report_enabled = $request->input('finance_report_enabled', '0');
         $setting->alert_interval = $request->input('alert_interval');
         $setting->alert_threshold = $request->input('alert_threshold');
         $setting->audit_interval = $request->input('audit_interval');

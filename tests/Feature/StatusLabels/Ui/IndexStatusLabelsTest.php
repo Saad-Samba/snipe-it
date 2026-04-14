@@ -13,4 +13,13 @@ class IndexStatusLabelsTest extends TestCase
             ->get(route('statuslabels.index'))
             ->assertOk();
     }
+
+    public function testFinanceRelevantColumnIsIncludedInTableLayout()
+    {
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('statuslabels.index'))
+            ->assertOk()
+            ->assertSee('finance_relevant', false)
+            ->assertSee('Financially Relevant', false);
+    }
 }

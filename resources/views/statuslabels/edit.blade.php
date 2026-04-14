@@ -70,5 +70,14 @@
     </div>
 </div>
 
-@stop
+<div class="form-group{{ $errors->has('finance_relevant') ? ' has-error' : '' }}">
+    <div class="col-md-9 col-md-offset-3">
+        <label class="form-control">
+            <input type="checkbox" value="1" name="finance_relevant" id="finance_relevant" {{ old('finance_relevant', $item->finance_relevant) == '1' ? ' checked="checked"' : '' }}>
+            Finance relevant
+        </label>
+        <p class="help-block">Include transitions into or out of this status in finance reporting.</p>
+    </div>
+</div>
 
+@stop

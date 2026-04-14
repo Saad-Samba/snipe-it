@@ -5,11 +5,16 @@ namespace App\Observers;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\Setting;
+use App\Services\FinancialChangeRecorder;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class AssetObserver
 {
+    public function __construct(private readonly FinancialChangeRecorder $financialChangeRecorder)
+    {
+    }
+
     /**
      * Listen to the Asset updating event. This fires automatically every time an existing asset is saved.
      *
@@ -56,6 +61,7 @@ class AssetObserver
 	    }
 
 	    if (empty($changed)){
+            $asset->pendingFinancialChangeEvents = $this->financialChangeRecorder->stagePendingEvents($asset);
 	        return;
 	    }
 
@@ -68,6 +74,13 @@ class AssetObserver
             $logAction->log_meta = json_encode($changed);
             $logAction->logaction('update');
         }
+
+        $asset->pendingFinancialChangeEvents = $this->financialChangeRecorder->stagePendingEvents($asset);
+    }
+
+    public function updated(Asset $asset): void
+    {
+        $this->financialChangeRecorder->persistPendingEvents($asset);
     }
 
     /**

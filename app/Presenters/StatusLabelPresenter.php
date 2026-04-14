@@ -68,6 +68,14 @@ class StatusLabelPresenter extends Presenter
                 'title' => trans('admin/statuslabels/table.default_label'),
                 'visible' => true,
                 'formatter' => 'trueFalseFormatter',
+            ], [
+                'field' => 'finance_relevant',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => trans('admin/statuslabels/table.finance_relevant'),
+                'visible' => true,
+                'formatter' => 'trueFalseFormatter',
             ],[
                 'field' => 'notes',
                 'searchable' => true,

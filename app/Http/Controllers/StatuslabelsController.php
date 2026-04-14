@@ -73,6 +73,7 @@ class StatuslabelsController extends Controller
         $statusLabel->color = $request->input('color');
         $statusLabel->show_in_nav = $request->input('show_in_nav', 0);
         $statusLabel->default_label = $request->input('default_label', 0);
+        $statusLabel->finance_relevant = $request->input('finance_relevant', 0);
 
         if ($statusLabel->save()) {
             // Redirect to the new Statuslabel  page
@@ -121,6 +122,7 @@ class StatuslabelsController extends Controller
         $statuslabel->color = $request->input('color');
         $statuslabel->show_in_nav = $request->input('show_in_nav', 0);
         $statuslabel->default_label = $request->input('default_label', 0);
+        $statuslabel->finance_relevant = $request->input('finance_relevant', 0);
 
         // Was the asset created?
         if ($statuslabel->save()) {

@@ -31,6 +31,7 @@ class Statuslabel extends SnipeModel
     protected $fillable = [
         'archived',
         'deployable',
+        'finance_relevant',
         'name',
         'notes',
         'pending',

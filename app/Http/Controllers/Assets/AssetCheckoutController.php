@@ -101,6 +101,8 @@ class AssetCheckoutController extends Controller
                 $asset->status_id = $request->get('status_id');
             }
 
+            $asset->financialChangeEffectiveAt = $checkout_at;
+
 
             if(!empty($asset->licenseseats->all())){
                 if(request('checkout_to_type') == 'user') {
