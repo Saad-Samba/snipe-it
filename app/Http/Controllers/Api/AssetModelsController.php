@@ -81,7 +81,7 @@ class AssetModelsController extends Controller
             'models.updated_at',
             'models.require_serial'
          ])
-            ->with('category', 'depreciation', 'manufacturer', 'fieldset.fields.defaultValues', 'adminuser')
+            ->with('category.fieldset.fields.defaultValues', 'depreciation', 'manufacturer', 'fieldset.fields.defaultValues', 'adminuser')
             ->withCount('assets as assets_count')
             ->withCount('availableAssets as remaining')
             ->withCount('assignedAssets as assets_assigned_count')

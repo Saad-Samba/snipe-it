@@ -3,6 +3,7 @@
 namespace Tests\Feature\CustomFieldsets\Api;
 
 use App\Models\CustomField;
+use App\Models\Category;
 use App\Models\CustomFieldset;
 use App\Models\User;
 use Tests\Concerns\TestsPermissionsRequirement;
@@ -44,6 +45,22 @@ class DeleteCustomFieldsetsTest extends TestCase implements TestsPermissionsRequ
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
 
         $customFieldset = CustomFieldset::factory()->hasModels()->create();
+
+        $this->actingAsForApi(User::factory()->deleteCustomFieldsets()->create())
+            ->deleteJson(route('api.fieldsets.destroy', $customFieldset))
+            ->assertStatusMessageIs('error');
+
+        $this->assertDatabaseHas('custom_fieldsets', ['id' => $customFieldset->id]);
+    }
+
+    public function testCannotDeleteCustomFieldsetWithAssociatedCategories()
+    {
+        $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
+
+        $customFieldset = CustomFieldset::factory()->create();
+        Category::factory()->forAssets()->create([
+            'fieldset_id' => $customFieldset->id,
+        ]);
 
         $this->actingAsForApi(User::factory()->deleteCustomFieldsets()->create())
             ->deleteJson(route('api.fieldsets.destroy', $customFieldset))

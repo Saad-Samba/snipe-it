@@ -58,10 +58,11 @@ class CategoriesController extends Controller
             'require_acceptance',
             'checkin_email',
             'image',
+            'fieldset_id',
             'tag_color',
             'notes',
             ])
-            ->with('adminuser')
+            ->with('adminuser', 'fieldset')
             ->withCount('accessories as accessories_count', 'consumables as consumables_count', 'components as components_count', 'licenses as licenses_count', 'models as models_count');
 
 
@@ -184,7 +185,7 @@ class CategoriesController extends Controller
     public function show($id) : array
     {
         $this->authorize('view', Category::class);
-        $category = Category::withCount('assets as assets_count', 'accessories as accessories_count', 'consumables as consumables_count', 'components as components_count', 'licenses as licenses_count')->findOrFail($id);
+        $category = Category::with('fieldset')->withCount('assets as assets_count', 'accessories as accessories_count', 'consumables as consumables_count', 'components as components_count', 'licenses as licenses_count')->findOrFail($id);
         return (new CategoriesTransformer)->transformCategory($category);
 
     }

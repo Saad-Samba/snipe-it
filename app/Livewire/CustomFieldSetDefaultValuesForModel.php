@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\CustomField;
+use App\Models\Category;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
@@ -13,6 +14,7 @@ class CustomFieldSetDefaultValuesForModel extends Component
 {
     public $add_default_values;
 
+    public $category_id;
     public $fieldset_id;
     public $model_id;
 
@@ -21,6 +23,7 @@ class CustomFieldSetDefaultValuesForModel extends Component
     public function mount($model_id = null)
     {
         $this->model_id = $model_id;
+        $this->category_id = old('category_id', $this->model?->category_id);
         $this->fieldset_id = $this->model?->fieldset_id;
         $this->add_default_values = ($this->model?->defaultValues->count() > 0);
 
@@ -45,7 +48,7 @@ class CustomFieldSetDefaultValuesForModel extends Component
     #[Computed]
     public function fields()
     {
-        $customFieldset = CustomFieldset::find($this->fieldset_id);
+        $customFieldset = CustomFieldset::find($this->effectiveFieldsetId());
 
         if ($customFieldset) {
             return $customFieldset?->fields;
@@ -54,9 +57,29 @@ class CustomFieldSetDefaultValuesForModel extends Component
         return collect();
     }
 
+    #[Computed]
+    public function inheritedFieldset()
+    {
+        if ($this->fieldset_id || ! $this->selectedCategory) {
+            return null;
+        }
+
+        return $this->selectedCategory->fieldset;
+    }
+
     public function render()
     {
         return view('livewire.custom-field-set-default-values-for-model');
+    }
+
+    #[Computed]
+    public function selectedCategory()
+    {
+        if ($this->category_id) {
+            return Category::find($this->category_id);
+        }
+
+        return $this->model?->category;
     }
 
     /**
@@ -118,5 +141,10 @@ class CustomFieldSetDefaultValuesForModel extends Component
         }
 
         return $defaultValue;
+    }
+
+    private function effectiveFieldsetId()
+    {
+        return $this->fieldset_id ?: $this->selectedCategory?->fieldset_id;
     }
 }

@@ -56,6 +56,10 @@ class CategoriesTransformer
                 'eula' => ($category->getEula()),
                 'checkin_email' => ($category->checkin_email == '1'),
                 'require_acceptance' => ($category->require_acceptance == '1'),
+                'fieldset' => ($category->fieldset) ? [
+                    'id' => (int) $category->fieldset->id,
+                    'name' => e($category->fieldset->name),
+                ] : null,
                 'item_count' => (int) $category->item_count,
                 'assets_count' => (int) $category->assets_count,
                 'accessories_count' => (int) $category->accessories_count,

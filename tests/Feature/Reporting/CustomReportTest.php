@@ -4,6 +4,7 @@ namespace Tests\Feature\Reporting;
 
 use App\Models\Asset;
 use App\Models\Company;
+use App\Models\Discipline;
 use App\Models\ReportTemplate;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -103,6 +104,29 @@ class CustomReportTest extends TestCase implements TestsPermissionsRequirement
             ->assertHeader('content-type', 'text/csv; charset=UTF-8')
             ->assertSeeTextInStreamedResponse('Asset A')
             ->assertSeeTextInStreamedResponse('Asset B');
+    }
+
+    public function testCustomAssetReportCanIncludeDiscipline()
+    {
+        $reportUser = User::factory()->canViewReports()->create();
+        $discipline = Discipline::create([
+            'name' => 'Engineering',
+            'created_by' => $reportUser->id,
+        ]);
+
+        Asset::factory()->create([
+            'name' => 'Asset A',
+            'discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAs($reportUser)
+            ->post('reports/custom', [
+                'asset_name' => '1',
+                'discipline' => '1',
+            ])->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+            ->assertSeeTextInStreamedResponse('Discipline')
+            ->assertSeeTextInStreamedResponse('Engineering');
     }
 
     public function testCustomAssetReportAdheresToCompanyScoping()

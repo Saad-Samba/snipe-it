@@ -3,6 +3,7 @@
 namespace Tests;
 
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use RuntimeException;
@@ -26,6 +27,7 @@ abstract class TestCase extends BaseTestCase
 
     private array $globallyDisabledMiddleware = [
         SecurityHeaders::class,
+        VerifyCsrfToken::class,
     ];
 
     protected function setUp(): void

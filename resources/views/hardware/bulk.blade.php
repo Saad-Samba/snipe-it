@@ -182,6 +182,17 @@
           <!-- Discipline -->
           @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id'])
 
+          <!-- Owner -->
+          @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.owner'), 'fieldname' => 'owner_id', 'field_id' => 'bulk_owner_id_select', 'container_id' => 'bulk_asset_owner', 'hide_new' => 'true'])
+          <div class="form-group {{ $errors->has('null_owner_id') ? ' has-error' : '' }}">
+            <div class="col-md-8 col-md-offset-3">
+              <label class="form-control">
+                <input type="checkbox" name="null_owner_id" value="1">
+                {{ trans_choice('general.set_to_null', count($assets),['selection_count' => count($assets)]) }}
+              </label>
+            </div>
+          </div>
+
           <!-- Order Number -->
           <div class="form-group {{ $errors->has('order_number') ? ' has-error' : '' }}">
             <label for="order_number" class="col-md-3 control-label">

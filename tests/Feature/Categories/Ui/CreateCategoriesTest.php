@@ -4,6 +4,7 @@ namespace Tests\Feature\Categories\Ui;
 
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\CustomFieldset;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -29,11 +30,13 @@ class CreateCategoriesTest extends TestCase
     public function testUserCanCreateCategories()
     {
         $this->assertFalse(Category::where('name', 'Test Category')->exists());
+        $fieldset = CustomFieldset::factory()->create();
 
         $this->actingAs(User::factory()->superuser()->create())
             ->post(route('categories.store'), [
                 'name' => 'Test Category',
                 'category_type' => 'asset',
+                'fieldset_id' => $fieldset->id,
                 'eula_text' => 'Sample text',
                 'require_acceptance' => '1',
                 'notes' => 'My Note',
@@ -43,6 +46,7 @@ class CreateCategoriesTest extends TestCase
         $this->assertDatabaseHas('categories', [
             'name' => 'Test Category',
             'category_type' => 'asset',
+            'fieldset_id' => $fieldset->id,
             'eula_text' => 'Sample text',
             'notes' => 'My Note',
             'require_acceptance' => 1,
