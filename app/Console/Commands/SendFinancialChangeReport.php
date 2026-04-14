@@ -11,8 +11,10 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class SendFinancialChangeReport extends Command
 {
@@ -72,22 +74,31 @@ class SendFinancialChangeReport extends Command
                 continue;
             }
 
-            Mail::to($user)->send(new FinancialChangeReportMail($user, $statusEvents, $companyEvents, $user->company));
+            $claimedEvents = $this->claimDeliveries($user->id, $statusEvents->concat($companyEvents));
 
-            $eventCount = $statusEvents->count() + $companyEvents->count();
+            if ($claimedEvents->isEmpty()) {
+                continue;
+            }
 
-            $deliveries = $statusEvents
-                ->concat($companyEvents)
-                ->map(fn (FinancialChangeEvent $event) => [
-                    'financial_change_event_id' => $event->id,
-                    'user_id' => $user->id,
-                    'reported_at' => now(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ])
-                ->all();
+            $claimedStatusEvents = $claimedEvents
+                ->where('event_type', 'status_change')
+                ->values();
+            $claimedCompanyEvents = $claimedEvents
+                ->where('event_type', 'company_change')
+                ->values();
 
-            FinancialChangeDelivery::insertOrIgnore($deliveries);
+            try {
+                Mail::to($user)->send(new FinancialChangeReportMail($user, $claimedStatusEvents, $claimedCompanyEvents, $user->company));
+            } catch (Throwable $exception) {
+                FinancialChangeDelivery::query()
+                    ->where('user_id', $user->id)
+                    ->whereIn('financial_change_event_id', $claimedEvents->pluck('id'))
+                    ->delete();
+
+                throw $exception;
+            }
+
+            $eventCount = $claimedEvents->count();
             $sentReports++;
             $deliveredEvents += $eventCount;
 
@@ -149,10 +160,43 @@ class SendFinancialChangeReport extends Command
             return true;
         }
 
-        return $settings->finance_report_anchor_date
+        $daysSinceAnchor = $settings->finance_report_anchor_date
             ->copy()
             ->startOfDay()
-            ->diffInWeeks($runDate) % 2 === 0;
+            ->diffInDays($runDate, false);
+
+        return $daysSinceAnchor >= 14 && $daysSinceAnchor % 14 === 0;
+    }
+
+    protected function claimDeliveries(int $userId, Collection $events): Collection
+    {
+        if ($events->isEmpty()) {
+            return collect();
+        }
+
+        return DB::transaction(function () use ($events, $userId) {
+            $claimedIds = collect();
+
+            foreach ($events as $event) {
+                $delivery = FinancialChangeDelivery::query()->firstOrCreate(
+                    [
+                        'financial_change_event_id' => $event->id,
+                        'user_id' => $userId,
+                    ],
+                    [
+                        'reported_at' => now(),
+                    ]
+                );
+
+                if ($delivery->wasRecentlyCreated) {
+                    $claimedIds->push($event->id);
+                }
+            }
+
+            return $events
+                ->whereIn('id', $claimedIds)
+                ->values();
+        });
     }
 
     protected function resolveRecipients(string $recipientList): array

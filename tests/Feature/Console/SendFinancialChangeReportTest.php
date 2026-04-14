@@ -199,6 +199,33 @@ class SendFinancialChangeReportTest extends TestCase
         Mail::assertNotSent(FinancialChangeReportMail::class);
     }
 
+    public function testCommandRequiresFullFourteenDaysBeforeScheduledRun()
+    {
+        Mail::fake();
+
+        $company = Company::factory()->create();
+        User::factory()->create(['email' => 'finance@example.com', 'company_id' => $company->id, 'activated' => 1]);
+
+        FinancialChangeEvent::create([
+            'asset_id' => Asset::factory()->create(['company_id' => $company->id])->id,
+            'event_type' => 'status_change',
+            'company_id' => $company->id,
+            'previous_status_id' => Statuslabel::factory()->create()->id,
+            'new_status_id' => Statuslabel::factory()->create()->id,
+            'effective_at' => now()->subDay(),
+        ]);
+
+        $this->settings->enableFinanceReport('finance@example.com')->set([
+            'finance_report_anchor_date' => now()->subDays(13),
+        ]);
+
+        $this->artisan('snipeit:financial-change-report')
+            ->expectsOutput('Finance report cadence has not elapsed yet.')
+            ->assertExitCode(0);
+
+        Mail::assertNotSent(FinancialChangeReportMail::class);
+    }
+
     public function testCommandReportsWhenNoEventsNeedDelivery()
     {
         Mail::fake();
