@@ -990,9 +990,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
             <footer class="main-footer hidden-print" style="display:grid;flex-direction:column;">
 
                 <div class="1hidden-xs pull-left">
-                    <div class="pull-left">
-                         {!! trans('general.footer_credit') !!}
-                    </div>
                     <div class="pull-right">
                     @if ($snipeSettings->version_footer!='off')
                         @if (($snipeSettings->version_footer=='on') || (($snipeSettings->version_footer=='admin') && (Auth::user()->isSuperUser()=='1')))
