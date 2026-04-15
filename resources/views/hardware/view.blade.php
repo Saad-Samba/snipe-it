@@ -513,6 +513,17 @@
                                         </div>
                                     @endif
 
+                                    @if ($asset->discipline)
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <strong>{{ trans('general.discipline') }}</strong>
+                                            </div>
+                                            <div class="col-md-9">
+                                                {!! $asset->discipline->present()->formattedNameLink !!}
+                                            </div>
+                                        </div>
+                                    @endif
+
                                     @if ($asset->name)
                                         <div class="row">
                                             <div class="col-md-3">
