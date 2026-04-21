@@ -223,11 +223,6 @@ class SendFinancialChangeReport extends Command
 
                 $user = $users->first();
 
-                if (! $user->activated) {
-                    $issues->push(['email' => $email, 'reason' => 'User is inactive.']);
-                    return;
-                }
-
                 if (empty($user->company_id)) {
                     $issues->push(['email' => $email, 'reason' => 'User has no company scope.']);
                     return;
