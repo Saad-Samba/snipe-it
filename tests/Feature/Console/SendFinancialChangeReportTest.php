@@ -282,6 +282,41 @@ class SendFinancialChangeReportTest extends TestCase
         Mail::assertNotSent(FinancialChangeRecipientIssuesMail::class);
     }
 
+    public function testCommandSendsReportsToUsersWhoCannotLogIn()
+    {
+        Mail::fake();
+
+        $company = Company::factory()->create();
+        $recipient = User::factory()->create([
+            'email' => 'finance@example.com',
+            'company_id' => $company->id,
+            'activated' => 0,
+        ]);
+
+        $event = FinancialChangeEvent::create([
+            'asset_id' => Asset::factory()->create(['company_id' => $company->id])->id,
+            'event_type' => 'status_change',
+            'company_id' => $company->id,
+            'previous_status_id' => Statuslabel::factory()->create()->id,
+            'new_status_id' => Statuslabel::factory()->create()->id,
+            'effective_at' => now()->subDay(),
+        ]);
+
+        $this->settings->enableFinanceReport('finance@example.com');
+
+        $this->artisan('snipeit:financial-change-report')->assertExitCode(0);
+
+        Mail::assertSent(FinancialChangeReportMail::class, function (FinancialChangeReportMail $mail) use ($recipient, $event) {
+            return $mail->hasTo($recipient->email)
+                && $mail->statusEvents->pluck('id')->contains($event->id);
+        });
+
+        $this->assertDatabaseHas('financial_change_deliveries', [
+            'financial_change_event_id' => $event->id,
+            'user_id' => $recipient->id,
+        ]);
+    }
+
     public function testFinancialChangeReportMailBuildsCsvAttachment()
     {
         $company = Company::factory()->create(['name' => 'REC']);
