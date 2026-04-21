@@ -27,6 +27,8 @@ class Kernel extends ConsoleKernel
             $schedule->command('snipeit:upcoming-maintenances')->daily();
         }
         $schedule->command('snipeit:backup')->weekly();
+        // Check every Monday at 10:00, but the command only sends on the
+        // 14-day cadence anchored by finance_report_anchor_date.
         $schedule->command('snipeit:financial-change-report')->mondays()->at('10:00');
         $schedule->command('backup:clean')->daily();
         $schedule->command('auth:clear-resets')->everyFifteenMinutes();
