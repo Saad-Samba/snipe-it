@@ -138,5 +138,33 @@ class ImportAssetModelsTest extends ImportDataTestCase implements TestsPermissio
 
     }
 
+    #[Test]
+    public function testUpdateAssetModelCanSetObsoleteToFalseFromImport(): void
+    {
+        $assetmodel = AssetModel::factory()->create(['obsolete' => true]);
+        $category = Category::find($assetmodel->category_id);
+        $importFileBuilder = ImportFileBuilder::new([
+            'name' => $assetmodel->name,
+            'model_number' => Str::random(),
+            'category' => $category->name,
+            'obsolete' => 0,
+        ]);
+
+        $import = Import::factory()->assetmodel()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id, 'import-update' => true])
+            ->assertOk()
+            ->assertExactJson([
+                'payload'  => null,
+                'status'   => 'success',
+                'messages' => ['redirect_url' => route('models.index')]
+            ]);
+
+        $updatedAssetmodel = AssetModel::query()->find($assetmodel->id);
+
+        $this->assertEquals(0, $updatedAssetmodel->obsolete);
+    }
+
 
 }
