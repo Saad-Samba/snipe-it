@@ -81,6 +81,7 @@ class AssetModelsController extends Controller
         $model->category_id = $request->input('category_id');
         $model->notes = $request->input('notes');
         $model->created_by = auth()->id();
+        $model->obsolete = $request->has('obsolete');
         $model->requestable = $request->has('requestable');
         $model->require_serial = $request->input('require_serial', 0);
 
@@ -155,6 +156,7 @@ class AssetModelsController extends Controller
         $model->manufacturer_id = $request->input('manufacturer_id');
         $model->category_id = $request->input('category_id');
         $model->notes = $request->input('notes');
+        $model->obsolete = $request->input('obsolete', '0');
         $model->requestable = $request->input('requestable', '0');
         $model->require_serial = $request->input('require_serial', 0);
         $model->fieldset_id = $request->input('fieldset_id');

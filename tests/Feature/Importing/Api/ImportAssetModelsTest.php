@@ -40,7 +40,7 @@ class ImportAssetModelsTest extends ImportDataTestCase implements TestsPermissio
     #[Test]
     public function importAssetModels(): void
     {
-        $importFileBuilder = ImportFileBuilder::new();
+        $importFileBuilder = ImportFileBuilder::new(['obsolete' => 1]);
         $row = $importFileBuilder->firstRow();
         $import = Import::factory()->assetmodel()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
 
@@ -60,6 +60,7 @@ class ImportAssetModelsTest extends ImportDataTestCase implements TestsPermissio
 
         $this->assertEquals($row['name'], $newAssetModel->name);
         $this->assertEquals($row['model_number'], $newAssetModel->model_number);
+        $this->assertEquals(1, $newAssetModel->obsolete);
 
     }
 
@@ -115,7 +116,7 @@ class ImportAssetModelsTest extends ImportDataTestCase implements TestsPermissio
     {
         $assetmodel = AssetModel::factory()->create();
         $category = Category::find($assetmodel->category_id);
-        $importFileBuilder = ImportFileBuilder::new(['name' => $assetmodel->name, 'model_number' => Str::random(), 'category' => $category->name]);
+        $importFileBuilder = ImportFileBuilder::new(['name' => $assetmodel->name, 'model_number' => Str::random(), 'category' => $category->name, 'obsolete' => 1]);
 
         $row = $importFileBuilder->firstRow();
         $import = Import::factory()->assetmodel()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
@@ -133,6 +134,7 @@ class ImportAssetModelsTest extends ImportDataTestCase implements TestsPermissio
 
         $this->assertEquals($row['model_number'], $updatedAssetmodel->model_number);
         $this->assertEquals($row['name'], $updatedAssetmodel->name);
+        $this->assertEquals(1, $updatedAssetmodel->obsolete);
 
     }
 

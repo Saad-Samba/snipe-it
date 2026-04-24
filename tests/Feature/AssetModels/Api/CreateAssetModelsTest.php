@@ -24,7 +24,8 @@ class CreateAssetModelsTest extends TestCase
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
             ->postJson(route('api.models.store'), [
                 'name' => 'Test AssetModel',
-                'category_id' => Category::factory()->assetLaptopCategory()->create()->id
+                'category_id' => Category::factory()->assetLaptopCategory()->create()->id,
+                'obsolete' => true,
             ])
             ->assertOk()
             ->assertStatusMessageIs('success')
@@ -35,6 +36,7 @@ class CreateAssetModelsTest extends TestCase
 
         $model = AssetModel::find($response['payload']['id']);
         $this->assertEquals('Test AssetModel', $model->name);
+        $this->assertTrue($model->obsolete);
     }
 
     public function testCannotCreateAssetModelWithoutCategory()

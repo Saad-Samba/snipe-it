@@ -412,6 +412,7 @@ class Importer extends Component
             'min_amt' => trans('mail.min_QTY'),
             'model_number' => trans('general.model_no'),
             'notes' => trans('general.item_notes', ['item' => trans('admin/hardware/form.model')]),
+            'obsolete' => trans('admin/models/table.obsolete'),
             'requestable' => trans('admin/models/general.requestable'),
             'require_serial' => trans('admin/hardware/general.require_serial'),
 
@@ -462,6 +463,11 @@ class Importer extends Component
                 [
                     'requestable',
                     'Requestable',
+                ],
+            'obsolete' =>
+                [
+                    'obsolete',
+                    'Obsolete',
                 ],
             'gravatar' =>
                 [

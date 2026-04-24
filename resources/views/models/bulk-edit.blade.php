@@ -134,6 +134,23 @@
                                     </div>
                                 </div>
 
+                            <div class="form-group{{ $errors->has('obsolete') ? ' has-error' : '' }}">
+                                <div class="col-md-7 col-md-offset-3">
+                                    <label for="obsolete_nochange" class="form-control">
+                                        <input type="radio" name="obsolete" id="obsolete_nochange" value="" aria-label="obsolete_nochange" checked>
+                                        {{ trans('admin/hardware/general.requestable_status_warning') }}
+                                    </label>
+                                    <label for="obsolete" class="form-control">
+                                        <input type="radio" name="obsolete" id="obsolete" value="1" aria-label="obsolete">
+                                        {{ trans('general.yes') }} - {{ trans('admin/models/table.obsolete') }}
+                                    </label>
+                                    <label for="not_obsolete" class="form-control">
+                                        <input type="radio" name="obsolete" id="not_obsolete" value="0" aria-label="not_obsolete">
+                                        {{ trans('general.no') }} - {{ trans('admin/models/table.obsolete') }}
+                                    </label>
+                                </div>
+                            </div>
+
                             @foreach ($models as $model)
                                 <input type="hidden" name="ids[{{ $model->id }}]" value="{{ $model->id }}">
                             @endforeach

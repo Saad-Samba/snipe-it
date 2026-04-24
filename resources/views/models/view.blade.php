@@ -234,6 +234,11 @@
                         </li>
                     @endif
 
+                    <li>
+                        <strong>{{ trans('admin/models/table.obsolete') }}</strong>:
+                        {{ $model->obsolete ? trans('general.yes') : trans('general.no') }}
+                    </li>
+
                     @if ($model->notes)
                         <li>
                             <strong>{{ trans('general.notes') }}</strong>:

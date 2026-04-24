@@ -44,6 +44,29 @@ class IndexAssetModelsTest extends TestCase
             ->assertJson(fn(AssertableJson $json) => $json->has('rows', 3)->etc());
     }
 
+    public function testAssetModelIndexReturnsObsoleteFlag()
+    {
+        AssetModel::factory()->create([
+            'name' => 'Obsolete model',
+            'obsolete' => true,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(
+                route('api.models.index', [
+                    'search' => 'Obsolete model',
+                    'sort' => 'name',
+                    'order' => 'asc',
+                    'offset' => '0',
+                    'limit' => '20',
+                ]))
+            ->assertOk()
+            ->assertJson(fn(AssertableJson $json) => $json
+                ->where('rows.0.name', 'Obsolete model')
+                ->where('rows.0.obsolete', true)
+                ->etc());
+    }
+
     public function testAssetModelIndexSearchReturnsExpectedAssetModels()
     {
         AssetModel::factory()->count(3)->create();

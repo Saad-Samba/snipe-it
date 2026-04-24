@@ -56,4 +56,13 @@ class AssetModelTest extends TestCase
 
         $this->assertEquals($modelFieldset->id, $model->fieldset?->id);
     }
+
+    public function test_obsolete_attribute_is_cast_to_boolean()
+    {
+        $model = AssetModel::factory()->create([
+            'obsolete' => 1,
+        ]);
+
+        $this->assertTrue($model->obsolete);
+    }
 }

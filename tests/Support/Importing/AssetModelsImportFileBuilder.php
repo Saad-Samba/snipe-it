@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
  *  manufacturer?: string,
  *  category?: string,
  *  model_number?: string,
+ *  obsolete?: int,
  *  requestable?: int,
  * }
  *
@@ -35,6 +36,7 @@ class AssetModelsImportFileBuilder extends FileBuilder
             'eol'            => 'EOL',
             'min_amt'        => 'Min Amount',
             'notes'          => 'Notes',
+            'obsolete'       => 'Obsolete',
             'requestable'    => 'Requestable',
 
         ];
