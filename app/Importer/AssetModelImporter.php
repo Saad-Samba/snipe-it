@@ -119,7 +119,11 @@ class AssetModelImporter extends ItemImporter
 
         if ($editingAssetModel) {
             Log::debug('Updating existing model');
-            $assetModel->update($this->sanitizeItemForUpdating($assetModel));
+            $assetModel->update(
+                collect($this->sanitizeItemForStoring($assetModel))
+                    ->reject(fn ($value) => $value === null || $value === '')
+                    ->toArray()
+            );
         } else {
             Log::debug('Creating model');
             $assetModel->fill($this->sanitizeItemForStoring($assetModel));

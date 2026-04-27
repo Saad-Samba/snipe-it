@@ -142,7 +142,7 @@ class ItemImporter extends Importer
         // Then iterate through the item and, if we are updating, remove any blank values.
         if ($updating) {
             $item = $item->reject(function ($value) {
-                return $value === null || $value === '';
+                return empty($value);
             });
         }
 
