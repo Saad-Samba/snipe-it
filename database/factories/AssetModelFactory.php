@@ -33,6 +33,7 @@ class AssetModelFactory extends Factory
             'category_id' => Category::factory(),
             'model_number' => $this->faker->creditCardNumber(),
             'notes' => 'Created by demo seeder',
+            'obsolete' => 0,
             'require_serial' => 0,
 
         ];

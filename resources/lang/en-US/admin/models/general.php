@@ -15,4 +15,5 @@ return array(
     'fieldset'                  => 'Fieldset',
     'no_custom_field'           => 'No custom fields',
     'add_default_values'        => 'Add default values',
+    'obsolete_help'             => 'Mark as obsolete when the model is no longer supported or supplied by the manufacturer (e.g. removed from official catalogue or marked end-of-life), or when it is no longer suitable for use within current operational requirements.',
 );

@@ -8,6 +8,7 @@ return array(
     'modelnumber'   		=> 'Model No.',
     'name'      			=> 'Asset Model Name',
     'numassets' 			=> 'Assets',
+    'obsolete'              => 'Obsolete',
     'title'					=> 'Asset Models',
     'update'				=> 'Update Asset Model',
     'view'					=> 'View Asset Model',

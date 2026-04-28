@@ -64,6 +64,7 @@ abstract class Importer
         'purchase_order' => 'purchase order',
         'qty' => 'quantity',
         'reassignable' => 'reassignable',
+        'obsolete' => 'obsolete',
         'requestable' => 'requestable',
         'seats' => 'seats',
         'serial' => 'serial number',

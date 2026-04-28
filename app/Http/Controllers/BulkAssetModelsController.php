@@ -88,6 +88,10 @@ class BulkAssetModelsController extends Controller
             $update_array['requestable'] = $request->input('requestable');
         }
 
+        if ($request->input('obsolete') != '') {
+            $update_array['obsolete'] = $request->input('obsolete');
+        }
+
         if ($request->filled('min_amt')) {
             $update_array['min_amt'] = $request->input('min_amt');
         }

@@ -16,6 +16,27 @@
 @include ('partials.forms.edit.depreciation')
 @include ('partials.forms.edit.minimum_quantity')
 
+<div class="form-group">
+    <label for="obsolete" class="col-md-3 control-label">
+        {{ trans('admin/models/table.obsolete') }}
+    </label>
+
+    <div class="col-md-9">
+        <div class="form-inline" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" name="obsolete" value="1" @checked(old('obsolete', $item->obsolete)) id="obsolete" aria-label="obsolete" />
+            <a
+                    href="#"
+                    data-tooltip="true"
+                    title="{{ trans('admin/models/general.obsolete_help') }}"
+                    style="display: inline-flex; align-items: center;"
+            >
+                <x-icon type="info-circle" />
+                <span class="sr-only">{{ trans('admin/models/general.obsolete_help') }}</span>
+            </a>
+        </div>
+    </div>
+</div>
+
 <!-- require serial boolean -->
 <div class="form-group">
     <label for="require_serial" class="col-md-3 control-label">

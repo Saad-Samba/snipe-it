@@ -38,6 +38,7 @@ class UpdateAssetModelsTest extends TestCase
             ->put(route('models.update', ['model' => $model]), [
                 'name' => 'Test Model Edited',
                 'category_id' => $model->category_id,
+                'obsolete' => '1',
             ])
             ->assertStatus(302)
             ->assertSessionHasNoErrors()
@@ -45,6 +46,7 @@ class UpdateAssetModelsTest extends TestCase
 
         $this->followRedirects($response)->assertSee('Success');
         $this->assertTrue(AssetModel::where('name', 'Test Model Edited')->exists());
+        $this->assertTrue(AssetModel::where('name', 'Test Model Edited')->sole()->obsolete);
 
     }
 

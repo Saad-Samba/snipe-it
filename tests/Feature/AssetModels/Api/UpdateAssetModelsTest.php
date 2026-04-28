@@ -26,6 +26,7 @@ class UpdateAssetModelsTest extends TestCase
             ->patchJson(route('api.models.update', $model), [
                 'name' => 'Test Model',
                 'category_id' => Category::factory()->forAssets()->create()->id,
+                'obsolete' => true,
             ])
             ->assertOk()
             ->assertStatusMessageIs('success')
@@ -34,6 +35,7 @@ class UpdateAssetModelsTest extends TestCase
 
         $model->refresh();
         $this->assertEquals('Test Model', $model->name, 'Name was not updated');
+        $this->assertTrue($model->obsolete, 'Obsolete was not updated');
 
     }
 

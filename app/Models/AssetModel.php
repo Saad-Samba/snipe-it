@@ -41,6 +41,9 @@ class AssetModel extends SnipeModel
     use ValidatingTrait;
     protected $table = 'models';
     protected $presenter = AssetModelPresenter::class;
+    protected $casts = [
+        'obsolete' => 'boolean',
+    ];
 
     // Declare the rules for the model validation
 
@@ -52,6 +55,7 @@ class AssetModel extends SnipeModel
         'category_id'       => 'required|integer|exists:categories,id',
         'manufacturer_id'   => 'integer|exists:manufacturers,id|nullable',
         'eol'               => 'integer:min:0|max:240|nullable',
+        'obsolete'          => 'boolean',
     ];
 
 
@@ -72,6 +76,7 @@ class AssetModel extends SnipeModel
         'model_number',
         'name',
         'notes',
+        'obsolete',
         'requestable',
         'require_serial'
     ];
@@ -220,6 +225,15 @@ class AssetModel extends SnipeModel
     public function defaultValues()
     {
         return $this->belongsToMany(\App\Models\CustomField::class, 'models_custom_fields')->withPivot('default_value');
+    }
+
+    public function setObsoleteAttribute($value)
+    {
+        if ($value === '') {
+            $value = null;
+        }
+
+        $this->attributes['obsolete'] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
