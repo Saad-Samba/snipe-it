@@ -154,18 +154,27 @@ class SendFinancialChangeReport extends Command
         $runDate = now()->startOfDay();
 
         if (! $settings->finance_report_anchor_date instanceof Carbon) {
-            $settings->finance_report_anchor_date = $runDate;
+            $settings->finance_report_anchor_date = $this->normalizeCadenceAnchorDate($runDate);
             $settings->save();
 
             return true;
         }
 
-        $daysSinceAnchor = $settings->finance_report_anchor_date
-            ->copy()
-            ->startOfDay()
-            ->diffInDays($runDate, false);
+        $anchorDate = $this->normalizeCadenceAnchorDate($settings->finance_report_anchor_date);
+
+        if (! $settings->finance_report_anchor_date->copy()->startOfDay()->equalTo($anchorDate)) {
+            $settings->finance_report_anchor_date = $anchorDate;
+            $settings->save();
+        }
+
+        $daysSinceAnchor = $anchorDate->diffInDays($runDate, false);
 
         return $daysSinceAnchor >= 14 && $daysSinceAnchor % 14 === 0;
+    }
+
+    protected function normalizeCadenceAnchorDate(Carbon $date): Carbon
+    {
+        return $date->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
     }
 
     protected function claimDeliveries(int $userId, Collection $events): Collection
