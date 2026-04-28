@@ -227,17 +227,17 @@
                         </li>
                     @endif
 
+                    <li>
+                        <strong>{{ trans('admin/models/table.obsolete') }}</strong>:
+                        {{ $model->obsolete ? trans('general.yes') : trans('general.no') }}
+                    </li>
+
                     @if ($model->fieldset)
                         <li>
                             <strong>{{ trans('admin/models/general.fieldset') }}</strong>:
                             <a href="{{ route('fieldsets.show', $model->fieldset->id) }}">{{ $model->fieldset->name }}</a>
                         </li>
                     @endif
-
-                    <li>
-                        <strong>{{ trans('admin/models/table.obsolete') }}</strong>:
-                        {{ $model->obsolete ? trans('general.yes') : trans('general.no') }}
-                    </li>
 
                     @if ($model->notes)
                         <li>
