@@ -11,6 +11,7 @@ use App\Models\FinancialChangeEvent;
 use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -224,6 +225,39 @@ class SendFinancialChangeReportTest extends TestCase
             ->assertExitCode(0);
 
         Mail::assertNotSent(FinancialChangeReportMail::class);
+    }
+
+    public function testCommandNormalizesAnchorDateToMondayForScheduledCadence()
+    {
+        Mail::fake();
+        Carbon::setTestNow(Carbon::parse('2026-04-27 10:00:00'));
+
+        $company = Company::factory()->create();
+        $recipient = User::factory()->create(['email' => 'finance@example.com', 'company_id' => $company->id, 'activated' => 1]);
+        $event = FinancialChangeEvent::create([
+            'asset_id' => Asset::factory()->create(['company_id' => $company->id])->id,
+            'event_type' => 'status_change',
+            'company_id' => $company->id,
+            'previous_status_id' => Statuslabel::factory()->create()->id,
+            'new_status_id' => Statuslabel::factory()->create()->id,
+            'effective_at' => now()->subDay(),
+        ]);
+
+        $this->settings->enableFinanceReport('finance@example.com')->set([
+            'finance_report_anchor_date' => Carbon::parse('2026-04-15'),
+        ]);
+
+        $this->artisan('snipeit:financial-change-report')->assertExitCode(0);
+
+        Mail::assertSent(FinancialChangeReportMail::class, function (FinancialChangeReportMail $mail) use ($recipient, $event) {
+            return $mail->hasTo($recipient->email)
+                && $mail->statusEvents->pluck('id')->contains($event->id);
+        });
+
+        $this->assertEquals('2026-04-13', Setting::getSettings()->finance_report_anchor_date?->toDateString());
+        $this->assertEquals('2026-04-27 10:00:00', Setting::getSettings()->finance_report_last_sent_at?->format('Y-m-d H:i:s'));
+
+        Carbon::setTestNow();
     }
 
     public function testCommandReportsWhenNoEventsNeedDelivery()
