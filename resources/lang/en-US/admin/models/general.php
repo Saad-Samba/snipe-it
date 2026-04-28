@@ -15,4 +15,5 @@ return array(
     'fieldset'                  => 'Fieldset',
     'no_custom_field'           => 'No custom fields',
     'add_default_values'        => 'Add default values',
+    'obsolete_help'             => 'Marks this asset model as no longer current for new use or planning. Existing assets may still remain in service.',
 );

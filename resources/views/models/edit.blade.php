@@ -22,7 +22,18 @@
     </label>
 
     <div class="col-md-9">
-        <input type="checkbox" name="obsolete" value="1" @checked(old('obsolete', $item->obsolete)) id="obsolete" aria-label="obsolete" />
+        <div class="form-inline" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" name="obsolete" value="1" @checked(old('obsolete', $item->obsolete)) id="obsolete" aria-label="obsolete" />
+            <a
+                    href="#"
+                    data-tooltip="true"
+                    title="{{ trans('admin/models/general.obsolete_help') }}"
+                    style="display: inline-flex; align-items: center;"
+            >
+                <x-icon type="info-circle" />
+                <span class="sr-only">{{ trans('admin/models/general.obsolete_help') }}</span>
+            </a>
+        </div>
     </div>
 </div>
 
