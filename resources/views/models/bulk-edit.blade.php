@@ -138,7 +138,7 @@
                                 <div class="col-md-7 col-md-offset-3">
                                     <label for="obsolete_nochange" class="form-control">
                                         <input type="radio" name="obsolete" id="obsolete_nochange" value="" aria-label="obsolete_nochange" checked>
-                                        {{ trans('admin/hardware/general.requestable_status_warning') }}
+                                        {{ trans('admin/models/general.obsolete_status_warning') }}
                                     </label>
                                     <label for="obsolete" class="form-control">
                                         <input type="radio" name="obsolete" id="obsolete" value="1" aria-label="obsolete">
