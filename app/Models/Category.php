@@ -231,6 +231,20 @@ class Category extends SnipeModel
     }
 
     /**
+     * Establishes the category -> reusable assets relationship.
+     *
+     * Reusable assets should follow the same RTD logic used by model
+     * "remaining" counts so category totals and drilldowns stay consistent.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\Relation
+     */
+    public function reusableAssets()
+    {
+        return $this->hasManyThrough(Asset::class, \App\Models\AssetModel::class, 'category_id', 'model_id')
+            ->RTD();
+    }
+
+    /**
      * Establishes the category -> models relationship
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]

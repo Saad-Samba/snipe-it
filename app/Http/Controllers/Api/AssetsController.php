@@ -317,6 +317,10 @@ class AssetsController extends Controller
             $assets->where('assets.status_id', '=', $request->input('status_id'));
         }
 
+        if ($request->boolean('reusable_assets')) {
+            $assets->RTD();
+        }
+
         if ($request->filled('asset_tag')) {
             $assets->where('assets.asset_tag', '=', $request->input('asset_tag'));
         }

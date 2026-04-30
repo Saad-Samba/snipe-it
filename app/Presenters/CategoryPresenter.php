@@ -54,6 +54,13 @@ class CategoryPresenter extends Presenter
                 'title' => trans('general.qty'),
                 'visible' => true,
             ], [
+                'field' => 'reusable_assets_count',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => trans('general.remaining'),
+                'visible' => true,
+                'formatter' => 'categoryReusableAssetsFormatter',
+            ], [
                 'field' => 'has_eula',
                 'searchable' => false,
                 'sortable' => false,

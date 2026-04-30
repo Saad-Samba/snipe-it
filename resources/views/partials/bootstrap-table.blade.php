@@ -1202,6 +1202,18 @@
         }
     }
 
+    function categoryReusableAssetsFormatter(value, row) {
+        if (value === null || value === undefined) {
+            return '0';
+        }
+
+        if (!row || row.category_type_raw !== 'asset' || value < 1) {
+            return value;
+        }
+
+        return '<a href="{{ route('hardware.index') }}?category_id=' + row.id + '&reusable_assets=1">' + value + '</a>';
+    }
+
 
     // Convert line breaks to <br>
     function notesFormatter(value) {

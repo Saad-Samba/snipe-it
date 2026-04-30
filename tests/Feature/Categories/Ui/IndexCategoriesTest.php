@@ -18,6 +18,7 @@ class IndexCategoriesTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('categories.index'))
-            ->assertOk();
+            ->assertOk()
+            ->assertSeeText('Remaining');
     }
 }

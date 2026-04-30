@@ -36,6 +36,7 @@ class CategoriesController extends Controller
             'require_acceptance',
             'checkin_email',
             'assets_count',
+            'reusable_assets_count',
             'accessories_count',
             'consumables_count',
             'components_count',
@@ -63,7 +64,14 @@ class CategoriesController extends Controller
             'notes',
             ])
             ->with('adminuser', 'fieldset')
-            ->withCount('accessories as accessories_count', 'consumables as consumables_count', 'components as components_count', 'licenses as licenses_count', 'models as models_count');
+            ->withCount(
+                'accessories as accessories_count',
+                'consumables as consumables_count',
+                'components as components_count',
+                'licenses as licenses_count',
+                'models as models_count',
+                'reusableAssets as reusable_assets_count'
+            );
 
 
         $filter = [];
