@@ -16,7 +16,11 @@ echo "--- Database Connected. Starting Model-Level Audit (Safe Speed Mode) ---\n
 echo "Pacing: 1 request every 40 seconds to prevent 429 Quota Errors.\n";
 
 
-$apiKey = env('GEMINI_API_KEY', 'AIzaSyA5j5_TuHVhznOt3hnMWOXmakDgZxhz4e4');
+$apiKey = env('GEMINI_API_KEY');
+
+if (!$apiKey) {
+    die("FATAL ERROR: GEMINI_API_KEY is not defined in your .env file.\n");
+}
 
 // We look for models that have assets but haven't been marked obsolete yet
 
