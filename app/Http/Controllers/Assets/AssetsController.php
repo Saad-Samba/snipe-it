@@ -1102,10 +1102,6 @@ class AssetsController extends Controller
 
     private function resolveCompanyId($companyId)
     {
-        if ((is_null($companyId) || ($companyId === '')) && auth()->user() && ! is_null(auth()->user()->company_id)) {
-            return auth()->user()->company_id;
-        }
-
         return Company::getIdForCurrentUser($companyId);
     }
 }
