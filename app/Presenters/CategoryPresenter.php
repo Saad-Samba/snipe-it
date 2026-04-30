@@ -48,6 +48,13 @@ class CategoryPresenter extends Presenter
                 'title' => trans('general.type'),
                 'visible' => true,
             ], [
+                'field' => 'manager',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => 'Category Manager',
+                'visible' => true,
+                'formatter' => 'usersLinkObjFormatter',
+            ], [
                 'field' => 'item_count',
                 'searchable' => false,
                 'sortable' => true,

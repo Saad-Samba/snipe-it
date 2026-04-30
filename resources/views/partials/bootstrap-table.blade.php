@@ -680,10 +680,23 @@
     });
     @endcan
 
-    @can('create', \App\Models\Category::class)
     // Custom Field table buttons
-    window.categoryButtons = () => ({
-        btnAdd: {
+    window.categoryButtons = () => {
+        const buttons = {
+            btnShowMine: {
+                text: 'My Categories',
+                icon: 'fa fa-user',
+                event () {
+                    window.location.href = '{{ route('categories.index', ['manager_id' => auth()->id()]) }}';
+                },
+                attributes: {
+                    title: 'My Categories',
+                }
+            },
+        };
+
+        @can('create', \App\Models\Category::class)
+        buttons.btnAdd = {
             text: '{{ trans('general.create') }}',
             icon: 'fa fa-plus',
             event () {
@@ -696,9 +709,11 @@
                 accesskey: 'n'
                 @endif
             }
-        },
-    });
-    @endcan
+        };
+        @endcan
+
+        return buttons;
+    };
 
     @can('create', \App\Models\AssetModel::class)
     // Custom Field table buttons

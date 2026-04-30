@@ -94,6 +94,39 @@ class IndexCategoriesTest extends TestCase
                 ->etc());
     }
 
+    public function testCategoryIndexCanFilterByManager()
+    {
+        $manager = User::factory()->create();
+        $otherManager = User::factory()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Managed Category',
+            'manager_id' => $manager->id,
+        ]);
+        $otherCategory = Category::factory()->forAssets()->create([
+            'name' => 'Other Managed Category',
+            'manager_id' => $otherManager->id,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(
+                route('api.categories.index', [
+                    'manager_id' => $manager->id,
+                    'sort' => 'name',
+                    'order' => 'asc',
+                    'offset' => '0',
+                    'limit' => '20',
+                ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('total', 1)
+                ->where('rows.0.id', $managedCategory->id)
+                ->where('rows.0.manager.id', $manager->id)
+                ->missing('rows.1')
+                ->etc());
+
+        $this->assertNotEquals($managedCategory->id, $otherCategory->id);
+    }
+
     public function testCategoryIndexReturnsExpectedCategories()
     {
         $this->markTestIncomplete('Not sure why the category factory is generating one more than expected here.');

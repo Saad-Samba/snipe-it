@@ -61,6 +61,12 @@ class CategoriesTransformer
                     'id' => (int) $category->fieldset->id,
                     'name' => e($category->fieldset->name),
                 ] : null,
+                'manager' => ($category->manager) ? [
+                    'id' => (int) $category->manager->id,
+                    'name' => e($category->manager->display_name),
+                    'first_name' => e($category->manager->first_name),
+                    'last_name' => e($category->manager->last_name),
+                ] : null,
                 'item_count' => (int) $category->item_count,
                 'assets_count' => (int) $category->assets_count,
                 'reusable_assets_count' => (int) $category->reusable_assets_count,
