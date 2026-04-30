@@ -131,7 +131,10 @@ class AssetsController extends Controller
         }
 
         $asset = null;
-        $companyId = Company::getIdForCurrentUser($request->input('company_id'));
+        $companyId = $this->resolveCompanyId($request->input('company_id'));
+        if ($companyRedirect = $this->redirectWhenCompanyValidationFails($request, $companyId)) {
+            return $companyRedirect;
+        }
         $successes = [];
         $failures = [];
 
@@ -424,7 +427,11 @@ class AssetsController extends Controller
         }
 
         $asset->name = $request->input('name');
-        $asset->company_id = Company::getIdForCurrentUser($request->input('company_id'));
+        $requestedCompanyId = $request->has('company_id') ? $request->input('company_id') : $asset->company_id;
+        $asset->company_id = $this->resolveCompanyId($requestedCompanyId);
+        if ($companyRedirect = $this->redirectWhenCompanyValidationFails($request, $asset->company_id)) {
+            return $companyRedirect;
+        }
         $asset->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $asset->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $asset->model_id = $request->input('model_id');
@@ -1070,5 +1077,35 @@ class AssetsController extends Controller
         $requestedItems = $requestedItems->orderBy('created_at', 'desc')->get();
 
         return view('hardware/requested', compact('requestedItems'));
+    }
+
+    private function redirectWhenCompanyValidationFails(Request $request, $companyId): ?RedirectResponse
+    {
+        if (Company::currentUserLacksCompanyAssignmentForFullMultipleCompanySupport()) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'company_id' => 'You cannot complete this action because your account is not assigned to a company.',
+                ]);
+        }
+
+        if (is_null($companyId)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'company_id' => 'The company field is required.',
+                ]);
+        }
+
+        return null;
+    }
+
+    private function resolveCompanyId($companyId)
+    {
+        if ((is_null($companyId) || ($companyId === '')) && auth()->user() && ! is_null(auth()->user()->company_id)) {
+            return auth()->user()->company_id;
+        }
+
+        return Company::getIdForCurrentUser($companyId);
     }
 }

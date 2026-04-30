@@ -120,6 +120,23 @@ class StoreAssetTest extends TestCase
         $this->assertNull($asset->last_audit_date);
     }
 
+    public function testCompanyIsRequiredToCreateAsset()
+    {
+        $response = $this->actingAsForApi(User::factory()->superuser()->create(['company_id' => null]))
+            ->postJson(route('api.assets.store'), [
+                'asset_tag' => '1234',
+                'model_id' => AssetModel::factory()->create()->id,
+                'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
+            ])
+            ->assertStatusMessageIs('error');
+
+        $response->assertJsonPath('messages.company_id.0', 'The company field is required.');
+
+        $this->assertDatabaseMissing('assets', [
+            'asset_tag' => '1234',
+        ]);
+    }
+
     public function testNonDateUsedForLastAuditDateReturnsValidationError()
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())

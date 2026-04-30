@@ -157,4 +157,49 @@ class EditAssetTest extends TestCase
             'status_id' => $newStatus->id,
         ]);
     }
+
+    public function testRejectsUpdateWhenUserLacksCompanyAssignmentUnderFullMultipleCompanySupport()
+    {
+        $this->settings->enableMultipleFullCompanySupport();
+
+        $asset = Asset::factory()->create();
+        $actor = User::factory()->viewAssets()->editAssets()->create(['company_id' => null]);
+
+        $response = $this->actingAs($actor)
+            ->from(route('hardware.edit', $asset))
+            ->put(route('hardware.update', $asset), [
+                'name' => 'New name',
+                'asset_tags' => $asset->asset_tag,
+                'status_id' => $asset->status_id,
+                'model_id' => $asset->model_id,
+            ]);
+
+        $response->assertRedirect(route('hardware.index'));
+
+        $asset->refresh();
+        $this->assertNotEquals('New name', $asset->name);
+    }
+
+    public function testCompanyIsRequiredWhenUpdatingAsset()
+    {
+        $asset = Asset::factory()->create(['company_id' => null]);
+        $actor = User::factory()->viewAssets()->editAssets()->superuser()->create(['company_id' => null]);
+
+        $response = $this->actingAs($actor)
+            ->from(route('hardware.edit', $asset))
+            ->put(route('hardware.update', $asset), [
+                'name' => 'New name',
+                'asset_tags' => $asset->asset_tag,
+                'status_id' => $asset->status_id,
+                'model_id' => $asset->model_id,
+            ]);
+
+        $response->assertRedirect(route('hardware.edit', $asset));
+        $response->assertSessionHasErrors([
+            'company_id' => 'The company field is required.',
+        ]);
+
+        $asset->refresh();
+        $this->assertNotEquals('New name', $asset->name);
+    }
 }
