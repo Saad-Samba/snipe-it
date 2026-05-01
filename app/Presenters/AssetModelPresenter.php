@@ -215,6 +215,16 @@ class AssetModelPresenter extends Presenter
         ];
 
         $layout[] = [
+            'field' => 'request',
+            'searchable' => false,
+            'sortable' => false,
+            'switchable' => false,
+            'title' => trans('button.request'),
+            'formatter' => 'modelRequestActionsFormatter',
+            'printIgnore' => true,
+        ];
+
+        $layout[] = [
             'field' => 'actions',
             'searchable' => false,
             'sortable' => false,

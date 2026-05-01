@@ -10,7 +10,6 @@ use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
-use App\Models\Discipline;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\RequestAssetCancelation;
@@ -18,6 +17,7 @@ use App\Notifications\RequestAssetNotification;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use \Illuminate\Contracts\View\View;
 use Exception;
 
@@ -172,19 +172,14 @@ class ViewAssetsController extends Controller
             },
         ])->RequestableModels()->get();
 
-        $requestDisciplines = Discipline::select('id', 'name')
-            ->orderBy('name')
-            ->get();
-
-        return view('account/requestable-assets', compact('assets', 'models', 'requestDisciplines'));
+        return view('account/requestable-assets', compact('assets', 'models'));
     }
 
     public function getRequestItem(Request $request, $itemType, $itemId = null, $cancel_by_admin = false, $requestingUser = null): RedirectResponse
     {
         $validated = $request->validate([
+            'request-action' => ['nullable', 'string', 'in:create,update,cancel'],
             'request-quantity' => ['nullable', 'integer', 'min:1'],
-            'discipline_id' => ['nullable', 'integer', 'exists:disciplines,id'],
-            'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $item = null;
@@ -210,13 +205,12 @@ class ViewAssetsController extends Controller
         $logaction->target_type = User::class;
 
         $quantity = (int) ($validated['request-quantity'] ?? 1);
+        $requestAction = $validated['request-action'] ?? 'create';
         $data['item_quantity'] = $quantity;
         $data['requested_by'] = $user->display_name;
         $data['item'] = $item;
         $data['item_type'] = $itemType;
         $data['target'] = auth()->user();
-        $data['note'] = trim((string) ($validated['note'] ?? ''));
-        $data['requested_discipline'] = !empty($validated['discipline_id']) ? Discipline::find($validated['discipline_id']) : null;
 
         if ($fullItemType == Asset::class) {
             $data['item_url'] = route('hardware.show', $item->id);
@@ -225,8 +219,20 @@ class ViewAssetsController extends Controller
         }
 
         $settings = Setting::getSettings();
+        $item_request = $item->isRequestedBy($user);
+        $isCancelRequest = $cancel_by_admin || $requestAction === 'cancel';
 
-        if (($item_request = $item->isRequestedBy($user)) || $cancel_by_admin) {
+        if (!$isCancelRequest && $fullItemType == AssetModel::class) {
+            $remaining = $item->availableAssets()->count();
+
+            if ($quantity > $remaining) {
+                throw ValidationException::withMessages([
+                    'request-quantity' => 'Requested quantity cannot exceed remaining stock ('.$remaining.').',
+                ]);
+            }
+        }
+
+        if ($isCancelRequest) {
             $item->cancelRequest($requestingUser);
             $data['item_quantity'] = ($item_request) ? $item_request->quantity : 1;
             $logaction->logaction(ActionType::RequestCanceled);
@@ -237,16 +243,9 @@ class ViewAssetsController extends Controller
 
             return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.canceled'));
         } else {
-            $requestAttributes = [];
-
-            if ($fullItemType == AssetModel::class) {
-                $requestAttributes = [
-                    'requested_discipline_id' => $validated['discipline_id'] ?? null,
-                    'note' => $data['note'] ?: null,
-                ];
-            }
-
-            $checkoutRequest = $item->request($quantity, $requestAttributes);
+            $checkoutRequest = $item_request
+                ? $item->updateRequest($quantity, $user)
+                : $item->request($quantity);
 
             if ($fullItemType == AssetModel::class) {
                 ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
@@ -257,7 +256,7 @@ class ViewAssetsController extends Controller
                 $settings->notify(new RequestAssetNotification($data));
             }
 
-            return redirect()->route('requestable-assets')->with('success')->with('success', trans('admin/hardware/message.requests.success'));
+            return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.success'));
         }
     }
 

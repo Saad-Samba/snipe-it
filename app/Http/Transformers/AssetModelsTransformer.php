@@ -4,6 +4,7 @@ namespace App\Http\Transformers;
 
 use App\Helpers\Helper;
 use App\Models\AssetModel;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -89,6 +90,19 @@ class AssetModelsTransformer
             'clone' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at == '')),
             'restore' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at != '')),
         ];
+
+        $requestingUser = Auth::user();
+        $canRequestModels = $requestingUser
+            && $requestingUser->hasAccess('assets.view.requestable')
+            && $assetmodel->deleted_at == '';
+
+        $activeRequest = $requestingUser ? $assetmodel->isRequestedBy($requestingUser) : null;
+        $hasActiveRequest = (bool) $activeRequest;
+
+        $permissions_array['available_actions']['request'] = $canRequestModels && !$hasActiveRequest && ((int) $assetmodel->remaining > 0);
+        $permissions_array['available_actions']['cancel_request'] = $canRequestModels && $hasActiveRequest;
+        $permissions_array['available_actions']['update_request'] = $canRequestModels && $hasActiveRequest;
+        $array['requested_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
 
         $array += $permissions_array;
 

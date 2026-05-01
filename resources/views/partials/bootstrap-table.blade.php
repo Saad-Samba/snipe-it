@@ -1348,6 +1348,31 @@
 
     }
 
+    function modelRequestActionsFormatter(value, row) {
+        var requestUrl = '{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
+        var requestedQuantity = row.requested_quantity || 1;
+
+        if ((row.available_actions) && (row.available_actions.update_request === true)) {
+            return '<div style="display:flex;align-items:center;gap:6px;min-width:220px;">'
+                + '<form action="' + requestUrl + '" method="POST" style="display:flex;align-items:center;gap:6px;margin:0;">'
+                + '@csrf'
+                + '<input type="hidden" name="request-action" value="update">'
+                + '<input type="number" min="1" max="' + row.remaining + '" name="request-quantity" value="' + requestedQuantity + '" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}">'
+                + '<button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.update') }}">{{ trans('general.update') }}</button>'
+                + '</form>'
+                + '<form action="' + requestUrl + '" method="POST" style="margin:0;">'
+                + '@csrf'
+                + '<input type="hidden" name="request-action" value="cancel">'
+                + '<button class="btn btn-danger btn-sm" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">{{ trans('button.cancel') }}</button>'
+                + '</form>'
+                + '</div>';
+        } else if ((row.available_actions) && (row.available_actions.request === true)) {
+            return '<form action="' + requestUrl + '" method="POST" style="display:flex;align-items:center;gap:6px;min-width:160px;">@csrf<input type="hidden" name="request-action" value="create"><input type="number" min="1" max="' + row.remaining + '" name="request-quantity" value="1" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}"><button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}">{{ trans('button.request') }}</button></form>';
+        }
+
+        return '';
+    }
+
 
 
     var formatters = [

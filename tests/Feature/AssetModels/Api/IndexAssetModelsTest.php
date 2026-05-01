@@ -165,6 +165,68 @@ class IndexAssetModelsTest extends TestCase
                 ->etc());
     }
 
+    public function testAssetModelIndexExposesRequestActionsForAvailableModelsRegardlessOfRequestableFlag()
+    {
+        $requester = User::factory()->viewRequestableAssets()->viewAssetModels()->create();
+        $requestableModel = AssetModel::factory()->create([
+            'name' => 'Requestable Available Model',
+            'requestable' => 0,
+        ]);
+        $unavailableModel = AssetModel::factory()->create([
+            'name' => 'Unavailable Model',
+            'requestable' => 0,
+        ]);
+
+        $deployableStatus = Statuslabel::factory()->rtd()->create();
+        $assignedUser = User::factory()->create();
+
+        Asset::factory()->create([
+            'model_id' => $requestableModel->id,
+            'status_id' => $deployableStatus->id,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $unavailableModel->id,
+            'status_id' => $deployableStatus->id,
+            'assigned_to' => $assignedUser->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Available Model',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', true)
+                ->where('rows.0.available_actions.cancel_request', false)
+                ->where('rows.0.available_actions.update_request', false)
+                ->where('rows.0.requested_quantity', null)
+                ->etc());
+
+        $requestableModel->request(1);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Available Model',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', false)
+                ->where('rows.0.available_actions.cancel_request', true)
+                ->where('rows.0.available_actions.update_request', true)
+                ->where('rows.0.requested_quantity', 1)
+                ->etc());
+    }
+
     public function testAssetModelIndexSortsByInheritedCategoryFieldsetName()
     {
         $inheritedFieldset = CustomFieldset::factory()->create(['name' => 'Alpha Fieldset']);

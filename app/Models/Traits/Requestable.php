@@ -40,6 +40,21 @@ trait Requestable
         );
     }
 
+    public function updateRequest($qty = 1, ?User $user = null)
+    {
+        $user ??= auth()->user();
+        $request = $this->isRequestedBy($user);
+
+        if (!$request) {
+            return null;
+        }
+
+        $request->quantity = $qty;
+        $request->save();
+
+        return $request->fresh();
+    }
+
     public function deleteRequest()
     {
         $this->requests()->where('user_id', auth()->id())->delete();

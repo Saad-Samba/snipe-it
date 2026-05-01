@@ -12,16 +12,18 @@ use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Testing\Fluent\AssertableJson;
 use Tests\TestCase;
 
 class ModelRequestWorkflowTest extends TestCase
 {
-    public function test_model_request_persists_discipline_and_resolves_candidate_racs()
+    public function test_model_request_persists_quantity_and_resolves_candidate_racs_from_asset_stock()
     {
         Notification::fake();
 
         $requester = User::factory()->viewRequestableAssets()->create();
-        $discipline = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
+        $disciplineA = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
+        $disciplineB = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
         $coordinatorA = User::factory()->create(['first_name' => 'Casablanca', 'last_name' => 'RAC']);
         $coordinatorB = User::factory()->create(['first_name' => 'Rabat', 'last_name' => 'RAC']);
         $companyA = Company::factory()->create(['name' => 'Casablanca Site']);
@@ -31,30 +33,28 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable' => 1,
         ]);
 
-        $this->createEligibleAsset($model, $companyA->id);
-        $this->createEligibleAsset($model, $companyB->id);
+        $this->createEligibleAsset($model, $companyA->id, $disciplineA->id);
+        $this->createEligibleAsset($model, $companyB->id, $disciplineB->id);
 
         RegionalAssetCoordinatorAssignment::create([
             'user_id' => $coordinatorA->id,
             'company_id' => $companyA->id,
-            'discipline_id' => $discipline->id,
+            'discipline_id' => $disciplineA->id,
             'created_by' => $requester->id,
         ]);
 
         RegionalAssetCoordinatorAssignment::create([
             'user_id' => $coordinatorB->id,
             'company_id' => $companyB->id,
-            'discipline_id' => $discipline->id,
+            'discipline_id' => $disciplineB->id,
             'created_by' => $requester->id,
         ]);
 
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 3,
-                'discipline_id' => $discipline->id,
-                'note' => 'Need regional allocation',
             ])
-            ->assertRedirect(route('requestable-assets'));
+            ->assertRedirect();
 
         $checkoutRequest = CheckoutRequest::query()
             ->where('user_id', $requester->id)
@@ -63,32 +63,31 @@ class ModelRequestWorkflowTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame(3, $checkoutRequest->quantity);
-        $this->assertSame($discipline->id, $checkoutRequest->requested_discipline_id);
-        $this->assertSame('Need regional allocation', $checkoutRequest->note);
 
         $this->assertDatabaseHas('checkout_request_coordinators', [
             'checkout_request_id' => $checkoutRequest->id,
             'user_id' => $coordinatorA->id,
             'company_id' => $companyA->id,
-            'discipline_id' => $discipline->id,
+            'discipline_id' => $disciplineA->id,
         ]);
 
         $this->assertDatabaseHas('checkout_request_coordinators', [
             'checkout_request_id' => $checkoutRequest->id,
             'user_id' => $coordinatorB->id,
             'company_id' => $companyB->id,
-            'discipline_id' => $discipline->id,
+            'discipline_id' => $disciplineB->id,
         ]);
     }
 
-    public function test_requested_assets_api_returns_discipline_and_candidate_routing_metadata_for_requester()
+    public function test_requested_assets_api_returns_candidate_routing_metadata_for_requester()
     {
         $requester = User::factory()->create();
-        $discipline = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
         $coordinatorA = User::factory()->create(['first_name' => 'North', 'last_name' => 'RAC']);
         $coordinatorB = User::factory()->create(['first_name' => 'South', 'last_name' => 'RAC']);
         $companyA = Company::factory()->create(['name' => 'Tangier Site']);
         $companyB = Company::factory()->create(['name' => 'Agadir Site']);
+        $disciplineA = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
+        $disciplineB = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
         $model = AssetModel::factory()->create([
             'category_id' => Category::factory()->forAssets()->create()->id,
             'requestable' => 1,
@@ -100,20 +99,18 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'quantity' => 2,
-            'requested_discipline_id' => $discipline->id,
-            'note' => 'Prioritize available stock',
         ]);
 
         $checkoutRequest->coordinatorTargets()->createMany([
             [
                 'user_id' => $coordinatorA->id,
                 'company_id' => $companyA->id,
-                'discipline_id' => $discipline->id,
+                'discipline_id' => $disciplineA->id,
             ],
             [
                 'user_id' => $coordinatorB->id,
                 'company_id' => $companyB->id,
-                'discipline_id' => $discipline->id,
+                'discipline_id' => $disciplineB->id,
             ],
         ]);
 
@@ -122,13 +119,11 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('total', 1)
             ->assertJsonPath('rows.0.qty', 2)
-            ->assertJsonPath('rows.0.discipline', 'Mechanical')
             ->assertJsonPath('rows.0.candidate_companies', 'Tangier Site, Agadir Site')
-            ->assertJsonPath('rows.0.candidate_coordinators', 'North RAC, South RAC')
-            ->assertJsonPath('rows.0.note', 'Prioritize available stock');
+            ->assertJsonPath('rows.0.candidate_coordinators', 'North RAC, South RAC');
     }
 
-    public function test_requested_assets_api_filters_to_candidate_rac_queue()
+    public function test_requested_assets_api_can_filter_to_coordinator_queue()
     {
         $requester = User::factory()->create(['first_name' => 'Global', 'last_name' => 'AFM']);
         $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
@@ -138,7 +133,6 @@ class ModelRequestWorkflowTest extends TestCase
 
         $requestForCoordinator = CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
-            'requested_discipline_id' => $discipline->id,
             'quantity' => 4,
         ]);
 
@@ -150,7 +144,6 @@ class ModelRequestWorkflowTest extends TestCase
 
         $requestForOtherCoordinator = CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
-            'requested_discipline_id' => $discipline->id,
             'quantity' => 1,
         ]);
 
@@ -163,16 +156,107 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAsForApi($coordinator)
             ->getJson(route('api.assets.requested', ['coordinator' => 1]))
             ->assertOk()
-            ->assertJsonPath('total', 1)
-            ->assertJsonPath('rows.0.requested_by', $requester->display_name)
-            ->assertJsonPath('rows.0.qty', 4);
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('total', 1)
+                ->where('rows.0.requested_by', $requester->display_name)
+                ->where('rows.0.qty', 4)
+                ->etc());
     }
 
-    private function createEligibleAsset(AssetModel $model, int $companyId): Asset
+    public function test_model_request_cannot_exceed_remaining_stock()
+    {
+        $requester = User::factory()->viewRequestableAssets()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => Category::factory()->forAssets()->create()->id,
+            'requestable' => 1,
+        ]);
+
+        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+            'name' => 'Validation',
+            'created_by' => $requester->id,
+        ])->id);
+
+        $this->actingAs($requester)
+            ->from(route('requestable-assets'))
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-action' => 'create',
+                'request-quantity' => 2,
+            ])
+            ->assertRedirect(route('requestable-assets'))
+            ->assertSessionHasErrors('request-quantity');
+
+        $this->assertDatabaseMissing('checkout_requests', [
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'quantity' => 2,
+        ]);
+    }
+
+    public function test_model_request_update_reuses_existing_request_and_updates_quantity()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->viewRequestableAssets()->create();
+        $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
+        $company = Company::factory()->create(['name' => 'Casablanca Site']);
+        $coordinator = User::factory()->create(['first_name' => 'Casablanca', 'last_name' => 'RAC']);
+        $model = AssetModel::factory()->create([
+            'category_id' => Category::factory()->forAssets()->create()->id,
+            'requestable' => 1,
+        ]);
+
+        $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $this->createEligibleAsset($model, $company->id, $discipline->id);
+
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $existingRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'quantity' => 1,
+        ]);
+
+        $existingRequest->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-action' => 'update',
+                'request-quantity' => 2,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('checkout_requests', [
+            'id' => $existingRequest->id,
+            'quantity' => 2,
+        ]);
+
+        $this->assertSame(
+            1,
+            CheckoutRequest::query()
+                ->where('user_id', $requester->id)
+                ->where('requestable_id', $model->id)
+                ->where('requestable_type', AssetModel::class)
+                ->count()
+        );
+    }
+
+    private function createEligibleAsset(AssetModel $model, int $companyId, int $disciplineId): Asset
     {
         return Asset::factory()->create([
             'model_id' => $model->id,
             'company_id' => $companyId,
+            'discipline_id' => $disciplineId,
             'status_id' => Statuslabel::factory()->rtd()->create()->id,
             'requestable' => 1,
             'assigned_to' => null,
