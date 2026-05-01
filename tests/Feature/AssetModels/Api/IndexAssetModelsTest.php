@@ -165,23 +165,21 @@ class IndexAssetModelsTest extends TestCase
                 ->etc());
     }
 
-    public function testAssetModelIndexExposesRequestActionsForAvailableModelsRegardlessOfRequestableFlag()
+    public function testAssetModelIndexExposesRequestActionsForAvailableModels()
     {
         $requester = User::factory()->viewRequestableAssets()->viewAssetModels()->create();
-        $requestableModel = AssetModel::factory()->create([
+        $availableModel = AssetModel::factory()->create([
             'name' => 'Requestable Available Model',
-            'requestable' => 0,
         ]);
         $unavailableModel = AssetModel::factory()->create([
             'name' => 'Unavailable Model',
-            'requestable' => 0,
         ]);
 
         $deployableStatus = Statuslabel::factory()->rtd()->create();
         $assignedUser = User::factory()->create();
 
         Asset::factory()->create([
-            'model_id' => $requestableModel->id,
+            'model_id' => $availableModel->id,
             'status_id' => $deployableStatus->id,
         ]);
 
@@ -208,7 +206,7 @@ class IndexAssetModelsTest extends TestCase
                 ->where('rows.0.requested_quantity', null)
                 ->etc());
 
-        $requestableModel->request(1);
+        $availableModel->request(1);
 
         $this->actingAsForApi($requester)
             ->getJson(route('api.models.index', [

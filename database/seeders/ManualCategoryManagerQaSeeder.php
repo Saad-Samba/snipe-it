@@ -209,22 +209,19 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $alphaModelA = $this->upsertModel(
             name: 'QA Alpha Model A',
             categoryId: $alphaCategory->id,
-            createdBy: $admin->id,
-            requestable: true
+            createdBy: $admin->id
         );
 
         $alphaModelB = $this->upsertModel(
             name: 'QA Alpha Model B',
             categoryId: $alphaCategory->id,
-            createdBy: $admin->id,
-            requestable: true
+            createdBy: $admin->id
         );
 
         $bravoModelA = $this->upsertModel(
             name: 'QA Bravo Model A',
             categoryId: $bravoCategory->id,
-            createdBy: $admin->id,
-            requestable: false
+            createdBy: $admin->id
         );
 
         $this->upsertAsset(
@@ -233,6 +230,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
             modelId: $alphaModelA->id,
             statusId: $readyStatus->id,
             companyId: $casablancaCompany->id,
+            disciplineId: $powerDiscipline->id,
             createdBy: $admin->id,
             requestable: true
         );
@@ -243,6 +241,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
             modelId: $alphaModelA->id,
             statusId: $readyStatus->id,
             companyId: $casablancaCompany->id,
+            disciplineId: $powerDiscipline->id,
             createdBy: $admin->id,
             requestable: true
         );
@@ -253,6 +252,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
             modelId: $alphaModelB->id,
             statusId: $readyStatus->id,
             companyId: $rabatCompany->id,
+            disciplineId: $powerDiscipline->id,
             createdBy: $admin->id,
             requestable: true
         );
@@ -263,6 +263,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
             modelId: $alphaModelB->id,
             statusId: $readyStatus->id,
             companyId: $rabatCompany->id,
+            disciplineId: $powerDiscipline->id,
             createdBy: $admin->id,
             assignedTo: $betaManager->id,
             assignedType: User::class,
@@ -275,6 +276,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
             modelId: $bravoModelA->id,
             statusId: $archivedStatus->id,
             companyId: $casablancaCompany->id,
+            disciplineId: $powerDiscipline->id,
             createdBy: $admin->id,
             requestable: false
         );
@@ -285,6 +287,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
             modelId: $bravoModelA->id,
             statusId: $undeployableStatus->id,
             companyId: $rabatCompany->id,
+            disciplineId: $powerDiscipline->id,
             createdBy: $admin->id,
             requestable: false
         );
@@ -308,8 +311,6 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ],
             [
                 'quantity' => 2,
-                'requested_discipline_id' => $powerDiscipline->id,
-                'note' => 'Preseeded AFM request for coordinator queue QA.',
                 'fulfilled_at' => null,
             ]
         );
@@ -323,8 +324,6 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ],
             [
                 'quantity' => 1,
-                'requested_discipline_id' => $powerDiscipline->id,
-                'note' => 'Second preseeded request to show multiple coordinator inbox rows.',
                 'fulfilled_at' => null,
             ]
         );
@@ -343,10 +342,10 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $this->command?->line('Unassigned control: QA Category Family Unassigned');
         $this->command?->line('Expected Alpha counts: 2 available models, 3 remaining assets');
         $this->command?->line('Expected Bravo counts: 0 available models, 0 remaining assets');
-        $this->command?->line('Requestable models: QA Alpha Model A, QA Alpha Model B');
+        $this->command?->line('AFM request demo models: QA Alpha Model A, QA Alpha Model B');
         $this->command?->line('Routing companies: QA Casablanca Site, QA Rabat Site');
-        $this->command?->line('Routing discipline: QA Power Discipline');
-        $this->command?->line('Coordinator queue: 2 preseeded model requests resolved to candidate RACs from company stock');
+        $this->command?->line('Routing discipline on eligible assets: QA Power Discipline');
+        $this->command?->line('Coordinator queue: 2 preseeded model requests resolved from eligible asset company + discipline');
     }
 
     private function upsertCategory(
@@ -369,14 +368,13 @@ class ManualCategoryManagerQaSeeder extends Seeder
         );
     }
 
-    private function upsertModel(string $name, int $categoryId, int $createdBy, bool $requestable): AssetModel
+    private function upsertModel(string $name, int $categoryId, int $createdBy): AssetModel
     {
         return AssetModel::withoutGlobalScopes()->updateOrCreate(
             ['name' => $name],
             [
                 'category_id' => $categoryId,
                 'created_by' => $createdBy,
-                'requestable' => $requestable,
                 'require_serial' => 0,
                 'notes' => 'Deterministic model for category manager QA.',
             ]
@@ -389,6 +387,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
         int $modelId,
         int $statusId,
         ?int $companyId,
+        ?int $disciplineId,
         int $createdBy,
         ?int $assignedTo = null,
         ?string $assignedType = null,
@@ -400,6 +399,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $asset->model_id = $modelId;
         $asset->status_id = $statusId;
         $asset->company_id = $companyId;
+        $asset->discipline_id = $disciplineId;
         $asset->created_by = $createdBy;
         $asset->assigned_to = $assignedTo;
         $asset->assigned_type = $assignedType;

@@ -30,7 +30,6 @@ class ModelRequestWorkflowTest extends TestCase
         $companyB = Company::factory()->create(['name' => 'Rabat Site']);
         $model = AssetModel::factory()->create([
             'category_id' => Category::factory()->forAssets()->create()->id,
-            'requestable' => 1,
         ]);
 
         $this->createEligibleAsset($model, $companyA->id, $disciplineA->id);
@@ -52,7 +51,7 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
-                'request-quantity' => 3,
+                'request-quantity' => 2,
             ])
             ->assertRedirect();
 
@@ -62,7 +61,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->where('requestable_type', AssetModel::class)
             ->firstOrFail();
 
-        $this->assertSame(3, $checkoutRequest->quantity);
+        $this->assertSame(2, $checkoutRequest->quantity);
 
         $this->assertDatabaseHas('checkout_request_coordinators', [
             'checkout_request_id' => $checkoutRequest->id,
@@ -90,7 +89,6 @@ class ModelRequestWorkflowTest extends TestCase
         $disciplineB = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
         $model = AssetModel::factory()->create([
             'category_id' => Category::factory()->forAssets()->create()->id,
-            'requestable' => 1,
             'name' => 'QA Routing Model',
         ]);
 
@@ -168,7 +166,6 @@ class ModelRequestWorkflowTest extends TestCase
         $requester = User::factory()->viewRequestableAssets()->create();
         $model = AssetModel::factory()->create([
             'category_id' => Category::factory()->forAssets()->create()->id,
-            'requestable' => 1,
         ]);
 
         $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
@@ -203,7 +200,6 @@ class ModelRequestWorkflowTest extends TestCase
         $coordinator = User::factory()->create(['first_name' => 'Casablanca', 'last_name' => 'RAC']);
         $model = AssetModel::factory()->create([
             'category_id' => Category::factory()->forAssets()->create()->id,
-            'requestable' => 1,
         ]);
 
         $this->createEligibleAsset($model, $company->id, $discipline->id);

@@ -77,7 +77,6 @@ class AssetModel extends SnipeModel
         'name',
         'notes',
         'obsolete',
-        'requestable',
         'require_serial'
     ];
 
@@ -356,19 +355,9 @@ class AssetModel extends SnipeModel
         return $query->whereIn('category_id', $categoryIdListing);
     }
 
-    /**
-     * scopeRequestable
-     * Get all models that are requestable by a user.
-     *
-     * @param $query
-     *
-     * @return  $query
-     * @author  Daniel Meltzer <dmeltzer.devel@gmail.com>
-     * @version v3.5
-     */
     public function scopeRequestableModels($query)
     {
-        return $query->where('requestable', '1');
+        return $query->whereHas('availableAssets');
     }
 
     /**

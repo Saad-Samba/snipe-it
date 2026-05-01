@@ -15,7 +15,6 @@ use Illuminate\Support\Str;
  *  category?: string,
  *  model_number?: string,
  *  obsolete?: int,
- *  requestable?: int,
  * }
  *
  * @extends FileBuilder<Row>
@@ -37,7 +36,6 @@ class AssetModelsImportFileBuilder extends FileBuilder
             'min_amt'        => 'Min Amount',
             'notes'          => 'Notes',
             'obsolete'       => 'Obsolete',
-            'requestable'    => 'Requestable',
 
         ];
     }

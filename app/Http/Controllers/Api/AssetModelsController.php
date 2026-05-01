@@ -45,7 +45,6 @@ class AssetModelsController extends Controller
                 'obsolete',
                 'created_at',
                 'manufacturer',
-                'requestable',
                 'assets_count',
                 'assets_assigned_count',
                 'assets_archived_count',
@@ -71,7 +70,6 @@ class AssetModelsController extends Controller
             'models.min_amt',
             'models.eol',
             'models.created_by',
-            'models.requestable',
             'models.notes',
             'models.obsolete',
             'models.created_at',
@@ -118,12 +116,6 @@ class AssetModelsController extends Controller
         if ($request->filled('model_number')) {
             $assetmodels = $assetmodels->where('models.model_number', '=', $request->input('model_number'));
         }
-
-        if ($request->input('requestable') == 'true') {
-            $assetmodels = $assetmodels->where('models.requestable', '=', '1');
-        } elseif ($request->input('requestable') == 'false') {
-            $assetmodels = $assetmodels->where('models.requestable', '=', '0');
-        }        
 
         if ($request->filled('notes')) {
             $assetmodels = $assetmodels->where('models.notes', '=', $request->input('notes'));
