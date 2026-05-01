@@ -2,7 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Asset;
+use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\Company;
+use App\Models\Statuslabel;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -37,7 +41,11 @@ class ManualCategoryManagerQaSeeder extends Seeder
                 'activated' => 1,
                 'company_id' => null,
                 'locale' => 'en-US',
-                'permissions' => json_encode(['categories.view' => '1']),
+                'permissions' => json_encode([
+                    'categories.view' => '1',
+                    'models.view' => '1',
+                    'assets.view' => '1',
+                ]),
                 'password' => bcrypt('password'),
                 'notes' => 'Deterministic QA AFM-style user for My Categories validation.',
                 'created_by' => $admin->id,
@@ -54,14 +62,56 @@ class ManualCategoryManagerQaSeeder extends Seeder
                 'activated' => 1,
                 'company_id' => null,
                 'locale' => 'en-US',
-                'permissions' => json_encode(['categories.view' => '1']),
+                'permissions' => json_encode([
+                    'categories.view' => '1',
+                    'models.view' => '1',
+                    'assets.view' => '1',
+                ]),
                 'password' => bcrypt('password'),
                 'notes' => 'Deterministic QA AFM-style user for manager filter validation.',
                 'created_by' => $admin->id,
             ]
         );
 
-        $this->upsertCategory(
+        $qaCompany = Company::withoutGlobalScopes()->firstOrCreate(
+            ['name' => 'QA Category Manager Company'],
+            ['created_by' => $admin->id]
+        );
+
+        $readyStatus = Statuslabel::withoutGlobalScopes()->firstOrCreate(
+            ['name' => 'QA Category Manager Ready'],
+            [
+                'deployable' => 1,
+                'pending' => 0,
+                'archived' => 0,
+                'default_label' => 0,
+                'created_by' => $admin->id,
+            ]
+        );
+
+        $archivedStatus = Statuslabel::withoutGlobalScopes()->firstOrCreate(
+            ['name' => 'QA Category Manager Archived'],
+            [
+                'deployable' => 0,
+                'pending' => 0,
+                'archived' => 1,
+                'default_label' => 0,
+                'created_by' => $admin->id,
+            ]
+        );
+
+        $undeployableStatus = Statuslabel::withoutGlobalScopes()->firstOrCreate(
+            ['name' => 'QA Category Manager Undeployable'],
+            [
+                'deployable' => 0,
+                'pending' => 0,
+                'archived' => 0,
+                'default_label' => 0,
+                'created_by' => $admin->id,
+            ]
+        );
+
+        $alphaCategory = $this->upsertCategory(
             name: 'QA Category Family Alpha',
             type: 'asset',
             managerId: $alphaManager->id,
@@ -69,7 +119,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
             notes: 'Managed by Alpha Manager. Included in My Categories for qa-category-alpha.'
         );
 
-        $this->upsertCategory(
+        $bravoCategory = $this->upsertCategory(
             name: 'QA Category Family Bravo',
             type: 'asset',
             managerId: $alphaManager->id,
@@ -93,6 +143,80 @@ class ManualCategoryManagerQaSeeder extends Seeder
             notes: 'No category manager assigned. Control record for QA.'
         );
 
+        $alphaModelA = $this->upsertModel(
+            name: 'QA Alpha Model A',
+            categoryId: $alphaCategory->id,
+            createdBy: $admin->id
+        );
+
+        $alphaModelB = $this->upsertModel(
+            name: 'QA Alpha Model B',
+            categoryId: $alphaCategory->id,
+            createdBy: $admin->id
+        );
+
+        $bravoModelA = $this->upsertModel(
+            name: 'QA Bravo Model A',
+            categoryId: $bravoCategory->id,
+            createdBy: $admin->id
+        );
+
+        $this->upsertAsset(
+            assetTag: 'QA-CAT-ALPHA-001',
+            name: 'QA Alpha RTD 1',
+            modelId: $alphaModelA->id,
+            statusId: $readyStatus->id,
+            companyId: $qaCompany->id,
+            createdBy: $admin->id
+        );
+
+        $this->upsertAsset(
+            assetTag: 'QA-CAT-ALPHA-002',
+            name: 'QA Alpha RTD 2',
+            modelId: $alphaModelA->id,
+            statusId: $readyStatus->id,
+            companyId: $qaCompany->id,
+            createdBy: $admin->id
+        );
+
+        $this->upsertAsset(
+            assetTag: 'QA-CAT-ALPHA-003',
+            name: 'QA Alpha RTD 3',
+            modelId: $alphaModelB->id,
+            statusId: $readyStatus->id,
+            companyId: $qaCompany->id,
+            createdBy: $admin->id
+        );
+
+        $this->upsertAsset(
+            assetTag: 'QA-CAT-ALPHA-ASSIGNED-001',
+            name: 'QA Alpha Assigned',
+            modelId: $alphaModelB->id,
+            statusId: $readyStatus->id,
+            companyId: $qaCompany->id,
+            createdBy: $admin->id,
+            assignedTo: $betaManager->id,
+            assignedType: User::class
+        );
+
+        $this->upsertAsset(
+            assetTag: 'QA-CAT-BRAVO-ARCH-001',
+            name: 'QA Bravo Archived',
+            modelId: $bravoModelA->id,
+            statusId: $archivedStatus->id,
+            companyId: $qaCompany->id,
+            createdBy: $admin->id
+        );
+
+        $this->upsertAsset(
+            assetTag: 'QA-CAT-BRAVO-UND-001',
+            name: 'QA Bravo Undeployable',
+            modelId: $bravoModelA->id,
+            statusId: $undeployableStatus->id,
+            companyId: $qaCompany->id,
+            createdBy: $admin->id
+        );
+
         $this->command?->info('Manual category manager QA dataset is ready.');
         $this->command?->line('Admin: qa-category-admin / password');
         $this->command?->line('AFM Alpha: qa-category-alpha / password');
@@ -100,6 +224,8 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $this->command?->line('Alpha manager categories: QA Category Family Alpha, QA Category Family Bravo');
         $this->command?->line('Beta manager category: QA Category Family Delta');
         $this->command?->line('Unassigned control: QA Category Family Unassigned');
+        $this->command?->line('Expected Alpha counts: 2 available models, 3 remaining assets');
+        $this->command?->line('Expected Bravo counts: 0 available models, 0 remaining assets');
     }
 
     private function upsertCategory(
@@ -120,5 +246,44 @@ class ManualCategoryManagerQaSeeder extends Seeder
                 'notes' => $notes,
             ]
         );
+    }
+
+    private function upsertModel(string $name, int $categoryId, int $createdBy): AssetModel
+    {
+        return AssetModel::withoutGlobalScopes()->updateOrCreate(
+            ['name' => $name],
+            [
+                'category_id' => $categoryId,
+                'created_by' => $createdBy,
+                'require_serial' => 0,
+                'notes' => 'Deterministic model for category manager QA.',
+            ]
+        );
+    }
+
+    private function upsertAsset(
+        string $assetTag,
+        string $name,
+        int $modelId,
+        int $statusId,
+        ?int $companyId,
+        int $createdBy,
+        ?int $assignedTo = null,
+        ?string $assignedType = null
+    ): Asset {
+        $asset = Asset::withoutGlobalScopes()->firstOrNew(['asset_tag' => $assetTag]);
+        $asset->name = $name;
+        $asset->asset_tag = $assetTag;
+        $asset->model_id = $modelId;
+        $asset->status_id = $statusId;
+        $asset->company_id = $companyId;
+        $asset->created_by = $createdBy;
+        $asset->assigned_to = $assignedTo;
+        $asset->assigned_type = $assignedType;
+        $asset->requestable = 0;
+        $asset->notes = 'Deterministic asset for category manager QA.';
+        $asset->save();
+
+        return $asset;
     }
 }

@@ -67,6 +67,7 @@ class CategoriesTransformer
                     'first_name' => e($category->manager->first_name),
                     'last_name' => e($category->manager->last_name),
                 ] : null,
+                'available_models_count' => (int) $category->available_models_count,
                 'item_count' => (int) $category->item_count,
                 'assets_count' => (int) $category->assets_count,
                 'reusable_assets_count' => (int) $category->reusable_assets_count,

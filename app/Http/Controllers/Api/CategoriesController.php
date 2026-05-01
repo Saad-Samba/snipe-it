@@ -36,6 +36,7 @@ class CategoriesController extends Controller
             'eula_text',
             'require_acceptance',
             'checkin_email',
+            'available_models_count',
             'assets_count',
             'reusable_assets_count',
             'accessories_count',
@@ -72,6 +73,7 @@ class CategoriesController extends Controller
                 'components as components_count',
                 'licenses as licenses_count',
                 'models as models_count',
+                'availableModels as available_models_count',
                 'reusableAssets as reusable_assets_count'
             );
 

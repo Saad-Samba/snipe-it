@@ -66,6 +66,7 @@ class IndexCategoriesTest extends TestCase
             ->assertJson(fn (AssertableJson $json) => $json
                 ->where('total', 1)
                 ->where('rows.0.id', $category->id)
+                ->where('rows.0.available_models_count', 1)
                 ->where('rows.0.reusable_assets_count', 2)
                 ->where('rows.0.category_type_raw', 'asset')
                 ->etc());

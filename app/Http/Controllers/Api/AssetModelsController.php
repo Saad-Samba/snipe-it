@@ -133,6 +133,10 @@ class AssetModelsController extends Controller
             $assetmodels = $assetmodels->where('models.category_id', '=', $request->input('category_id'));
         }
 
+        if ($request->boolean('available_models')) {
+            $assetmodels = $assetmodels->whereHas('availableAssets');
+        }
+
         if ($request->filled('depreciation_id')) {
             $assetmodels = $assetmodels->where('models.depreciation_id', '=', $request->input('depreciation_id'));
         }

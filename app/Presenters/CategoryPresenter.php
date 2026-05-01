@@ -61,10 +61,17 @@ class CategoryPresenter extends Presenter
                 'title' => trans('general.qty'),
                 'visible' => true,
             ], [
+                'field' => 'available_models_count',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => 'Available Models',
+                'visible' => true,
+                'formatter' => 'categoryAvailableModelsFormatter',
+            ], [
                 'field' => 'reusable_assets_count',
                 'searchable' => false,
                 'sortable' => true,
-                'title' => trans('general.remaining'),
+                'title' => 'Available Assets',
                 'visible' => true,
                 'formatter' => 'categoryReusableAssetsFormatter',
             ], [

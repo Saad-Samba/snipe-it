@@ -266,6 +266,12 @@ class Category extends SnipeModel
         return $this->hasMany(\App\Models\AssetModel::class, 'category_id');
     }
 
+    public function availableModels()
+    {
+        return $this->hasMany(\App\Models\AssetModel::class, 'category_id')
+            ->whereHas('availableAssets');
+    }
+
     public function scopeOrderManager($query, $order)
     {
         return $query
