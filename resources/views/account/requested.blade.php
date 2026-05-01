@@ -13,6 +13,15 @@
 
             <div class="box box-default">
                 <div class="box-body">
+                    @if (!empty($filteredModel))
+                        <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                            <span>
+                                Showing requests for model:
+                                <strong>{{ $filteredModel->name }}</strong>
+                            </span>
+                            <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all my requests</a>
+                        </div>
+                    @endif
 
                     <table
 
@@ -29,26 +38,17 @@
                 }'>
                         <thead>
                         <tr>
+                            <th data-field="request_id" data-sortable="true">ID</th>
                             <th data-field="image" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
                             <th data-field="name">{{ trans('general.item_name') }}</th>
-                            <th data-field="type">{{ trans('general.type') }}</th>
                             <th data-field="qty">{{ trans('general.qty') }}</th>
-                            <th data-field="location">{{ trans('admin/hardware/table.location') }}</th>
-                            <th data-field="discipline">Discipline</th>
-                            <th data-field="candidate_companies">Candidate Companies</th>
-                            <th data-field="candidate_coordinators">Candidate RACs</th>
+                            <th data-field="status" data-formatter="requestStatusFormatter">Status</th>
                             @if (($requestMode ?? 'requester') === 'coordinator')
                                 <th data-field="requested_by">Requested By</th>
+                                <th data-field="actions" data-formatter="requestWorkflowActionsFormatter">Actions</th>
                             @endif
-                            <th data-field="note">{{ trans('general.notes') }}</th>
-                            <th data-field="expected_checkin" data-formatter="dateDisplayFormatter"> {{ trans('admin/hardware/form.expected_checkin') }}</th>
                             <th data-field="request_date" data-formatter="dateDisplayFormatter"> {{ trans('general.requested_date') }}</th>
-
-                            @foreach(\App\Models\CustomField::get() as $field)
-                                @if (($field->field_encrypted=='0') && ($field->show_in_requestable_list=='1'))
-                                    <th data-field="custom_fields.{{ $field->db_column }}">{{ $field->name }}</th>
-                                @endif
-                            @endforeach
+                            <th data-field="updated_at" data-formatter="dateDisplayFormatter">Updated</th>
                         </tr>
                         </thead>
                     </table>
