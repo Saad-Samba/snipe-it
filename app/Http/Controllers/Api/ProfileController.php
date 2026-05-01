@@ -49,7 +49,26 @@ class ProfileController extends Controller
      */
     public function requestedAssets() :  array
     {
-        $checkoutRequests = CheckoutRequest::where('user_id', '=', auth()->id())->get();
+        $checkoutRequests = CheckoutRequest::query()
+            ->with([
+                'requestedItem',
+                'requestedDiscipline',
+                'coordinatorTargets.coordinator',
+                'coordinatorTargets.company',
+                'user',
+            ]);
+
+        if (request()->boolean('coordinator')) {
+            $checkoutRequests->whereHas('candidateCoordinators', function ($query) {
+                $query->where('users.id', auth()->id());
+            })
+                ->whereNull('canceled_at');
+        } else {
+            $checkoutRequests->where('user_id', auth()->id())
+                ->whereNull('canceled_at');
+        }
+
+        $checkoutRequests = $checkoutRequests->get();
 
         $results = array();
         $show_field = array();
@@ -69,10 +88,15 @@ class ProfileController extends Controller
             if ($checkoutRequest && $checkoutRequest->itemRequested()) {
                 $assets = [
                     'image' => e($checkoutRequest->itemRequested()->present()->getImageUrl()),
-                    'name' => e($checkoutRequest->itemRequested()->display_name),
+                    'name' => e($checkoutRequest->name()),
                     'type' => e($checkoutRequest->itemType()),
                     'qty' => (int) $checkoutRequest->quantity,
                     'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,
+                    'discipline' => ($checkoutRequest->requestedDiscipline) ? e($checkoutRequest->requestedDiscipline->name) : null,
+                    'candidate_companies' => e($checkoutRequest->coordinatorTargets->pluck('company.name')->filter()->unique()->implode(', ')),
+                    'candidate_coordinators' => e($checkoutRequest->coordinatorTargets->pluck('coordinator.display_name')->filter()->unique()->implode(', ')),
+                    'requested_by' => ($checkoutRequest->requestingUser()) ? e($checkoutRequest->requestingUser()->display_name) : null,
+                    'note' => $checkoutRequest->note ? e($checkoutRequest->note) : null,
                     'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin, 'datetime'),
                     'request_date' => Helper::getFormattedDateObject($checkoutRequest->created_at, 'datetime'),
                 ];

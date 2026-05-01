@@ -2,10 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\CheckoutRequest;
 use App\Models\Company;
+use App\Models\Discipline;
+use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -45,6 +49,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
                     'categories.view' => '1',
                     'models.view' => '1',
                     'assets.view' => '1',
+                    'assets.view.requestable' => '1',
                 ]),
                 'password' => bcrypt('password'),
                 'notes' => 'Deterministic QA AFM-style user for My Categories validation.',
@@ -66,6 +71,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
                     'categories.view' => '1',
                     'models.view' => '1',
                     'assets.view' => '1',
+                    'assets.view.requestable' => '1',
                 ]),
                 'password' => bcrypt('password'),
                 'notes' => 'Deterministic QA AFM-style user for manager filter validation.',
@@ -73,9 +79,66 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ]
         );
 
-        $qaCompany = Company::withoutGlobalScopes()->firstOrCreate(
-            ['name' => 'QA Category Manager Company'],
+        $casablancaCoordinator = User::withoutGlobalScopes()->updateOrCreate(
+            ['username' => 'qa-category-coordinator-casa'],
+            [
+                'first_name' => 'Casablanca',
+                'last_name' => 'Coordinator',
+                'display_name' => 'Casablanca Coordinator',
+                'email' => 'qa-category-coordinator-casa@example.com',
+                'activated' => 1,
+                'company_id' => null,
+                'locale' => 'en-US',
+                'permissions' => json_encode([
+                    'categories.view' => '1',
+                    'models.view' => '1',
+                    'assets.view' => '1',
+                    'assets.view.requestable' => '1',
+                ]),
+                'password' => bcrypt('password'),
+                'notes' => 'Deterministic RAC for Casablanca-site discipline routing QA.',
+                'created_by' => $admin->id,
+            ]
+        );
+
+        $rabatCoordinator = User::withoutGlobalScopes()->updateOrCreate(
+            ['username' => 'qa-category-coordinator-rabat'],
+            [
+                'first_name' => 'Rabat',
+                'last_name' => 'Coordinator',
+                'display_name' => 'Rabat Coordinator',
+                'email' => 'qa-category-coordinator-rabat@example.com',
+                'activated' => 1,
+                'company_id' => null,
+                'locale' => 'en-US',
+                'permissions' => json_encode([
+                    'categories.view' => '1',
+                    'models.view' => '1',
+                    'assets.view' => '1',
+                    'assets.view.requestable' => '1',
+                ]),
+                'password' => bcrypt('password'),
+                'notes' => 'Deterministic RAC for Rabat-site discipline routing QA.',
+                'created_by' => $admin->id,
+            ]
+        );
+
+        $casablancaCompany = Company::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA Casablanca Site'],
             ['created_by' => $admin->id]
+        );
+
+        $rabatCompany = Company::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA Rabat Site'],
+            ['created_by' => $admin->id]
+        );
+
+        $powerDiscipline = Discipline::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA Power Discipline'],
+            [
+                'notes' => 'Discipline used to resolve RAC candidates from company stock.',
+                'created_by' => $admin->id,
+            ]
         );
 
         $readyStatus = Statuslabel::withoutGlobalScopes()->firstOrCreate(
@@ -146,19 +209,22 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $alphaModelA = $this->upsertModel(
             name: 'QA Alpha Model A',
             categoryId: $alphaCategory->id,
-            createdBy: $admin->id
+            createdBy: $admin->id,
+            requestable: true
         );
 
         $alphaModelB = $this->upsertModel(
             name: 'QA Alpha Model B',
             categoryId: $alphaCategory->id,
-            createdBy: $admin->id
+            createdBy: $admin->id,
+            requestable: true
         );
 
         $bravoModelA = $this->upsertModel(
             name: 'QA Bravo Model A',
             categoryId: $bravoCategory->id,
-            createdBy: $admin->id
+            createdBy: $admin->id,
+            requestable: false
         );
 
         $this->upsertAsset(
@@ -166,8 +232,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
             name: 'QA Alpha RTD 1',
             modelId: $alphaModelA->id,
             statusId: $readyStatus->id,
-            companyId: $qaCompany->id,
-            createdBy: $admin->id
+            companyId: $casablancaCompany->id,
+            createdBy: $admin->id,
+            requestable: true
         );
 
         $this->upsertAsset(
@@ -175,8 +242,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
             name: 'QA Alpha RTD 2',
             modelId: $alphaModelA->id,
             statusId: $readyStatus->id,
-            companyId: $qaCompany->id,
-            createdBy: $admin->id
+            companyId: $casablancaCompany->id,
+            createdBy: $admin->id,
+            requestable: true
         );
 
         $this->upsertAsset(
@@ -184,8 +252,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
             name: 'QA Alpha RTD 3',
             modelId: $alphaModelB->id,
             statusId: $readyStatus->id,
-            companyId: $qaCompany->id,
-            createdBy: $admin->id
+            companyId: $rabatCompany->id,
+            createdBy: $admin->id,
+            requestable: true
         );
 
         $this->upsertAsset(
@@ -193,10 +262,11 @@ class ManualCategoryManagerQaSeeder extends Seeder
             name: 'QA Alpha Assigned',
             modelId: $alphaModelB->id,
             statusId: $readyStatus->id,
-            companyId: $qaCompany->id,
+            companyId: $rabatCompany->id,
             createdBy: $admin->id,
             assignedTo: $betaManager->id,
-            assignedType: User::class
+            assignedType: User::class,
+            requestable: false
         );
 
         $this->upsertAsset(
@@ -204,8 +274,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
             name: 'QA Bravo Archived',
             modelId: $bravoModelA->id,
             statusId: $archivedStatus->id,
-            companyId: $qaCompany->id,
-            createdBy: $admin->id
+            companyId: $casablancaCompany->id,
+            createdBy: $admin->id,
+            requestable: false
         );
 
         $this->upsertAsset(
@@ -213,19 +284,69 @@ class ManualCategoryManagerQaSeeder extends Seeder
             name: 'QA Bravo Undeployable',
             modelId: $bravoModelA->id,
             statusId: $undeployableStatus->id,
-            companyId: $qaCompany->id,
-            createdBy: $admin->id
+            companyId: $rabatCompany->id,
+            createdBy: $admin->id,
+            requestable: false
         );
+
+        RegionalAssetCoordinatorAssignment::withoutGlobalScopes()->updateOrCreate(
+            ['company_id' => $casablancaCompany->id, 'discipline_id' => $powerDiscipline->id],
+            ['user_id' => $casablancaCoordinator->id, 'created_by' => $admin->id]
+        );
+
+        RegionalAssetCoordinatorAssignment::withoutGlobalScopes()->updateOrCreate(
+            ['company_id' => $rabatCompany->id, 'discipline_id' => $powerDiscipline->id],
+            ['user_id' => $rabatCoordinator->id, 'created_by' => $admin->id]
+        );
+
+        $alphaRequest = CheckoutRequest::withoutGlobalScopes()->updateOrCreate(
+            [
+                'user_id' => $alphaManager->id,
+                'requestable_id' => $alphaModelA->id,
+                'requestable_type' => AssetModel::class,
+                'canceled_at' => null,
+            ],
+            [
+                'quantity' => 2,
+                'requested_discipline_id' => $powerDiscipline->id,
+                'note' => 'Preseeded AFM request for coordinator queue QA.',
+                'fulfilled_at' => null,
+            ]
+        );
+
+        $betaRequest = CheckoutRequest::withoutGlobalScopes()->updateOrCreate(
+            [
+                'user_id' => $betaManager->id,
+                'requestable_id' => $alphaModelB->id,
+                'requestable_type' => AssetModel::class,
+                'canceled_at' => null,
+            ],
+            [
+                'quantity' => 1,
+                'requested_discipline_id' => $powerDiscipline->id,
+                'note' => 'Second preseeded request to show multiple coordinator inbox rows.',
+                'fulfilled_at' => null,
+            ]
+        );
+
+        ResolveCheckoutRequestCoordinatorsAction::run($alphaRequest);
+        ResolveCheckoutRequestCoordinatorsAction::run($betaRequest);
 
         $this->command?->info('Manual category manager QA dataset is ready.');
         $this->command?->line('Admin: qa-category-admin / password');
         $this->command?->line('AFM Alpha: qa-category-alpha / password');
         $this->command?->line('AFM Beta: qa-category-beta / password');
+        $this->command?->line('RAC Casablanca: qa-category-coordinator-casa / password');
+        $this->command?->line('RAC Rabat: qa-category-coordinator-rabat / password');
         $this->command?->line('Alpha manager categories: QA Category Family Alpha, QA Category Family Bravo');
         $this->command?->line('Beta manager category: QA Category Family Delta');
         $this->command?->line('Unassigned control: QA Category Family Unassigned');
         $this->command?->line('Expected Alpha counts: 2 available models, 3 remaining assets');
         $this->command?->line('Expected Bravo counts: 0 available models, 0 remaining assets');
+        $this->command?->line('Requestable models: QA Alpha Model A, QA Alpha Model B');
+        $this->command?->line('Routing companies: QA Casablanca Site, QA Rabat Site');
+        $this->command?->line('Routing discipline: QA Power Discipline');
+        $this->command?->line('Coordinator queue: 2 preseeded model requests resolved to candidate RACs from company stock');
     }
 
     private function upsertCategory(
@@ -248,13 +369,14 @@ class ManualCategoryManagerQaSeeder extends Seeder
         );
     }
 
-    private function upsertModel(string $name, int $categoryId, int $createdBy): AssetModel
+    private function upsertModel(string $name, int $categoryId, int $createdBy, bool $requestable): AssetModel
     {
         return AssetModel::withoutGlobalScopes()->updateOrCreate(
             ['name' => $name],
             [
                 'category_id' => $categoryId,
                 'created_by' => $createdBy,
+                'requestable' => $requestable,
                 'require_serial' => 0,
                 'notes' => 'Deterministic model for category manager QA.',
             ]
@@ -269,7 +391,8 @@ class ManualCategoryManagerQaSeeder extends Seeder
         ?int $companyId,
         int $createdBy,
         ?int $assignedTo = null,
-        ?string $assignedType = null
+        ?string $assignedType = null,
+        bool $requestable = false
     ): Asset {
         $asset = Asset::withoutGlobalScopes()->firstOrNew(['asset_tag' => $assetTag]);
         $asset->name = $name;
@@ -280,7 +403,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $asset->created_by = $createdBy;
         $asset->assigned_to = $assignedTo;
         $asset->assigned_type = $assignedType;
-        $asset->requestable = 0;
+        $asset->requestable = $requestable;
         $asset->notes = 'Deterministic asset for category manager QA.';
         $asset->save();
 

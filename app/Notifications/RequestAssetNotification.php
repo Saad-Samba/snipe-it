@@ -31,6 +31,7 @@ class RequestAssetNotification extends Notification
         $this->note = '';
         $this->last_checkout = '';
         $this->expected_checkin = '';
+        $this->requested_discipline = $params['requested_discipline'] ?? null;
         $this->requested_date = Helper::getFormattedDateObject($params['requested_date'], 'datetime',
             false);
         $this->settings = Setting::getSettings();
@@ -83,12 +84,16 @@ class RequestAssetNotification extends Notification
             'Requested By' => '<'.$target->present()->viewUrl().'|'.$target->display_name.'>',
         ];
 
+        if ($this->requested_discipline) {
+            $fields['Discipline'] = $this->requested_discipline->name;
+        }
+
         return (new SlackMessage)
             ->content(trans('mail.Item_Requested'))
             ->from($botname)
             ->to($channel)
             ->attachment(function ($attachment) use ($item, $note, $fields) {
-                $attachment->title(htmlspecialchars_decode($item->display_name), $item->present()->viewUrl())
+                $attachment->title(htmlspecialchars_decode($item->display_name ?? $item->name), $item->present()->viewUrl())
                     ->fields($fields)
                     ->content($note);
             });
@@ -119,6 +124,7 @@ class RequestAssetNotification extends Notification
                 'expected_checkin'  => $this->expected_checkin,
                 'intro_text'        => trans('mail.a_user_requested'),
                 'qty'           => $this->item_quantity,
+                'requested_discipline' => $this->requested_discipline,
             ])
             ->subject('👀 '.trans('mail.Item_Requested'))
             ->withSymfonyMessage(function (Email $message) {

@@ -37,6 +37,11 @@
                         <th class="col-md-1">{{ trans('general.image') }}</th>
                         <th class="col-md-2">{{ trans('general.name') }}</th>
                         <th class="col-md-2" data-sortable="true">{{ trans('admin/hardware/table.location') }}</th>
+                        <th class="col-md-2" data-sortable="true">Discipline</th>
+                        <th class="col-md-2" data-sortable="true">Candidate Companies</th>
+                        <th class="col-md-2" data-sortable="true">Candidate RACs</th>
+                        <th class="col-md-2" data-sortable="true">{{ trans('general.qty') }}</th>
+                        <th class="col-md-3" data-sortable="true">{{ trans('general.notes') }}</th>
                         <th class="col-md-2" data-sortable="true">{{ trans('admin/hardware/form.expected_checkin') }}</th>
                         <th class="col-md-3" data-sortable="true">{{ trans('admin/hardware/table.requesting_user') }}</th>
                         <th class="col-md-2">{{ trans('admin/hardware/table.requested_date') }}</th>
@@ -77,6 +82,11 @@
                             @else
                             <td></td>
                             @endif
+                            <td>{{ $request->requestedDiscipline?->name }}</td>
+                            <td>{{ $request->coordinatorTargets->pluck('company.name')->filter()->unique()->implode(', ') }}</td>
+                            <td>{{ $request->coordinatorTargets->pluck('coordinator.display_name')->filter()->unique()->implode(', ') }}</td>
+                            <td>{{ $request->quantity }}</td>
+                            <td>{{ $request->note }}</td>
 
                             <td>
                             @if ($request->itemType() == "asset")

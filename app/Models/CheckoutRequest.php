@@ -10,7 +10,14 @@ class CheckoutRequest extends Model
 {
     use HasFactory;
     use SoftDeletes;
-    protected $fillable = ['user_id'];
+
+    protected $fillable = [
+        'user_id',
+        'requested_discipline_id',
+        'quantity',
+        'note',
+    ];
+
     protected $table = 'checkout_requests';
 
     public function user()
@@ -28,6 +35,26 @@ class CheckoutRequest extends Model
         return $this->morphTo('requestable');
     }
 
+    public function requestedDiscipline()
+    {
+        return $this->belongsTo(Discipline::class, 'requested_discipline_id');
+    }
+
+    public function coordinatorTargets()
+    {
+        return $this->hasMany(CheckoutRequestCoordinator::class);
+    }
+
+    public function candidateCoordinators()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'checkout_request_coordinators',
+            'checkout_request_id',
+            'user_id'
+        )->withPivot(['company_id', 'discipline_id'])->withTimestamps();
+    }
+
     public function itemRequested() // Workaround for laravel polymorphic issue that's not being solved :(
     {
         return $this->requestedItem()->first();
@@ -40,7 +67,7 @@ class CheckoutRequest extends Model
 
     public function location()
     {
-        return $this->itemRequested()->location;
+        return $this->itemRequested()?->location;
     }
 
     public function name()

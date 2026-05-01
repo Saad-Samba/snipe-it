@@ -2,7 +2,7 @@
 
 {{-- Page title --}}
 @section('title')
-   {{ trans('general.requested_assets')}}
+   {{ $pageTitle ?? trans('general.requested_assets') }}
 @stop
 
 {{-- Account page content --}}
@@ -22,7 +22,7 @@
                             data-sort-order="desc"
                             id="userRequests"
                             class="table table-striped snipe-table"
-                            data-url="{{ route('api.assets.requested') }}"
+                            data-url="{{ $dataUrl ?? route('api.assets.requested') }}"
                             data-export-options='{
                   "fileName": "my-requested-assets-{{ date('Y-m-d') }}",
                   "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
@@ -34,6 +34,13 @@
                             <th data-field="type">{{ trans('general.type') }}</th>
                             <th data-field="qty">{{ trans('general.qty') }}</th>
                             <th data-field="location">{{ trans('admin/hardware/table.location') }}</th>
+                            <th data-field="discipline">Discipline</th>
+                            <th data-field="candidate_companies">Candidate Companies</th>
+                            <th data-field="candidate_coordinators">Candidate RACs</th>
+                            @if (($requestMode ?? 'requester') === 'coordinator')
+                                <th data-field="requested_by">Requested By</th>
+                            @endif
+                            <th data-field="note">{{ trans('general.notes') }}</th>
                             <th data-field="expected_checkin" data-formatter="dateDisplayFormatter"> {{ trans('admin/hardware/form.expected_checkin') }}</th>
                             <th data-field="request_date" data-formatter="dateDisplayFormatter"> {{ trans('general.requested_date') }}</th>
 

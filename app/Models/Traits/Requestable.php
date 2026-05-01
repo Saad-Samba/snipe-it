@@ -30,10 +30,13 @@ trait Requestable
         );
     }
 
-    public function request($qty = 1)
+    public function request($qty = 1, array $attributes = [])
     {
-        $this->requests()->save(
-            new CheckoutRequest(['user_id' => auth()->id(), 'qty' => $qty])
+        return $this->requests()->save(
+            new CheckoutRequest(array_merge([
+                'user_id' => auth()->id(),
+                'quantity' => $qty,
+            ], $attributes))
         );
     }
 

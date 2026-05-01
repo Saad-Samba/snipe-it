@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Actions\CheckoutRequests\CancelCheckoutRequestAction;
 use App\Actions\CheckoutRequests\CreateCheckoutRequestAction;
+use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Enums\ActionType;
 use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\Discipline;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\RequestAssetCancelation;
@@ -170,11 +172,21 @@ class ViewAssetsController extends Controller
             },
         ])->RequestableModels()->get();
 
-        return view('account/requestable-assets', compact('assets', 'models'));
+        $requestDisciplines = Discipline::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return view('account/requestable-assets', compact('assets', 'models', 'requestDisciplines'));
     }
 
     public function getRequestItem(Request $request, $itemType, $itemId = null, $cancel_by_admin = false, $requestingUser = null): RedirectResponse
     {
+        $validated = $request->validate([
+            'request-quantity' => ['nullable', 'integer', 'min:1'],
+            'discipline_id' => ['nullable', 'integer', 'exists:disciplines,id'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
         $item = null;
         $fullItemType = 'App\\Models\\'.studly_case($itemType);
 
@@ -197,11 +209,14 @@ class ViewAssetsController extends Controller
         $logaction->target_id = $data['user_id'] = auth()->id();
         $logaction->target_type = User::class;
 
-        $data['item_quantity'] = $request->has('request-quantity') ? e($request->input('request-quantity')) : 1;
+        $quantity = (int) ($validated['request-quantity'] ?? 1);
+        $data['item_quantity'] = $quantity;
         $data['requested_by'] = $user->display_name;
         $data['item'] = $item;
         $data['item_type'] = $itemType;
         $data['target'] = auth()->user();
+        $data['note'] = trim((string) ($validated['note'] ?? ''));
+        $data['requested_discipline'] = !empty($validated['discipline_id']) ? Discipline::find($validated['discipline_id']) : null;
 
         if ($fullItemType == Asset::class) {
             $data['item_url'] = route('hardware.show', $item->id);
@@ -213,7 +228,7 @@ class ViewAssetsController extends Controller
 
         if (($item_request = $item->isRequestedBy($user)) || $cancel_by_admin) {
             $item->cancelRequest($requestingUser);
-            $data['item_quantity'] = ($item_request) ? $item_request->qty : 1;
+            $data['item_quantity'] = ($item_request) ? $item_request->quantity : 1;
             $logaction->logaction(ActionType::RequestCanceled);
 
             if (($settings->alert_email != '') && ($settings->alerts_enabled == '1') && (! config('app.lock_passwords'))) {
@@ -222,7 +237,21 @@ class ViewAssetsController extends Controller
 
             return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.canceled'));
         } else {
-            $item->request();
+            $requestAttributes = [];
+
+            if ($fullItemType == AssetModel::class) {
+                $requestAttributes = [
+                    'requested_discipline_id' => $validated['discipline_id'] ?? null,
+                    'note' => $data['note'] ?: null,
+                ];
+            }
+
+            $checkoutRequest = $item->request($quantity, $requestAttributes);
+
+            if ($fullItemType == AssetModel::class) {
+                ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
+            }
+
             if (($settings->alert_email != '') && ($settings->alerts_enabled == '1') && (! config('app.lock_passwords'))) {
                 $logaction->logaction('requested');
                 $settings->notify(new RequestAssetNotification($data));
@@ -265,6 +294,19 @@ class ViewAssetsController extends Controller
 
     public function getRequestedAssets() : View
     {
-        return view('account/requested');
+        return view('account/requested', [
+            'pageTitle' => trans('general.requested_assets'),
+            'dataUrl' => route('api.assets.requested'),
+            'requestMode' => 'requester',
+        ]);
+    }
+
+    public function getCoordinatorRequests() : View
+    {
+        return view('account/requested', [
+            'pageTitle' => 'Coordinator Requests',
+            'dataUrl' => route('api.assets.requested', ['coordinator' => 1]),
+            'requestMode' => 'coordinator',
+        ]);
     }
 }
