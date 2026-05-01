@@ -11,10 +11,18 @@ class CheckoutRequest extends Model
     use HasFactory;
     use SoftDeletes;
 
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_UNDER_REVIEW = 'under_review';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_FULFILLED = 'fulfilled';
+    public const STATUS_REJECTED = 'rejected';
+    public const STATUS_CANCELED = 'canceled';
+
     protected $fillable = [
         'user_id',
         'requested_discipline_id',
         'quantity',
+        'status',
         'note',
     ];
 
@@ -77,5 +85,24 @@ class CheckoutRequest extends Model
         }
 
         return $this->itemRequested()->name;
+    }
+
+    public function resolvedStatus(): string
+    {
+        if ($this->canceled_at) {
+            return self::STATUS_CANCELED;
+        }
+
+        if ($this->fulfilled_at) {
+            return self::STATUS_FULFILLED;
+        }
+
+        return $this->status ?: self::STATUS_PENDING;
+    }
+
+    public function canBeProcessedBy(User $user): bool
+    {
+        return $this->candidateCoordinators()->where('users.id', $user->id)->exists()
+            && !in_array($this->resolvedStatus(), [self::STATUS_CANCELED, self::STATUS_FULFILLED, self::STATUS_REJECTED], true);
     }
 }

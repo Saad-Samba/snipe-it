@@ -1350,19 +1350,21 @@
 
     function modelRequestActionsFormatter(value, row) {
         var requestUrl = '{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
+        var requestsUrl = '{{ route('account.requested') }}?model_id=' + row.id;
         var requestedQuantity = row.requested_quantity || 1;
         var quantityLabel = '{{ trans('general.qty') }}';
         var actionBarId = 'model-request-actions-' + row.id;
         var editStateId = 'model-request-edit-' + row.id;
 
         if ((row.available_actions) && (row.available_actions.update_request === true)) {
-            return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:190px;padding:6px 8px;border:1px solid #bcdff1;border-radius:4px;background:#f4fbff;">'
-                + '<div style="display:flex;align-items:center;gap:6px;line-height:1.2;">'
+            return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:170px;">'
+                + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.2;">'
                 + '<span class="label label-info" style="font-size:11px;">{{ trans('general.requested') }}</span>'
                 + '<span style="font-size:12px;color:#4d4d4d;">' + quantityLabel + ': <strong>' + requestedQuantity + '</strong></span>'
                 + '</div>'
-                + '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
-                + '<button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'flex\'; document.getElementById(\'' + actionBarId + '\').style.display = \'none\';" data-tooltip="true" title="{{ trans('general.update') }}">{{ trans('general.update') }}</button>'
+                + '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:0;flex-wrap:wrap;font-size:12px;">'
+                + '<a href="' + requestsUrl + '" style="margin-right:8px;">View requests</a>'
+                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;margin-right:8px;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'flex\'; document.getElementById(\'' + actionBarId + '\').style.display = \'none\';" data-tooltip="true" title="{{ trans('general.update') }}">Edit</button>'
                 + '<form action="' + requestUrl + '" method="POST" style="margin:0;">'
                 + '@csrf'
                 + '<input type="hidden" name="request-action" value="cancel">'
@@ -1382,6 +1384,67 @@
         }
 
         return '';
+    }
+
+    function requestStatusFormatter(value) {
+        if (!value) {
+            return '';
+        }
+
+        var normalized = String(value).toLowerCase();
+        var labelClass = 'label-default';
+
+        if (normalized === 'pending') {
+            labelClass = 'label-warning';
+        } else if (normalized === 'under review') {
+            labelClass = 'label-primary';
+        } else if (normalized === 'approved') {
+            labelClass = 'label-info';
+        } else if (normalized === 'fulfilled') {
+            labelClass = 'label-success';
+        } else if (normalized === 'canceled' || normalized === 'rejected') {
+            labelClass = 'label-danger';
+        }
+
+        return '<span class="label ' + labelClass + '">' + value + '</span>';
+    }
+
+    function requestWorkflowActionsFormatter(value, row) {
+        if (!row || !row.request_status_url || !row.available_actions) {
+            return '';
+        }
+
+        var actions = [];
+
+        function buildStatusForm(label, status, buttonClass) {
+            return '<form action="' + row.request_status_url + '" method="POST" style="display:inline-flex;margin:0 8px 0 0;">'
+                + '@csrf'
+                + '<input type="hidden" name="status" value="' + status + '">'
+                + '<button class="btn ' + buttonClass + ' btn-xs">' + label + '</button>'
+                + '</form>';
+        }
+
+        if (row.model_requests_url) {
+            actions.push('<a href="' + row.model_requests_url + '" style="margin-right:8px;">View</a>');
+        }
+
+        if (row.available_actions.start_review === true) {
+            actions.push(buildStatusForm('Review', 'under_review', 'btn-default'));
+        }
+
+        if (row.available_actions.approve === true) {
+            actions.push(buildStatusForm('Approve', 'approved', 'btn-primary'));
+        }
+
+        if (row.available_actions.reject === true) {
+            actions.push(buildStatusForm('Reject', 'rejected', 'btn-danger'));
+        }
+
+        if (row.available_actions.fulfill === true) {
+            actions.push(buildStatusForm('Fulfill', 'fulfilled', 'btn-success'));
+        }
+
+        return actions.join('');
     }
 
 

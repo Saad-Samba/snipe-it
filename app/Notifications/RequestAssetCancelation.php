@@ -31,7 +31,6 @@ class RequestAssetCancelation extends Notification
         $this->last_checkout = '';
         $this->item_quantity = $params['item_quantity'];
         $this->expected_checkin = '';
-        $this->requested_discipline = $params['requested_discipline'] ?? null;
         $this->requested_date = Helper::getFormattedDateObject($params['requested_date'], 'datetime',
             false);
         $this->settings = Setting::getSettings();
@@ -89,10 +88,6 @@ class RequestAssetCancelation extends Notification
             $fields['Expected Checkin'] = $this->expected_checkin;
         }
 
-        if ($this->requested_discipline) {
-            $fields['Discipline'] = $this->requested_discipline->name;
-        }
-
         return (new SlackMessage)
             ->content(trans('mail.a_user_canceled'))
             ->from($botname)
@@ -130,7 +125,6 @@ class RequestAssetCancelation extends Notification
                 'last_checkout' => $this->last_checkout,
                 'expected_checkin'  => $this->expected_checkin,
                 'intro_text'        => trans('mail.a_user_canceled'),
-                'requested_discipline' => $this->requested_discipline,
             ])
             ->subject('⚠️ '.trans('general.request_canceled'))
             ->withSymfonyMessage(function (Email $message) {

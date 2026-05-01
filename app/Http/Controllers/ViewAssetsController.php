@@ -10,6 +10,7 @@ use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\CheckoutRequest;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\RequestAssetCancelation;
@@ -291,12 +292,22 @@ class ViewAssetsController extends Controller
     }
 
 
-    public function getRequestedAssets() : View
+    public function getRequestedAssets(Request $request) : View
     {
+        $modelId = $request->integer('model_id');
+        $query = [];
+        $filteredModel = null;
+
+        if ($modelId) {
+            $query['model_id'] = $modelId;
+            $filteredModel = AssetModel::find($modelId);
+        }
+
         return view('account/requested', [
-            'pageTitle' => trans('general.requested_assets'),
-            'dataUrl' => route('api.assets.requested'),
+            'pageTitle' => 'My Requests',
+            'dataUrl' => route('api.assets.requested', $query),
             'requestMode' => 'requester',
+            'filteredModel' => $filteredModel,
         ]);
     }
 
@@ -307,5 +318,20 @@ class ViewAssetsController extends Controller
             'dataUrl' => route('api.assets.requested', ['coordinator' => 1]),
             'requestMode' => 'coordinator',
         ]);
+    }
+
+    public function updateRequestStatus(Request $request, CheckoutRequest $checkoutRequest): RedirectResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'in:under_review,approved,rejected,fulfilled'],
+        ]);
+
+        abort_unless($checkoutRequest->canBeProcessedBy(auth()->user()), 403);
+
+        $checkoutRequest->status = $validated['status'];
+        $checkoutRequest->fulfilled_at = $validated['status'] === CheckoutRequest::STATUS_FULFILLED ? now() : null;
+        $checkoutRequest->save();
+
+        return redirect()->back()->with('success', 'Request status updated.');
     }
 }

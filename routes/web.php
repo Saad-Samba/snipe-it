@@ -402,7 +402,7 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
         ->breadcrumbs(fn (Trail $trail) =>
         $trail->parent('home')
             ->push(trans('general.profile'), route('account'))
-            ->push(trans('general.requested_assets_menu'), route('account.requested')));
+            ->push('My Requests', route('account.requested')));
 
     Route::get('coordinator-requests', [ViewAssetsController::class, 'getCoordinatorRequests'])
         ->name('account.coordinator-requests')
@@ -410,6 +410,9 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
         $trail->parent('home')
             ->push(trans('general.profile'), route('account'))
             ->push('Coordinator Requests', route('account.coordinator-requests')));
+
+    Route::post('requested/{checkoutRequest}/status', [ViewAssetsController::class, 'updateRequestStatus'])
+        ->name('account.requests.status');
 
     Route::get(
         'requestable-assets', [ViewAssetsController::class, 'getRequestableIndex'])

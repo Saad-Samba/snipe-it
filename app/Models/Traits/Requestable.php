@@ -36,6 +36,7 @@ trait Requestable
             new CheckoutRequest(array_merge([
                 'user_id' => auth()->id(),
                 'quantity' => $qty,
+                'status' => CheckoutRequest::STATUS_PENDING,
             ], $attributes))
         );
     }
@@ -50,6 +51,7 @@ trait Requestable
         }
 
         $request->quantity = $qty;
+        $request->status = $request->status ?: CheckoutRequest::STATUS_PENDING;
         $request->save();
 
         return $request->fresh();
@@ -66,6 +68,9 @@ trait Requestable
             $user_id = auth()->id();
         }
 
-        $this->requests()->where('user_id', $user_id)->update(['canceled_at' => \Carbon\Carbon::now()]);
+        $this->requests()->where('user_id', $user_id)->update([
+            'canceled_at' => \Carbon\Carbon::now(),
+            'status' => CheckoutRequest::STATUS_CANCELED,
+        ]);
     }
 }

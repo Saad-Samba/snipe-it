@@ -24,9 +24,6 @@
 @if ((isset($item->name)) && ($item->name!=''))
 | **{{ trans('mail.asset_name') }}** | {{ $item->name }} |
 @endif
-@if (isset($requested_discipline) && $requested_discipline)
-| **Discipline** | {{ $requested_discipline->name }} |
-@endif
 @if (isset($item->assetstatus))
 | **{{ trans('general.status') }}** | {{ $item->assetstatus->name }}
 @endif

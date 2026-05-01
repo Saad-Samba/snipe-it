@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Transformers\ProfileTransformer;
+use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -47,18 +48,17 @@ class ProfileController extends Controller
      * @author [A. Gianotto] [<snipe@snipe.net>]
      * @since [v4.3.0]
      */
-    public function requestedAssets() :  array
+    public function requestedAssets(Request $request) :  array
     {
         $checkoutRequests = CheckoutRequest::query()
             ->with([
                 'requestedItem',
-                'requestedDiscipline',
                 'coordinatorTargets.coordinator',
                 'coordinatorTargets.company',
                 'user',
             ]);
 
-        if (request()->boolean('coordinator')) {
+        if ($request->boolean('coordinator')) {
             $checkoutRequests->whereHas('candidateCoordinators', function ($query) {
                 $query->where('users.id', auth()->id());
             })
@@ -66,6 +66,12 @@ class ProfileController extends Controller
         } else {
             $checkoutRequests->where('user_id', auth()->id())
                 ->whereNull('canceled_at');
+        }
+
+        if ($request->filled('model_id')) {
+            $checkoutRequests
+                ->where('requestable_type', \App\Models\AssetModel::class)
+                ->where('requestable_id', (int) $request->input('model_id'));
         }
 
         $checkoutRequests = $checkoutRequests->get();
@@ -87,18 +93,31 @@ class ProfileController extends Controller
             // Make sure the asset and request still exist
             if ($checkoutRequest && $checkoutRequest->itemRequested()) {
                 $assets = [
+                    'request_id' => (int) $checkoutRequest->id,
                     'image' => e($checkoutRequest->itemRequested()->present()->getImageUrl()),
                     'name' => e($checkoutRequest->name()),
                     'type' => e($checkoutRequest->itemType()),
                     'qty' => (int) $checkoutRequest->quantity,
+                    'status' => e(ucfirst(str_replace('_', ' ', $checkoutRequest->resolvedStatus()))),
+                    'status_value' => e($checkoutRequest->resolvedStatus()),
                     'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,
-                    'discipline' => ($checkoutRequest->requestedDiscipline) ? e($checkoutRequest->requestedDiscipline->name) : null,
                     'candidate_companies' => e($checkoutRequest->coordinatorTargets->pluck('company.name')->filter()->unique()->implode(', ')),
                     'candidate_coordinators' => e($checkoutRequest->coordinatorTargets->pluck('coordinator.display_name')->filter()->unique()->implode(', ')),
                     'requested_by' => ($checkoutRequest->requestingUser()) ? e($checkoutRequest->requestingUser()->display_name) : null,
-                    'note' => $checkoutRequest->note ? e($checkoutRequest->note) : null,
                     'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin, 'datetime'),
                     'request_date' => Helper::getFormattedDateObject($checkoutRequest->created_at, 'datetime'),
+                    'updated_at' => Helper::getFormattedDateObject($checkoutRequest->updated_at, 'datetime'),
+                    'request_status_url' => route('account.requests.status', $checkoutRequest),
+                    'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)
+                        ? route('account.requested', ['model_id' => $checkoutRequest->requestable_id])
+                        : null,
+                ];
+
+                $assets['available_actions'] = [
+                    'start_review' => $request->boolean('coordinator') && $checkoutRequest->canBeProcessedBy(auth()->user()) && $checkoutRequest->resolvedStatus() === CheckoutRequest::STATUS_PENDING,
+                    'approve' => $request->boolean('coordinator') && $checkoutRequest->canBeProcessedBy(auth()->user()) && in_array($checkoutRequest->resolvedStatus(), [CheckoutRequest::STATUS_PENDING, CheckoutRequest::STATUS_UNDER_REVIEW], true),
+                    'reject' => $request->boolean('coordinator') && $checkoutRequest->canBeProcessedBy(auth()->user()) && in_array($checkoutRequest->resolvedStatus(), [CheckoutRequest::STATUS_PENDING, CheckoutRequest::STATUS_UNDER_REVIEW], true),
+                    'fulfill' => $request->boolean('coordinator') && $checkoutRequest->canBeProcessedBy(auth()->user()) && $checkoutRequest->resolvedStatus() === CheckoutRequest::STATUS_APPROVED,
                 ];
 
                 foreach ($showable_fields as $showable_field_name) {

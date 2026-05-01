@@ -12,31 +12,42 @@ class ResolveCheckoutRequestCoordinatorsAction
 {
     public static function run(CheckoutRequest $checkoutRequest, array $notificationData = []): void
     {
-        if ($checkoutRequest->requestable_type !== AssetModel::class || empty($checkoutRequest->requested_discipline_id)) {
+        if ($checkoutRequest->requestable_type !== AssetModel::class) {
             $checkoutRequest->coordinatorTargets()->delete();
 
             return;
         }
 
-        $eligibleCompanyIds = Asset::query()
+        $eligibleAssetPairs = Asset::query()
             ->RTD()
             ->where('model_id', $checkoutRequest->requestable_id)
             ->whereNotNull('company_id')
-            ->pluck('company_id')
+            ->whereNotNull('discipline_id')
+            ->get(['company_id', 'discipline_id'])
+            ->map(fn (Asset $asset) => [
+                'company_id' => (int) $asset->company_id,
+                'discipline_id' => (int) $asset->discipline_id,
+            ])
             ->unique()
             ->values();
 
         $checkoutRequest->coordinatorTargets()->delete();
 
-        if ($eligibleCompanyIds->isEmpty()) {
+        if ($eligibleAssetPairs->isEmpty()) {
             return;
         }
 
         $assignments = RegionalAssetCoordinatorAssignment::query()
             ->with('coordinator')
-            ->where('discipline_id', $checkoutRequest->requested_discipline_id)
-            ->whereIn('company_id', $eligibleCompanyIds)
             ->get();
+
+        $eligibleAssignmentKeys = $eligibleAssetPairs
+            ->map(fn (array $pair) => $pair['company_id'].'-'.$pair['discipline_id'])
+            ->all();
+
+        $assignments = $assignments->filter(function (RegionalAssetCoordinatorAssignment $assignment) use ($eligibleAssignmentKeys) {
+            return in_array($assignment->company_id.'-'.$assignment->discipline_id, $eligibleAssignmentKeys, true);
+        });
 
         foreach ($assignments as $assignment) {
             $checkoutRequest->coordinatorTargets()->create([

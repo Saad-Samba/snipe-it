@@ -108,8 +108,6 @@
                                         <th class="col-md-1" data-sortable="true">{{ trans('general.image') }}</th>
                                         <th class="col-md-6" data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
                                         <th class="col-md-2" data-sortable="true">{{ trans('admin/accessories/general.remaining') }}</th>
-                                        <th class="col-md-2" data-sortable="false">Discipline</th>
-                                        <th class="col-md-3" data-sortable="false">{{ trans('general.notes') }}</th>
                                         <th class="col-md-2 actions" data-sortable="false">{{ trans('table.actions') }}</th>
                                     </tr>
                                 </thead>
@@ -141,17 +139,6 @@
                                                 <td>
                                                     <form action="{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $requestableModel->id])}}" method="POST" accept-charset="utf-8">
                                                         {{ csrf_field() }}
-                                                        <select class="form-control" name="discipline_id" aria-label="discipline_id">
-                                                            <option value="">Select discipline</option>
-                                                            @foreach($requestDisciplines as $requestDiscipline)
-                                                                <option value="{{ $requestDiscipline->id }}">{{ $requestDiscipline->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                </td>
-                                                <td>
-                                                        <input type="text" class="form-control" name="note" value="" placeholder="{{ trans('general.notes') }}">
-                                                </td>
-                                                <td>
                                                     <div class="form-inline">
                                                         <input type="text" style="width: 70px; margin-right: 10px;" class="form-control" name="request-quantity" value="" placeholder="{{ trans('general.qty') }}">
                                                     @if ($requestableModel->isRequestedBy(Auth::user()))
