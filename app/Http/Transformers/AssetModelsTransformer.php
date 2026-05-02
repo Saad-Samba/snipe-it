@@ -102,6 +102,7 @@ class AssetModelsTransformer
         $permissions_array['available_actions']['cancel_request'] = $canRequestModels && $hasActiveRequest;
         $permissions_array['available_actions']['update_request'] = $canRequestModels && $hasActiveRequest;
         $array['requested_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
+        $array['requested_project_id'] = $activeRequest ? (int) $activeRequest->project_id : null;
 
         $array += $permissions_array;
 

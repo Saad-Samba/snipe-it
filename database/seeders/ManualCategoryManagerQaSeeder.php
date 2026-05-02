@@ -9,10 +9,12 @@ use App\Models\Category;
 use App\Models\CheckoutRequest;
 use App\Models\Company;
 use App\Models\Discipline;
+use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class ManualCategoryManagerQaSeeder extends Seeder
 {
@@ -49,6 +51,8 @@ class ManualCategoryManagerQaSeeder extends Seeder
                     'categories.view' => '1',
                     'models.view' => '1',
                     'assets.view' => '1',
+                    'assets.checkout' => '1',
+                    'assets.checkin' => '1',
                     'assets.view.requestable' => '1',
                 ]),
                 'password' => bcrypt('password'),
@@ -71,6 +75,8 @@ class ManualCategoryManagerQaSeeder extends Seeder
                     'categories.view' => '1',
                     'models.view' => '1',
                     'assets.view' => '1',
+                    'assets.checkout' => '1',
+                    'assets.checkin' => '1',
                     'assets.view.requestable' => '1',
                 ]),
                 'password' => bcrypt('password'),
@@ -93,6 +99,8 @@ class ManualCategoryManagerQaSeeder extends Seeder
                     'categories.view' => '1',
                     'models.view' => '1',
                     'assets.view' => '1',
+                    'assets.checkout' => '1',
+                    'assets.checkin' => '1',
                     'assets.view.requestable' => '1',
                 ]),
                 'password' => bcrypt('password'),
@@ -115,6 +123,8 @@ class ManualCategoryManagerQaSeeder extends Seeder
                     'categories.view' => '1',
                     'models.view' => '1',
                     'assets.view' => '1',
+                    'assets.checkout' => '1',
+                    'assets.checkin' => '1',
                     'assets.view.requestable' => '1',
                 ]),
                 'password' => bcrypt('password'),
@@ -133,13 +143,34 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ['created_by' => $admin->id]
         );
 
-        $powerDiscipline = Discipline::withoutGlobalScopes()->updateOrCreate(
-            ['name' => 'QA Power Discipline'],
-            [
+        $alphaProject = Project::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA Alpha Project'],
+            ['created_by' => $admin->id]
+        );
+
+        $betaProject = Project::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA Beta Project'],
+            ['created_by' => $admin->id]
+        );
+
+        $crossSiteProject = Project::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA Cross-Site Project'],
+            ['created_by' => $admin->id]
+        );
+
+        $powerDisciplineId = DB::table('disciplines')->where('name', 'QA Power Discipline')->value('id');
+
+        if (!$powerDisciplineId) {
+            $powerDisciplineId = DB::table('disciplines')->insertGetId([
+                'name' => 'QA Power Discipline',
                 'notes' => 'Discipline used to resolve RAC candidates from company stock.',
                 'created_by' => $admin->id,
-            ]
-        );
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $powerDiscipline = Discipline::withoutGlobalScopes()->findOrFail($powerDisciplineId);
 
         $readyStatus = Statuslabel::withoutGlobalScopes()->firstOrCreate(
             ['name' => 'QA Category Manager Ready'],
@@ -218,6 +249,12 @@ class ManualCategoryManagerQaSeeder extends Seeder
             createdBy: $admin->id
         );
 
+        $crossSiteModel = $this->upsertModel(
+            name: 'QA Cross-Site Model',
+            categoryId: $alphaCategory->id,
+            createdBy: $admin->id
+        );
+
         $bravoModelA = $this->upsertModel(
             name: 'QA Bravo Model A',
             categoryId: $bravoCategory->id,
@@ -250,6 +287,28 @@ class ManualCategoryManagerQaSeeder extends Seeder
             assetTag: 'QA-CAT-ALPHA-003',
             name: 'QA Alpha RTD 3',
             modelId: $alphaModelB->id,
+            statusId: $readyStatus->id,
+            companyId: $rabatCompany->id,
+            disciplineId: $powerDiscipline->id,
+            createdBy: $admin->id,
+            requestable: true
+        );
+
+        $this->upsertAsset(
+            assetTag: 'QA-CAT-CROSS-001',
+            name: 'QA Cross-Site Casa RTD 1',
+            modelId: $crossSiteModel->id,
+            statusId: $readyStatus->id,
+            companyId: $casablancaCompany->id,
+            disciplineId: $powerDiscipline->id,
+            createdBy: $admin->id,
+            requestable: true
+        );
+
+        $this->upsertAsset(
+            assetTag: 'QA-CAT-CROSS-002',
+            name: 'QA Cross-Site Rabat RTD 1',
+            modelId: $crossSiteModel->id,
             statusId: $readyStatus->id,
             companyId: $rabatCompany->id,
             disciplineId: $powerDiscipline->id,
@@ -311,6 +370,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ],
             [
                 'quantity' => 2,
+                'project_id' => $alphaProject->id,
                 'fulfilled_at' => null,
             ]
         );
@@ -324,12 +384,36 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ],
             [
                 'quantity' => 1,
+                'project_id' => $betaProject->id,
                 'fulfilled_at' => null,
             ]
         );
 
+        $crossSiteRequest = CheckoutRequest::withoutGlobalScopes()->updateOrCreate(
+            [
+                'user_id' => $alphaManager->id,
+                'requestable_id' => $crossSiteModel->id,
+                'requestable_type' => AssetModel::class,
+                'canceled_at' => null,
+            ],
+            [
+                'quantity' => 2,
+                'project_id' => $crossSiteProject->id,
+                'status' => CheckoutRequest::STATUS_PENDING,
+                'fulfilled_at' => null,
+            ]
+        );
+
+        foreach ([$alphaRequest, $betaRequest, $crossSiteRequest] as $request) {
+            $request->allocatedAssets()->detach();
+            $request->status = CheckoutRequest::STATUS_PENDING;
+            $request->fulfilled_at = null;
+            $request->save();
+        }
+
         ResolveCheckoutRequestCoordinatorsAction::run($alphaRequest);
         ResolveCheckoutRequestCoordinatorsAction::run($betaRequest);
+        ResolveCheckoutRequestCoordinatorsAction::run($crossSiteRequest);
 
         $this->command?->info('Manual category manager QA dataset is ready.');
         $this->command?->line('Admin: qa-category-admin / password');
@@ -343,9 +427,11 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $this->command?->line('Expected Alpha counts: 2 available models, 3 remaining assets');
         $this->command?->line('Expected Bravo counts: 0 available models, 0 remaining assets');
         $this->command?->line('AFM request demo models: QA Alpha Model A, QA Alpha Model B');
+        $this->command?->line('Cross-site request demo model: QA Cross-Site Model');
+        $this->command?->line('Seeded request projects: QA Alpha Project, QA Beta Project, QA Cross-Site Project');
         $this->command?->line('Routing companies: QA Casablanca Site, QA Rabat Site');
         $this->command?->line('Routing discipline on eligible assets: QA Power Discipline');
-        $this->command?->line('Coordinator queue: 2 preseeded model requests resolved from eligible asset company + discipline');
+        $this->command?->line('Notifications target the routed RACs, while AFMs track booked counts through the request project.');
     }
 
     private function upsertCategory(

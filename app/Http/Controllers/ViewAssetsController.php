@@ -10,7 +10,7 @@ use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
-use App\Models\CheckoutRequest;
+use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\RequestAssetCancelation;
@@ -181,6 +181,7 @@ class ViewAssetsController extends Controller
         $validated = $request->validate([
             'request-action' => ['nullable', 'string', 'in:create,update,cancel'],
             'request-quantity' => ['nullable', 'integer', 'min:1'],
+            'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
         ]);
 
         $item = null;
@@ -207,11 +208,13 @@ class ViewAssetsController extends Controller
 
         $quantity = (int) ($validated['request-quantity'] ?? 1);
         $requestAction = $validated['request-action'] ?? 'create';
+        $projectId = $validated['project_id'] ?? null;
         $data['item_quantity'] = $quantity;
         $data['requested_by'] = $user->display_name;
         $data['item'] = $item;
         $data['item_type'] = $itemType;
         $data['target'] = auth()->user();
+        $data['project'] = $projectId ? Project::find($projectId) : null;
 
         if ($fullItemType == Asset::class) {
             $data['item_url'] = route('hardware.show', $item->id);
@@ -231,6 +234,12 @@ class ViewAssetsController extends Controller
                     'request-quantity' => 'Requested quantity cannot exceed remaining stock ('.$remaining.').',
                 ]);
             }
+
+            if (! $projectId) {
+                throw ValidationException::withMessages([
+                    'project_id' => 'Project is required for model requests.',
+                ]);
+            }
         }
 
         if ($isCancelRequest) {
@@ -244,9 +253,10 @@ class ViewAssetsController extends Controller
 
             return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.canceled'));
         } else {
+            $requestAttributes = $fullItemType == AssetModel::class ? ['project_id' => $projectId] : [];
             $checkoutRequest = $item_request
-                ? $item->updateRequest($quantity, $user)
-                : $item->request($quantity);
+                ? $item->updateRequest($quantity, $user, $requestAttributes)
+                : $item->request($quantity, $requestAttributes);
 
             if ($fullItemType == AssetModel::class) {
                 ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
@@ -304,34 +314,10 @@ class ViewAssetsController extends Controller
         }
 
         return view('account/requested', [
-            'pageTitle' => 'My Requests',
+            'pageTitle' => 'Submitted Requests',
             'dataUrl' => route('api.assets.requested', $query),
             'requestMode' => 'requester',
             'filteredModel' => $filteredModel,
         ]);
-    }
-
-    public function getCoordinatorRequests() : View
-    {
-        return view('account/requested', [
-            'pageTitle' => 'Coordinator Requests',
-            'dataUrl' => route('api.assets.requested', ['coordinator' => 1]),
-            'requestMode' => 'coordinator',
-        ]);
-    }
-
-    public function updateRequestStatus(Request $request, CheckoutRequest $checkoutRequest): RedirectResponse
-    {
-        $validated = $request->validate([
-            'status' => ['required', 'string', 'in:under_review,approved,rejected,fulfilled'],
-        ]);
-
-        abort_unless($checkoutRequest->canBeProcessedBy(auth()->user()), 403);
-
-        $checkoutRequest->status = $validated['status'];
-        $checkoutRequest->fulfilled_at = $validated['status'] === CheckoutRequest::STATUS_FULFILLED ? now() : null;
-        $checkoutRequest->save();
-
-        return redirect()->back()->with('success', 'Request status updated.');
     }
 }

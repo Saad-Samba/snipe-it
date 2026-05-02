@@ -41,7 +41,7 @@ trait Requestable
         );
     }
 
-    public function updateRequest($qty = 1, ?User $user = null)
+    public function updateRequest($qty = 1, ?User $user = null, array $attributes = [])
     {
         $user ??= auth()->user();
         $request = $this->isRequestedBy($user);
@@ -51,6 +51,7 @@ trait Requestable
         }
 
         $request->quantity = $qty;
+        $request->fill($attributes);
         $request->status = $request->status ?: CheckoutRequest::STATUS_PENDING;
         $request->save();
 

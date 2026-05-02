@@ -53,20 +53,12 @@ class ProfileController extends Controller
         $checkoutRequests = CheckoutRequest::query()
             ->with([
                 'requestedItem',
-                'coordinatorTargets.coordinator',
-                'coordinatorTargets.company',
+                'project',
                 'user',
             ]);
 
-        if ($request->boolean('coordinator')) {
-            $checkoutRequests->whereHas('candidateCoordinators', function ($query) {
-                $query->where('users.id', auth()->id());
-            })
-                ->whereNull('canceled_at');
-        } else {
-            $checkoutRequests->where('user_id', auth()->id())
-                ->whereNull('canceled_at');
-        }
+        $checkoutRequests->where('user_id', auth()->id())
+            ->whereNull('canceled_at');
 
         if ($request->filled('model_id')) {
             $checkoutRequests
@@ -92,32 +84,38 @@ class ProfileController extends Controller
 
             // Make sure the asset and request still exist
             if ($checkoutRequest && $checkoutRequest->itemRequested()) {
+                $bookedCount = $checkoutRequest->bookedAssetsCount();
+                $statusValue = $bookedCount >= $checkoutRequest->quantity
+                    ? CheckoutRequest::STATUS_FULLY_ALLOCATED
+                    : ($bookedCount > 0 ? CheckoutRequest::STATUS_PARTIALLY_ALLOCATED : CheckoutRequest::STATUS_PENDING);
+
                 $assets = [
                     'request_id' => (int) $checkoutRequest->id,
                     'image' => e($checkoutRequest->itemRequested()->present()->getImageUrl()),
                     'name' => e($checkoutRequest->name()),
+                    'model_id' => $checkoutRequest->requestable_type === AssetModel::class ? (int) $checkoutRequest->requestable_id : null,
                     'type' => e($checkoutRequest->itemType()),
                     'qty' => (int) $checkoutRequest->quantity,
-                    'status' => e(ucfirst(str_replace('_', ' ', $checkoutRequest->resolvedStatus()))),
-                    'status_value' => e($checkoutRequest->resolvedStatus()),
+                    'project' => e(optional($checkoutRequest->project)->name),
+                    'booked_count' => $bookedCount,
+                    'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),
+                    'status_value' => e($statusValue),
                     'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,
-                    'candidate_companies' => e($checkoutRequest->coordinatorTargets->pluck('company.name')->filter()->unique()->implode(', ')),
-                    'candidate_coordinators' => e($checkoutRequest->coordinatorTargets->pluck('coordinator.display_name')->filter()->unique()->implode(', ')),
                     'requested_by' => ($checkoutRequest->requestingUser()) ? e($checkoutRequest->requestingUser()->display_name) : null,
                     'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin, 'datetime'),
                     'request_date' => Helper::getFormattedDateObject($checkoutRequest->created_at, 'datetime'),
                     'updated_at' => Helper::getFormattedDateObject($checkoutRequest->updated_at, 'datetime'),
-                    'request_status_url' => route('account.requests.status', $checkoutRequest),
+                    'model_show_url' => ($checkoutRequest->requestable_type === AssetModel::class)
+                        ? route('models.show', $checkoutRequest->requestable_id)
+                        : null,
                     'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)
                         ? route('account.requested', ['model_id' => $checkoutRequest->requestable_id])
                         : null,
-                ];
-
-                $assets['available_actions'] = [
-                    'start_review' => $request->boolean('coordinator') && $checkoutRequest->canBeProcessedBy(auth()->user()) && $checkoutRequest->resolvedStatus() === CheckoutRequest::STATUS_PENDING,
-                    'approve' => $request->boolean('coordinator') && $checkoutRequest->canBeProcessedBy(auth()->user()) && in_array($checkoutRequest->resolvedStatus(), [CheckoutRequest::STATUS_PENDING, CheckoutRequest::STATUS_UNDER_REVIEW], true),
-                    'reject' => $request->boolean('coordinator') && $checkoutRequest->canBeProcessedBy(auth()->user()) && in_array($checkoutRequest->resolvedStatus(), [CheckoutRequest::STATUS_PENDING, CheckoutRequest::STATUS_UNDER_REVIEW], true),
-                    'fulfill' => $request->boolean('coordinator') && $checkoutRequest->canBeProcessedBy(auth()->user()) && $checkoutRequest->resolvedStatus() === CheckoutRequest::STATUS_APPROVED,
+                    'request_detail_url' => route('hardware.index', [
+                        'request_id' => $checkoutRequest->id,
+                        'status' => 'RTD',
+                        'model_id' => $checkoutRequest->requestable_id,
+                    ]),
                 ];
 
                 foreach ($showable_fields as $showable_field_name) {

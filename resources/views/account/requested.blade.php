@@ -19,7 +19,7 @@
                                 Showing requests for model:
                                 <strong>{{ $filteredModel->name }}</strong>
                             </span>
-                            <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all my requests</a>
+                            <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
                         </div>
                     @endif
 
@@ -29,6 +29,7 @@
                             data-id-table="userRequests"
                             data-side-pagination="server"
                             data-sort-order="desc"
+                            data-request-mode="{{ $requestMode ?? 'requester' }}"
                             id="userRequests"
                             class="table table-striped snipe-table"
                             data-url="{{ $dataUrl ?? route('api.assets.requested') }}"
@@ -38,17 +39,16 @@
                 }'>
                         <thead>
                         <tr>
-                            <th data-field="request_id" data-sortable="true">ID</th>
-                            <th data-field="image" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
-                            <th data-field="name">{{ trans('general.item_name') }}</th>
-                            <th data-field="qty">{{ trans('general.qty') }}</th>
-                            <th data-field="status" data-formatter="requestStatusFormatter">Status</th>
-                            @if (($requestMode ?? 'requester') === 'coordinator')
-                                <th data-field="requested_by">Requested By</th>
-                                <th data-field="actions" data-formatter="requestWorkflowActionsFormatter">Actions</th>
-                            @endif
-                            <th data-field="request_date" data-formatter="dateDisplayFormatter"> {{ trans('general.requested_date') }}</th>
-                            <th data-field="updated_at" data-formatter="dateDisplayFormatter">Updated</th>
+                            <th data-field="request_id" data-sortable="true" data-visible="true" data-switchable="false" data-formatter="requestDetailLinkFormatter">ID</th>
+                            <th data-field="image" data-sortable="true" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
+                            <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Model</th>
+                            <th data-field="qty" data-sortable="true">{{ trans('general.qty') }}</th>
+                            <th data-field="project" data-sortable="true">{{ trans('general.project') }}</th>
+                            <th data-field="booked_count" data-sortable="true">Booked</th>
+                            <th data-field="status" data-sortable="true" data-formatter="requestStatusFormatter">Status</th>
+                            <th data-field="request_date" data-sortable="true" data-formatter="dateDisplayFormatter"> {{ trans('general.requested_date') }}</th>
+                            <th data-field="updated_at" data-sortable="true" data-formatter="dateDisplayFormatter">Updated</th>
+                            <th data-field="actions" data-switchable="false" data-searchable="false" data-sortable="false" data-visible="true" data-formatter="requestWorkflowActionsFormatter">{{ trans('table.actions') }}</th>
                         </tr>
                         </thead>
                     </table>

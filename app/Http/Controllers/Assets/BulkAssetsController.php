@@ -65,7 +65,10 @@ class BulkAssetsController extends Controller
             }
 
             $request->session()->flashInput(['selected_assets' => $asset_ids]);
-            return redirect()->route('hardware.bulkcheckout.show');
+            return redirect()->route('hardware.bulkcheckout.show', array_filter([
+                'request_id' => $request->input('request_id'),
+                'project_id' => $request->input('project_id'),
+            ]));
         }
 
         if ($request->input('bulk_actions') === 'maintenance') {
@@ -657,6 +660,10 @@ class BulkAssetsController extends Controller
             );
         }
 
+        if ($request->filled('request_id')) {
+            return redirect()->to(session('back_url', route('hardware.index')))->with('success', $message);
+        }
+
         return redirect($bulk_back_url)->with('success', $message);
     }
 
@@ -700,6 +707,7 @@ class BulkAssetsController extends Controller
             'bulk_back_url' => $bulk_back_url,
             'form_action' => route('hardware.bulkcheckin.store'),
             'default_location_name' => $defaultLocationName,
+            'request_id' => $request->input('request_id'),
         ]);
     }
 
@@ -746,7 +754,7 @@ class BulkAssetsController extends Controller
     /**
      * Show Bulk Checkout Page
      */
-    public function showCheckout() : View
+    public function showCheckout(Request $request) : View
     {
         $this->authorize('checkout', Asset::class);
 
@@ -768,6 +776,8 @@ class BulkAssetsController extends Controller
         return view('hardware/bulk-checkout', [
             'statusLabel_list' => $status_label_list,
             'removed_assets' => $alreadyAssigned,
+            'request_id' => $request->input('request_id'),
+            'request_project_id' => $request->input('project_id'),
         ]);
     }
 
@@ -844,6 +854,10 @@ class BulkAssetsController extends Controller
                         $asset->status_id = $request->get('status_id');
                     }
 
+                    if ($request->filled('project_id')) {
+                        $asset->project_id = $request->integer('project_id');
+                    }
+
                     $asset->financialChangeEffectiveAt = $checkout_at;
 
                     $checkout_success = $asset->checkOut($target, $admin, $checkout_at, $expected_checkin, e($request->get('note')), $asset->name, null);
@@ -864,6 +878,11 @@ class BulkAssetsController extends Controller
             });
 
             if (! $errors) {
+                if ($request->filled('request_id')) {
+                    return redirect()->to(session('back_url', route('hardware.index')))
+                        ->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));
+                }
+
                 // Redirect to the new asset page
                 return redirect()->to('hardware')->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));
             }

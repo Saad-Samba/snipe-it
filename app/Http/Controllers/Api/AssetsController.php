@@ -22,6 +22,7 @@ use App\Http\Transformers\LicensesTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\CheckoutRequest;
 use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\License;
@@ -65,6 +66,13 @@ class AssetsController extends Controller
             $action = 'audits';
         }
         $filter_non_deprecable_assets = false;
+        $requestContext = null;
+
+        if ($request->filled('request_id')) {
+            $requestContext = CheckoutRequest::withoutGlobalScopes()
+                ->with('project')
+                ->find($request->integer('request_id'));
+        }
 
         /**
          * This looks MAD janky (and it is), but the AssetsController@index does a LOT of heavy lifting throughout the 
@@ -256,13 +264,27 @@ class AssetsController extends Controller
                 });
                 break;
             case 'RTD':
-                $assets->whereNull('assets.assigned_to')
-                    ->join('status_labels AS status_alias', function ($join) {
+                $assets->join('status_labels AS status_alias', function ($join) {
                         $join->on('status_alias.id', '=', 'assets.status_id')
                             ->where('status_alias.deployable', '=', 1)
                             ->where('status_alias.pending', '=', 0)
                             ->where('status_alias.archived', '=', 0);
                     });
+
+                if ($request->filled('request_id')) {
+                    $assets->where(function ($query) use ($requestContext) {
+                        $query->whereNull('assets.assigned_to');
+
+                        if ($requestContext && $requestContext->project_id) {
+                            $query->orWhere(function ($projectQuery) use ($requestContext) {
+                                $projectQuery->where('assets.project_id', $requestContext->project_id)
+                                    ->whereNotNull('assets.assigned_to');
+                            });
+                        }
+                    });
+                } else {
+                    $assets->whereNull('assets.assigned_to');
+                }
                 break;
             case 'Undeployable':
                 $assets->Undeployable();
