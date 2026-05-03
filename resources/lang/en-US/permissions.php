@@ -243,6 +243,10 @@ return array(
     'modelsdelete' => [
         'name' => 'Delete Models',
     ],
+    'modelsrequest' => [
+        'name' => 'Request Models',
+        'note' => 'Allows the user to submit and manage model requests from the Models page.',
+    ],
     'categories'   => [
         'name' => 'Categories',
         'note'       => 'Grants access to the Categories section of the application.',

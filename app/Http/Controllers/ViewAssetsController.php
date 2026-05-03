@@ -226,6 +226,10 @@ class ViewAssetsController extends Controller
         $item_request = $item->isRequestedBy($user);
         $isCancelRequest = $cancel_by_admin || $requestAction === 'cancel';
 
+        if (($fullItemType == AssetModel::class) && (! $user->hasAccess('models.request'))) {
+            throw new AuthorizationException('You are not authorized to request models.');
+        }
+
         if (!$isCancelRequest && $fullItemType == AssetModel::class) {
             $remaining = $item->availableAssets()->count();
 

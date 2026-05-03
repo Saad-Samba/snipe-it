@@ -22,7 +22,7 @@ class ModelRequestWorkflowTest extends TestCase
     {
         Notification::fake();
 
-        $requester = User::factory()->viewRequestableAssets()->create();
+        $requester = User::factory()->requestAssetModels()->create();
         $disciplineA = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
         $disciplineB = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
         $coordinatorA = User::factory()->create(['first_name' => 'Casablanca', 'last_name' => 'RAC']);
@@ -83,6 +83,33 @@ class ModelRequestWorkflowTest extends TestCase
 
         Notification::assertSentTo($coordinatorA, RequestAssetNotification::class);
         Notification::assertSentTo($coordinatorB, RequestAssetNotification::class);
+    }
+
+    public function test_model_request_requires_models_request_permission()
+    {
+        $requester = User::factory()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => Category::factory()->forAssets()->create()->id,
+        ]);
+
+        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+            'name' => 'Validation',
+            'created_by' => $requester->id,
+        ])->id);
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-quantity' => 1,
+                'project_id' => $project->id,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('checkout_requests', [
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+        ]);
     }
 
     public function test_requested_assets_api_returns_project_and_booked_metadata_for_requester()
@@ -251,7 +278,7 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_model_request_cannot_exceed_remaining_stock()
     {
-        $requester = User::factory()->viewRequestableAssets()->create();
+        $requester = User::factory()->requestAssetModels()->create();
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
             'category_id' => Category::factory()->forAssets()->create()->id,
@@ -284,7 +311,7 @@ class ModelRequestWorkflowTest extends TestCase
     {
         Notification::fake();
 
-        $requester = User::factory()->viewRequestableAssets()->create();
+        $requester = User::factory()->requestAssetModels()->create();
         $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
         $company = Company::factory()->create(['name' => 'Casablanca Site']);
         $coordinator = User::factory()->create(['first_name' => 'Casablanca', 'last_name' => 'RAC']);

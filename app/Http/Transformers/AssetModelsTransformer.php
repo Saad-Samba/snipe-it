@@ -92,7 +92,7 @@ class AssetModelsTransformer
 
         $requestingUser = Auth::user();
         $canRequestModels = $requestingUser
-            && $requestingUser->hasAccess('assets.view.requestable')
+            && $requestingUser->hasAccess('models.request')
             && $assetmodel->deleted_at == '';
 
         $activeRequest = $requestingUser ? $assetmodel->isRequestedBy($requestingUser) : null;

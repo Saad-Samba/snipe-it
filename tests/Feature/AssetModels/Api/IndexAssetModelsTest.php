@@ -167,7 +167,7 @@ class IndexAssetModelsTest extends TestCase
 
     public function testAssetModelIndexExposesRequestActionsForAvailableModels()
     {
-        $requester = User::factory()->viewRequestableAssets()->viewAssetModels()->create();
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
         $availableModel = AssetModel::factory()->create([
             'name' => 'Requestable Available Model',
         ]);
