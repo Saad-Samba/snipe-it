@@ -401,8 +401,8 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
         ->name('account.requested')
         ->breadcrumbs(fn (Trail $trail) =>
         $trail->parent('home')
-            ->push(trans('general.profile'), route('account'))
-            ->push(trans('general.requested_assets_menu'), route('account.requested')));
+            ->push('Requests', route('account.requested'))
+            ->push('Submitted Requests', route('account.requested')));
 
     Route::get(
         'requestable-assets', [ViewAssetsController::class, 'getRequestableIndex'])

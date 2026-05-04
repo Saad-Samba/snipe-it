@@ -163,14 +163,6 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'fieldsetsLinkObjFormatter',
             ],
             [
-                'field' => 'requestable',
-                'searchable' => false,
-                'sortable' => true,
-                'visible' => false,
-                'title' => trans('admin/hardware/general.requestable'),
-                'formatter' => 'trueFalseFormatter',
-            ],
-            [
                 'field' => 'require_serial',
                 'searchable' => false,
                 'sortable' => true,
@@ -212,6 +204,16 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'dateDisplayFormatter',
             ],
 
+        ];
+
+        $layout[] = [
+            'field' => 'request',
+            'searchable' => false,
+            'sortable' => false,
+            'switchable' => false,
+            'title' => trans('button.request'),
+            'formatter' => 'modelRequestActionsFormatter',
+            'printIgnore' => true,
         ];
 
         $layout[] = [

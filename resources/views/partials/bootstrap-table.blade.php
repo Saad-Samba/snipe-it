@@ -680,10 +680,23 @@
     });
     @endcan
 
-    @can('create', \App\Models\Category::class)
     // Custom Field table buttons
-    window.categoryButtons = () => ({
-        btnAdd: {
+    window.categoryButtons = () => {
+        const buttons = {
+            btnShowMine: {
+                text: 'My Categories',
+                icon: 'fa fa-user',
+                event () {
+                    window.location.href = '{{ route('categories.index', ['manager_id' => auth()->id()]) }}';
+                },
+                attributes: {
+                    title: 'My Categories',
+                }
+            },
+        };
+
+        @can('create', \App\Models\Category::class)
+        buttons.btnAdd = {
             text: '{{ trans('general.create') }}',
             icon: 'fa fa-plus',
             event () {
@@ -696,9 +709,11 @@
                 accesskey: 'n'
                 @endif
             }
-        },
-    });
-    @endcan
+        };
+        @endcan
+
+        return buttons;
+    };
 
     @can('create', \App\Models\AssetModel::class)
     // Custom Field table buttons
@@ -1202,6 +1217,30 @@
         }
     }
 
+    function categoryReusableAssetsFormatter(value, row) {
+        if (value === null || value === undefined) {
+            return '0';
+        }
+
+        if (!row || row.category_type_raw !== 'asset' || value < 1) {
+            return value;
+        }
+
+        return '<a href="{{ route('hardware.index') }}?category_id=' + row.id + '&reusable_assets=1">' + value + '</a>';
+    }
+
+    function categoryAvailableModelsFormatter(value, row) {
+        if (value === null || value === undefined) {
+            return '0';
+        }
+
+        if (!row || row.category_type_raw !== 'asset' || value < 1) {
+            return value;
+        }
+
+        return '<a href="{{ route('models.index') }}?category_id=' + row.id + '&available_models=1">' + value + '</a>';
+    }
+
 
     // Convert line breaks to <br>
     function notesFormatter(value) {
@@ -1264,11 +1303,12 @@
 
     function genericCheckinCheckoutFormatter(destination) {
         return function (value, row) {
+            var requestQuery = '{{ request()->filled('request_id') ? '?request_id=' . urlencode((string) request()->input('request_id')) : '' }}';
 
             // The user is allowed to check items out, AND the item is deployable
             if ((row.available_actions.checkout == true) && (row.user_can_checkout == true) && ((!row.asset_id) && (!row.assigned_to))) {
 
-                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '/checkout" class="btn btn-sm bg-maroon" data-tooltip="true" title="{{ trans('general.checkout_tooltip') }}">{{ trans('general.checkout') }}</a>';
+                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '/checkout' + requestQuery + '" class="btn btn-sm bg-maroon" data-tooltip="true" title="{{ trans('general.checkout_tooltip') }}">{{ trans('general.checkout') }}</a>';
 
             // The user is allowed to check items out, but the item is not able to be checked out
             } else if (((row.user_can_checkout == false)) && (row.available_actions.checkout == true) && (!row.assigned_to)) {
@@ -1284,9 +1324,9 @@
             // The user is allowed to check items in
             } else if (row.available_actions.checkin == true)  {
                 if (row.assigned_to) {
-                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '/checkin" class="btn btn-sm bg-purple" data-tooltip="true" title="{{ trans('general.checkin_tooltip') }}">{{ trans('general.checkin') }}</a>';
+                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '/checkin' + requestQuery + '" class="btn btn-sm bg-purple" data-tooltip="true" title="{{ trans('general.checkin_tooltip') }}">{{ trans('general.checkin') }}</a>';
                 } else if (row.assigned_pivot_id) {
-                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.assigned_pivot_id + '/checkin" class="btn btn-sm bg-purple" data-tooltip="true" title="{{ trans('general.checkin_tooltip') }}">{{ trans('general.checkin') }}</a>';
+                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.assigned_pivot_id + '/checkin' + requestQuery + '" class="btn btn-sm bg-purple" data-tooltip="true" title="{{ trans('general.checkin_tooltip') }}">{{ trans('general.checkin') }}</a>';
                 }
 
             }
@@ -1307,6 +1347,109 @@
             return '<form action="{{ config('app.url') }}/account/request-asset/'+ value.id + '" method="POST">@csrf<button class="btn btn-block btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}">{{ trans('button.request') }}</button></form>';
         }
 
+    }
+
+    function modelRequestActionsFormatter(value, row) {
+        var requestUrl = '{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
+        var requestsUrl = '{{ route('account.requested') }}?model_id=' + row.id;
+        var requestedQuantity = row.requested_quantity || 1;
+        var requestedProjectId = row.requested_project_id || '';
+        var quantityLabel = '{{ trans('general.qty') }}';
+        var actionBarId = 'model-request-actions-' + row.id;
+        var editStateId = 'model-request-edit-' + row.id;
+        var requestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name'])->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values());
+        var buildProjectOptions = function(selectedProjectId) {
+            var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
+
+            requestProjects.forEach(function(project) {
+                var selected = String(project.id) === String(selectedProjectId) ? ' selected' : '';
+                options.push('<option value=\"' + project.id + '\"' + selected + '>' + project.name + '</option>');
+            });
+
+            return options.join('');
+        };
+
+        if ((row.available_actions) && (row.available_actions.update_request === true)) {
+            return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:170px;">'
+                + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.2;">'
+                + '<span class="label label-info" style="font-size:11px;">{{ trans('general.requested') }}</span>'
+                + '<span style="font-size:12px;color:#4d4d4d;">' + quantityLabel + ': <strong>' + requestedQuantity + '</strong></span>'
+                + '</div>'
+                + '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:0;flex-wrap:wrap;font-size:12px;">'
+                + '<a href="' + requestsUrl + '" style="margin-right:8px;">View requests</a>'
+                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;margin-right:8px;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'flex\'; document.getElementById(\'' + actionBarId + '\').style.display = \'none\';" data-tooltip="true" title="{{ trans('general.update') }}">Edit</button>'
+                + '<form action="' + requestUrl + '" method="POST" style="margin:0;">'
+                + '@csrf'
+                + '<input type="hidden" name="request-action" value="cancel">'
+                + '<button class="btn btn-link btn-sm text-danger" style="padding:0;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">{{ trans('button.cancel') }}</button>'
+                + '</form>'
+                + '</div>'
+                + '<form id="' + editStateId + '" action="' + requestUrl + '" method="POST" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;margin:0;">'
+                + '@csrf'
+                + '<input type="hidden" name="request-action" value="update">'
+                + '<select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions(requestedProjectId) + '</select>'
+                + '<input type="number" min="1" max="' + row.remaining + '" name="request-quantity" value="' + requestedQuantity + '" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}">'
+                + '<button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.update') }}">{{ trans('general.update') }}</button>'
+                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'none\'; document.getElementById(\'' + actionBarId + '\').style.display = \'flex\';">{{ trans('button.cancel') }}</button>'
+                + '</form>'
+                + '</div>';
+        } else if ((row.available_actions) && (row.available_actions.request === true)) {
+            return '<form action="' + requestUrl + '" method="POST" style="display:flex;align-items:center;gap:6px;min-width:260px;flex-wrap:wrap;">@csrf<input type="hidden" name="request-action" value="create"><select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions('') + '</select><input type="number" min="1" max="' + row.remaining + '" name="request-quantity" value="1" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}"><button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}">{{ trans('button.request') }}</button></form>';
+        }
+
+        return '';
+    }
+
+    function requestStatusFormatter(value) {
+        if (!value) {
+            return '';
+        }
+
+        var normalized = String(value).toLowerCase();
+        var labelClass = 'label-default';
+
+        if (normalized === 'pending') {
+            labelClass = 'label-warning';
+        } else if (normalized === 'in progress' || normalized === 'under review') {
+            labelClass = 'label-primary';
+        } else if (normalized === 'fully allocated' || normalized === 'closed' || normalized === 'fulfilled') {
+            labelClass = 'label-success';
+        } else if (normalized === 'partially allocated') {
+            labelClass = 'label-info';
+        } else if (normalized === 'canceled' || normalized === 'rejected' || normalized === 'unable to complete' || normalized === 'not allocated') {
+            labelClass = 'label-danger';
+        }
+
+        return '<span class="label ' + labelClass + '">' + value + '</span>';
+    }
+
+    function requestWorkflowActionsFormatter(value, row) {
+        if (!row || !row.request_detail_url) {
+            return '';
+        }
+
+        var actionTitle = 'View request';
+
+        return '<a href="' + row.request_detail_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="' + actionTitle + '">'
+            + '<i class="fas fa-eye" aria-hidden="true"></i>'
+            + '<span class="sr-only">' + actionTitle + '</span>'
+            + '</a>';
+    }
+
+    function requestDetailLinkFormatter(value, row) {
+        if (row && row.request_detail_url) {
+            return '<a href="' + row.request_detail_url + '">#' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestModelLinkFormatter(value, row) {
+        if (row && row.model_show_url) {
+            return '<a href="' + row.model_show_url + '">' + value + '</a>';
+        }
+
+        return value;
     }
 
 

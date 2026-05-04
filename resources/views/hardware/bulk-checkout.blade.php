@@ -26,6 +26,9 @@
       <div class="box-body">
         <form class="form-horizontal" method="post" action="" autocomplete="off">
           {{ csrf_field() }}
+          @if (!empty($request_id))
+            <input type="hidden" name="request_id" value="{{ $request_id }}">
+          @endif
 
             @if ($removed_assets->isNotEmpty())
                 <div class="box box-solid box-warning">
@@ -85,6 +88,7 @@
             <!-- We have to pass unselect here so that we don't default to the asset that's being checked out. We want that asset to be pre-selected everywhere else. -->
           @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.asset'), 'asset_selector_div_id' => 'assigned_asset', 'fieldname' => 'assigned_asset', 'unselect' => 'true', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
           @include ('partials.forms.edit.location-select', ['translated_name' => trans('general.location'), 'fieldname' => 'assigned_location', 'style' => session('checkout_to_type') == 'location' ? '' : 'display: none;'])
+          @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id', 'item' => (object) ['project_id' => old('project_id', $request_project_id ?? null)]])
 
           <!-- Checkout/Checkin Date -->
               <div class="form-group {{ $errors->has('checkout_at') ? 'error' : '' }}">
@@ -107,7 +111,7 @@
                   </label>
                   <div class="col-md-8">
                       <div class="input-group date col-md-5" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-date-start-date="0d" data-date-clear-btn="true">
-                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expected_checkin" id="expected_checkin" value="{{ old('expected_checkin') }}">
+                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expected_checkin" id="expected_checkin" value="{{ old('expected_checkin') }}" required>
                           <span class="input-group-addon"><x-icon type="calendar" /></span>
                       </div>
                       {!! $errors->first('expected_checkin', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}

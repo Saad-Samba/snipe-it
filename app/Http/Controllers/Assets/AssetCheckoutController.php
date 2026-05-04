@@ -8,11 +8,11 @@ use App\Http\Controllers\CheckInOutRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AssetCheckoutRequest;
 use App\Models\Asset;
+use App\Models\CheckoutRequest;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Session;
 use \Illuminate\Contracts\View\View;
 use \Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Validator;
 
 class AssetCheckoutController extends Controller
 {
@@ -29,8 +29,8 @@ class AssetCheckoutController extends Controller
      */
     public function create(Asset $asset) : View | RedirectResponse
     {
-
         $this->authorize('checkout', $asset);
+        $requestContext = null;
 
         if (!$asset->model) {
             return redirect()->route('hardware.show', $asset)
@@ -46,10 +46,15 @@ class AssetCheckoutController extends Controller
 
         
         if ($asset->availableForCheckout()) {
+            if (request()->filled('request_id')) {
+                $requestContext = $this->resolveRequestContext((int) request()->input('request_id'));
+            }
+
             return view('hardware/checkout', compact('asset'))
                 ->with('statusLabel_list', Helper::deployableStatusLabelList())
                 ->with('table_name', 'Assets')
-                ->with('item', $asset);
+                ->with('item', $asset)
+                ->with('requestContext', $requestContext);
         }
 
         return redirect()->route('hardware.index')
@@ -101,6 +106,10 @@ class AssetCheckoutController extends Controller
                 $asset->status_id = $request->get('status_id');
             }
 
+            if ($request->filled('project_id')) {
+                $asset->project_id = $request->integer('project_id');
+            }
+
             $asset->financialChangeEffectiveAt = $checkout_at;
 
 
@@ -128,6 +137,11 @@ class AssetCheckoutController extends Controller
             session()->put(['redirect_option' => $request->get('redirect_option'), 'checkout_to_type' => $request->get('checkout_to_type')]);
 
             if ($asset->checkOut($target, $admin, $checkout_at, $expected_checkin, $request->get('note'), $request->get('name'))) {
+                if ($request->filled('request_id')) {
+                    return redirect()->to(Session::get('back_url', route('hardware.index')))
+                        ->with('success', trans('admin/hardware/message.checkout.success'));
+                }
+
                 return Helper::getRedirectOption($request, $asset->id, 'Assets')
                     ->with('success', trans('admin/hardware/message.checkout.success'));
             }
@@ -138,5 +152,10 @@ class AssetCheckoutController extends Controller
         } catch (CheckoutNotAllowed $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
+    }
+
+    protected function resolveRequestContext(int $requestId): ?CheckoutRequest
+    {
+        return CheckoutRequest::with(['project'])->find($requestId);
     }
 }

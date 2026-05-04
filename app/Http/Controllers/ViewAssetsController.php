@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Actions\CheckoutRequests\CancelCheckoutRequestAction;
 use App\Actions\CheckoutRequests\CreateCheckoutRequestAction;
+use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Enums\ActionType;
 use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\RequestAssetCancelation;
@@ -16,6 +18,7 @@ use App\Notifications\RequestAssetNotification;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use \Illuminate\Contracts\View\View;
 use Exception;
 
@@ -175,6 +178,12 @@ class ViewAssetsController extends Controller
 
     public function getRequestItem(Request $request, $itemType, $itemId = null, $cancel_by_admin = false, $requestingUser = null): RedirectResponse
     {
+        $validated = $request->validate([
+            'request-action' => ['nullable', 'string', 'in:create,update,cancel'],
+            'request-quantity' => ['nullable', 'integer', 'min:1'],
+            'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
+        ]);
+
         $item = null;
         $fullItemType = 'App\\Models\\'.studly_case($itemType);
 
@@ -197,11 +206,15 @@ class ViewAssetsController extends Controller
         $logaction->target_id = $data['user_id'] = auth()->id();
         $logaction->target_type = User::class;
 
-        $data['item_quantity'] = $request->has('request-quantity') ? e($request->input('request-quantity')) : 1;
+        $quantity = (int) ($validated['request-quantity'] ?? 1);
+        $requestAction = $validated['request-action'] ?? 'create';
+        $projectId = $validated['project_id'] ?? null;
+        $data['item_quantity'] = $quantity;
         $data['requested_by'] = $user->display_name;
         $data['item'] = $item;
         $data['item_type'] = $itemType;
         $data['target'] = auth()->user();
+        $data['project'] = $projectId ? Project::find($projectId) : null;
 
         if ($fullItemType == Asset::class) {
             $data['item_url'] = route('hardware.show', $item->id);
@@ -210,10 +223,32 @@ class ViewAssetsController extends Controller
         }
 
         $settings = Setting::getSettings();
+        $item_request = $item->isRequestedBy($user);
+        $isCancelRequest = $cancel_by_admin || $requestAction === 'cancel';
 
-        if (($item_request = $item->isRequestedBy($user)) || $cancel_by_admin) {
+        if (($fullItemType == AssetModel::class) && (! $user->hasAccess('models.request'))) {
+            throw new AuthorizationException('You are not authorized to request models.');
+        }
+
+        if (!$isCancelRequest && $fullItemType == AssetModel::class) {
+            $remaining = $item->availableAssets()->count();
+
+            if ($quantity > $remaining) {
+                throw ValidationException::withMessages([
+                    'request-quantity' => 'Requested quantity cannot exceed remaining stock ('.$remaining.').',
+                ]);
+            }
+
+            if (! $projectId) {
+                throw ValidationException::withMessages([
+                    'project_id' => 'Project is required for model requests.',
+                ]);
+            }
+        }
+
+        if ($isCancelRequest) {
             $item->cancelRequest($requestingUser);
-            $data['item_quantity'] = ($item_request) ? $item_request->qty : 1;
+            $data['item_quantity'] = ($item_request) ? $item_request->quantity : 1;
             $logaction->logaction(ActionType::RequestCanceled);
 
             if (($settings->alert_email != '') && ($settings->alerts_enabled == '1') && (! config('app.lock_passwords'))) {
@@ -222,13 +257,21 @@ class ViewAssetsController extends Controller
 
             return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.canceled'));
         } else {
-            $item->request();
+            $requestAttributes = $fullItemType == AssetModel::class ? ['project_id' => $projectId] : [];
+            $checkoutRequest = $item_request
+                ? $item->updateRequest($quantity, $user, $requestAttributes)
+                : $item->request($quantity, $requestAttributes);
+
+            if ($fullItemType == AssetModel::class) {
+                ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
+            }
+
             if (($settings->alert_email != '') && ($settings->alerts_enabled == '1') && (! config('app.lock_passwords'))) {
                 $logaction->logaction('requested');
                 $settings->notify(new RequestAssetNotification($data));
             }
 
-            return redirect()->route('requestable-assets')->with('success')->with('success', trans('admin/hardware/message.requests.success'));
+            return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.success'));
         }
     }
 
@@ -263,8 +306,22 @@ class ViewAssetsController extends Controller
     }
 
 
-    public function getRequestedAssets() : View
+    public function getRequestedAssets(Request $request) : View
     {
-        return view('account/requested');
+        $modelId = $request->integer('model_id');
+        $query = [];
+        $filteredModel = null;
+
+        if ($modelId) {
+            $query['model_id'] = $modelId;
+            $filteredModel = AssetModel::find($modelId);
+        }
+
+        return view('account/requested', [
+            'pageTitle' => 'Submitted Requests',
+            'dataUrl' => route('api.assets.requested', $query),
+            'requestMode' => 'requester',
+            'filteredModel' => $filteredModel,
+        ]);
     }
 }

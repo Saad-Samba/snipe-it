@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\AssetModels\Api;
 
+use App\Models\Asset;
 use App\Models\Company;
 use App\Models\AssetModel;
+use App\Models\Statuslabel;
 use App\Models\User;
 use App\Models\Category;
 use App\Models\CustomFieldset;
@@ -115,6 +117,111 @@ class IndexAssetModelsTest extends TestCase
             ->assertJson(fn (AssertableJson $json) => $json
                 ->where('rows.0.fieldset.id', $fieldset->id)
                 ->where('rows.0.fieldset.name', $fieldset->name)
+                ->etc());
+    }
+
+    public function testAssetModelIndexCanFilterToAvailableModelsWithinCategory()
+    {
+        $category = Category::factory()->forAssets()->create();
+        $availableModel = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'name' => 'Available Model',
+        ]);
+        $unavailableModel = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'name' => 'Unavailable Model',
+        ]);
+
+        $deployableStatus = Statuslabel::factory()->rtd()->create();
+        $assignedUser = User::factory()->create();
+
+        Asset::factory()->create([
+            'model_id' => $availableModel->id,
+            'status_id' => $deployableStatus->id,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $unavailableModel->id,
+            'status_id' => $deployableStatus->id,
+            'assigned_to' => $assignedUser->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(
+                route('api.models.index', [
+                    'category_id' => $category->id,
+                    'available_models' => 1,
+                    'sort' => 'name',
+                    'order' => 'asc',
+                    'offset' => '0',
+                    'limit' => '20',
+                ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('total', 1)
+                ->where('rows.0.name', 'Available Model')
+                ->missing('rows.1')
+                ->etc());
+    }
+
+    public function testAssetModelIndexExposesRequestActionsForAvailableModels()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $availableModel = AssetModel::factory()->create([
+            'name' => 'Requestable Available Model',
+        ]);
+        $unavailableModel = AssetModel::factory()->create([
+            'name' => 'Unavailable Model',
+        ]);
+
+        $deployableStatus = Statuslabel::factory()->rtd()->create();
+        $assignedUser = User::factory()->create();
+
+        Asset::factory()->create([
+            'model_id' => $availableModel->id,
+            'status_id' => $deployableStatus->id,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $unavailableModel->id,
+            'status_id' => $deployableStatus->id,
+            'assigned_to' => $assignedUser->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Available Model',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', true)
+                ->where('rows.0.available_actions.cancel_request', false)
+                ->where('rows.0.available_actions.update_request', false)
+                ->where('rows.0.requested_quantity', null)
+                ->etc());
+
+        $availableModel->request(1);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Available Model',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', false)
+                ->where('rows.0.available_actions.cancel_request', true)
+                ->where('rows.0.available_actions.update_request', true)
+                ->where('rows.0.requested_quantity', 1)
                 ->etc());
     }
 

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Location;
 use App\Models\Setting;
@@ -64,8 +65,30 @@ class AssetsController extends Controller
     {
         $this->authorize('index', Asset::class);
         $company = Company::find($request->input('company_id'));
+        $requestContext = null;
 
-        return view('hardware/index')->with('company', $company);
+        if ($request->filled('request_id')) {
+            $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project'])->find((int) $request->input('request_id'));
+
+            if (! $requestContext) {
+                $requestContext = CheckoutRequestCoordinator::with(['checkoutRequest.requestedItem', 'checkoutRequest.user', 'checkoutRequest.project'])
+                    ->find((int) $request->input('request_id'))
+                    ?->checkoutRequest;
+            }
+
+            abort_if(! $requestContext, 404);
+            abort_unless(
+                auth()->user()->isSuperUser()
+                || (int) $requestContext->user_id === (int) auth()->id()
+                || $requestContext->candidateCoordinators()->where('users.id', auth()->id())->exists(),
+                403
+            );
+            session(['back_url' => $request->fullUrl()]);
+        }
+
+        return view('hardware/index')
+            ->with('company', $company)
+            ->with('requestContext', $requestContext);
     }
 
     /**
@@ -131,7 +154,10 @@ class AssetsController extends Controller
         }
 
         $asset = null;
-        $companyId = Company::getIdForCurrentUser($request->input('company_id'));
+        $companyId = $this->resolveCompanyId($request->input('company_id'));
+        if ($companyRedirect = $this->redirectWhenCompanyValidationFails($request, $companyId)) {
+            return $companyRedirect;
+        }
         $successes = [];
         $failures = [];
 
@@ -424,7 +450,11 @@ class AssetsController extends Controller
         }
 
         $asset->name = $request->input('name');
-        $asset->company_id = Company::getIdForCurrentUser($request->input('company_id'));
+        $requestedCompanyId = $request->has('company_id') ? $request->input('company_id') : $asset->company_id;
+        $asset->company_id = $this->resolveCompanyId($requestedCompanyId);
+        if ($companyRedirect = $this->redirectWhenCompanyValidationFails($request, $asset->company_id)) {
+            return $companyRedirect;
+        }
         $asset->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $asset->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $asset->model_id = $request->input('model_id');
@@ -1070,5 +1100,31 @@ class AssetsController extends Controller
         $requestedItems = $requestedItems->orderBy('created_at', 'desc')->get();
 
         return view('hardware/requested', compact('requestedItems'));
+    }
+
+    private function redirectWhenCompanyValidationFails(Request $request, $companyId): ?RedirectResponse
+    {
+        if (Company::currentUserLacksCompanyAssignmentForFullMultipleCompanySupport()) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'company_id' => 'You cannot complete this action because your account is not assigned to a company.',
+                ]);
+        }
+
+        if (is_null($companyId)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'company_id' => 'The company field is required.',
+                ]);
+        }
+
+        return null;
+    }
+
+    private function resolveCompanyId($companyId)
+    {
+        return Company::getIdForCurrentUser($companyId);
     }
 }

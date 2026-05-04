@@ -365,14 +365,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                                 {{ trans('general.viewassets') }}
                                             </a></li>
 
-                                        @can('viewRequestable', \App\Models\Asset::class)
-                                            <li {!! (request()->is('account/requested') ? ' class="active"' : '') !!}>
-                                                <a href="{{ route('account.requested') }}">
-                                                    <x-icon type="checkmark" class="fa-fw" />
-                                                    {{ trans('general.requested_assets_menu') }}
-                                                </a></li>
-                                        @endcan
-
                                         <li {!! (request()->is('account/accept') ? ' class="active"' : '') !!}>
                                             <a href="{{ route('account.accept') }}">
                                                 <x-icon type="checkmark" class="fa-fw" />
@@ -868,11 +860,20 @@ dir="{{ Helper::determineLanguageDirection() }}">
                         @endcan
 
                         @can('viewRequestable', \App\Models\Asset::class)
-                            <li{!! (request()->is('account/requestable-assets') ? ' class="active"' : '') !!}>
-                                <a href="{{ route('requestable-assets') }}">
+                            <li class="treeview{{ (request()->is('account/requested*')) ? ' active' : '' }}">
+                                <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
-                                    <span>{{ trans('general.requestable_items') }}</span>
+                                    <span>Requests</span>
+                                    <x-icon type="angle-left" class="pull-right"/>
                                 </a>
+
+                                <ul class="treeview-menu">
+                                    <li{!! (request()->is('account/requested') ? ' class="active"' : '') !!}>
+                                        <a href="{{ route('account.requested') }}">
+                                            Submitted Requests
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         @endcan
 

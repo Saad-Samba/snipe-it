@@ -113,27 +113,6 @@
                                 </div>
                             </div>
 
-                            <!-- requestable -->
-                                <div class="form-group{{ $errors->has('requestable') ? ' has-error' : '' }}">
-                                    <div class="col-md-7 col-md-offset-3">
-
-                                        <label for="requestable_nochange" class="form-control">
-                                            <input type="radio" name="requestable" id="requestable_nochange" value="" aria-label="requestable_nochange" checked>
-                                            {{  trans('admin/hardware/general.requestable_status_warning')}}
-                                        </label>
-                                        <label for="requestable" class="form-control">
-                                            <input type="radio" name="requestable" id="requestable" value="1" aria-label="requestable">
-                                            {{  trans('admin/hardware/general.requestable')}}
-                                        </label>
-                                        <label for="not_requestable" class="form-control">
-                                            <input type="radio" name="requestable" id="not_requestable" value="0" aria-label="not_requestable">
-                                            {{  trans('admin/hardware/general.not_requestable')}}
-                                        </label>
-
-
-                                    </div>
-                                </div>
-
                             <div class="form-group{{ $errors->has('obsolete') ? ' has-error' : '' }}">
                                 <div class="col-md-7 col-md-offset-3">
                                     <label for="obsolete_nochange" class="form-control">

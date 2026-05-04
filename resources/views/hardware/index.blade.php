@@ -1,6 +1,9 @@
 @extends('layouts/default')
 
 @section('title0')
+@if (isset($requestContext) && $requestContext)
+  Request #{{ $requestContext->id }}
+@else
 
   @if ((Request::get('company_id')) && ($company))
     {{ $company->name }}
@@ -36,6 +39,7 @@
   @if (Request::has('order_number'))
     : Order #{{ strval(Request::get('order_number')) }}
   @endif
+@endif
 @stop
 
 {{-- Page title --}}
@@ -53,7 +57,6 @@
   <div class="col-md-12">
     <div class="box">
       <div class="box-body">
-       
           <div class="row">
             <div class="col-md-12">
 
@@ -77,8 +80,13 @@
                 class="table table-striped snipe-table"
                 data-url="{{ route('api.assets.index',
                     array('status' => e(Request::get('status')),
+                    'request_id'=>e(Request::get('request_id')),
+                    'model_id'=>e(Request::get('model_id')),
+                    'category_id'=>e(Request::get('category_id')),
+                    'reusable_assets'=>e(Request::get('reusable_assets')),
                     'order_number'=>e(strval(Request::get('order_number'))),
                     'company_id'=>e(Request::get('company_id')),
+                    'discipline_id'=>e(Request::get('discipline_id')),
                     'status_id'=>e(Request::get('status_id')))) }}"
                 data-export-options='{
                 "fileName": "export{{ (Request::has('status')) ? '-'.str_slug(Request::get('status')) : '' }}-assets-{{ date('Y-m-d') }}",

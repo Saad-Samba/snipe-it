@@ -84,10 +84,6 @@ class BulkAssetModelsController extends Controller
             $update_array['depreciation_id'] = $request->input('depreciation_id');
         }
 
-        if ($request->input('requestable') != '') {
-            $update_array['requestable'] = $request->input('requestable');
-        }
-
         if ($request->input('obsolete') != '') {
             $update_array['obsolete'] = $request->input('obsolete');
         }

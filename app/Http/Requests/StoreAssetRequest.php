@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Facades\Gate;
 use App\Rules\AssetCannotBeCheckedOutToNondeployableStatus;
+use Illuminate\Validation\Validator;
 
 class StoreAssetRequest extends ImageUploadRequest
 {
@@ -27,24 +28,31 @@ class StoreAssetRequest extends ImageUploadRequest
     public function prepareForValidation(): void
     {
         parent::prepareForValidation(); // call ImageUploadRequest thing
-        // Guard against users passing in an array for company_id instead of an integer.
-        // If the company_id is not an integer then we simply use what was
-        // provided to be caught by model level validation later.
-        // The use of is_numeric accounts for 1 and '1'.
-        $idForCurrentUser = is_numeric($this->company_id)
-            ? Company::getIdForCurrentUser($this->company_id)
-            : $this->company_id;
-
         $this->parseLastAuditDate();
         $ownerId = $this->owner_id === '' ? null : $this->owner_id;
 
         $this->merge([
             'asset_tag' => $this->asset_tag ?? Asset::autoincrement_asset(),
-            'company_id' => $idForCurrentUser,
+            'company_id' => $this->resolveCompanyId($this->company_id),
             'owner_id' => $ownerId,
             'project_id' => $this->project_id === '' ? null : $this->project_id,
             'discipline_id' => $this->discipline_id === '' ? null : $this->discipline_id,
         ]);
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if (Company::currentUserLacksCompanyAssignmentForFullMultipleCompanySupport()) {
+                $validator->errors()->add('company_id', 'You cannot complete this action because your account is not assigned to a company.');
+
+                return;
+            }
+
+            if (is_null($this->input('company_id'))) {
+                $validator->errors()->add('company_id', 'The company field is required.');
+            }
+        });
     }
 
     /**
@@ -103,5 +111,14 @@ class StoreAssetRequest extends ImageUploadRequest
         });
 
         return $rules;
+    }
+
+    private function resolveCompanyId($companyId)
+    {
+        if (is_array($companyId)) {
+            return $companyId;
+        }
+
+        return Company::getIdForCurrentUser($companyId);
     }
 }

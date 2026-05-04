@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Transformers\ProfileTransformer;
+use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -47,9 +48,25 @@ class ProfileController extends Controller
      * @author [A. Gianotto] [<snipe@snipe.net>]
      * @since [v4.3.0]
      */
-    public function requestedAssets() :  array
+    public function requestedAssets(Request $request) :  array
     {
-        $checkoutRequests = CheckoutRequest::where('user_id', '=', auth()->id())->get();
+        $checkoutRequests = CheckoutRequest::query()
+            ->with([
+                'requestedItem',
+                'project',
+                'user',
+            ]);
+
+        $checkoutRequests->where('user_id', auth()->id())
+            ->whereNull('canceled_at');
+
+        if ($request->filled('model_id')) {
+            $checkoutRequests
+                ->where('requestable_type', \App\Models\AssetModel::class)
+                ->where('requestable_id', (int) $request->input('model_id'));
+        }
+
+        $checkoutRequests = $checkoutRequests->get();
 
         $results = array();
         $show_field = array();
@@ -67,14 +84,38 @@ class ProfileController extends Controller
 
             // Make sure the asset and request still exist
             if ($checkoutRequest && $checkoutRequest->itemRequested()) {
+                $bookedCount = $checkoutRequest->bookedAssetsCount();
+                $statusValue = $bookedCount >= $checkoutRequest->quantity
+                    ? CheckoutRequest::STATUS_FULLY_ALLOCATED
+                    : ($bookedCount > 0 ? CheckoutRequest::STATUS_PARTIALLY_ALLOCATED : CheckoutRequest::STATUS_PENDING);
+
                 $assets = [
+                    'request_id' => (int) $checkoutRequest->id,
                     'image' => e($checkoutRequest->itemRequested()->present()->getImageUrl()),
-                    'name' => e($checkoutRequest->itemRequested()->display_name),
+                    'name' => e($checkoutRequest->name()),
+                    'model_id' => $checkoutRequest->requestable_type === AssetModel::class ? (int) $checkoutRequest->requestable_id : null,
                     'type' => e($checkoutRequest->itemType()),
                     'qty' => (int) $checkoutRequest->quantity,
+                    'project' => e(optional($checkoutRequest->project)->name),
+                    'booked_count' => $bookedCount,
+                    'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),
+                    'status_value' => e($statusValue),
                     'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,
+                    'requested_by' => ($checkoutRequest->requestingUser()) ? e($checkoutRequest->requestingUser()->display_name) : null,
                     'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin, 'datetime'),
                     'request_date' => Helper::getFormattedDateObject($checkoutRequest->created_at, 'datetime'),
+                    'updated_at' => Helper::getFormattedDateObject($checkoutRequest->updated_at, 'datetime'),
+                    'model_show_url' => ($checkoutRequest->requestable_type === AssetModel::class)
+                        ? route('models.show', $checkoutRequest->requestable_id)
+                        : null,
+                    'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)
+                        ? route('account.requested', ['model_id' => $checkoutRequest->requestable_id])
+                        : null,
+                    'request_detail_url' => route('hardware.index', [
+                        'request_id' => $checkoutRequest->id,
+                        'status' => 'RTD',
+                        'model_id' => $checkoutRequest->requestable_id,
+                    ]),
                 ];
 
                 foreach ($showable_fields as $showable_field_name) {

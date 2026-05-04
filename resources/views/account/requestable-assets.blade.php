@@ -107,8 +107,7 @@
                                     <tr role="row">
                                         <th class="col-md-1" data-sortable="true">{{ trans('general.image') }}</th>
                                         <th class="col-md-6" data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
-                                        <th class="col-md-3" data-sortable="true">{{ trans('admin/accessories/general.remaining') }}</th>
-
+                                        <th class="col-md-2" data-sortable="true">{{ trans('admin/accessories/general.remaining') }}</th>
                                         <th class="col-md-2 actions" data-sortable="false">{{ trans('table.actions') }}</th>
                                     </tr>
                                 </thead>
@@ -138,14 +137,16 @@
                                                 <td>{{$requestableModel->assets->where('requestable', '1')->count()}}</td>
 
                                                 <td>
-                                                    <form  action="{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $requestableModel->id])}}" method="POST" accept-charset="utf-8">
+                                                    <form action="{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $requestableModel->id])}}" method="POST" accept-charset="utf-8">
                                                         {{ csrf_field() }}
-                                                    <input type="text" style="width: 70px; margin-right: 10px;" class="form-control pull-left" name="request-quantity" value="" placeholder="{{ trans('general.qty') }}">
+                                                    <div class="form-inline">
+                                                        <input type="text" style="width: 70px; margin-right: 10px;" class="form-control" name="request-quantity" value="" placeholder="{{ trans('general.qty') }}">
                                                     @if ($requestableModel->isRequestedBy(Auth::user()))
                                                         <input class="btn btn-danger btn-sm" type="submit" value="{{ trans('button.cancel') }}">
                                                     @else
                                                         <input class="btn btn-primary btn-sm" type="submit" value="{{ trans('button.request') }}">
                                                     @endif
+                                                    </div>
                                                     </form>
                                                 </td>
                                         </tr>
@@ -187,5 +188,3 @@
     });
 </script>
 @stop
-
-
