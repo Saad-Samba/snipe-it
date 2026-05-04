@@ -18,12 +18,20 @@
     <div class="col-md-8">
         <form class="form-horizontal" method="post" action="" autocomplete="off">
             {{csrf_field()}}
+            @if (request()->filled('request_id'))
+                <input type="hidden" name="request_id" value="{{ request()->input('request_id') }}">
+            @endif
 
             <div class="box box-default">
                 <div class="box-header with-border">
                     <h2 class="box-title"> {{ $license->name }} ({{ trans('admin/licenses/message.seats_available', ['seat_count' => $license->availCount()->count()]) }})</h2>
                 </div>
                 <div class="box-body">
+                    @if (!empty($requestContext))
+                        <div class="alert alert-info">
+                            This checkout is being completed for request <strong>#{{ $requestContext->id }}</strong>.
+                        </div>
+                    @endif
 
 
                     <!-- License name -->

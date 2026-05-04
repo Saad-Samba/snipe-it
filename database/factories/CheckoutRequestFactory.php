@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\License;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -39,6 +40,16 @@ class CheckoutRequestFactory extends Factory
             return [
                 'requestable_id' => AssetModel::factory(),
                 'requestable_type' => AssetModel::class,
+            ];
+        });
+    }
+
+    public function forLicense()
+    {
+        return $this->state(function (array $attributes) {
+            return [
+                'requestable_id' => License::factory(),
+                'requestable_type' => License::class,
             ];
         });
     }

@@ -10,6 +10,8 @@ use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\CheckoutRequest;
+use App\Models\License;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
@@ -172,8 +174,13 @@ class ViewAssetsController extends Controller
                     );
             },
         ])->RequestableModels()->get();
+        $licenses = License::withCount('freeSeats as free_seats_count')
+            ->with(['company', 'discipline', 'project', 'requests'])
+            ->ActiveLicenses()
+            ->get()
+            ->filter(fn (License $license) => $license->isReusableForRequest());
 
-        return view('account/requestable-assets', compact('assets', 'models'));
+        return view('account/requestable-assets', compact('assets', 'models', 'licenses'));
     }
 
     public function getRequestItem(Request $request, $itemType, $itemId = null, $cancel_by_admin = false, $requestingUser = null): RedirectResponse
@@ -218,6 +225,8 @@ class ViewAssetsController extends Controller
 
         if ($fullItemType == Asset::class) {
             $data['item_url'] = route('hardware.show', $item->id);
+        } elseif ($fullItemType == License::class) {
+            $data['item_url'] = route('licenses.show', $item->id);
         } else {
             $data['item_url'] = route("view/${itemType}", $item->id);
         }
@@ -230,18 +239,26 @@ class ViewAssetsController extends Controller
             throw new AuthorizationException('You are not authorized to request models.');
         }
 
-        if (!$isCancelRequest && $fullItemType == AssetModel::class) {
-            $remaining = $item->availableAssets()->count();
+        if (($fullItemType == License::class) && (! $user->hasAccess('licenses.request'))) {
+            throw new AuthorizationException('You are not authorized to request licenses.');
+        }
+
+        if (! $isCancelRequest && in_array($fullItemType, [AssetModel::class, License::class], true)) {
+            $remaining = $fullItemType == AssetModel::class
+                ? $item->availableAssets()->count()
+                : $item->reusableFreeSeatsCount();
+
+            $errorLabel = $fullItemType == AssetModel::class ? 'remaining stock' : 'reusable seats';
 
             if ($quantity > $remaining) {
                 throw ValidationException::withMessages([
-                    'request-quantity' => 'Requested quantity cannot exceed remaining stock ('.$remaining.').',
+                    'request-quantity' => 'Requested quantity cannot exceed '.$errorLabel.' ('.$remaining.').',
                 ]);
             }
 
             if (! $projectId) {
                 throw ValidationException::withMessages([
-                    'project_id' => 'Project is required for model requests.',
+                    'project_id' => 'Project is required for reuse requests.',
                 ]);
             }
         }
@@ -257,12 +274,12 @@ class ViewAssetsController extends Controller
 
             return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.canceled'));
         } else {
-            $requestAttributes = $fullItemType == AssetModel::class ? ['project_id' => $projectId] : [];
+            $requestAttributes = in_array($fullItemType, [AssetModel::class, License::class], true) ? ['project_id' => $projectId] : [];
             $checkoutRequest = $item_request
                 ? $item->updateRequest($quantity, $user, $requestAttributes)
                 : $item->request($quantity, $requestAttributes);
 
-            if ($fullItemType == AssetModel::class) {
+            if (in_array($fullItemType, [AssetModel::class, License::class], true)) {
                 ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
             }
 
@@ -309,19 +326,25 @@ class ViewAssetsController extends Controller
     public function getRequestedAssets(Request $request) : View
     {
         $modelId = $request->integer('model_id');
+        $licenseId = $request->integer('license_id');
         $query = [];
-        $filteredModel = null;
+        $filteredItem = null;
 
         if ($modelId) {
             $query['model_id'] = $modelId;
-            $filteredModel = AssetModel::find($modelId);
+            $filteredItem = AssetModel::find($modelId);
+        }
+
+        if ($licenseId) {
+            $query['license_id'] = $licenseId;
+            $filteredItem = License::find($licenseId);
         }
 
         return view('account/requested', [
             'pageTitle' => 'Submitted Requests',
             'dataUrl' => route('api.assets.requested', $query),
             'requestMode' => 'requester',
-            'filteredModel' => $filteredModel,
+            'filteredItem' => $filteredItem,
         ]);
     }
 }

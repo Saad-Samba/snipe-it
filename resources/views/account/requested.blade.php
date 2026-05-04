@@ -13,11 +13,11 @@
 
             <div class="box box-default">
                 <div class="box-body">
-                    @if (!empty($filteredModel))
+                    @if (!empty($filteredItem))
                         <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                             <span>
-                                Showing requests for model:
-                                <strong>{{ $filteredModel->name }}</strong>
+                                Showing requests for item:
+                                <strong>{{ $filteredItem->name }}</strong>
                             </span>
                             <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
                         </div>
@@ -41,7 +41,7 @@
                         <tr>
                             <th data-field="request_id" data-sortable="true" data-visible="true" data-switchable="false" data-formatter="requestDetailLinkFormatter">ID</th>
                             <th data-field="image" data-sortable="true" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
-                            <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Model</th>
+                            <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Item</th>
                             <th data-field="qty" data-sortable="true">{{ trans('general.qty') }}</th>
                             <th data-field="project" data-sortable="true">{{ trans('general.project') }}</th>
                             <th data-field="booked_count" data-sortable="true">Booked</th>

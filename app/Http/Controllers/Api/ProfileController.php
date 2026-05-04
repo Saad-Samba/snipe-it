@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Transformers\ProfileTransformer;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\License;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
@@ -66,6 +67,12 @@ class ProfileController extends Controller
                 ->where('requestable_id', (int) $request->input('model_id'));
         }
 
+        if ($request->filled('license_id')) {
+            $checkoutRequests
+                ->where('requestable_type', License::class)
+                ->where('requestable_id', (int) $request->input('license_id'));
+        }
+
         $checkoutRequests = $checkoutRequests->get();
 
         $results = array();
@@ -84,16 +91,38 @@ class ProfileController extends Controller
 
             // Make sure the asset and request still exist
             if ($checkoutRequest && $checkoutRequest->itemRequested()) {
-                $bookedCount = $checkoutRequest->bookedAssetsCount();
+                $bookedCount = $checkoutRequest->bookedQuantity();
                 $statusValue = $bookedCount >= $checkoutRequest->quantity
                     ? CheckoutRequest::STATUS_FULLY_ALLOCATED
                     : ($bookedCount > 0 ? CheckoutRequest::STATUS_PARTIALLY_ALLOCATED : CheckoutRequest::STATUS_PENDING);
+                $isAssetModelRequest = $checkoutRequest->requestable_type === AssetModel::class;
+                $isLicenseRequest = $checkoutRequest->requestable_type === License::class;
+                $itemShowUrl = $isAssetModelRequest
+                    ? route('models.show', $checkoutRequest->requestable_id)
+                    : ($isLicenseRequest ? route('licenses.show', $checkoutRequest->requestable_id) : null);
+                $itemRequestsUrl = $isAssetModelRequest
+                    ? route('account.requested', ['model_id' => $checkoutRequest->requestable_id])
+                    : ($isLicenseRequest ? route('account.requested', ['license_id' => $checkoutRequest->requestable_id]) : null);
+                $requestDetailUrl = $isAssetModelRequest
+                    ? route('hardware.index', [
+                        'request_id' => $checkoutRequest->id,
+                        'status' => 'RTD',
+                        'model_id' => $checkoutRequest->requestable_id,
+                    ])
+                    : ($isLicenseRequest ? route('licenses.index', [
+                        'request_id' => $checkoutRequest->id,
+                        'license_id' => $checkoutRequest->requestable_id,
+                    ]) : null);
+                $itemImageUrl = method_exists($checkoutRequest->itemRequested()->present(), 'getImageUrl')
+                    ? e($checkoutRequest->itemRequested()->present()->getImageUrl())
+                    : null;
 
                 $assets = [
                     'request_id' => (int) $checkoutRequest->id,
-                    'image' => e($checkoutRequest->itemRequested()->present()->getImageUrl()),
+                    'image' => $itemImageUrl,
                     'name' => e($checkoutRequest->name()),
-                    'model_id' => $checkoutRequest->requestable_type === AssetModel::class ? (int) $checkoutRequest->requestable_id : null,
+                    'model_id' => $isAssetModelRequest ? (int) $checkoutRequest->requestable_id : null,
+                    'license_id' => $isLicenseRequest ? (int) $checkoutRequest->requestable_id : null,
                     'type' => e($checkoutRequest->itemType()),
                     'qty' => (int) $checkoutRequest->quantity,
                     'project' => e(optional($checkoutRequest->project)->name),
@@ -105,17 +134,11 @@ class ProfileController extends Controller
                     'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin, 'datetime'),
                     'request_date' => Helper::getFormattedDateObject($checkoutRequest->created_at, 'datetime'),
                     'updated_at' => Helper::getFormattedDateObject($checkoutRequest->updated_at, 'datetime'),
-                    'model_show_url' => ($checkoutRequest->requestable_type === AssetModel::class)
-                        ? route('models.show', $checkoutRequest->requestable_id)
-                        : null,
-                    'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)
-                        ? route('account.requested', ['model_id' => $checkoutRequest->requestable_id])
-                        : null,
-                    'request_detail_url' => route('hardware.index', [
-                        'request_id' => $checkoutRequest->id,
-                        'status' => 'RTD',
-                        'model_id' => $checkoutRequest->requestable_id,
-                    ]),
+                    'model_show_url' => $itemShowUrl,
+                    'item_show_url' => $itemShowUrl,
+                    'model_requests_url' => $itemRequestsUrl,
+                    'item_requests_url' => $itemRequestsUrl,
+                    'request_detail_url' => $requestDetailUrl,
                 ];
 
                 foreach ($showable_fields as $showable_field_name) {

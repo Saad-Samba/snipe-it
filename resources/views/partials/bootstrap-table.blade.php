@@ -1266,6 +1266,7 @@
     }
 
     function licenseInOutFormatter(value, row) {
+        var requestQuery = '{{ request()->filled('request_id') ? '?request_id=' . urlencode((string) request()->input('request_id')) : '' }}';
 
         // check that checkin is not disabled
         if (row.user_can_checkout === false) {
@@ -1276,7 +1277,7 @@
         } else
             // The user is allowed to check the license seat out and it's available
         if ((row.available_actions.checkout === true) && (row.user_can_checkout === true) && (row.disabled === false)) {
-            return '<a href="{{ config('app.url') }}/licenses/' + row.id + '/checkout/" class="btn btn-sm bg-maroon" data-tooltip="true" title="{{ trans('general.checkout_tooltip') }}">{{ trans('general.checkout') }}</a>';
+            return '<a href="{{ config('app.url') }}/licenses/' + row.id + '/checkout/' + requestQuery + '" class="btn btn-sm bg-maroon" data-tooltip="true" title="{{ trans('general.checkout_tooltip') }}">{{ trans('general.checkout') }}</a>';
         }
     }
     // We need a special formatter for license seats, since they don't work exactly the same
@@ -1400,6 +1401,56 @@
         return '';
     }
 
+    function licenseRequestActionsFormatter(value, row) {
+        var requestUrl = '{{ route('account/request-item', ['itemType' => 'license', 'itemId' => '__LICENSE_ID__']) }}'.replace('__LICENSE_ID__', row.id);
+        var requestsUrl = '{{ route('account.requested') }}?license_id=' + row.id;
+        var requestedQuantity = row.requested_quantity || 1;
+        var requestedProjectId = row.requested_project_id || '';
+        var actionBarId = 'license-request-actions-' + row.id;
+        var editStateId = 'license-request-edit-' + row.id;
+        var requestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name'])->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values());
+        var buildProjectOptions = function(selectedProjectId) {
+            var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
+
+            requestProjects.forEach(function(project) {
+                var selected = String(project.id) === String(selectedProjectId) ? ' selected' : '';
+                options.push('<option value=\"' + project.id + '\"' + selected + '>' + project.name + '</option>');
+            });
+
+            return options.join('');
+        };
+
+        if ((row.available_actions) && (row.available_actions.update_request === true)) {
+            return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:170px;">'
+                + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.2;">'
+                + '<span class="label label-info" style="font-size:11px;">{{ trans('general.requested') }}</span>'
+                + '<span style="font-size:12px;color:#4d4d4d;">{{ trans('general.qty') }}: <strong>' + requestedQuantity + '</strong></span>'
+                + '</div>'
+                + '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:0;flex-wrap:wrap;font-size:12px;">'
+                + '<a href="' + requestsUrl + '" style="margin-right:8px;">View requests</a>'
+                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;margin-right:8px;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'flex\'; document.getElementById(\'' + actionBarId + '\').style.display = \'none\';" data-tooltip="true" title="{{ trans('general.update') }}">Edit</button>'
+                + '<form action="' + requestUrl + '" method="POST" style="margin:0;">'
+                + '@csrf'
+                + '<input type="hidden" name="request-action" value="cancel">'
+                + '<button class="btn btn-link btn-sm text-danger" style="padding:0;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">{{ trans('button.cancel') }}</button>'
+                + '</form>'
+                + '</div>'
+                + '<form id="' + editStateId + '" action="' + requestUrl + '" method="POST" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;margin:0;">'
+                + '@csrf'
+                + '<input type="hidden" name="request-action" value="update">'
+                + '<select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions(requestedProjectId) + '</select>'
+                + '<input type="number" min="1" max="' + row.free_seats_count + '" name="request-quantity" value="' + requestedQuantity + '" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}">'
+                + '<button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.update') }}">{{ trans('general.update') }}</button>'
+                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'none\'; document.getElementById(\'' + actionBarId + '\').style.display = \'flex\';">{{ trans('button.cancel') }}</button>'
+                + '</form>'
+                + '</div>';
+        } else if ((row.available_actions) && (row.available_actions.request === true)) {
+            return '<form action="' + requestUrl + '" method="POST" style="display:flex;align-items:center;gap:6px;min-width:260px;flex-wrap:wrap;">@csrf<input type="hidden" name="request-action" value="create"><select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions('') + '</select><input type="number" min="1" max="' + row.free_seats_count + '" name="request-quantity" value="1" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}"><button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}">{{ trans('button.request') }}</button></form>';
+        }
+
+        return '';
+    }
+
     function requestStatusFormatter(value) {
         if (!value) {
             return '';
@@ -1445,6 +1496,10 @@
     }
 
     function requestModelLinkFormatter(value, row) {
+        if (row && row.item_show_url) {
+            return '<a href="' + row.item_show_url + '">' + value + '</a>';
+        }
+
         if (row && row.model_show_url) {
             return '<a href="' + row.model_show_url + '">' + value + '</a>';
         }

@@ -5,6 +5,7 @@ namespace App\Actions\CheckoutRequests;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\License;
 use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Notifications\RequestAssetNotification;
 
@@ -12,24 +13,40 @@ class ResolveCheckoutRequestCoordinatorsAction
 {
     public static function run(CheckoutRequest $checkoutRequest, array $notificationData = []): void
     {
-        if ($checkoutRequest->requestable_type !== AssetModel::class) {
+        if (! in_array($checkoutRequest->requestable_type, [AssetModel::class, License::class], true)) {
             $checkoutRequest->coordinatorTargets()->delete();
 
             return;
         }
 
-        $eligibleAssetPairs = Asset::query()
-            ->RTD()
-            ->where('model_id', $checkoutRequest->requestable_id)
-            ->whereNotNull('company_id')
-            ->whereNotNull('discipline_id')
-            ->get(['company_id', 'discipline_id'])
-            ->map(fn (Asset $asset) => [
-                'company_id' => (int) $asset->company_id,
-                'discipline_id' => (int) $asset->discipline_id,
-            ])
-            ->unique()
-            ->values();
+        if ($checkoutRequest->requestable_type === AssetModel::class) {
+            $eligibleAssetPairs = Asset::query()
+                ->RTD()
+                ->where('model_id', $checkoutRequest->requestable_id)
+                ->whereNotNull('company_id')
+                ->whereNotNull('discipline_id')
+                ->get(['company_id', 'discipline_id'])
+                ->map(fn (Asset $asset) => [
+                    'company_id' => (int) $asset->company_id,
+                    'discipline_id' => (int) $asset->discipline_id,
+                ])
+                ->unique()
+                ->values();
+        } else {
+            $eligibleAssetPairs = License::query()
+                ->withCount('freeSeats as free_seats_count')
+                ->whereKey($checkoutRequest->requestable_id)
+                ->whereNotNull('company_id')
+                ->whereNotNull('discipline_id')
+                ->get()
+                ->filter(fn (License $license) => $license->isReusableForRequest())
+                ->map(fn (License $license) => [
+                    'company_id' => (int) $license->company_id,
+                    'discipline_id' => (int) $license->discipline_id,
+                ])
+                ->unique()
+                ->values();
+        }
 
         $checkoutRequest->coordinatorTargets()->delete();
 

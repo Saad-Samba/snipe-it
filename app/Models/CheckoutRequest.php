@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CheckoutRequest extends Model
@@ -81,6 +82,14 @@ class CheckoutRequest extends Model
         )->withPivot(['company_id', 'discipline_id'])->withTimestamps();
     }
 
+    public function allocatedLicenseSeats(): BelongsToMany
+    {
+        return $this->belongsToMany(LicenseSeat::class, 'checkout_request_license_seats')
+            ->withoutGlobalScope(CompanyableScope::class)
+            ->withPivot(['allocated_by', 'allocated_at'])
+            ->withTimestamps();
+    }
+
     public function itemRequested() // Workaround for laravel polymorphic issue that's not being solved :(
     {
         return $this->requestedItem()->first();
@@ -140,6 +149,10 @@ class CheckoutRequest extends Model
 
     public function allocatedQuantity(): int
     {
+        if ($this->requestable_type === License::class) {
+            return $this->allocatedLicenseSeats()->count();
+        }
+
         return $this->allocatedAssets()->count();
     }
 
@@ -158,6 +171,15 @@ class CheckoutRequest extends Model
     public function bookedAssetsCount(): int
     {
         return $this->bookedAssetsQuery()->count();
+    }
+
+    public function bookedQuantity(): int
+    {
+        if ($this->requestable_type === License::class) {
+            return $this->allocatedLicenseSeats()->count();
+        }
+
+        return $this->bookedAssetsCount();
     }
 
     public function derivedAllocationStatus(): string

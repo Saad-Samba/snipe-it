@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Licenses;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CheckoutRequest;
 use App\Models\License;
 use App\Models\LicenseSeat;
 use App\Models\User;
@@ -31,11 +32,30 @@ class LicensesController extends Controller
      * @return \Illuminate\Contracts\View\View
      * @throws \Illuminate\Auth\Access\AuthorizationException
      */
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('view', License::class);
 
-        return view('licenses/index');
+        $requestContext = null;
+        $filteredLicense = null;
+
+        if ($request->filled('request_id')) {
+            $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project'])->find((int) $request->input('request_id'));
+            abort_if(! $requestContext, 404);
+            abort_unless(
+                auth()->user()->isSuperUser()
+                || (int) $requestContext->user_id === (int) auth()->id()
+                || $requestContext->candidateCoordinators()->where('users.id', auth()->id())->exists(),
+                403
+            );
+            session(['back_url' => $request->fullUrl()]);
+        }
+
+        if ($request->filled('license_id')) {
+            $filteredLicense = License::find((int) $request->input('license_id'));
+        }
+
+        return view('licenses/index', compact('requestContext', 'filteredLicense'));
     }
 
     /**
