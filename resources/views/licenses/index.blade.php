@@ -15,6 +15,26 @@
   <div class="col-md-12">
     <div class="box">
       <div class="box-body">
+          @if (!empty($requestContext))
+              <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                  <span>
+                      Reviewing request <strong>#{{ $requestContext->id }}</strong>
+                      for <strong>{{ $requestContext->name() }}</strong>
+                      @if ($requestContext->project)
+                          on project <strong>{{ $requestContext->project->name }}</strong>
+                      @endif
+                  </span>
+                  <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+              </div>
+          @elseif (!empty($filteredLicense))
+              <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                  <span>
+                      Showing requests for license:
+                      <strong>{{ $filteredLicense->name }}</strong>
+                  </span>
+                  <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+              </div>
+          @endif
 
           <table
               data-columns="{{ \App\Presenters\LicensePresenter::dataTableLayout() }}"
@@ -27,7 +47,7 @@
               id="licensesTable"
               data-buttons="licenseButtons"
               class="table table-striped snipe-table"
-              data-url="{{ route('api.licenses.index', ['status' => e(request('status'))]) }}"
+              data-url="{{ route('api.licenses.index', ['status' => e(request('status')), 'license_id' => e(request('license_id'))]) }}"
               data-export-options='{
             "fileName": "export-licenses-{{ date('Y-m-d') }}",
             "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]

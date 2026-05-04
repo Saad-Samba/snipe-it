@@ -40,7 +40,7 @@
             {{-- end stuff for bulk dropdown --}}
             data-buttons="categoryButtons"
             class="table table-striped snipe-table"
-            data-url="{{ route('api.categories.index') }}"
+            data-url="{{ route('api.categories.index', ['manager_id' => request('manager_id')]) }}"
             data-export-options='{
               "fileName": "export-categories-{{ date('Y-m-d') }}",
               "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
@@ -60,4 +60,3 @@
       'columns' => \App\Presenters\CategoryPresenter::dataTableLayout()
   ])
 @stop
-

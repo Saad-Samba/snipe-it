@@ -4,6 +4,7 @@ namespace App\Http\Transformers;
 
 use App\Helpers\Helper;
 use App\Models\AssetModel;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -70,7 +71,6 @@ class AssetModelsTransformer
             'default_fieldset_values' => $default_field_values,
             'eol' => ($assetmodel->eol > 0) ? $assetmodel->eol.' months' : 'None',
             'obsolete' => (bool) $assetmodel->obsolete,
-            'requestable' => ($assetmodel->requestable == '1') ? true : false,
             'require_serial' => ($assetmodel->require_serial == '1') ? true : false,
             'notes' => Helper::parseEscapedMarkedownInline($assetmodel->notes),
             'created_by' => ($assetmodel->adminuser) ? [
@@ -89,6 +89,20 @@ class AssetModelsTransformer
             'clone' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at == '')),
             'restore' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at != '')),
         ];
+
+        $requestingUser = Auth::user();
+        $canRequestModels = $requestingUser
+            && $requestingUser->hasAccess('models.request')
+            && $assetmodel->deleted_at == '';
+
+        $activeRequest = $requestingUser ? $assetmodel->isRequestedBy($requestingUser) : null;
+        $hasActiveRequest = (bool) $activeRequest;
+
+        $permissions_array['available_actions']['request'] = $canRequestModels && !$hasActiveRequest && ((int) $assetmodel->remaining > 0);
+        $permissions_array['available_actions']['cancel_request'] = $canRequestModels && $hasActiveRequest;
+        $permissions_array['available_actions']['update_request'] = $canRequestModels && $hasActiveRequest;
+        $array['requested_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
+        $array['requested_project_id'] = $activeRequest ? (int) $activeRequest->project_id : null;
 
         $array += $permissions_array;
 

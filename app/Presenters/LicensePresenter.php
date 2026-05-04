@@ -211,6 +211,17 @@ class LicensePresenter extends Presenter
         ];
 
         $layout[] = [
+            'field' => 'request_actions',
+            'searchable' => false,
+            'sortable' => false,
+            'switchable' => false,
+            'title' => trans('general.requested'),
+            'visible' => true,
+            'formatter' => 'licenseRequestActionsFormatter',
+            'printIgnore' => true,
+        ];
+
+        $layout[] = [
             'field' => 'checkincheckout',
             'searchable' => false,
             'sortable' => false,

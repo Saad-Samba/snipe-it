@@ -2,7 +2,7 @@
 
 {{-- Page title --}}
 @section('title')
-   {{ trans('general.requested_assets')}}
+   {{ $pageTitle ?? trans('general.requested_assets') }}
 @stop
 
 {{-- Account page content --}}
@@ -13,6 +13,15 @@
 
             <div class="box box-default">
                 <div class="box-body">
+                    @if (!empty($filteredItem))
+                        <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                            <span>
+                                Showing requests for item:
+                                <strong>{{ $filteredItem->name }}</strong>
+                            </span>
+                            <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+                        </div>
+                    @endif
 
                     <table
 
@@ -20,28 +29,26 @@
                             data-id-table="userRequests"
                             data-side-pagination="server"
                             data-sort-order="desc"
+                            data-request-mode="{{ $requestMode ?? 'requester' }}"
                             id="userRequests"
                             class="table table-striped snipe-table"
-                            data-url="{{ route('api.assets.requested') }}"
+                            data-url="{{ $dataUrl ?? route('api.assets.requested') }}"
                             data-export-options='{
                   "fileName": "my-requested-assets-{{ date('Y-m-d') }}",
                   "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
                 }'>
                         <thead>
                         <tr>
-                            <th data-field="image" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
-                            <th data-field="name">{{ trans('general.item_name') }}</th>
-                            <th data-field="type">{{ trans('general.type') }}</th>
-                            <th data-field="qty">{{ trans('general.qty') }}</th>
-                            <th data-field="location">{{ trans('admin/hardware/table.location') }}</th>
-                            <th data-field="expected_checkin" data-formatter="dateDisplayFormatter"> {{ trans('admin/hardware/form.expected_checkin') }}</th>
-                            <th data-field="request_date" data-formatter="dateDisplayFormatter"> {{ trans('general.requested_date') }}</th>
-
-                            @foreach(\App\Models\CustomField::get() as $field)
-                                @if (($field->field_encrypted=='0') && ($field->show_in_requestable_list=='1'))
-                                    <th data-field="custom_fields.{{ $field->db_column }}">{{ $field->name }}</th>
-                                @endif
-                            @endforeach
+                            <th data-field="request_id" data-sortable="true" data-visible="true" data-switchable="false" data-formatter="requestDetailLinkFormatter">ID</th>
+                            <th data-field="image" data-sortable="true" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
+                            <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Item</th>
+                            <th data-field="qty" data-sortable="true">{{ trans('general.qty') }}</th>
+                            <th data-field="project" data-sortable="true">{{ trans('general.project') }}</th>
+                            <th data-field="booked_count" data-sortable="true">Booked</th>
+                            <th data-field="status" data-sortable="true" data-formatter="requestStatusFormatter">Status</th>
+                            <th data-field="request_date" data-sortable="true" data-formatter="dateDisplayFormatter"> {{ trans('general.requested_date') }}</th>
+                            <th data-field="updated_at" data-sortable="true" data-formatter="dateDisplayFormatter">Updated</th>
+                            <th data-field="actions" data-switchable="false" data-searchable="false" data-sortable="false" data-visible="true" data-formatter="requestWorkflowActionsFormatter">{{ trans('table.actions') }}</th>
                         </tr>
                         </thead>
                     </table>

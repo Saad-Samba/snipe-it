@@ -166,6 +166,10 @@ return array(
         'name' => 'Manage License Keys',
         'note' => 'Allows the user to view product keys associated with licenses.',
     ],
+    'licensesrequest' => [
+        'name' => 'Request Licenses',
+        'note' => 'Allows the user to submit and manage license seat reuse requests from the Licenses page.',
+    ],
     'components'   => [
         'name' => 'Components',
         'note'       => 'Grants access to the Components section of the application.',
@@ -242,6 +246,10 @@ return array(
     ],
     'modelsdelete' => [
         'name' => 'Delete Models',
+    ],
+    'modelsrequest' => [
+        'name' => 'Request Models',
+        'note' => 'Allows the user to submit and manage model requests from the Models page.',
     ],
     'categories'   => [
         'name' => 'Categories',

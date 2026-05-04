@@ -78,6 +78,7 @@ class CategoriesController extends Controller
         $category->require_acceptance = $request->input('require_acceptance', '0');
         $category->alert_on_response = $request->input('alert_on_response', '0');
         $category->checkin_email = $request->input('checkin_email', '0');
+        $category->manager_id = $request->input('manager_id', null);
         $category->tag_color  = $request->input('tag_color');
         $category->fieldset_id = $request->input('fieldset_id');
         $category->notes = $request->input('notes');
@@ -134,6 +135,7 @@ class CategoriesController extends Controller
         $category->require_acceptance = $request->input('require_acceptance', '0');
         $category->alert_on_response = $request->input('alert_on_response', '0');
         $category->checkin_email = $request->input('checkin_email', '0');
+        $category->manager_id = $request->input('manager_id', null);
         $category->tag_color  = $request->input('tag_color');
         $category->fieldset_id = $request->input('fieldset_id');
         $category->notes = $request->input('notes');

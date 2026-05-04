@@ -30,16 +30,22 @@ class UpdateCategoriesTest extends TestCase
 
     public function testUserCanCreateCategories()
     {
+        $manager = User::factory()->create();
+
         $this->actingAs(User::factory()->superuser()->create())
             ->post(route('categories.store'), [
                 'name' => 'Test Category',
                 'category_type' => 'asset',
+                'manager_id' => $manager->id,
             ])
             ->assertStatus(302)
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('categories.index'));
 
-        $this->assertTrue(Category::where('name', 'Test Category')->exists());
+        $this->assertDatabaseHas('categories', [
+            'name' => 'Test Category',
+            'manager_id' => $manager->id,
+        ]);
     }
 
     public function testUserCanEditAssetCategory()
@@ -50,6 +56,7 @@ class UpdateCategoriesTest extends TestCase
             'alert_on_response' => false,
         ]);
         $fieldset = CustomFieldset::factory()->create();
+        $manager = User::factory()->create();
 
         $this->assertTrue(Category::where('name', 'Test Category')->exists());
 
@@ -57,6 +64,7 @@ class UpdateCategoriesTest extends TestCase
             ->put(route('categories.update', $category), [
                 'name' => 'Test Category Edited',
                 'fieldset_id' => $fieldset->id,
+                'manager_id' => $manager->id,
                 'notes' => 'Test Note Edited',
                 'require_acceptance' => '1',
                 'alert_on_response' => '1',
@@ -70,6 +78,7 @@ class UpdateCategoriesTest extends TestCase
         $this->assertDatabaseHas('categories', [
             'name' => 'Test Category Edited',
             'fieldset_id' => $fieldset->id,
+            'manager_id' => $manager->id,
             'notes' => 'Test Note Edited',
             'require_acceptance' => 1,
             'alert_on_response' => 1,

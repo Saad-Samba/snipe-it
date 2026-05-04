@@ -4,6 +4,7 @@ namespace App\Http\Transformers;
 
 use App\Helpers\Helper;
 use App\Models\License;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -21,6 +22,14 @@ class LicensesTransformer
 
     public function transformLicense(License $license)
     {
+        $requestingUser = Auth::user();
+        $activeRequest = $requestingUser ? $license->isRequestedBy($requestingUser) : null;
+        $hasActiveRequest = (bool) $activeRequest;
+        $canManageLicenseRequests = $requestingUser
+            && $requestingUser->hasAccess('licenses.request')
+            && $license->deleted_at == '';
+        $canRequestLicenses = $canManageLicenseRequests && $license->isReusableForRequest();
+
         $array = [
             'id' => (int) $license->id,
             'name' => e($license->name),
@@ -49,7 +58,7 @@ class LicensesTransformer
             'purchase_cost_numeric' => $license->purchase_cost,
             'notes' => Helper::parseEscapedMarkedownInline($license->notes),
             'seats' => (int) $license->seats,
-            'free_seats_count' => (int) $license->free_seats_count - License::unReassignableCount($license),
+            'free_seats_count' => $license->reusableFreeSeatsCount(),
             'remaining' => (int) $license->free_seats_count,
             'min_amt' => ($license->min_amt) ? (int) ($license->min_amt) : null,
             'license_name' =>  ($license->license_name) ? e($license->license_name) : null,
@@ -75,6 +84,8 @@ class LicensesTransformer
             'deleted_at' => Helper::getFormattedDateObject($license->deleted_at, 'datetime'),
             'user_can_checkout' => (bool) ($license->free_seats_count > 0),
             'disabled' => $license->isInactive(),
+            'requested_quantity' => $activeRequest ? (int) $activeRequest->quantity : null,
+            'requested_project_id' => $activeRequest ? (int) $activeRequest->project_id : null,
         ];
 
         $permissions_array['available_actions'] = [
@@ -83,6 +94,9 @@ class LicensesTransformer
             'clone' => Gate::allows('create', License::class),
             'update' => Gate::allows('update', License::class),
             'delete' => (Gate::allows('delete', License::class) && ($license->free_seats_count == $license->seats)) ? true : false,
+            'request' => $canRequestLicenses && ! $hasActiveRequest,
+            'cancel_request' => $canManageLicenseRequests && $hasActiveRequest,
+            'update_request' => $canManageLicenseRequests && $hasActiveRequest,
         ];
 
         $array += $permissions_array;

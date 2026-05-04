@@ -18,6 +18,12 @@ use Tests\TestCase;
 
 class StoreAssetTest extends TestCase
 {
+    private function payloadWithCompany(array $overrides = []): array
+    {
+        return array_merge([
+            'company_id' => Company::factory()->create()->id,
+        ], $overrides);
+    }
 
     public function testRequiresPermissionToCreateAsset()
     {
@@ -91,12 +97,12 @@ class StoreAssetTest extends TestCase
     public function testSetsLastAuditDateToMidnightOfProvidedDate()
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'last_audit_date' => '2023-09-03',
                 'asset_tag' => '1234',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success');
 
@@ -107,12 +113,12 @@ class StoreAssetTest extends TestCase
     public function testLastAuditDateCanBeNull()
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 // 'last_audit_date' => '2023-09-03 12:23:45',
                 'asset_tag' => '1234',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success');
 
@@ -120,15 +126,49 @@ class StoreAssetTest extends TestCase
         $this->assertNull($asset->last_audit_date);
     }
 
-    public function testNonDateUsedForLastAuditDateReturnsValidationError()
+    public function testCompanyIsRequiredToCreateAsset()
     {
-        $response = $this->actingAsForApi(User::factory()->superuser()->create())
+        $response = $this->actingAsForApi(User::factory()->superuser()->create(['company_id' => null]))
             ->postJson(route('api.assets.store'), [
-                'last_audit_date' => 'this-is-not-valid',
                 'asset_tag' => '1234',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
             ])
+            ->assertStatusMessageIs('error');
+
+        $response->assertJsonPath('messages.company_id.0', 'The company field is required.');
+
+        $this->assertDatabaseMissing('assets', [
+            'asset_tag' => '1234',
+        ]);
+    }
+
+    public function testCompanyIsRequiredToCreateAssetWithFmcsDisabledEvenIfUserHasACompany()
+    {
+        $response = $this->actingAsForApi(User::factory()->superuser()->create())
+            ->postJson(route('api.assets.store'), [
+                'asset_tag' => '1235',
+                'model_id' => AssetModel::factory()->create()->id,
+                'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
+            ])
+            ->assertStatusMessageIs('error');
+
+        $response->assertJsonPath('messages.company_id.0', 'The company field is required.');
+
+        $this->assertDatabaseMissing('assets', [
+            'asset_tag' => '1235',
+        ]);
+    }
+
+    public function testNonDateUsedForLastAuditDateReturnsValidationError()
+    {
+        $response = $this->actingAsForApi(User::factory()->superuser()->create())
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
+                'last_audit_date' => 'this-is-not-valid',
+                'asset_tag' => '1234',
+                'model_id' => AssetModel::factory()->create()->id,
+                'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('error');
 
@@ -138,12 +178,12 @@ class StoreAssetTest extends TestCase
     public function testSaveWithArchivedStatusAndUserReturnsValidationError()
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'assigned_to' => '1',
                 'assigned_type' => User::class,
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->archived()->create()->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('error');
 
@@ -153,12 +193,12 @@ class StoreAssetTest extends TestCase
     public function testSaveWithPendingStatusAndUserReturnsValidationError()
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'assigned_to' => '1',
                 'assigned_type' => User::class,
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->pending()->create()->id,
-            ])
+            ]))
             ->assertOk()
             ->assertJson([
                 'messages' =>  ['status_id' => [trans('admin/hardware/form.asset_not_deployable')]]
@@ -171,13 +211,13 @@ class StoreAssetTest extends TestCase
     {
         $user = User::factory()->create();
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => '1235',
                 'assigned_to' => $user->id,
                 'assigned_type' => User::class,
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success');
 
@@ -192,13 +232,13 @@ class StoreAssetTest extends TestCase
     public function testSaveWithNoAssignedTypeReturnsValidationError()
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => '1235',
                 'assigned_to' => '1',
 //                'assigned_type' => User::class, //deliberately omit assigned_type
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('error');
         $this->assertNotNull($response->json('messages.assigned_type'));
@@ -207,13 +247,13 @@ class StoreAssetTest extends TestCase
     public function testSaveWithBadAssignedTypeReturnsValidationError()
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag'     => '1235',
                 'assigned_to'   => '1',
                 'assigned_type' => 'nonsense_string', //deliberately bad assigned_type
                 'model_id'      => AssetModel::factory()->create()->id,
                 'status_id'     => Statuslabel::factory()->readyToDeploy()->create()->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('error');
         $this->assertNotNull($response->json('messages.assigned_type'));
@@ -222,13 +262,13 @@ class StoreAssetTest extends TestCase
     public function testSaveWithAssignedTypeAndNoAssignedToReturnsValidationError()
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag'     => '1235',
                 //'assigned_to'   => '1', //deliberately omit assigned_to
                 'assigned_type' => User::class,
                 'model_id'      => AssetModel::factory()->create()->id,
                 'status_id'     => Statuslabel::factory()->readyToDeploy()->create()->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('error');
         $this->assertNotNull($response->json('messages.assigned_to'));
@@ -237,11 +277,11 @@ class StoreAssetTest extends TestCase
     public function testSaveWithPendingStatusWithoutUserIsSuccessful()
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => '1234',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->pending()->create()->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success');
     }
@@ -255,13 +295,13 @@ class StoreAssetTest extends TestCase
         $this->settings->enableAutoIncrement();
 
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
                 'archive' => null,
                 'depreciate' => null,
                 'physical' => null
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -280,13 +320,13 @@ class StoreAssetTest extends TestCase
         $this->settings->enableAutoIncrement();
 
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
                 'archive' => '',
                 'depreciate' => '',
                 'physical' => ''
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -305,11 +345,11 @@ class StoreAssetTest extends TestCase
         $this->settings->enableAutoIncrement();
 
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'purchase_date' => '2021-01-01',
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -326,10 +366,10 @@ class StoreAssetTest extends TestCase
         $this->settings->enableAutoIncrement();
 
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -346,11 +386,11 @@ class StoreAssetTest extends TestCase
         $this->settings->enableAutoIncrement();
 
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'asset_eol_date' => '2025-01-01',
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -368,10 +408,10 @@ class StoreAssetTest extends TestCase
         $this->settings->enableAutoIncrement();
 
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -388,10 +428,10 @@ class StoreAssetTest extends TestCase
         $this->settings->disableAutoIncrement();
 
         $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('error');
     }
@@ -404,13 +444,13 @@ class StoreAssetTest extends TestCase
         ]);
 
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => 'random-string',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
                 // API accepts float
                 'purchase_cost' => 12.34,
-            ])
+            ]))
             ->assertStatusMessageIs('success');
 
         $asset = Asset::find($response['payload']['id']);
@@ -426,13 +466,13 @@ class StoreAssetTest extends TestCase
         ]);
 
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => 'random-string',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
                 // API also accepts string for comma separated values
                 'purchase_cost' => '12,34',
-            ])
+            ]))
             ->assertStatusMessageIs('success');
 
         $asset = Asset::find($response['payload']['id']);
@@ -450,20 +490,20 @@ class StoreAssetTest extends TestCase
         $this->settings->enableUniqueSerialNumbers();
 
         $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
                 'serial' => $serial,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success');
 
         $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
                 'serial' => $serial,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('error');
     }
@@ -478,20 +518,20 @@ class StoreAssetTest extends TestCase
         $this->settings->disableUniqueSerialNumbers();
 
         $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
                 'serial' => $serial,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success');
 
         $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
                 'serial' => $serial,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success');
     }
@@ -505,20 +545,20 @@ class StoreAssetTest extends TestCase
         $this->settings->disableAutoIncrement();
 
         $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => $asset_tag,
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success');
 
         $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => $asset_tag,
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('error');
     }
@@ -532,11 +572,11 @@ class StoreAssetTest extends TestCase
         $this->settings->disableAutoIncrement();
 
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => $asset_tag,
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -544,11 +584,11 @@ class StoreAssetTest extends TestCase
        Asset::find($response['payload']['id'])->delete();
 
         $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => $asset_tag,
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success');
     }
@@ -563,11 +603,11 @@ class StoreAssetTest extends TestCase
         $this->settings->enableAutoIncrement();
 
         $response = $this->actingAsForApi($user)
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'assigned_user' => $userAssigned->id,
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -626,12 +666,12 @@ class StoreAssetTest extends TestCase
         ['key' => $key, 'value' => $value] = $data();
 
         $this->actingAsForApi(User::factory()->createAssets()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => '123456',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
                 $key => $value,
-            ])
+            ]))
             ->assertStatusMessageIs('error')
             ->assertJson(function (AssertableJson $json) use ($key) {
                 $json->has("messages.{$key}")->etc();
@@ -648,11 +688,11 @@ class StoreAssetTest extends TestCase
         $this->settings->enableAutoIncrement();
 
         $response = $this->actingAsForApi($user)
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'assigned_location' => $location->id,
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -675,11 +715,11 @@ class StoreAssetTest extends TestCase
         $this->settings->enableAutoIncrement();
 
         $response = $this->actingAsForApi($user)
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'assigned_asset' => $asset->id,
                 'model_id' => $model->id,
                 'status_id' => $status->id,
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('success')
             ->json();
@@ -711,14 +751,14 @@ class StoreAssetTest extends TestCase
     public function test_serial_validation()
     {
         $this->actingAsForApi(User::factory()->superuser()->create())
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'asset_tag' => '1234',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
                 'serial' => [
                     // this should not be an array
                 ],
-            ])
+            ]))
             ->assertOk()
             ->assertStatusMessageIs('error')
             ->assertMessagesContains('serial');
@@ -734,12 +774,12 @@ class StoreAssetTest extends TestCase
         $assetData = Asset::factory()->hasEncryptedCustomField($field)->make();
 
         $response = $this->actingAsForApi($superuser)
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 $field->db_column_name() => 'This is encrypted field',
                 'model_id' => $assetData->model->id,
                 'status_id' => $status->id,
                 'asset_tag' => '1234',
-            ])
+            ]))
             ->assertStatusMessageIs('success')
             ->assertOk()
             ->json();
@@ -761,14 +801,14 @@ class StoreAssetTest extends TestCase
         $assetData = Asset::factory()->hasMultipleCustomFields($fields)->make();
 
         $response = $this->actingAsForApi($superuser)
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 $alphaField->db_column_name()   => 'Thisisencryptedfield',
                 $numericField->db_column_name() => '1234567890',
                 $emailField->db_column_name()   => 'poop@poop.com',
                 'model_id'                      => $assetData->model->id,
                 'status_id'                     => $status->id,
                 'asset_tag'                     => '1234',
-            ])
+            ]))
             ->assertStatusMessageIs('success')
             ->assertOk()
             ->json();
@@ -793,12 +833,12 @@ class StoreAssetTest extends TestCase
         $cleaned_name = trim(preg_replace('/_+|snipeit|\d+/', ' ', $alphaField->db_column_name()));
 
         $response = $this->actingAsForApi($superuser)
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 $alphaField->db_column_name() => 'Thisisencryptedfield123',
                 'model_id'                    => $assetData->model->id,
                 'status_id'                   => $status->id,
                 'asset_tag'                   => '1234',
-            ])
+            ]))
             ->assertStatusMessageIs('error')
             ->assertJsonPath('messages.'.$alphaField->db_column_name(), [trans('validation.alpha', ['attribute' => $cleaned_name])])
             ->assertOk()
@@ -817,12 +857,12 @@ class StoreAssetTest extends TestCase
         $assetData = Asset::factory()->hasEncryptedCustomField($field)->make();
 
         $response = $this->actingAsForApi($normal_user)
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 $field->db_column_name() => 'Some Other Value Entirely!',
                 'model_id' => $assetData->model->id,
                 'status_id' => $status->id,
                 'asset_tag' => '1234',
-            ])
+            ]))
             // @todo: this is 403 unauthorized
             ->assertStatusMessageIs('success')
             ->assertOk()
@@ -840,12 +880,12 @@ class StoreAssetTest extends TestCase
         $superuser = User::factory()->superuser()->create();
 
         $response = $this->actingAsForApi($superuser)
-            ->postJson(route('api.assets.store'), [
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 'model_id' => $model->id,
                 'status_id' => $status->id,
                 'asset_tag' => '1234',
                 'image' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAEsAQMAAADXeXeBAAAABlBMVEX+AAD///+KQee0AAAACXBIWXMAAAsSAAALEgHS3X78AAAAB3RJTUUH5QQbCAoNcoiTQAAAACZJREFUaN7twTEBAAAAwqD1T20JT6AAAAAAAAAAAAAAAAAAAICnATvEAAEnf54JAAAAAElFTkSuQmCC'
-            ])
+            ]))
             ->assertStatusMessageIs('success')
             ->assertOk()
             ->json();

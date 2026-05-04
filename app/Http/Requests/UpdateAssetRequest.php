@@ -4,9 +4,11 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Traits\MayContainCustomFields;
 use App\Models\Asset;
+use App\Models\Company;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateAssetRequest extends ImageUploadRequest
 {
@@ -19,6 +21,19 @@ class UpdateAssetRequest extends ImageUploadRequest
     public function authorize()
     {
         return Gate::allows('update', $this->asset);
+    }
+
+    public function prepareForValidation(): void
+    {
+        parent::prepareForValidation();
+
+        $requestedCompanyId = $this->has('company_id')
+            ? $this->company_id
+            : optional($this->asset)->company_id;
+
+        $this->merge([
+            'company_id' => $this->resolveCompanyId($requestedCompanyId),
+        ]);
     }
 
     /**
@@ -57,5 +72,29 @@ class UpdateAssetRequest extends ImageUploadRequest
         }
 
         return $rules;
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if (Company::currentUserLacksCompanyAssignmentForFullMultipleCompanySupport()) {
+                $validator->errors()->add('company_id', 'You cannot complete this action because your account is not assigned to a company.');
+
+                return;
+            }
+
+            if (is_null($this->input('company_id'))) {
+                $validator->errors()->add('company_id', 'The company field is required.');
+            }
+        });
+    }
+
+    private function resolveCompanyId($companyId)
+    {
+        if (is_array($companyId)) {
+            return $companyId;
+        }
+
+        return Company::getIdForCurrentUser($companyId);
     }
 }

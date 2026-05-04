@@ -48,11 +48,32 @@ class CategoryPresenter extends Presenter
                 'title' => trans('general.type'),
                 'visible' => true,
             ], [
+                'field' => 'manager',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => 'Category Manager',
+                'visible' => true,
+                'formatter' => 'usersLinkObjFormatter',
+            ], [
                 'field' => 'item_count',
                 'searchable' => false,
                 'sortable' => true,
                 'title' => trans('general.qty'),
                 'visible' => true,
+            ], [
+                'field' => 'available_models_count',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => 'Available Models',
+                'visible' => true,
+                'formatter' => 'categoryAvailableModelsFormatter',
+            ], [
+                'field' => 'reusable_assets_count',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => 'Available Assets',
+                'visible' => true,
+                'formatter' => 'categoryReusableAssetsFormatter',
             ], [
                 'field' => 'has_eula',
                 'searchable' => false,

@@ -26,6 +26,9 @@
                     </div>
                     <div class="box-body">
                         {{csrf_field()}}
+                        @if (request()->filled('request_id'))
+                            <input type="hidden" name="request_id" value="{{ request()->input('request_id') }}">
+                        @endif
                         @if ($asset->company)
                             <!-- accessory name -->
                             <div class="form-group">
@@ -106,6 +109,7 @@
                         <!-- We have to pass unselect here so that we don't default to the asset that's being checked out. We want that asset to be pre-selected everywhere else. -->
                         @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.select_asset'), 'fieldname' => 'assigned_asset', 'company_id' => $asset->company_id, 'unselect' => 'true', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
                         @include ('partials.forms.edit.location-select', ['translated_name' => trans('general.location'), 'fieldname' => 'assigned_location', 'style' => session('checkout_to_type') == 'location' ? '' : 'display: none;'])
+                        @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id', 'item' => (object) ['project_id' => old('project_id', $requestContext->project_id ?? $asset->project_id)]])
 
 
 
@@ -139,7 +143,7 @@
                                         name="expected_checkin"
                                         :value="old('expected_checkin', $item->expected_checkin)"
                                         placeholder="{{ trans('general.select_date') }}"
-                                        required="{{ Helper::checkIfRequired($item, 'expected_checkin') }}"
+                                        required="true"
                                 />
                                 {!! $errors->first('expected_checkin', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
                             </div>
