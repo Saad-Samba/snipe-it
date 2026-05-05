@@ -9,6 +9,7 @@ return [
     'acceptance_deleted' => 'Acceptance request deleted',
     'acceptance_request' => 'Acceptance request',
     'custom_export' => [
+        'model_obsolete' => 'Model Obsolete',
         'user_address' => 'User Address',
         'user_city' => 'User City',
         'user_state' => 'User State',

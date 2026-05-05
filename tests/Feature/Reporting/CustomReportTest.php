@@ -129,6 +129,27 @@ class CustomReportTest extends TestCase implements TestsPermissionsRequirement
             ->assertSeeTextInStreamedResponse('Engineering');
     }
 
+    public function testCustomAssetReportCanIncludeModelObsolete()
+    {
+        Asset::factory()->create([
+            'name' => 'Asset A',
+            'model_id' => \App\Models\AssetModel::factory()->create(['obsolete' => true])->id,
+        ]);
+
+        $response = $this->actingAs(User::factory()->canViewReports()->create())
+            ->post('reports/custom', [
+                'asset_name' => '1',
+                'model_obsolete' => '1',
+            ])->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $records = collect(Reader::createFromString($response->streamedContent())->getRecords());
+
+        Assert::assertTrue($records->isNotEmpty());
+        Assert::assertContains(trans('admin/reports/general.custom_export.model_obsolete'), $records->first());
+        Assert::assertTrue($records->skip(1)->flatten()->contains(trans('general.yes')));
+    }
+
     public function testCustomAssetReportAdheresToCompanyScoping()
     {
         [$companyA, $companyB] = Company::factory()->count(2)->create();

@@ -481,6 +481,10 @@ class ReportsController extends Controller
                 $header[] = trans('general.model_no');
             }
 
+            if ($request->filled('model_obsolete')) {
+                $header[] = trans('admin/reports/general.custom_export.model_obsolete');
+            }
+
             if ($request->filled('category')) {
                 $header[] = trans('general.category');
             }
@@ -812,6 +816,10 @@ class ReportsController extends Controller
                     if ($request->filled('model')) {
                         $row[] = ($asset->model) ? $asset->model->name : '';
                         $row[] = ($asset->model) ? $asset->model->model_number : '';
+                    }
+
+                    if ($request->filled('model_obsolete')) {
+                        $row[] = ($asset->model) ? ($asset->model->obsolete ? trans('general.yes') : trans('general.no')) : '';
                     }
 
                     if ($request->filled('category')) {

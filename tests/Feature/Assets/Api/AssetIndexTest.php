@@ -31,6 +31,41 @@ class AssetIndexTest extends TestCase
             ->assertJson(fn(AssertableJson $json) => $json->has('rows', 3)->etc());
     }
 
+    public function testAssetApiIndexReturnsModelObsoleteFlagAndCanFilterByIt()
+    {
+        $obsoleteAsset = Asset::factory()->create([
+            'name' => 'Obsolete asset',
+            'model_id' => \App\Models\AssetModel::factory()->create(['obsolete' => true])->id,
+        ]);
+
+        $activeAsset = Asset::factory()->create([
+            'name' => 'Active asset',
+            'model_id' => \App\Models\AssetModel::factory()->create(['obsolete' => false])->id,
+        ]);
+
+        $user = User::factory()->superuser()->create();
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.assets.index', ['search' => 'Obsolete asset']))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.model.name', $obsoleteAsset->model->name)
+                ->where('rows.0.model.obsolete', true)
+                ->etc());
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.assets.index', ['model_obsolete' => 1]))
+            ->assertOk()
+            ->assertResponseContainsInRows($obsoleteAsset, 'name')
+            ->assertResponseDoesNotContainInRows($activeAsset, 'name');
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.assets.index', ['model_obsolete' => 0]))
+            ->assertOk()
+            ->assertResponseContainsInRows($activeAsset, 'name')
+            ->assertResponseDoesNotContainInRows($obsoleteAsset, 'name');
+    }
+
     public function testAssetApiIndexReturnsDisplayUpcomingAuditsDue()
     {
         Asset::factory()->count(3)->create(['next_audit_date' => Carbon::now()->format('Y-m-d')]);

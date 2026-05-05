@@ -11,6 +11,7 @@ use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
@@ -33,6 +34,7 @@ class AssetModelsController extends Controller
     public function index(Request $request) : JsonResponse | array
     {
         $this->authorize('view', AssetModel::class);
+        $hasRequestableColumn = Schema::hasColumn('models', 'requestable');
         $allowed_columns =
             [
                 'id',
@@ -45,7 +47,6 @@ class AssetModelsController extends Controller
                 'obsolete',
                 'created_at',
                 'manufacturer',
-                'requestable',
                 'assets_count',
                 'assets_assigned_count',
                 'assets_archived_count',
@@ -63,7 +64,11 @@ class AssetModelsController extends Controller
                 'category',
             ];
 
-        $assetmodels = AssetModel::select([
+        if ($hasRequestableColumn) {
+            $allowed_columns[] = 'requestable';
+        }
+
+        $selectedColumns = [
             'models.id',
             'models.image',
             'models.name',
@@ -71,7 +76,6 @@ class AssetModelsController extends Controller
             'models.min_amt',
             'models.eol',
             'models.created_by',
-            'models.requestable',
             'models.notes',
             'models.obsolete',
             'models.created_at',
@@ -82,7 +86,13 @@ class AssetModelsController extends Controller
             'models.deleted_at',
             'models.updated_at',
             'models.require_serial'
-         ])
+        ];
+
+        if ($hasRequestableColumn) {
+            $selectedColumns[] = 'models.requestable';
+        }
+
+        $assetmodels = AssetModel::select($selectedColumns)
             ->with('category.fieldset.fields.defaultValues', 'depreciation', 'manufacturer', 'fieldset.fields.defaultValues', 'adminuser')
             ->withCount('assets as assets_count')
             ->withCount('availableAssets as remaining')
@@ -119,9 +129,9 @@ class AssetModelsController extends Controller
             $assetmodels = $assetmodels->where('models.model_number', '=', $request->input('model_number'));
         }
 
-        if ($request->input('requestable') == 'true') {
+        if ($hasRequestableColumn && $request->input('requestable') == 'true') {
             $assetmodels = $assetmodels->where('models.requestable', '=', '1');
-        } elseif ($request->input('requestable') == 'false') {
+        } elseif ($hasRequestableColumn && $request->input('requestable') == 'false') {
             $assetmodels = $assetmodels->where('models.requestable', '=', '0');
         }        
 
@@ -131,6 +141,10 @@ class AssetModelsController extends Controller
 
         if ($request->filled('category_id')) {
             $assetmodels = $assetmodels->where('models.category_id', '=', $request->input('category_id'));
+        }
+
+        if ($request->filled('obsolete')) {
+            $assetmodels = $assetmodels->where('models.obsolete', '=', filter_var($request->input('obsolete'), FILTER_VALIDATE_BOOLEAN));
         }
 
         if ($request->filled('depreciation_id')) {

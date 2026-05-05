@@ -77,6 +77,7 @@
                     'columns',
                     'btnAdd',
                     'btnShowDeleted',
+                    'btnFilterObsolete',
                     'btnShowAdmins',
                     'btnShowExpiring',
                     'btnShowInactive',
@@ -315,6 +316,39 @@
     }); // End Groups table buttons
     @endcan
 
+    function obsoleteFilterButtonConfig(currentState, routes, labels) {
+        var stateMap = {
+            all: {
+                icon: 'fa-solid fa-filter',
+                nextUrl: routes.obsolete,
+                title: labels.all,
+            },
+            obsolete: {
+                icon: 'fa-solid fa-triangle-exclamation',
+                nextUrl: routes.active,
+                title: labels.obsolete,
+            },
+            active: {
+                icon: 'fa-solid fa-circle-check',
+                nextUrl: routes.all,
+                title: labels.active,
+            },
+        };
+
+        var state = stateMap[currentState] ? currentState : 'all';
+
+        return {
+            text: '',
+            icon: stateMap[state].icon,
+            event() {
+                window.location.href = stateMap[state].nextUrl;
+            },
+            attributes: {
+                title: stateMap[state].title,
+                'data-tooltip': 'true',
+            }
+        };
+    }
 
     // Asset table buttons
     window.assetButtons = () => ({
@@ -372,6 +406,28 @@
 
             }
         },
+        @php
+            $assetFilter = request()->query('model_obsolete');
+            $assetBaseQuery = request()->except('model_obsolete');
+            $assetAllQuery = http_build_query($assetBaseQuery);
+            $assetAllUrl = url()->current().($assetAllQuery ? '?'.$assetAllQuery : '');
+            $assetObsoleteUrl = request()->fullUrlWithQuery(['model_obsolete' => 1]);
+            $assetActiveUrl = request()->fullUrlWithQuery(['model_obsolete' => 0]);
+            $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
+        @endphp
+        btnFilterObsolete: obsoleteFilterButtonConfig(
+            '{{ $assetState }}',
+            {
+                all: '{{ $assetAllUrl }}',
+                obsolete: '{{ $assetObsoleteUrl }}',
+                active: '{{ $assetActiveUrl }}'
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}'
+            }
+        ),
     });
 
     @can('create', \App\Models\Location::class)
@@ -700,9 +756,9 @@
     });
     @endcan
 
-    @can('create', \App\Models\AssetModel::class)
     // Custom Field table buttons
     window.modelButtons = () => ({
+        @can('create', \App\Models\AssetModel::class)
         btnAdd: {
             text: '{{ trans('general.create') }}',
             icon: 'fa fa-plus',
@@ -717,6 +773,7 @@
                 @endif
             }
         },
+        @endcan
         btnShowDeleted: {
             text: '{{ (request()->input('status') == "deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
@@ -729,8 +786,29 @@
 
             }
         },
+        @php
+            $modelFilter = request()->query('obsolete');
+            $modelBaseQuery = request()->except('obsolete');
+            $modelAllQuery = http_build_query($modelBaseQuery);
+            $modelAllUrl = url()->current().($modelAllQuery ? '?'.$modelAllQuery : '');
+            $modelObsoleteUrl = request()->fullUrlWithQuery(['obsolete' => 1]);
+            $modelActiveUrl = request()->fullUrlWithQuery(['obsolete' => 0]);
+            $modelState = $modelFilter === '1' ? 'obsolete' : ($modelFilter === '0' ? 'active' : 'all');
+        @endphp
+        btnFilterObsolete: obsoleteFilterButtonConfig(
+            '{{ $modelState }}',
+            {
+                all: '{{ $modelAllUrl }}',
+                obsolete: '{{ $modelObsoleteUrl }}',
+                active: '{{ $modelActiveUrl }}'
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}'
+            }
+        ),
     });
-    @endcan
 
     @can('create', \App\Models\Statuslabel::class)
     // Status label table buttons
@@ -1035,7 +1113,13 @@
                     var tag_icon = '';
                 }
 
-                return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a></span>';
+                var obsoleteIndicator = '';
+
+                if ((destination === 'models') && (value.obsolete === true || value.obsolete === 1 || value.obsolete === '1')) {
+                    obsoleteIndicator = ' <span class="label label-warning" data-tooltip="true" title="{{ trans('admin/models/general.obsolete_asset_tooltip') }}">{{ trans('admin/models/general.obsolete_indicator') }}</span>';
+                }
+
+                return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a>' + obsoleteIndicator + '</nobr>';
             }
         };
     }
@@ -1542,6 +1626,14 @@
         } else {
             return '<x-icon type="x" class="text-danger" /><span class="sr-only">{{ trans('general.false') }}</span>';
         }
+    }
+
+    function yesNoFormatter(value) {
+        if ((value) && ((value == 'true') || (value == '1'))) {
+            return '{{ trans('general.yes') }}';
+        }
+
+        return '{{ trans('general.no') }}';
     }
 
     function dateDisplayFormatter(value) {

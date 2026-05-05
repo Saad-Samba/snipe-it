@@ -707,6 +707,11 @@
                                             <div class="col-md-9">
                                                 @if ($asset->model)
                                                     <x-copy-to-clipboard copy_what="model">{!!  $asset->model->present()->formattedNameLink !!}</x-copy-to-clipboard>
+                                                    @if ($asset->model->obsolete)
+                                                        <span class="label label-warning" data-tooltip="true" title="{{ trans('admin/models/general.obsolete_asset_tooltip') }}">
+                                                            {{ trans('admin/models/general.obsolete_indicator') }}
+                                                        </span>
+                                                    @endif
 
                                                 @endif
                                             </div>

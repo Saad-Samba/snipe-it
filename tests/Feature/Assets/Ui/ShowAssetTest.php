@@ -23,4 +23,16 @@ class ShowAssetTest extends TestCase
             ->get(route('hardware.show', $asset))
             ->assertOk();
     }
+
+    public function testPageShowsObsoleteIndicatorWhenAssetModelIsObsolete()
+    {
+        $asset = Asset::factory()->create([
+            'model_id' => \App\Models\AssetModel::factory()->create(['obsolete' => true])->id,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('hardware.show', $asset))
+            ->assertOk()
+            ->assertSeeText(trans('admin/models/general.obsolete_indicator'));
+    }
 }
