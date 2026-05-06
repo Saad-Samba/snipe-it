@@ -19,7 +19,10 @@ return array(
     'obsolete_status_warning'   => 'Do not change obsolete status',
     'obsolete_indicator'        => 'Obsolete',
     'obsolete_asset_tooltip'    => 'This asset belongs to a model marked obsolete.',
-    'filter_all_to_obsolete'    => 'Showing all items. Click to show obsolete only.',
-    'filter_obsolete_to_active' => 'Showing obsolete only. Click to show not obsolete only.',
-    'filter_active_to_all'      => 'Showing not obsolete only. Click to show all items.',
+    'filter_all_to_obsolete'    => 'No obsolete filter is active. Click to show obsolete only.',
+    'filter_obsolete_to_active' => 'Filtering obsolete only. Click to show not obsolete only.',
+    'filter_active_to_all'      => 'Filtering not obsolete only. Click to show all items.',
+    'filter_all_option'         => 'All',
+    'filter_obsolete_option'    => 'Obsolete only',
+    'filter_active_option'      => 'Not obsolete only',
 );
