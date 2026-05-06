@@ -349,7 +349,7 @@
                 window.location.href = isActive ? routes.all : routes.active;
             },
             attributes: {
-                title: isActive ? labels.active : labels.all,
+                title: isActive ? labels.active : labels.inactive,
                 'data-tooltip': 'true',
                 class: isActive ? 'btn-success' : '',
             }
@@ -402,6 +402,9 @@
 
         @php
             $assetQuery = request()->query();
+            if (request()->routeIs('statuslabels.show') && request()->route('statuslabel')) {
+                $assetQuery['status_id'] = request()->route('statuslabel')->id;
+            }
             $assetFilter = $assetQuery['model_obsolete'] ?? null;
             $assetBaseQuery = $assetQuery;
             unset($assetBaseQuery['model_obsolete']);
@@ -438,6 +441,7 @@
                 all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
                 obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
                 active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
                 optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
                 optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
                 optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
@@ -454,6 +458,7 @@
                 all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
                 obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
                 active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
                 optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
                 optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
                 optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
@@ -843,6 +848,7 @@
                 all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
                 obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
                 active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
                 optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
                 optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
                 optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
@@ -859,6 +865,7 @@
                 all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
                 obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
                 active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
                 optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
                 optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
                 optionActive: '{{ trans('admin/models/general.filter_active_option') }}'

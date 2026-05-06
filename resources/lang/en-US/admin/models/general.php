@@ -20,6 +20,7 @@ return array(
     'obsolete_indicator'        => 'Obsolete',
     'obsolete_asset_tooltip'    => 'This asset belongs to a model marked obsolete.',
     'filter_all_to_obsolete'    => 'Click to show obsolete only.',
+    'filter_all_to_active'      => 'Click to show not obsolete only.',
     'filter_obsolete_to_active' => 'Filtering obsolete only. Click to show not obsolete only.',
     'filter_active_to_all'      => 'Filtering not obsolete only. Click to show all items.',
     'filter_all_option'         => 'All',
