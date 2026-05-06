@@ -72,6 +72,22 @@ dir="{{ Helper::determineLanguageDirection() }}">
         </style>
     @endif
 
+    <style nonce="{{ csrf_token() }}">
+        .sidebar-section-label {
+            padding: 10px 15px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            opacity: .75;
+            pointer-events: none;
+        }
+
+        .treeview-menu > .sidebar-section-label:first-of-type {
+            padding-top: 14px;
+        }
+    </style>
+
 
     <script nonce="{{ csrf_token() }}">
         window.snipeit = {
@@ -478,6 +494,10 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         </a>
                                     </li>
 
+                                    <li class="sidebar-section-label">
+                                        <span>{{ trans('general.status_labels') }}</span>
+                                    </li>
+
                                     <?php $status_navs = \App\Models\Statuslabel::where('show_in_nav', '=', 1)->withCount('assets as asset_count')->get(); ?>
                                     @if (count($status_navs) > 0)
                                         @foreach ($status_navs as $status_nav)
@@ -490,21 +510,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         @endforeach
                                     @endif
 
-
-                                    <li id="deployed-sidenav-option" {!! (Request::query('status') == 'Deployed' ? ' class="active"' : '') !!}>
-                                        <a href="{{ url('hardware?status=Deployed') }}">
-                                            <x-icon type="circle" class="text-blue fa-fw" />
-                                            {{ trans('general.deployed') }}
-                                            <span class="badge">{{ (isset($total_deployed_sidebar)) ? $total_deployed_sidebar : '' }}</span>
-                                        </a>
-                                    </li>
-                                    <li id="rtd-sidenav-option"{!! (Request::query('status') == 'RTD' ? ' class="active"' : '') !!}>
-                                        <a href="{{ url('hardware?status=RTD') }}">
-                                            <x-icon type="circle" class="text-green fa-fw" />
-                                            {{ trans('general.ready_to_deploy') }}
-                                            <span class="badge">{{ (isset($total_rtd_sidebar)) ? $total_rtd_sidebar : '' }}</span>
-                                        </a>
-                                    </li>
                                     <li id="pending-sidenav-option"{!! (Request::query('status') == 'Pending' ? ' class="active"' : '') !!}><a href="{{ url('hardware?status=Pending') }}">
                                             <x-icon type="circle" class="text-orange fa-fw" />
                                             {{ trans('general.pending') }}
@@ -531,6 +536,28 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                             {{ trans('admin/hardware/general.archived') }}
                                             <span class="badge">{{ (isset($total_archived_sidebar)) ? $total_archived_sidebar : '' }}</span>
                                         </a>
+                                    </li>
+
+                                    <li class="sidebar-section-label">
+                                        <span>{{ trans('general.operational_state') }}</span>
+                                    </li>
+                                    <li id="deployed-sidenav-option" {!! (Request::query('status') == 'Deployed' ? ' class="active"' : '') !!}>
+                                        <a href="{{ url('hardware?status=Deployed') }}">
+                                            <x-icon type="circle" class="text-blue fa-fw" />
+                                            {{ trans('general.assigned_in_use') }}
+                                            <span class="badge">{{ (isset($total_deployed_sidebar)) ? $total_deployed_sidebar : '' }}</span>
+                                        </a>
+                                    </li>
+                                    <li id="rtd-sidenav-option"{!! (Request::query('status') == 'RTD' ? ' class="active"' : '') !!}>
+                                        <a href="{{ url('hardware?status=RTD') }}">
+                                            <x-icon type="circle" class="text-green fa-fw" />
+                                            {{ trans('general.unassigned_ready_to_deploy') }}
+                                            <span class="badge">{{ (isset($total_rtd_sidebar)) ? $total_rtd_sidebar : '' }}</span>
+                                        </a>
+                                    </li>
+
+                                    <li class="sidebar-section-label">
+                                        <span>{{ trans('general.flags') }}</span>
                                     </li>
                                     <li id="requestable-sidenav-option"{!! (Request::query('status') == 'Requestable' ? ' class="active"' : '') !!}><a
                                                 href="{{ url('hardware?status=Requestable') }}">

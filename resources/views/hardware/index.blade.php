@@ -12,9 +12,9 @@
   @if (Request::get('status')=='Pending')
     {{ trans('general.pending') }}
   @elseif (Request::get('status')=='RTD')
-    {{ trans('general.ready_to_deploy') }}
+    {{ trans('general.unassigned_ready_to_deploy') }}
   @elseif (Request::get('status')=='Deployed')
-    {{ trans('general.deployed') }}
+    {{ trans('general.assigned_in_use') }}
   @elseif (Request::get('status')=='Undeployable')
     {{ trans('general.undeployable') }}
   @elseif (Request::get('status')=='Deployable')
