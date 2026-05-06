@@ -17,18 +17,26 @@ class AssetIndexTest extends TestCase
 
     public function testSidebarGroupsStatusLabelsOperationalStateAndFlags()
     {
-        Statuslabel::factory()->readyToDeploy()->create([
+        $statusLabel = Statuslabel::factory()->readyToDeploy()->create([
             'name' => 'Ready to Deploy',
-            'show_in_nav' => 1,
         ]);
+        $statusLabel->show_in_nav = 1;
+        $statusLabel->default_label = 1;
+        $statusLabel->save();
 
-        $this->actingAs(User::factory()->superuser()->create())
-            ->get(route('hardware.index'))
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('hardware.index'));
+
+        $response
             ->assertOk()
             ->assertSeeText('Status Labels')
-            ->assertSeeText('Operational State')
             ->assertSeeText('Flags')
-            ->assertSeeText('Assigned / In Use')
-            ->assertSeeText('Unassigned Ready to Deploy');
+            ->assertSeeText('Assigned')
+            ->assertSeeText('Unassigned')
+            ->assertDontSeeText('Operational State')
+            ->assertDontSeeText('Pending')
+            ->assertDontSeeText('Un-deployable')
+            ->assertDontSeeText('BYOD')
+            ->assertDontSeeText('Archived');
     }
 }
