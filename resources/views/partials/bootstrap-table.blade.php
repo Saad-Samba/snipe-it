@@ -77,7 +77,8 @@
                     'columns',
                     'btnAdd',
                     'btnShowDeleted',
-                    'btnFilterObsolete',
+                    'btnShowObsoleteOnly',
+                    'btnShowActiveOnly',
                     'btnShowAdmins',
                     'btnShowExpiring',
                     'btnShowInactive',
@@ -210,8 +211,6 @@
                         }
                     });
 
-                    initializeObsoleteFilterDropdowns(toolbar_buttons);
-
                 },
                 formatNoMatches: function () {
                     return '{{ trans('table.no_matching_records') }}';
@@ -323,116 +322,38 @@
     }); // End Groups table buttons
     @endcan
 
-    function obsoleteFilterButtonConfig(currentState, routes, labels) {
-        var stateMap = {
-            all: {
-                icon: 'fa-solid fa-filter',
-                title: labels.all,
-                className: '',
-            },
-            obsolete: {
-                icon: 'fa-solid fa-triangle-exclamation',
-                title: labels.obsolete,
-                className: 'btn-warning',
-            },
-            active: {
-                icon: 'fa-solid fa-circle-check',
-                title: labels.active,
-                className: 'btn-success',
-            },
-        };
-
-        var state = stateMap[currentState] ? currentState : 'all';
+    function obsoleteOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'obsolete';
 
         return {
             text: '',
-            icon: stateMap[state].icon,
+            icon: 'fa-solid fa-triangle-exclamation',
+            event() {
+                window.location.href = isActive ? routes.all : routes.obsolete;
+            },
             attributes: {
-                title: stateMap[state].title,
+                title: isActive ? labels.obsolete : labels.all,
                 'data-tooltip': 'true',
-                class: stateMap[state].className,
-                'data-toggle': 'dropdown',
-                'aria-haspopup': 'true',
-                'aria-expanded': 'false',
-                'data-obsolete-filter-button': 'true',
-                'data-obsolete-filter-state': state,
-                'data-filter-all-url': routes.all,
-                'data-filter-obsolete-url': routes.obsolete,
-                'data-filter-active-url': routes.active,
-                'data-filter-all-label': labels.optionAll,
-                'data-filter-obsolete-label': labels.optionObsolete,
-                'data-filter-active-label': labels.optionActive,
+                class: isActive ? 'btn-warning' : '',
             }
         };
     }
 
-    function initializeObsoleteFilterDropdowns(toolbar_buttons) {
-        toolbar_buttons.filter('[data-obsolete-filter-button="true"]').each(function () {
-            var button = $(this);
+    function activeOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'active';
 
-            if (button.parent().hasClass('btn-group')) {
-                button.siblings('.dropdown-menu').remove();
-            } else {
-                button.wrap('<div class="btn-group"></div>');
+        return {
+            text: '',
+            icon: 'fa-solid fa-circle-check',
+            event() {
+                window.location.href = isActive ? routes.all : routes.active;
+            },
+            attributes: {
+                title: isActive ? labels.active : labels.all,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-success' : '',
             }
-
-            var state = button.attr('data-obsolete-filter-state') || 'all';
-            var iconClass = state === 'obsolete'
-                ? 'fa-solid fa-triangle-exclamation'
-                : (state === 'active' ? 'fa-solid fa-circle-check' : 'fa-solid fa-filter');
-
-            button
-                .attr('data-toggle', 'dropdown')
-                .attr('aria-haspopup', 'true')
-                .attr('aria-expanded', 'false')
-                .addClass('dropdown-toggle')
-                .html('<i class="' + iconClass + '" aria-hidden="true"></i> <span class="caret"></span><span class="sr-only">' + button.attr('title') + '</span>');
-
-            var menu = $('<ul class="dropdown-menu dropdown-menu-right" style="min-width:56px;"></ul>');
-            var options = [
-                {
-                    key: 'all',
-                    url: button.attr('data-filter-all-url'),
-                    label: button.attr('data-filter-all-label'),
-                    icon: 'fa-solid fa-filter',
-                },
-                {
-                    key: 'obsolete',
-                    url: button.attr('data-filter-obsolete-url'),
-                    label: button.attr('data-filter-obsolete-label'),
-                    icon: 'fa-solid fa-triangle-exclamation',
-                },
-                {
-                    key: 'active',
-                    url: button.attr('data-filter-active-url'),
-                    label: button.attr('data-filter-active-label'),
-                    icon: 'fa-solid fa-circle-check',
-                }
-            ];
-
-            options.forEach(function (option) {
-                var itemClass = option.key === state ? ' class="active"' : '';
-                var iconColorClass = option.key === 'obsolete'
-                    ? 'text-warning'
-                    : (option.key === 'active' ? 'text-success' : '');
-                var activeBackground = option.key === state ? ' style="background-color:#337ab7;color:#fff;"' : '';
-
-                menu.append(
-                    '<li' + itemClass + '>'
-                    + '<a href="' + option.url + '" data-tooltip="true" title="' + option.label + '"'
-                    + ' style="display:flex;align-items:center;justify-content:center;padding:10px 14px;text-align:center;"'
-                    + activeBackground + '>'
-                    + '<i class="' + option.icon + ' ' + iconColorClass + '" aria-hidden="true"></i>'
-                    + '<span class="sr-only">' + option.label + '</span>'
-                    + '</a></li>'
-                );
-            });
-
-            button.after(menu);
-            menu.find('[data-tooltip="true"]').tooltip({container: 'body', title: function () {
-                return $(this).attr('title');
-            }});
-        });
+        };
     }
 
     // Asset table buttons
@@ -500,7 +421,23 @@
             $assetActiveUrl = request()->fullUrlWithQuery(['model_obsolete' => 0]);
             $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
         @endphp
-        btnFilterObsolete: obsoleteFilterButtonConfig(
+        btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
+            '{{ $assetState }}',
+            {
+                all: '{{ $assetAllUrl }}',
+                obsolete: '{{ $assetObsoleteUrl }}',
+                active: '{{ $assetActiveUrl }}'
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+        btnShowActiveOnly: activeOnlyButtonConfig(
             '{{ $assetState }}',
             {
                 all: '{{ $assetAllUrl }}',
@@ -883,7 +820,23 @@
             $modelActiveUrl = request()->fullUrlWithQuery(['obsolete' => 0]);
             $modelState = $modelFilter === '1' ? 'obsolete' : ($modelFilter === '0' ? 'active' : 'all');
         @endphp
-        btnFilterObsolete: obsoleteFilterButtonConfig(
+        btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
+            '{{ $modelState }}',
+            {
+                all: '{{ $modelAllUrl }}',
+                obsolete: '{{ $modelObsoleteUrl }}',
+                active: '{{ $modelActiveUrl }}'
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+        btnShowActiveOnly: activeOnlyButtonConfig(
             '{{ $modelState }}',
             {
                 all: '{{ $modelAllUrl }}',
