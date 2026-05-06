@@ -400,11 +400,26 @@
             }
         },
 
+        @php
+            $assetQuery = request()->query();
+            $assetFilter = $assetQuery['model_obsolete'] ?? null;
+            $assetBaseQuery = $assetQuery;
+            unset($assetBaseQuery['model_obsolete']);
+            $assetAllUrl = route('hardware.index', $assetBaseQuery);
+            $assetObsoleteUrl = route('hardware.index', array_merge($assetBaseQuery, ['model_obsolete' => 1]));
+            $assetActiveUrl = route('hardware.index', array_merge($assetBaseQuery, ['model_obsolete' => 0]));
+            $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
+            $assetDeletedBaseQuery = $assetQuery;
+            unset($assetDeletedBaseQuery['status']);
+            $assetDeletedToggleUrl = request()->input('status') == 'Deleted'
+                ? route('hardware.index', $assetDeletedBaseQuery)
+                : route('hardware.index', array_merge($assetDeletedBaseQuery, ['status' => 'Deleted']));
+        @endphp
         btnShowDeleted: {
             text: '{{ (request()->input('status') == "Deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
             event () {
-                window.location.href = '{{ (request()->input('status') == "Deleted") ? route('hardware.index') : route('hardware.index', ['status' => 'Deleted']) }}';
+                window.location.href = '{{ $assetDeletedToggleUrl }}';
             },
             attributes: {
                 class: '{{ (request()->input('status') == "Deleted") ? ' btn-danger' : '' }}',
@@ -412,15 +427,6 @@
 
             }
         },
-        @php
-            $assetFilter = request()->query('model_obsolete');
-            $assetBaseQuery = request()->except('model_obsolete');
-            $assetAllQuery = http_build_query($assetBaseQuery);
-            $assetAllUrl = url()->current().($assetAllQuery ? '?'.$assetAllQuery : '');
-            $assetObsoleteUrl = request()->fullUrlWithQuery(['model_obsolete' => 1]);
-            $assetActiveUrl = request()->fullUrlWithQuery(['model_obsolete' => 0]);
-            $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
-        @endphp
         btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
             '{{ $assetState }}',
             {
@@ -799,11 +805,26 @@
             }
         },
         @endcan
+        @php
+            $modelQuery = request()->query();
+            $modelFilter = $modelQuery['obsolete'] ?? null;
+            $modelBaseQuery = $modelQuery;
+            unset($modelBaseQuery['obsolete']);
+            $modelAllUrl = route('models.index', $modelBaseQuery);
+            $modelObsoleteUrl = route('models.index', array_merge($modelBaseQuery, ['obsolete' => 1]));
+            $modelActiveUrl = route('models.index', array_merge($modelBaseQuery, ['obsolete' => 0]));
+            $modelState = $modelFilter === '1' ? 'obsolete' : ($modelFilter === '0' ? 'active' : 'all');
+            $modelDeletedBaseQuery = $modelQuery;
+            unset($modelDeletedBaseQuery['status']);
+            $modelDeletedToggleUrl = request()->input('status') == 'deleted'
+                ? route('models.index', $modelDeletedBaseQuery)
+                : route('models.index', array_merge($modelDeletedBaseQuery, ['status' => 'deleted']));
+        @endphp
         btnShowDeleted: {
             text: '{{ (request()->input('status') == "deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
             event () {
-                window.location.href = '{{ (request()->input('status') == "deleted") ? route('models.index') : route('models.index', ['status' => 'deleted']) }}';
+                window.location.href = '{{ $modelDeletedToggleUrl }}';
             },
             attributes: {
                 class: '{{ (request()->input('status') == "deleted") ? ' btn-danger' : '' }}',
@@ -811,15 +832,6 @@
 
             }
         },
-        @php
-            $modelFilter = request()->query('obsolete');
-            $modelBaseQuery = request()->except('obsolete');
-            $modelAllQuery = http_build_query($modelBaseQuery);
-            $modelAllUrl = url()->current().($modelAllQuery ? '?'.$modelAllQuery : '');
-            $modelObsoleteUrl = request()->fullUrlWithQuery(['obsolete' => 1]);
-            $modelActiveUrl = request()->fullUrlWithQuery(['obsolete' => 0]);
-            $modelState = $modelFilter === '1' ? 'obsolete' : ($modelFilter === '0' ? 'active' : 'all');
-        @endphp
         btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
             '{{ $modelState }}',
             {
