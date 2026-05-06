@@ -3,6 +3,7 @@
 namespace Tests\Feature\Assets\Ui;
 
 use App\Models\Asset;
+use App\Models\AssetModel;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -22,5 +23,17 @@ class ShowAssetTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('hardware.show', $asset))
             ->assertOk();
+    }
+
+    public function testPageShowsObsoleteIndicatorWhenAssetModelIsObsolete()
+    {
+        $asset = Asset::factory()->create([
+            'model_id' => AssetModel::factory()->create(['obsolete' => true])->id,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('hardware.show', $asset))
+            ->assertOk()
+            ->assertSeeText(trans('admin/models/general.obsolete_indicator'));
     }
 }

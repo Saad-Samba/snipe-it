@@ -1050,7 +1050,13 @@
                     var tag_icon = '';
                 }
 
-                return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a></span>';
+                var obsoleteIndicator = '';
+
+                if (destination === 'models' && (value.obsolete === true || value.obsolete === 1 || value.obsolete === '1')) {
+                    obsoleteIndicator = ' <span class="label label-warning" data-tooltip="true" title="{{ trans('admin/models/general.obsolete_asset_tooltip') }}">{{ trans('admin/models/general.obsolete_indicator') }}</span>';
+                }
+
+                return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a>' + obsoleteIndicator + '</span>';
             }
         };
     }

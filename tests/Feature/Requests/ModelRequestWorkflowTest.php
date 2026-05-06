@@ -242,6 +242,44 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.assigned_to.id', $requester->id);
     }
 
+    public function test_request_filtered_assets_api_keeps_obsolete_model_assets_visible_and_flagged()
+    {
+        $requester = User::factory()->viewAssets()->create();
+        $coordinator = User::factory()->viewAssets()->create();
+        $company = Company::factory()->create(['name' => 'Casablanca Site']);
+        $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => Category::factory()->forAssets()->create()->id,
+            'name' => 'Obsolete request workspace model',
+            'obsolete' => true,
+        ]);
+
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+        ]);
+
+        $asset = $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $asset->project_id = $project->id;
+        $asset->save();
+        $asset->checkOut($requester, $coordinator, now(), null, 'Allocated in request workspace');
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.index', [
+                'request_id' => $request->id,
+                'status' => 'RTD',
+                'model_id' => $model->id,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $asset->id)
+            ->assertJsonPath('rows.0.model.obsolete', true)
+            ->assertJsonPath('rows.0.assigned_to.id', $requester->id);
+    }
+
     public function test_request_detail_hides_submit_controls_in_simplified_flow()
     {
         $requester = User::factory()->viewAssets()->create();

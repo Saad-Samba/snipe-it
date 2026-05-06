@@ -83,6 +83,23 @@ class AssetIndexTest extends TestCase
             ->assertResponseDoesNotContainInRows($archivedAsset, 'asset_tag');
     }
 
+    public function testAssetApiIndexReturnsModelObsoleteFlag()
+    {
+        $asset = Asset::factory()->create([
+            'name' => 'Obsolete model asset',
+            'model_id' => AssetModel::factory()->create(['obsolete' => true])->id,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.assets.index', ['search' => 'Obsolete model asset']))
+            ->assertOk()
+            ->assertJson(fn(AssertableJson $json) => $json
+                ->where('rows.0.id', $asset->id)
+                ->where('rows.0.model.name', $asset->model->name)
+                ->where('rows.0.model.obsolete', true)
+                ->etc());
+    }
+
     public function testAssetApiIndexReturnsDisplayUpcomingAuditsDue()
     {
         Asset::factory()->count(3)->create(['next_audit_date' => Carbon::now()->format('Y-m-d')]);
