@@ -388,31 +388,50 @@
                 .addClass('dropdown-toggle')
                 .html('<i class="' + iconClass + '" aria-hidden="true"></i> <span class="caret"></span><span class="sr-only">' + button.attr('title') + '</span>');
 
-            var menu = $('<ul class="dropdown-menu dropdown-menu-right"></ul>');
+            var menu = $('<ul class="dropdown-menu dropdown-menu-right" style="min-width:56px;"></ul>');
             var options = [
                 {
                     key: 'all',
                     url: button.attr('data-filter-all-url'),
                     label: button.attr('data-filter-all-label'),
+                    icon: 'fa-solid fa-filter',
                 },
                 {
                     key: 'obsolete',
                     url: button.attr('data-filter-obsolete-url'),
                     label: button.attr('data-filter-obsolete-label'),
+                    icon: 'fa-solid fa-triangle-exclamation',
                 },
                 {
                     key: 'active',
                     url: button.attr('data-filter-active-url'),
                     label: button.attr('data-filter-active-label'),
+                    icon: 'fa-solid fa-circle-check',
                 }
             ];
 
             options.forEach(function (option) {
-                var activeIcon = option.key === state ? ' <i class="fa fa-check text-success" aria-hidden="true"></i>' : '';
-                menu.append('<li' + (option.key === state ? ' class="active"' : '') + '><a href="' + option.url + '">' + option.label + activeIcon + '</a></li>');
+                var itemClass = option.key === state ? ' class="active"' : '';
+                var iconColorClass = option.key === 'obsolete'
+                    ? 'text-warning'
+                    : (option.key === 'active' ? 'text-success' : '');
+                var activeBackground = option.key === state ? ' style="background-color:#337ab7;color:#fff;"' : '';
+
+                menu.append(
+                    '<li' + itemClass + '>'
+                    + '<a href="' + option.url + '" data-tooltip="true" title="' + option.label + '"'
+                    + ' style="display:flex;align-items:center;justify-content:center;padding:10px 14px;text-align:center;"'
+                    + activeBackground + '>'
+                    + '<i class="' + option.icon + ' ' + iconColorClass + '" aria-hidden="true"></i>'
+                    + '<span class="sr-only">' + option.label + '</span>'
+                    + '</a></li>'
+                );
             });
 
             button.after(menu);
+            menu.find('[data-tooltip="true"]').tooltip({container: 'body', title: function () {
+                return $(this).attr('title');
+            }});
         });
     }
 
