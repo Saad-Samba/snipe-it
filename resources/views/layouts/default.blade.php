@@ -88,9 +88,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
             padding-top: 14px;
         }
 
-        .sidebar-subitem > a {
-            padding-left: 34px !important;
-        }
     </style>
 
 
@@ -514,20 +511,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                                     <span class="badge badge-secondary">{{ $status_nav->asset_count }}</span></a></li>
                                         @endforeach
                                     @endif
-                                    <li id="deployed-sidenav-option" class="sidebar-subitem{!! (Request::query('status') == 'Deployed' ? ' active' : '') !!}">
-                                        <a href="{{ url('hardware?status=Deployed') }}">
-                                            <x-icon type="circle" class="text-blue fa-fw" />
-                                            {{ trans('general.assigned') }}
-                                            <span class="badge">{{ (isset($total_deployed_sidebar)) ? $total_deployed_sidebar : '' }}</span>
-                                        </a>
-                                    </li>
-                                    <li id="rtd-sidenav-option" class="sidebar-subitem{!! (Request::query('status') == 'RTD' ? ' active' : '') !!}">
-                                        <a href="{{ url('hardware?status=RTD') }}">
-                                            <x-icon type="circle" class="text-green fa-fw" />
-                                            {{ trans('general.unassigned') }}
-                                            <span class="badge">{{ (isset($total_rtd_sidebar)) ? $total_rtd_sidebar : '' }}</span>
-                                        </a>
-                                    </li>
 
                                     <li class="sidebar-section-label">
                                         <span>{{ trans('general.flags') }}</span>

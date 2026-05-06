@@ -335,6 +335,14 @@ class AssetsController extends Controller
             });
         }
 
+        if ($request->filled('assignment')) {
+            if ($request->input('assignment') === 'assigned') {
+                $assets->where('assets.assigned_to', '>', 0);
+            } elseif ($request->input('assignment') === 'unassigned') {
+                $assets->whereNull('assets.assigned_to');
+            }
+        }
+
         if ($request->filled('model_id')) {
             // If model_id is already an array, just use it as-is
             if (is_array($request->input('model_id'))) {

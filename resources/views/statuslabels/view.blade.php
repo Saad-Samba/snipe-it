@@ -1,7 +1,13 @@
 @extends('layouts/default')
 {{-- Page title --}}
 @section('title')
-    {{ $statuslabel->name }} {{ trans('general.assets') }}
+    {{ $statuslabel->name }}
+    @if (request('assignment') === 'assigned')
+        - {{ trans('general.assigned') }}
+    @elseif (request('assignment') === 'unassigned')
+        - {{ trans('general.unassigned') }}
+    @endif
+    {{ trans('general.assets') }}
     @parent
 @stop
 
@@ -27,7 +33,7 @@
                                         data-show-columns-search="true"
                                         data-buttons="assetButtons"
                                         class="table table-striped snipe-table"
-                                        data-url="{{route('api.assets.index', ['status_id' => $statuslabel->id]) }}"
+                                        data-url="{{route('api.assets.index', ['status_id' => $statuslabel->id, 'assignment' => request('assignment')]) }}"
                                         data-export-options='{
                               "fileName": "export-assets-{{ str_slug($statuslabel->name) }}-assets-{{ date('Y-m-d') }}",
                               "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]

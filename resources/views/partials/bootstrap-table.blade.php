@@ -356,6 +356,40 @@
         };
     }
 
+    function assignedOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'assigned';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-user-check',
+            event() {
+                window.location.href = isActive ? routes.all : routes.assigned;
+            },
+            attributes: {
+                title: isActive ? labels.assigned : labels.all,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-primary' : '',
+            }
+        };
+    }
+
+    function unassignedOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'unassigned';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-box-open',
+            event() {
+                window.location.href = isActive ? routes.all : routes.unassigned;
+            },
+            attributes: {
+                title: isActive ? labels.unassigned : labels.inactive,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-success' : '',
+            }
+        };
+    }
+
     // Asset table buttons
     window.assetButtons = () => ({
         @can('create', \App\Models\Asset::class)
@@ -402,7 +436,13 @@
 
         @php
             $assetQuery = request()->query();
-            if (request()->routeIs('statuslabels.show') && request()->route('statuslabel')) {
+            $isStatusLabelPage = request()->routeIs('statuslabels.show') && request()->route('statuslabel');
+            $isDeployableStatusPage = request()->routeIs('statuslabels.show')
+                && request()->route('statuslabel')
+                && request()->route('statuslabel')->deployable == 1
+                && request()->route('statuslabel')->pending == 0
+                && request()->route('statuslabel')->archived == 0;
+            if ($isStatusLabelPage) {
                 $assetQuery['status_id'] = request()->route('statuslabel')->id;
             }
             $assetFilter = $assetQuery['model_obsolete'] ?? null;
@@ -412,6 +452,15 @@
             $assetObsoleteUrl = route('hardware.index', array_merge($assetBaseQuery, ['model_obsolete' => 1]));
             $assetActiveUrl = route('hardware.index', array_merge($assetBaseQuery, ['model_obsolete' => 0]));
             $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
+
+            $assignmentFilter = request()->query('assignment');
+            $assetAssignmentState = $assignmentFilter === 'assigned' ? 'assigned' : ($assignmentFilter === 'unassigned' ? 'unassigned' : 'all');
+            if ($isDeployableStatusPage) {
+                $assetAllUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id]);
+                $assetAssignedUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'assignment' => 'assigned']);
+                $assetUnassignedUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'assignment' => 'unassigned']);
+            }
+
             $assetDeletedBaseQuery = $assetQuery;
             unset($assetDeletedBaseQuery['status']);
             $assetDeletedToggleUrl = request()->input('status') == 'Deleted'
@@ -430,6 +479,36 @@
 
             }
         },
+        @if ($isDeployableStatusPage)
+        btnShowObsoleteOnly: assignedOnlyButtonConfig(
+            '{{ $assetAssignmentState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl) !!},
+                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl) !!}
+            },
+            {
+                all: '{{ trans('general.filter_all_to_assigned') }}',
+                assigned: '{{ trans('general.filter_assigned_to_all') }}',
+                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
+                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
+            }
+        ),
+        btnShowActiveOnly: unassignedOnlyButtonConfig(
+            '{{ $assetAssignmentState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl) !!},
+                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl) !!}
+            },
+            {
+                all: '{{ trans('general.filter_all_to_assigned') }}',
+                assigned: '{{ trans('general.filter_assigned_to_all') }}',
+                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
+                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
+            }
+        ),
+        @elseif (! $isStatusLabelPage)
         btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
             '{{ $assetState }}',
             {
@@ -464,6 +543,7 @@
                 optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
             }
         ),
+        @endif
     });
 
     @can('create', \App\Models\Location::class)
