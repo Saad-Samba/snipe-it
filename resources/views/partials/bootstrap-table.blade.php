@@ -422,7 +422,7 @@
             text: '{{ (request()->input('status') == "Deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
             event () {
-                window.location.href = '{{ $assetDeletedToggleUrl }}';
+                window.location.href = {!! \Illuminate\Support\Js::from($assetDeletedToggleUrl) !!};
             },
             attributes: {
                 class: '{{ (request()->input('status') == "Deleted") ? ' btn-danger' : '' }}',
@@ -433,9 +433,9 @@
         btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
             '{{ $assetState }}',
             {
-                all: '{{ $assetAllUrl }}',
-                obsolete: '{{ $assetObsoleteUrl }}',
-                active: '{{ $assetActiveUrl }}'
+                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($assetObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($assetActiveUrl) !!}
             },
             {
                 all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
@@ -450,9 +450,9 @@
         btnShowActiveOnly: activeOnlyButtonConfig(
             '{{ $assetState }}',
             {
-                all: '{{ $assetAllUrl }}',
-                obsolete: '{{ $assetObsoleteUrl }}',
-                active: '{{ $assetActiveUrl }}'
+                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($assetObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($assetActiveUrl) !!}
             },
             {
                 all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
@@ -829,7 +829,7 @@
             text: '{{ (request()->input('status') == "deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
             event () {
-                window.location.href = '{{ $modelDeletedToggleUrl }}';
+                window.location.href = {!! \Illuminate\Support\Js::from($modelDeletedToggleUrl) !!};
             },
             attributes: {
                 class: '{{ (request()->input('status') == "deleted") ? ' btn-danger' : '' }}',
@@ -840,9 +840,9 @@
         btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
             '{{ $modelState }}',
             {
-                all: '{{ $modelAllUrl }}',
-                obsolete: '{{ $modelObsoleteUrl }}',
-                active: '{{ $modelActiveUrl }}'
+                all: {!! \Illuminate\Support\Js::from($modelAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($modelObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($modelActiveUrl) !!}
             },
             {
                 all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
@@ -857,9 +857,9 @@
         btnShowActiveOnly: activeOnlyButtonConfig(
             '{{ $modelState }}',
             {
-                all: '{{ $modelAllUrl }}',
-                obsolete: '{{ $modelObsoleteUrl }}',
-                active: '{{ $modelActiveUrl }}'
+                all: {!! \Illuminate\Support\Js::from($modelAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($modelObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($modelActiveUrl) !!}
             },
             {
                 all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
