@@ -448,25 +448,28 @@
                 $assetQuery['status_id'] = request()->route('statuslabel')->id;
             }
             $assetFilter = $assetQuery['model_obsolete'] ?? null;
-            $assetBaseQuery = $assetQuery;
-            unset($assetBaseQuery['model_obsolete']);
-            $assetAllUrl = route('hardware.index', $assetBaseQuery);
-            $assetObsoleteUrl = route('hardware.index', array_merge($assetBaseQuery, ['model_obsolete' => 1]));
-            $assetActiveUrl = route('hardware.index', array_merge($assetBaseQuery, ['model_obsolete' => 0]));
+            $assetObsoleteBaseQuery = $assetQuery;
+            unset($assetObsoleteBaseQuery['model_obsolete']);
+            $assetObsoleteAllUrl = route('hardware.index', $assetObsoleteBaseQuery);
+            $assetObsoleteUrl = route('hardware.index', array_merge($assetObsoleteBaseQuery, ['model_obsolete' => 1]));
+            $assetActiveUrl = route('hardware.index', array_merge($assetObsoleteBaseQuery, ['model_obsolete' => 0]));
             $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
 
             $assignmentFilter = request()->query('assignment');
             $assetAssignmentBaseQuery = $assetQuery;
             unset($assetAssignmentBaseQuery['assignment']);
+            $assetAssignmentAllUrl = route('hardware.index', $assetAssignmentBaseQuery);
             $assetAssignmentState = $assignmentFilter === 'assigned' ? 'assigned' : ($assignmentFilter === 'unassigned' ? 'unassigned' : 'all');
             if ($isDeployableStatusPage) {
-                $assetAllUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetAssignmentBaseQuery));
-                $assetObsoleteUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetAssignmentBaseQuery, ['model_obsolete' => 1]));
-                $assetActiveUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetAssignmentBaseQuery, ['model_obsolete' => 0]));
-                $assetAssignedUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetBaseQuery, ['assignment' => 'assigned']));
-                $assetUnassignedUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetBaseQuery, ['assignment' => 'unassigned']));
+                $statusLabelRouteParams = ['statuslabel' => request()->route('statuslabel')->id];
+                $assetObsoleteAllUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetObsoleteBaseQuery));
+                $assetObsoleteUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetObsoleteBaseQuery, ['model_obsolete' => 1]));
+                $assetActiveUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetObsoleteBaseQuery, ['model_obsolete' => 0]));
+                $assetAssignmentAllUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetAssignmentBaseQuery));
+                $assetAssignedUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetAssignmentBaseQuery, ['assignment' => 'assigned']));
+                $assetUnassignedUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetAssignmentBaseQuery, ['assignment' => 'unassigned']));
             } elseif ($isStatusLabelPage) {
-                $assetAllUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id]);
+                $assetObsoleteAllUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id]);
                 $assetObsoleteUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'model_obsolete' => 1]);
                 $assetActiveUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'model_obsolete' => 0]);
                 $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
@@ -493,7 +496,7 @@
         btnFilterObsoleteModels: obsoleteOnlyButtonConfig(
             '{{ $assetState }}',
             {
-                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                all: {!! \Illuminate\Support\Js::from($assetObsoleteAllUrl) !!},
                 obsolete: {!! \Illuminate\Support\Js::from($assetObsoleteUrl) !!},
                 active: {!! \Illuminate\Support\Js::from($assetActiveUrl) !!}
             },
@@ -510,7 +513,7 @@
         btnFilterCurrentModels: activeOnlyButtonConfig(
             '{{ $assetState }}',
             {
-                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                all: {!! \Illuminate\Support\Js::from($assetObsoleteAllUrl) !!},
                 obsolete: {!! \Illuminate\Support\Js::from($assetObsoleteUrl) !!},
                 active: {!! \Illuminate\Support\Js::from($assetActiveUrl) !!}
             },
@@ -528,7 +531,7 @@
         btnShowAssignedOnly: assignedOnlyButtonConfig(
             '{{ $assetAssignmentState }}',
             {
-                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                all: {!! \Illuminate\Support\Js::from($assetAssignmentAllUrl) !!},
                 assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'assigned']))) !!},
                 unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'unassigned']))) !!}
             },
@@ -542,7 +545,7 @@
         btnShowUnassignedOnly: unassignedOnlyButtonConfig(
             '{{ $assetAssignmentState }}',
             {
-                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                all: {!! \Illuminate\Support\Js::from($assetAssignmentAllUrl) !!},
                 assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'assigned']))) !!},
                 unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'unassigned']))) !!}
             },

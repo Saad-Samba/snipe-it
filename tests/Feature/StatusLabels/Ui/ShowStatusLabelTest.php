@@ -51,4 +51,5 @@ class ShowStatusLabelTest extends TestCase
             ->assertSee('assignment=assigned', false)
             ->assertSee('model_obsolete=1', false);
     }
+
 }
