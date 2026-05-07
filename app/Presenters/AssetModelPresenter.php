@@ -211,7 +211,7 @@ class AssetModelPresenter extends Presenter
             'searchable' => false,
             'sortable' => false,
             'switchable' => false,
-            'title' => trans('button.request'),
+            'title' => 'Booking',
             'formatter' => 'modelRequestActionsFormatter',
             'printIgnore' => true,
         ];
