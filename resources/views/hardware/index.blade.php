@@ -77,6 +77,7 @@
                 class="table table-striped snipe-table"
                 data-url="{{ route('api.assets.index',
                     array('status' => e(Request::get('status')),
+                    'assignment'=>e(Request::get('assignment')),
                     'model_obsolete'=>e(Request::get('model_obsolete')),
                     'order_number'=>e(strval(Request::get('order_number'))),
                     'company_id'=>e(Request::get('company_id')),

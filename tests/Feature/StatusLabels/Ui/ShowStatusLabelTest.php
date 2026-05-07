@@ -34,4 +34,19 @@ class ShowStatusLabelTest extends TestCase
             ->assertSee('assignment=assigned', false)
             ->assertSee('assignment=unassigned', false);
     }
+
+    public function testDeployableStatusPagePropagatesStackedAssignmentAndObsoleteFiltersToApiUrl()
+    {
+        $statuslabel = Statuslabel::factory()->readyToDeploy()->create();
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('statuslabels.show', [
+                'statuslabel' => $statuslabel,
+                'assignment' => 'assigned',
+                'model_obsolete' => 1,
+            ]))
+            ->assertOk()
+            ->assertSee('assignment=assigned', false)
+            ->assertSee('model_obsolete=1', false);
+    }
 }

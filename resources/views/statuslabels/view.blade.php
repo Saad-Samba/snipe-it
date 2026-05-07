@@ -33,7 +33,7 @@
                                         data-show-columns-search="true"
                                         data-buttons="assetButtons"
                                         class="table table-striped snipe-table"
-                                        data-url="{{route('api.assets.index', ['status_id' => $statuslabel->id, 'assignment' => request('assignment')]) }}"
+                                        data-url="{{route('api.assets.index', ['status_id' => $statuslabel->id, 'assignment' => request('assignment'), 'model_obsolete' => request('model_obsolete')]) }}"
                                         data-export-options='{
                               "fileName": "export-assets-{{ str_slug($statuslabel->name) }}-assets-{{ date('Y-m-d') }}",
                               "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]

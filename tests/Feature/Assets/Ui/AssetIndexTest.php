@@ -38,4 +38,13 @@ class AssetIndexTest extends TestCase
             ->assertDontSeeText('BYOD')
             ->assertDontSeeText('Archived');
     }
+
+    public function testAssetIndexPropagatesStackedAssignmentAndObsoleteFiltersToApiUrl()
+    {
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('hardware.index', ['assignment' => 'assigned', 'model_obsolete' => 1]))
+            ->assertOk()
+            ->assertSee('assignment=assigned', false)
+            ->assertSee('model_obsolete=1', false);
+    }
 }
