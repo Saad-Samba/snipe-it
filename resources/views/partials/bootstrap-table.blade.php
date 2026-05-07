@@ -1349,6 +1349,72 @@
 
     }
 
+    var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name'])->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values());
+
+    function buildModelRequestProjectOptions(selectedProjectId) {
+        var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
+
+        modelRequestProjects.forEach(function(project) {
+            var selected = String(project.id) === String(selectedProjectId) ? ' selected' : '';
+            options.push('<option value=\"' + project.id + '\"' + selected + '>' + project.name + '</option>');
+        });
+
+        return options.join('');
+    }
+
+    function ensureModelRequestModal() {
+        if (document.getElementById('model-request-modal')) {
+            return;
+        }
+
+        var modalHtml = ''
+            + '<div class="modal fade" id="model-request-modal" tabindex="-1" role="dialog" aria-hidden="true">'
+            + '  <div class="modal-dialog" role="document">'
+            + '    <div class="modal-content">'
+            + '      <form id="model-request-modal-form" method="POST">'
+            + '        @csrf'
+            + '        <div class="modal-header">'
+            + '          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+            + '          <h4 class="modal-title" id="model-request-modal-title">{{ trans('general.request_item') }}</h4>'
+            + '        </div>'
+            + '        <div class="modal-body">'
+            + '          <input type="hidden" name="request-action" id="model-request-modal-action" value="create">'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-project">{{ trans('general.project') }}</label>'
+            + '            <select name="project_id" id="model-request-modal-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
+            + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-quantity">{{ trans('general.qty') }}</label>'
+            + '            <input type="number" min="1" name="request-quantity" id="model-request-modal-quantity" class="form-control" required>'
+            + '          </div>'
+            + '        </div>'
+            + '        <div class="modal-footer">'
+            + '          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>'
+            + '          <button type="submit" class="btn btn-primary" id="model-request-modal-submit">{{ trans('button.request') }}</button>'
+            + '        </div>'
+            + '      </form>'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+
+        $('body').append(modalHtml);
+    }
+
+    function openModelRequestModal(options) {
+        ensureModelRequestModal();
+
+        $('#model-request-modal-form').attr('action', options.requestUrl);
+        $('#model-request-modal-title').text(options.title);
+        $('#model-request-modal-action').val(options.action);
+        $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
+        $('#model-request-modal-project').val(String(options.projectId || ''));
+        $('#model-request-modal-quantity')
+            .attr('max', options.maxQuantity)
+            .val(options.quantity);
+        $('#model-request-modal-submit').text(options.submitLabel);
+        $('#model-request-modal').modal('show');
+    }
+
     function modelRequestActionsFormatter(value, row) {
         var requestUrl = '{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
         var requestsUrl = '{{ route('account.requested') }}?model_id=' + row.id;
@@ -1356,18 +1422,6 @@
         var requestedProjectId = row.requested_project_id || '';
         var quantityLabel = '{{ trans('general.qty') }}';
         var actionBarId = 'model-request-actions-' + row.id;
-        var editStateId = 'model-request-edit-' + row.id;
-        var requestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name'])->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values());
-        var buildProjectOptions = function(selectedProjectId) {
-            var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
-
-            requestProjects.forEach(function(project) {
-                var selected = String(project.id) === String(selectedProjectId) ? ' selected' : '';
-                options.push('<option value=\"' + project.id + '\"' + selected + '>' + project.name + '</option>');
-            });
-
-            return options.join('');
-        };
 
         if ((row.available_actions) && (row.available_actions.update_request === true)) {
             return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:170px;">'
@@ -1377,24 +1431,19 @@
                 + '</div>'
                 + '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:0;flex-wrap:wrap;font-size:12px;">'
                 + '<a href="' + requestsUrl + '" style="margin-right:8px;">View requests</a>'
-                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;margin-right:8px;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'flex\'; document.getElementById(\'' + actionBarId + '\').style.display = \'none\';" data-tooltip="true" title="{{ trans('general.update') }}">Edit</button>'
+                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;margin-right:8px;" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', action: \'update\', projectId: \'' + requestedProjectId + '\', quantity: ' + requestedQuantity + ', maxQuantity: ' + row.remaining + ', title: \'{{ trans('general.update') }}\', submitLabel: \'{{ trans('general.update') }}\' });" data-tooltip="true" title="{{ trans('general.update') }}">Edit</button>'
                 + '<form action="' + requestUrl + '" method="POST" style="margin:0;">'
                 + '@csrf'
                 + '<input type="hidden" name="request-action" value="cancel">'
                 + '<button class="btn btn-link btn-sm text-danger" style="padding:0;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">{{ trans('button.cancel') }}</button>'
                 + '</form>'
                 + '</div>'
-                + '<form id="' + editStateId + '" action="' + requestUrl + '" method="POST" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;margin:0;">'
-                + '@csrf'
-                + '<input type="hidden" name="request-action" value="update">'
-                + '<select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions(requestedProjectId) + '</select>'
-                + '<input type="number" min="1" max="' + row.remaining + '" name="request-quantity" value="' + requestedQuantity + '" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}">'
-                + '<button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.update') }}">{{ trans('general.update') }}</button>'
-                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'none\'; document.getElementById(\'' + actionBarId + '\').style.display = \'flex\';">{{ trans('button.cancel') }}</button>'
-                + '</form>'
                 + '</div>';
         } else if ((row.available_actions) && (row.available_actions.request === true)) {
-            return '<form action="' + requestUrl + '" method="POST" style="display:flex;align-items:center;gap:6px;min-width:260px;flex-wrap:wrap;">@csrf<input type="hidden" name="request-action" value="create"><select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions('') + '</select><input type="number" min="1" max="' + row.remaining + '" name="request-quantity" value="1" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}"><button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}">{{ trans('button.request') }}</button></form>';
+            return '<div style="display:flex;align-items:center;gap:6px;min-width:118px;">'
+                + '<input type="number" min="1" max="' + row.remaining + '" id="model-request-qty-' + row.id + '" value="1" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}">'
+                + '<button type="button" class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', action: \'create\', projectId: \'\', quantity: document.getElementById(\'model-request-qty-' + row.id + '\').value || 1, maxQuantity: ' + row.remaining + ', title: \'{{ trans('general.request_item') }}\', submitLabel: \'{{ trans('button.request') }}\' });"><i class=\"fas fa-paper-plane\" aria-hidden=\"true\"></i><span class=\"sr-only\">{{ trans('button.request') }}</span></button>'
+                + '</div>';
         }
 
         return '';
