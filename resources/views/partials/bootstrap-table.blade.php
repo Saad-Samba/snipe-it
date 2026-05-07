@@ -77,8 +77,8 @@
                     'columns',
                     'btnAdd',
                     'btnShowDeleted',
-                    'btnShowObsoleteOnly',
-                    'btnShowActiveOnly',
+                    'btnFilterObsoleteModels',
+                    'btnFilterCurrentModels',
                     'btnShowAssignedOnly',
                     'btnShowUnassignedOnly',
                     'btnShowAdmins',
@@ -370,7 +370,7 @@
             attributes: {
                 title: isActive ? labels.assigned : labels.all,
                 'data-tooltip': 'true',
-                class: isActive ? 'btn-primary' : '',
+                class: isActive ? 'btn-info' : '',
             }
         };
     }
@@ -490,7 +490,7 @@
 
             }
         },
-        btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
+        btnFilterObsoleteModels: obsoleteOnlyButtonConfig(
             '{{ $assetState }}',
             {
                 all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
@@ -507,7 +507,7 @@
                 optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
             }
         ),
-        btnShowActiveOnly: activeOnlyButtonConfig(
+        btnFilterCurrentModels: activeOnlyButtonConfig(
             '{{ $assetState }}',
             {
                 all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
@@ -927,7 +927,7 @@
 
             }
         },
-        btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
+        btnFilterObsoleteModels: obsoleteOnlyButtonConfig(
             '{{ $modelState }}',
             {
                 all: {!! \Illuminate\Support\Js::from($modelAllUrl) !!},
@@ -944,7 +944,7 @@
                 optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
             }
         ),
-        btnShowActiveOnly: activeOnlyButtonConfig(
+        btnFilterCurrentModels: activeOnlyButtonConfig(
             '{{ $modelState }}',
             {
                 all: {!! \Illuminate\Support\Js::from($modelAllUrl) !!},
