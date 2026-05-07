@@ -46,6 +46,8 @@ class ShowStatusLabelTest extends TestCase
                 'model_obsolete' => 1,
             ]))
             ->assertOk()
+            ->assertSee(route('api.assets.index'), false)
+            ->assertSee('status_id='.$statuslabel->id, false)
             ->assertSee('assignment=assigned', false)
             ->assertSee('model_obsolete=1', false);
     }

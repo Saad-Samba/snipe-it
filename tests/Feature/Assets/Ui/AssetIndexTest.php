@@ -44,6 +44,7 @@ class AssetIndexTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('hardware.index', ['assignment' => 'assigned', 'model_obsolete' => 1]))
             ->assertOk()
+            ->assertSee(route('api.assets.index'), false)
             ->assertSee('assignment=assigned', false)
             ->assertSee('model_obsolete=1', false);
     }

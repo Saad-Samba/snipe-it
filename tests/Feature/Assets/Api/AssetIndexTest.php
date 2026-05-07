@@ -66,6 +66,57 @@ class AssetIndexTest extends TestCase
             ->assertResponseDoesNotContainInRows($obsoleteAsset, 'name');
     }
 
+    public function testAssetApiIndexCanStackStatusAssignmentAndModelObsoleteFilters()
+    {
+        $status = \App\Models\Statuslabel::factory()->readyToDeploy()->create();
+        $user = User::factory()->superuser()->create();
+        $assignee = User::factory()->create();
+
+        $matchingAsset = Asset::factory()->create([
+            'name' => 'Assigned obsolete matching asset',
+            'status_id' => $status->id,
+            'assigned_to' => $assignee->id,
+            'assigned_type' => User::class,
+            'model_id' => \App\Models\AssetModel::factory()->create(['obsolete' => true])->id,
+        ]);
+
+        $wrongAssignment = Asset::factory()->create([
+            'name' => 'Unassigned obsolete asset',
+            'status_id' => $status->id,
+            'assigned_to' => null,
+            'assigned_type' => null,
+            'model_id' => \App\Models\AssetModel::factory()->create(['obsolete' => true])->id,
+        ]);
+
+        $wrongObsolete = Asset::factory()->create([
+            'name' => 'Assigned current asset',
+            'status_id' => $status->id,
+            'assigned_to' => $assignee->id,
+            'assigned_type' => User::class,
+            'model_id' => \App\Models\AssetModel::factory()->create(['obsolete' => false])->id,
+        ]);
+
+        $wrongStatus = Asset::factory()->create([
+            'name' => 'Assigned obsolete wrong status asset',
+            'status_id' => \App\Models\Statuslabel::factory()->readyToDeploy()->create()->id,
+            'assigned_to' => $assignee->id,
+            'assigned_type' => User::class,
+            'model_id' => \App\Models\AssetModel::factory()->create(['obsolete' => true])->id,
+        ]);
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.assets.index', [
+                'status_id' => $status->id,
+                'assignment' => 'assigned',
+                'model_obsolete' => 1,
+            ]))
+            ->assertOk()
+            ->assertResponseContainsInRows($matchingAsset, 'name')
+            ->assertResponseDoesNotContainInRows($wrongAssignment, 'name')
+            ->assertResponseDoesNotContainInRows($wrongObsolete, 'name')
+            ->assertResponseDoesNotContainInRows($wrongStatus, 'name');
+    }
+
     public function testAssetApiIndexReturnsDisplayUpcomingAuditsDue()
     {
         Asset::factory()->count(3)->create(['next_audit_date' => Carbon::now()->format('Y-m-d')]);
