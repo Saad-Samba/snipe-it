@@ -15,7 +15,7 @@ class AssetIndexTest extends TestCase
             ->assertOk();
     }
 
-    public function testSidebarGroupsStatusLabelsOperationalStateAndFlags()
+    public function testSidebarGroupsStatusLabelsAndFlags()
     {
         $statusLabel = Statuslabel::factory()->readyToDeploy()->create([
             'name' => 'Ready to Deploy',
@@ -31,9 +31,8 @@ class AssetIndexTest extends TestCase
             ->assertOk()
             ->assertSeeText('Status Labels')
             ->assertSeeText('Flags')
-            ->assertDontSee('assignment=assigned', false)
-            ->assertDontSee('assignment=unassigned', false)
-            ->assertDontSeeText('Operational State')
+            ->assertSee('assignment=assigned', false)
+            ->assertSee('assignment=unassigned', false)
             ->assertDontSeeText('Pending')
             ->assertDontSeeText('Un-deployable')
             ->assertDontSeeText('BYOD')

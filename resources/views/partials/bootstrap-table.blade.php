@@ -79,6 +79,8 @@
                     'btnShowDeleted',
                     'btnShowObsoleteOnly',
                     'btnShowActiveOnly',
+                    'btnShowAssignedOnly',
+                    'btnShowUnassignedOnly',
                     'btnShowAdmins',
                     'btnShowExpiring',
                     'btnShowInactive',
@@ -454,11 +456,20 @@
             $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
 
             $assignmentFilter = request()->query('assignment');
+            $assetAssignmentBaseQuery = $assetQuery;
+            unset($assetAssignmentBaseQuery['assignment']);
             $assetAssignmentState = $assignmentFilter === 'assigned' ? 'assigned' : ($assignmentFilter === 'unassigned' ? 'unassigned' : 'all');
             if ($isDeployableStatusPage) {
+                $assetAllUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetAssignmentBaseQuery));
+                $assetObsoleteUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetAssignmentBaseQuery, ['model_obsolete' => 1]));
+                $assetActiveUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetAssignmentBaseQuery, ['model_obsolete' => 0]));
+                $assetAssignedUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetBaseQuery, ['assignment' => 'assigned']));
+                $assetUnassignedUrl = route('statuslabels.show', array_merge(['statuslabel' => request()->route('statuslabel')->id], $assetBaseQuery, ['assignment' => 'unassigned']));
+            } elseif ($isStatusLabelPage) {
                 $assetAllUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id]);
-                $assetAssignedUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'assignment' => 'assigned']);
-                $assetUnassignedUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'assignment' => 'unassigned']);
+                $assetObsoleteUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'model_obsolete' => 1]);
+                $assetActiveUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'model_obsolete' => 0]);
+                $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
             }
 
             $assetDeletedBaseQuery = $assetQuery;
@@ -479,36 +490,6 @@
 
             }
         },
-        @if ($isDeployableStatusPage)
-        btnShowObsoleteOnly: assignedOnlyButtonConfig(
-            '{{ $assetAssignmentState }}',
-            {
-                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
-                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl) !!},
-                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl) !!}
-            },
-            {
-                all: '{{ trans('general.filter_all_to_assigned') }}',
-                assigned: '{{ trans('general.filter_assigned_to_all') }}',
-                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
-                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
-            }
-        ),
-        btnShowActiveOnly: unassignedOnlyButtonConfig(
-            '{{ $assetAssignmentState }}',
-            {
-                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
-                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl) !!},
-                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl) !!}
-            },
-            {
-                all: '{{ trans('general.filter_all_to_assigned') }}',
-                assigned: '{{ trans('general.filter_assigned_to_all') }}',
-                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
-                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
-            }
-        ),
-        @elseif (! $isStatusLabelPage)
         btnShowObsoleteOnly: obsoleteOnlyButtonConfig(
             '{{ $assetState }}',
             {
@@ -541,6 +522,35 @@
                 optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
                 optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
                 optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+        @if ($isDeployableStatusPage || ! $isStatusLabelPage)
+        btnShowAssignedOnly: assignedOnlyButtonConfig(
+            '{{ $assetAssignmentState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'assigned']))) !!},
+                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'unassigned']))) !!}
+            },
+            {
+                all: '{{ trans('general.filter_all_to_assigned') }}',
+                assigned: '{{ trans('general.filter_assigned_to_all') }}',
+                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
+                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
+            }
+        ),
+        btnShowUnassignedOnly: unassignedOnlyButtonConfig(
+            '{{ $assetAssignmentState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetAllUrl) !!},
+                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'assigned']))) !!},
+                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'unassigned']))) !!}
+            },
+            {
+                all: '{{ trans('general.filter_all_to_assigned') }}',
+                assigned: '{{ trans('general.filter_assigned_to_all') }}',
+                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
+                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
             }
         ),
         @endif
