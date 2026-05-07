@@ -1424,14 +1424,9 @@
         var actionBarId = 'model-request-actions-' + row.id;
 
         if ((row.available_actions) && (row.available_actions.update_request === true)) {
-            return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:120px;">'
-                + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.2;">'
-                + '<span class="label label-info" style="font-size:11px;">{{ trans('general.requested') }}</span>'
-                + '<span class="label label-default" style="font-size:11px;">' + quantityLabel + ' ' + requestedQuantity + '</span>'
-                + '</div>'
-                + '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">'
-                + '<a href="' + requestsUrl + '" class="btn btn-default btn-sm" style="padding:4px 7px;" data-tooltip="true" title="View bookings">'
-                + '<i class="fas fa-eye" aria-hidden="true"></i><span class="sr-only">View bookings</span></a>'
+            return '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:96px;">'
+                + '<a href="' + requestsUrl + '" style="font-size:15px;font-weight:700;line-height:1;color:#2c7da0;text-decoration:none;min-width:14px;text-align:center;" data-tooltip="true" title="View bookings">'
+                + requestedQuantity + '<span class="sr-only">View bookings</span></a>'
                 + '<button type="button" class="btn btn-info btn-sm" style="padding:4px 7px;" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', action: \'update\', projectId: \'' + requestedProjectId + '\', quantity: ' + requestedQuantity + ', maxQuantity: ' + row.remaining + ', title: \'{{ trans('general.update') }}\', submitLabel: \'{{ trans('general.update') }}\' });" data-tooltip="true" title=\"{{ trans('general.update') }} booking\">'
                 + '<i class="fas fa-sliders-h" aria-hidden="true"></i><span class="sr-only">{{ trans('general.update') }}</span></button>'
                 + '<form action="' + requestUrl + '" method="POST" style="margin:0;display:inline-flex;">'
@@ -1440,7 +1435,6 @@
                 + '<button class="btn btn-danger btn-sm" style="padding:4px 7px;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">'
                 + '<i class="fas fa-times" aria-hidden="true"></i><span class="sr-only">{{ trans('button.cancel') }}</span></button>'
                 + '</form>'
-                + '</div>'
                 + '</div>';
         } else if ((row.available_actions) && (row.available_actions.request === true)) {
             return '<div style="display:flex;align-items:center;gap:6px;min-width:118px;">'
