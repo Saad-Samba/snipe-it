@@ -1424,22 +1424,22 @@
         var actionBarId = 'model-request-actions-' + row.id;
 
         if ((row.available_actions) && (row.available_actions.update_request === true)) {
-            return '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-width:96px;">'
-                + '<a href="' + requestsUrl + '" style="font-size:15px;font-weight:700;line-height:1;color:#2c7da0;text-decoration:none;min-width:14px;text-align:center;" data-tooltip="true" title="View bookings">'
+            return '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:118px;">'
+                + '<a href="' + requestsUrl + '" style="display:inline-flex;align-items:center;justify-content:center;width:72px;height:30px;padding:0 10px;border:1px solid #d2d6de;background:#f8fafc;color:#2c7da0;font-size:15px;font-weight:700;line-height:1;text-decoration:none;border-radius:2px;" data-tooltip="true" title="View bookings">'
                 + requestedQuantity + '<span class="sr-only">View bookings</span></a>'
-                + '<button type="button" class="btn btn-info btn-sm" style="padding:4px 7px;" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', action: \'update\', projectId: \'' + requestedProjectId + '\', quantity: ' + requestedQuantity + ', maxQuantity: ' + row.remaining + ', title: \'{{ trans('general.update') }}\', submitLabel: \'{{ trans('general.update') }}\' });" data-tooltip="true" title=\"{{ trans('general.update') }} booking\">'
+                + '<button type="button" class="btn btn-info btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', action: \'update\', projectId: \'' + requestedProjectId + '\', quantity: ' + requestedQuantity + ', maxQuantity: ' + row.remaining + ', title: \'{{ trans('general.update') }}\', submitLabel: \'{{ trans('general.update') }}\' });" data-tooltip="true" title=\"{{ trans('general.update') }} booking\">'
                 + '<i class="fas fa-sliders-h" aria-hidden="true"></i><span class="sr-only">{{ trans('general.update') }}</span></button>'
                 + '<form action="' + requestUrl + '" method="POST" style="margin:0;display:inline-flex;">'
                 + '@csrf'
                 + '<input type="hidden" name="request-action" value="cancel">'
-                + '<button class="btn btn-danger btn-sm" style="padding:4px 7px;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">'
+                + '<button class="btn btn-danger btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">'
                 + '<i class="fas fa-times" aria-hidden="true"></i><span class="sr-only">{{ trans('button.cancel') }}</span></button>'
                 + '</form>'
                 + '</div>';
         } else if ((row.available_actions) && (row.available_actions.request === true)) {
             return '<div style="display:flex;align-items:center;gap:6px;min-width:118px;">'
                 + '<input type="number" min="1" max="' + row.remaining + '" id="model-request-qty-' + row.id + '" value="1" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}">'
-                + '<button type="button" class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', action: \'create\', projectId: \'\', quantity: document.getElementById(\'model-request-qty-' + row.id + '\').value || 1, maxQuantity: ' + row.remaining + ', title: \'{{ trans('general.request_item') }}\', submitLabel: \'{{ trans('button.request') }}\' });"><i class=\"fas fa-paper-plane\" aria-hidden=\"true\"></i><span class=\"sr-only\">{{ trans('button.request') }}</span></button>'
+                + '<button type="button" class="btn btn-primary btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="{{ trans('general.request_item') }}" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', action: \'create\', projectId: \'\', quantity: document.getElementById(\'model-request-qty-' + row.id + '\').value || 1, maxQuantity: ' + row.remaining + ', title: \'{{ trans('general.request_item') }}\', submitLabel: \'{{ trans('button.request') }}\' });"><i class=\"fas fa-paper-plane\" aria-hidden=\"true\"></i><span class=\"sr-only\">{{ trans('button.request') }}</span></button>'
                 + '</div>';
         }
 
