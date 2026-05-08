@@ -309,12 +309,19 @@ class ViewAssetsController extends Controller
     public function getRequestedAssets(Request $request) : View
     {
         $modelId = $request->integer('model_id');
+        $projectId = $request->integer('project_id');
         $query = [];
         $filteredModel = null;
+        $filteredProject = null;
 
         if ($modelId) {
             $query['model_id'] = $modelId;
             $filteredModel = AssetModel::find($modelId);
+        }
+
+        if ($projectId) {
+            $query['project_id'] = $projectId;
+            $filteredProject = Project::find($projectId);
         }
 
         return view('account/requested', [
@@ -322,6 +329,7 @@ class ViewAssetsController extends Controller
             'dataUrl' => route('api.assets.requested', $query),
             'requestMode' => 'requester',
             'filteredModel' => $filteredModel,
+            'filteredProject' => $filteredProject,
         ]);
     }
 }

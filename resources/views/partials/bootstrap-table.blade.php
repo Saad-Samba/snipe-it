@@ -1498,6 +1498,14 @@
         return value;
     }
 
+    function requestProjectLinkFormatter(value, row) {
+        if (row && row.project_requests_url && value) {
+            return '<a href="' + row.project_requests_url + '">' + value + '</a>';
+        }
+
+        return value;
+    }
+
 
 
     var formatters = [

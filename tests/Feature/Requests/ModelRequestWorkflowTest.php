@@ -173,6 +173,72 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.name', 'Filtered Model');
     }
 
+    public function test_requested_assets_api_can_filter_by_project_name_from_advanced_search()
+    {
+        $requester = User::factory()->viewAssets()->create();
+        $matchingProject = Project::factory()->create(['name' => 'Alpha Expansion']);
+        $otherProject = Project::factory()->create(['name' => 'Beta Rollout']);
+        $model = AssetModel::factory()->create([
+            'category_id' => Category::factory()->forAssets()->create()->id,
+            'name' => 'Project Search Model',
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $matchingProject->id,
+            'quantity' => 1,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $otherProject->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested', ['project' => 'Alpha Expansion']))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.project', 'Alpha Expansion');
+    }
+
+    public function test_requested_assets_api_can_filter_to_single_project_by_id()
+    {
+        $requester = User::factory()->viewAssets()->create();
+        $matchingProject = Project::factory()->create(['name' => 'Project One']);
+        $otherProject = Project::factory()->create(['name' => 'Project Two']);
+        $model = AssetModel::factory()->create([
+            'category_id' => Category::factory()->forAssets()->create()->id,
+            'name' => 'Project Filter Model',
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $matchingProject->id,
+            'quantity' => 1,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $otherProject->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested', ['project_id' => $matchingProject->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.project', 'Project One');
+    }
+
     public function test_requester_can_open_request_detail_in_hardware_view()
     {
         $requester = User::factory()->viewAssets()->create();

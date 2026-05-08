@@ -22,6 +22,15 @@
                             <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
                         </div>
                     @endif
+                    @if (!empty($filteredProject))
+                        <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                            <span>
+                                Showing requests for project:
+                                <strong>{{ $filteredProject->name }}</strong>
+                            </span>
+                            <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+                        </div>
+                    @endif
 
                     <table
 
@@ -43,7 +52,7 @@
                             <th data-field="image" data-sortable="true" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
                             <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Model</th>
                             <th data-field="qty" data-sortable="true">{{ trans('general.qty') }}</th>
-                            <th data-field="project" data-sortable="true">{{ trans('general.project') }}</th>
+                            <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
                             <th data-field="booked_count" data-sortable="true">Booked</th>
                             <th data-field="status" data-sortable="true" data-formatter="requestStatusFormatter">Status</th>
                             <th data-field="request_date" data-sortable="true" data-formatter="dateDisplayFormatter"> {{ trans('general.requested_date') }}</th>

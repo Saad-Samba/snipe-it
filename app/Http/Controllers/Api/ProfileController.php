@@ -66,6 +66,17 @@ class ProfileController extends Controller
                 ->where('requestable_id', (int) $request->input('model_id'));
         }
 
+        if ($request->filled('project_id')) {
+            $checkoutRequests->where('project_id', (int) $request->input('project_id'));
+        }
+
+        if ($request->filled('project')) {
+            $projectSearch = trim((string) $request->input('project'));
+            $checkoutRequests->whereHas('project', function ($query) use ($projectSearch) {
+                $query->where('name', 'LIKE', '%'.$projectSearch.'%');
+            });
+        }
+
         $checkoutRequests = $checkoutRequests->get();
 
         $results = array();
@@ -96,6 +107,7 @@ class ProfileController extends Controller
                     'model_id' => $checkoutRequest->requestable_type === AssetModel::class ? (int) $checkoutRequest->requestable_id : null,
                     'type' => e($checkoutRequest->itemType()),
                     'qty' => (int) $checkoutRequest->quantity,
+                    'project_id' => $checkoutRequest->project_id ? (int) $checkoutRequest->project_id : null,
                     'project' => e(optional($checkoutRequest->project)->name),
                     'booked_count' => $bookedCount,
                     'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),
@@ -110,6 +122,9 @@ class ProfileController extends Controller
                         : null,
                     'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)
                         ? route('account.requested', ['model_id' => $checkoutRequest->requestable_id])
+                        : null,
+                    'project_requests_url' => $checkoutRequest->project_id
+                        ? route('account.requested', ['project_id' => $checkoutRequest->project_id])
                         : null,
                     'request_detail_url' => route('hardware.index', [
                         'request_id' => $checkoutRequest->id,
