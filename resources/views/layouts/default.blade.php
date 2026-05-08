@@ -859,7 +859,7 @@ dir="{{ Helper::determineLanguageDirection() }}">
                             </li>
                         @endcan
 
-                        @can('viewRequestable', \App\Models\Asset::class)
+                        @if (auth()->check() && auth()->user()->hasAccess('models.request'))
                             <li class="treeview{{ (request()->is('account/requested*')) ? ' active' : '' }}">
                                 <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
@@ -875,7 +875,7 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                     </li>
                                 </ul>
                             </li>
-                        @endcan
+                        @endif
 
 
                     </ul>

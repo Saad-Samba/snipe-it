@@ -308,6 +308,10 @@ class ViewAssetsController extends Controller
 
     public function getRequestedAssets(Request $request) : View
     {
+        if (! auth()->user()->hasAccess('models.request')) {
+            throw new AuthorizationException('You are not authorized to view submitted requests.');
+        }
+
         $modelId = $request->integer('model_id');
         $projectId = $request->integer('project_id');
         $query = [];

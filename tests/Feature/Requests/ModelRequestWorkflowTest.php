@@ -112,9 +112,27 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_submitted_requests_page_requires_models_request_permission()
+    {
+        $requester = User::factory()->create();
+
+        $this->actingAs($requester)
+            ->get(route('account.requested'))
+            ->assertForbidden();
+    }
+
+    public function test_submitted_requests_api_requires_models_request_permission()
+    {
+        $requester = User::factory()->create();
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested'))
+            ->assertForbidden();
+    }
+
     public function test_requested_assets_api_returns_project_and_booked_metadata_for_requester()
     {
-        $requester = User::factory()->viewAssets()->create();
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Request Tracking Project']);
         $model = AssetModel::factory()->create([
             'category_id' => Category::factory()->forAssets()->create()->id,
@@ -142,7 +160,7 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_requested_assets_api_can_filter_to_single_model()
     {
-        $requester = User::factory()->viewAssets()->create();
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $modelA = AssetModel::factory()->create([
             'category_id' => Category::factory()->forAssets()->create()->id,
             'name' => 'Filtered Model',
@@ -175,7 +193,7 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_requested_assets_api_can_filter_by_project_name_from_advanced_search()
     {
-        $requester = User::factory()->viewAssets()->create();
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $matchingProject = Project::factory()->create(['name' => 'Alpha Expansion']);
         $otherProject = Project::factory()->create(['name' => 'Beta Rollout']);
         $model = AssetModel::factory()->create([
@@ -208,7 +226,7 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_requested_assets_api_can_filter_to_single_project_by_id()
     {
-        $requester = User::factory()->viewAssets()->create();
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $matchingProject = Project::factory()->create(['name' => 'Project One']);
         $otherProject = Project::factory()->create(['name' => 'Project Two']);
         $model = AssetModel::factory()->create([
@@ -241,7 +259,7 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_requester_can_open_request_detail_in_hardware_view()
     {
-        $requester = User::factory()->viewAssets()->create();
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $company = Company::factory()->create(['name' => 'Casablanca Site']);
         $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
         $project = Project::factory()->create();
@@ -274,7 +292,7 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_request_filtered_assets_api_keeps_showing_project_booked_assets_for_the_request()
     {
-        $requester = User::factory()->viewAssets()->create();
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $coordinator = User::factory()->viewAssets()->create();
         $company = Company::factory()->create(['name' => 'Casablanca Site']);
         $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);

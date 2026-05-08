@@ -50,6 +50,10 @@ class ProfileController extends Controller
      */
     public function requestedAssets(Request $request) :  array
     {
+        if (! auth()->user()->hasAccess('models.request')) {
+            abort(403, 'You are not authorized to view submitted requests.');
+        }
+
         $checkoutRequests = CheckoutRequest::query()
             ->with([
                 'requestedItem',
