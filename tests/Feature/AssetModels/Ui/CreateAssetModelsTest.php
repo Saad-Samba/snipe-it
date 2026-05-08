@@ -26,6 +26,33 @@ class CreateAssetModelsTest extends TestCase
             ->assertOk();
     }
 
+    public function testAfmCannotAccessCreatePageWithoutManagedCategories()
+    {
+        $afm = User::factory()->createAssetModels()->create();
+
+        $this->actingAs($afm)
+            ->get(route('models.create'))
+            ->assertForbidden();
+    }
+
+    public function testAfmCreatePageOnlyShowsManagedCategories()
+    {
+        $afm = User::factory()->createAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Managed Alpha Category',
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Unmanaged Beta Category',
+        ]);
+
+        $response = $this->actingAs($afm)->get(route('models.create'));
+
+        $response->assertOk();
+        $response->assertSee('Managed Alpha Category');
+        $response->assertDontSee('Unmanaged Beta Category');
+    }
+
     public function testUserCanCreateAssetModels()
     {
         $this->assertFalse(AssetModel::where('name', 'Test Model')->exists());
@@ -41,6 +68,45 @@ class CreateAssetModelsTest extends TestCase
 
         $this->assertTrue(AssetModel::where('name', 'Test Model')->exists());
         $this->assertTrue(AssetModel::where('name', 'Test Model')->sole()->obsolete);
+    }
+
+    public function testAfmCanCreateAssetModelInManagedCategory()
+    {
+        $afm = User::factory()->viewAssetModels()->createAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+
+        $this->actingAs($afm)
+            ->from(route('models.create'))
+            ->post(route('models.store'), [
+                'name' => 'Managed AFM Model',
+                'category_id' => $managedCategory->id,
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertTrue(AssetModel::where('name', 'Managed AFM Model')->exists());
+    }
+
+    public function testAfmCannotCreateAssetModelInUnmanagedCategory()
+    {
+        $afm = User::factory()->viewAssetModels()->createAssetModels()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create();
+
+        $response = $this->actingAs($afm)
+            ->from(route('models.create'))
+            ->post(route('models.store'), [
+                'name' => 'Unmanaged AFM Model',
+                'category_id' => $unmanagedCategory->id,
+            ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('models.create'));
+        $response->assertSessionHasErrors(['category_id']);
+        $this->assertFalse(AssetModel::where('name', 'Unmanaged AFM Model')->exists());
     }
 
     public function testUserCannotUseAccessoryCategoryTypeAsAssetModelCategoryType()

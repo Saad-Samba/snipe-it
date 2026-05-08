@@ -230,6 +230,10 @@ class ViewAssetsController extends Controller
             throw new AuthorizationException('You are not authorized to request models.');
         }
 
+        if ($fullItemType == AssetModel::class) {
+            $this->authorize('view', $item);
+        }
+
         if (!$isCancelRequest && $fullItemType == AssetModel::class) {
             $remaining = $item->availableAssets()->count();
 

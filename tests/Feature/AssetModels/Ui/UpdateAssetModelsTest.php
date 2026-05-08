@@ -28,6 +28,78 @@ class UpdateAssetModelsTest extends TestCase
             ->assertOk();
     }
 
+    public function testAfmCanEditManagedAssetModel()
+    {
+        $afm = User::factory()->viewAssetModels()->editAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Managed Editable Model',
+            'category_id' => $managedCategory->id,
+        ]);
+
+        $this->actingAs($afm)
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => 'Managed Editable Model Updated',
+                'category_id' => $managedCategory->id,
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertTrue(AssetModel::where('name', 'Managed Editable Model Updated')->exists());
+    }
+
+    public function testAfmCannotEditUnmanagedAssetModel()
+    {
+        $afm = User::factory()->viewAssetModels()->editAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $unmanagedCategory->id,
+        ]);
+
+        $this->actingAs($afm)
+            ->get(route('models.edit', $model))
+            ->assertForbidden();
+
+        $response = $this->actingAs($afm)
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => 'Should Not Update',
+                'category_id' => $managedCategory->id,
+            ]);
+
+        $response->assertForbidden();
+        $this->assertFalse(AssetModel::where('name', 'Should Not Update')->exists());
+    }
+
+    public function testAfmEditFormOnlyShowsManagedCategories()
+    {
+        $afm = User::factory()->viewAssetModels()->editAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Managed Update Category',
+            'manager_id' => $afm->id,
+        ]);
+        $otherManagedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Second Managed Update Category',
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Unmanaged Update Category',
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $managedCategory->id,
+        ]);
+
+        $response = $this->actingAs($afm)->get(route('models.edit', $model));
+
+        $response->assertOk();
+        $response->assertSee('Managed Update Category');
+        $response->assertSee('Second Managed Update Category');
+        $response->assertDontSee('Unmanaged Update Category');
+    }
+
     public function testUserCanEditAssetModels()
     {
         $category = Category::factory()->forAssets()->create();

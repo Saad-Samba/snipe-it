@@ -9,6 +9,7 @@ use App\Models\Traits\Requestable;
 use App\Models\Traits\Searchable;
 use App\Presenters\AssetModelPresenter;
 use App\Presenters\Presentable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Gate;
@@ -353,6 +354,32 @@ class AssetModel extends SnipeModel
     public function scopeInCategory($query, array $categoryIdListing)
     {
         return $query->whereIn('category_id', $categoryIdListing);
+    }
+
+    public function scopeManagedBy(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->whereHas('category', function (Builder $categoryQuery) use ($user) {
+            $categoryQuery
+                ->where('categories.category_type', 'asset')
+                ->where('categories.manager_id', $user->id);
+        });
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return true;
+        }
+
+        $managerId = $this->relationLoaded('category')
+            ? $this->category?->manager_id
+            : $this->category()->value('manager_id');
+
+        return (int) $managerId === (int) $user->id;
     }
 
     public function scopeRequestableModels($query)

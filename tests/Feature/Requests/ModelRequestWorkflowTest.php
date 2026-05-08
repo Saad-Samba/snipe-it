@@ -22,7 +22,7 @@ class ModelRequestWorkflowTest extends TestCase
     {
         Notification::fake();
 
-        $requester = User::factory()->requestAssetModels()->create();
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
         $disciplineA = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
         $disciplineB = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
         $coordinatorA = User::factory()->create(['first_name' => 'Casablanca', 'last_name' => 'RAC']);
@@ -31,7 +31,7 @@ class ModelRequestWorkflowTest extends TestCase
         $companyB = Company::factory()->create(['name' => 'Rabat Site']);
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
 
         $this->createEligibleAsset($model, $companyA->id, $disciplineA->id);
@@ -90,11 +90,41 @@ class ModelRequestWorkflowTest extends TestCase
         $requester = User::factory()->create();
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
 
         $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
             'name' => 'Validation',
+            'created_by' => $requester->id,
+        ])->id);
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-quantity' => 1,
+                'project_id' => $project->id,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('checkout_requests', [
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+        ]);
+    }
+
+    public function test_model_request_requires_model_to_be_in_requesters_managed_category_scope()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $requester->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => Category::factory()->forAssets()->create()->id,
+        ]);
+
+        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+            'name' => 'Scoped Validation',
             'created_by' => $requester->id,
         ])->id);
 
@@ -135,7 +165,7 @@ class ModelRequestWorkflowTest extends TestCase
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Request Tracking Project']);
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'QA Routing Model',
         ]);
 
@@ -162,11 +192,11 @@ class ModelRequestWorkflowTest extends TestCase
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $modelA = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'Filtered Model',
         ]);
         $modelB = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'Other Model',
         ]);
 
@@ -197,7 +227,7 @@ class ModelRequestWorkflowTest extends TestCase
         $matchingProject = Project::factory()->create(['name' => 'Alpha Expansion']);
         $otherProject = Project::factory()->create(['name' => 'Beta Rollout']);
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'Project Search Model',
         ]);
 
@@ -230,7 +260,7 @@ class ModelRequestWorkflowTest extends TestCase
         $matchingProject = Project::factory()->create(['name' => 'Project One']);
         $otherProject = Project::factory()->create(['name' => 'Project Two']);
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'Project Filter Model',
         ]);
 
@@ -264,7 +294,7 @@ class ModelRequestWorkflowTest extends TestCase
         $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'Allocatable Model',
         ]);
 
@@ -298,7 +328,7 @@ class ModelRequestWorkflowTest extends TestCase
         $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'Request Workspace Model',
         ]);
 
@@ -333,7 +363,7 @@ class ModelRequestWorkflowTest extends TestCase
         $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'Scoped Allocatable Model',
         ]);
 
@@ -362,10 +392,10 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_model_request_cannot_exceed_remaining_stock()
     {
-        $requester = User::factory()->requestAssetModels()->create();
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
 
         $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
@@ -395,14 +425,14 @@ class ModelRequestWorkflowTest extends TestCase
     {
         Notification::fake();
 
-        $requester = User::factory()->requestAssetModels()->create();
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
         $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
         $company = Company::factory()->create(['name' => 'Casablanca Site']);
         $coordinator = User::factory()->create(['first_name' => 'Casablanca', 'last_name' => 'RAC']);
         $project = Project::factory()->create();
         $updatedProject = Project::factory()->create();
         $model = AssetModel::factory()->create([
-            'category_id' => Category::factory()->forAssets()->create()->id,
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
 
         $this->createEligibleAsset($model, $company->id, $discipline->id);
@@ -463,6 +493,13 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable' => 1,
             'assigned_to' => null,
             'assigned_type' => null,
+        ]);
+    }
+
+    private function managedAssetCategoryFor(User $user): Category
+    {
+        return Category::factory()->forAssets()->create([
+            'manager_id' => $user->id,
         ]);
     }
 }

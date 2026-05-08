@@ -84,10 +84,10 @@ class AssetModelsTransformer
         ];
 
         $permissions_array['available_actions'] = [
-            'update' => (Gate::allows('update', AssetModel::class) && ($assetmodel->deleted_at == '')),
-            'delete' => $assetmodel->isDeletable(),
+            'update' => (Gate::allows('update', $assetmodel) && ($assetmodel->deleted_at == '')),
+            'delete' => (Gate::allows('delete', $assetmodel) && $assetmodel->isDeletable()),
             'clone' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at == '')),
-            'restore' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at != '')),
+            'restore' => (Gate::allows('update', $assetmodel) && ($assetmodel->deleted_at != '')),
         ];
 
         $requestingUser = Auth::user();

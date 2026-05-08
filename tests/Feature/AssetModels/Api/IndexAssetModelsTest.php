@@ -46,6 +46,35 @@ class IndexAssetModelsTest extends TestCase
             ->assertJson(fn(AssertableJson $json) => $json->has('rows', 3)->etc());
     }
 
+    public function testAfmAssetModelIndexOnlyReturnsManagedCategoryModels()
+    {
+        $afm = User::factory()->viewAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $managedModel = AssetModel::factory()->create([
+            'name' => 'Managed API Model',
+            'category_id' => $managedCategory->id,
+        ]);
+        AssetModel::factory()->create([
+            'name' => 'Unmanaged API Model',
+        ]);
+
+        $this->actingAsForApi($afm)
+            ->getJson(
+                route('api.models.index', [
+                    'sort' => 'name',
+                    'order' => 'asc',
+                    'offset' => '0',
+                    'limit' => '20',
+                ]))
+            ->assertOk()
+            ->assertJson(fn(AssertableJson $json) => $json
+                ->where('total', 1)
+                ->where('rows.0.name', $managedModel->name)
+                ->etc());
+    }
+
     public function testAssetModelIndexReturnsObsoleteFlag()
     {
         AssetModel::factory()->create([
@@ -168,11 +197,16 @@ class IndexAssetModelsTest extends TestCase
     public function testAssetModelIndexExposesRequestActionsForAvailableModels()
     {
         $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $requester->id,
+        ]);
         $availableModel = AssetModel::factory()->create([
             'name' => 'Requestable Available Model',
+            'category_id' => $managedCategory->id,
         ]);
         $unavailableModel = AssetModel::factory()->create([
             'name' => 'Unavailable Model',
+            'category_id' => $managedCategory->id,
         ]);
 
         $deployableStatus = Statuslabel::factory()->rtd()->create();

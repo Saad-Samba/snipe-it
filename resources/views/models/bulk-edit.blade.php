@@ -54,7 +54,20 @@
                             @include ('partials.forms.edit.manufacturer-select', ['translated_name' => trans('general.manufacturer'), 'fieldname' => 'manufacturer_id'])
 
                             <!-- category -->
-                            @include ('partials.forms.edit.category-select', ['translated_name' => trans('admin/categories/general.category_name'), 'fieldname' => 'category_id', 'required' => 'true', 'category_type' => 'asset'])
+                            <div id="category_id" class="form-group{{ $errors->has('category_id') ? ' has-error' : '' }}">
+                                <label for="category_id" class="col-md-3 control-label">{{ trans('admin/categories/general.category_name') }}</label>
+                                <div class="col-md-7">
+                                    <select class="select2" name="category_id" id="category_id" style="width: 100%" aria-label="category_id">
+                                        <option value="NC" @selected(old('category_id', 'NC') === 'NC')>No Change</option>
+                                        @foreach ($availableCategories as $category)
+                                            <option value="{{ $category->id }}" @selected((string) old('category_id') === (string) $category->id)>
+                                                {{ $category->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    {!! $errors->first('category_id', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
+                                </div>
+                            </div>
 
                             <!-- custom fields -->
                             <div class="form-group {{ $errors->has('fieldset_id') ? ' has-error' : '' }}">
