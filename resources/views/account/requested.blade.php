@@ -31,14 +31,6 @@
                             <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
                         </div>
                     @endif
-                    <div id="request-advanced-filters-indicator" class="alert alert-warning" style="display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                        <span>
-                            Advanced filters active:
-                            <span id="request-advanced-filters-summary"></span>
-                        </span>
-                        <button type="button" id="request-advanced-filters-clear" class="btn btn-default btn-sm">Clear advanced filters</button>
-                    </div>
-
                     <table
 
                             data-cookie-id-table="userRequests"
@@ -80,9 +72,6 @@
     <script nonce="{{ csrf_token() }}">
         $(function () {
             var $table = $('#userRequests');
-            var $indicator = $('#request-advanced-filters-indicator');
-            var $summary = $('#request-advanced-filters-summary');
-            var $clear = $('#request-advanced-filters-clear');
 
             function getActiveAdvancedFilters() {
                 var bootstrapTableInstance = $table.data('bootstrap.table');
@@ -98,58 +87,36 @@
                 return activeFilters;
             }
 
-            function humanizeFilterName(key) {
-                var labels = {
-                    request_id: 'ID',
-                    image: '{{ trans('general.image') }}',
-                    name: 'Model',
-                    qty: '{{ trans('general.qty') }}',
-                    project: '{{ trans('general.project') }}',
-                    booked_count: 'Booked',
-                    status: 'Status',
-                    request_date: '{{ trans('general.requested_date') }}',
-                    updated_at: 'Updated',
-                };
-
-                return labels[key] || key;
+            function getAdvancedSearchButton() {
+                var $toolbar = $table.closest('.bootstrap-table').find('.fixed-table-toolbar');
+                return $toolbar.find('.fa-search-plus').closest('button');
             }
 
-            function renderAdvancedFilterIndicator() {
+            function renderAdvancedSearchState() {
                 var activeFilters = getActiveAdvancedFilters();
                 var keys = Object.keys(activeFilters);
+                var $button = getAdvancedSearchButton();
 
-                if (!keys.length) {
-                    $indicator.hide();
-                    $summary.empty();
+                if (!$button.length) {
                     return;
                 }
 
-                var badges = keys.map(function (key) {
-                    return '<span class="label label-default" style="margin-right:6px;">' + humanizeFilterName(key) + ': ' + $('<div>').text(activeFilters[key]).html() + '</span>';
-                });
+                $button.toggleClass('btn-warning', keys.length > 0);
+                $button.toggleClass('btn-primary', keys.length === 0);
 
-                $summary.html(badges.join(' '));
-                $indicator.css('display', 'flex');
+                if (keys.length > 0) {
+                    $button.attr('title', 'Advanced search active');
+                } else {
+                    $button.attr('title', 'Advanced search');
+                }
+
+                if ($button.data('bs.tooltip')) {
+                    $button.tooltip('fixTitle');
+                }
             }
 
-            $table.on('load-success.bs.table column-advanced-search.bs.table', renderAdvancedFilterIndicator);
-
-            $clear.on('click', function () {
-                var bootstrapTableInstance = $table.data('bootstrap.table');
-
-                if (!bootstrapTableInstance) {
-                    return;
-                }
-
-                bootstrapTableInstance.filterColumnsPartial = {};
-                $('#avdSearchModal_userRequests').find('input').val('');
-                $table.bootstrapTable('refresh', {
-                    pageNumber: 1,
-                });
-                renderAdvancedFilterIndicator();
-            });
-
-            renderAdvancedFilterIndicator();
+            $table.on('load-success.bs.table column-advanced-search.bs.table post-header.bs.table', renderAdvancedSearchState);
+            renderAdvancedSearchState();
         });
     </script>
 @stop
