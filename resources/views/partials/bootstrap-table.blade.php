@@ -122,11 +122,21 @@
                 paginationVAlign: 'both',
                 queryParams: function (params) {
                     var newParams = {};
+                    var bootstrapTableInstance = $(table).data('bootstrap.table');
+                    var advancedFilters = (bootstrapTableInstance && bootstrapTableInstance.filterColumnsPartial) || {};
+
                     for (var i in params) {
                         if (!keyBlocked(i)) { // only send the field if it's not in blockedFields
                             newParams[i] = params[i];
                         }
                     }
+
+                    for (var filterKey in advancedFilters) {
+                        if (advancedFilters[filterKey] !== undefined && advancedFilters[filterKey] !== null && advancedFilters[filterKey] !== '') {
+                            newParams[filterKey] = advancedFilters[filterKey];
+                        }
+                    }
+
                     return newParams;
                 },
                 formatLoadingMessage: function () {
