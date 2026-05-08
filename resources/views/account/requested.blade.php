@@ -31,6 +31,13 @@
                             <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
                         </div>
                     @endif
+                    <div id="request-advanced-filters-indicator" class="alert alert-warning" style="display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                        <span>
+                            Advanced filters active:
+                            <span id="request-advanced-filters-summary"></span>
+                        </span>
+                        <button type="button" id="request-advanced-filters-clear" class="btn btn-default btn-sm">Clear advanced filters</button>
+                    </div>
 
                     <table
 
@@ -70,4 +77,79 @@
 @stop
 @section('moar_scripts')
     @include ('partials.bootstrap-table')
+    <script nonce="{{ csrf_token() }}">
+        $(function () {
+            var $table = $('#userRequests');
+            var $indicator = $('#request-advanced-filters-indicator');
+            var $summary = $('#request-advanced-filters-summary');
+            var $clear = $('#request-advanced-filters-clear');
+
+            function getActiveAdvancedFilters() {
+                var bootstrapTableInstance = $table.data('bootstrap.table');
+                var filters = (bootstrapTableInstance && bootstrapTableInstance.filterColumnsPartial) || {};
+                var activeFilters = {};
+
+                Object.keys(filters).forEach(function (key) {
+                    if (filters[key] !== undefined && filters[key] !== null && String(filters[key]).trim() !== '') {
+                        activeFilters[key] = String(filters[key]).trim();
+                    }
+                });
+
+                return activeFilters;
+            }
+
+            function humanizeFilterName(key) {
+                var labels = {
+                    request_id: 'ID',
+                    image: '{{ trans('general.image') }}',
+                    name: 'Model',
+                    qty: '{{ trans('general.qty') }}',
+                    project: '{{ trans('general.project') }}',
+                    booked_count: 'Booked',
+                    status: 'Status',
+                    request_date: '{{ trans('general.requested_date') }}',
+                    updated_at: 'Updated',
+                };
+
+                return labels[key] || key;
+            }
+
+            function renderAdvancedFilterIndicator() {
+                var activeFilters = getActiveAdvancedFilters();
+                var keys = Object.keys(activeFilters);
+
+                if (!keys.length) {
+                    $indicator.hide();
+                    $summary.empty();
+                    return;
+                }
+
+                var badges = keys.map(function (key) {
+                    return '<span class="label label-default" style="margin-right:6px;">' + humanizeFilterName(key) + ': ' + $('<div>').text(activeFilters[key]).html() + '</span>';
+                });
+
+                $summary.html(badges.join(' '));
+                $indicator.css('display', 'flex');
+            }
+
+            $table.on('load-success.bs.table column-advanced-search.bs.table', renderAdvancedFilterIndicator);
+
+            $clear.on('click', function () {
+                var bootstrapTableInstance = $table.data('bootstrap.table');
+
+                if (!bootstrapTableInstance) {
+                    return;
+                }
+
+                bootstrapTableInstance.filterColumnsPartial = {};
+                $('#avdSearchModal_userRequests').find('input').val('');
+                $table.bootstrapTable('refresh', {
+                    pageNumber: 1,
+                });
+                renderAdvancedFilterIndicator();
+            });
+
+            renderAdvancedFilterIndicator();
+        });
+    </script>
 @stop
