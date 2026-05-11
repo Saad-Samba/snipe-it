@@ -1364,8 +1364,8 @@
     }
 
     var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
-    var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->can('create', \App\Models\Project::class));
-    var createProjectForRequestsUrl = '{{ route('api.projects.store') }}';
+    var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
+    var createProjectForRequestsUrl = '{{ route('account.request-projects.store') }}';
 
     function buildModelRequestProjectOptions(selectedProjectId) {
         var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
@@ -1445,58 +1445,59 @@
         $('#model-request-modal-create-project').on('click', function () {
             createProjectFromRequestModal();
         });
+    }
 
-        $('#modelsBulkForm').on('submit', function (event) {
-            var bulkAction = $(this).find('select[name="bulk_actions"]').val();
+    $('#modelsBulkForm').off('submit.model-booking').on('submit.model-booking', function (event) {
+        var bulkAction = $(this).find('select[name="bulk_actions"]').val();
 
-            if (bulkAction !== 'request') {
-                return true;
-            }
+        if (bulkAction !== 'request') {
+            return true;
+        }
 
-            event.preventDefault();
+        event.preventDefault();
+        ensureModelRequestModal();
 
-            var $table = $('#asssetModelsTable');
-            var rows = $table.bootstrapTable('getSelections');
+        var $table = $('#asssetModelsTable');
+        var rows = $table.bootstrapTable('getSelections');
 
-            if (!rows.length) {
-                window.alert('Select at least one model.');
+        if (!rows.length) {
+            window.alert('Select at least one model.');
+            return false;
+        }
+
+        var modelQuantities = {};
+        var totalReusable = 0;
+
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+
+            if (!row.available_actions || row.available_actions.request !== true) {
+                window.alert('Only models with available booking can be included in a bulk booking request.');
                 return false;
             }
 
-            var modelQuantities = {};
-            var totalReusable = 0;
+            var quantity = getInlineModelBookingQuantity(row.id);
 
-            for (var i = 0; i < rows.length; i++) {
-                var row = rows[i];
-
-                if (!row.available_actions || row.available_actions.request !== true) {
-                    window.alert('Only models with available booking can be included in a bulk booking request.');
-                    return false;
-                }
-
-                var quantity = getInlineModelBookingQuantity(row.id);
-
-                if (!quantity || quantity > (row.remaining || 0)) {
-                    window.alert('Booking quantities must be between 1 and the reusable remaining value for each selected model.');
-                    return false;
-                }
-
-                modelQuantities[row.id] = quantity;
-                totalReusable += (row.remaining || 0);
+            if (!quantity || quantity > (row.remaining || 0)) {
+                window.alert('Booking quantities must be between 1 and the reusable remaining value for each selected model.');
+                return false;
             }
 
-            openBulkModelRequestModal({
-                requestUrl: '{{ route('account.request-items-bulk') }}',
-                modelQuantities: modelQuantities,
-                totalReusable: totalReusable,
-                title: 'Bulk Booking Request',
-                submitLabel: '{{ trans('button.request') }}',
-                summaryText: rows.length + ' models selected. The inline booking quantities will be used for the request.'
-            });
+            modelQuantities[row.id] = quantity;
+            totalReusable += (row.remaining || 0);
+        }
 
-            return false;
+        openBulkModelRequestModal({
+            requestUrl: '{{ route('account.request-items-bulk') }}',
+            modelQuantities: modelQuantities,
+            totalReusable: totalReusable,
+            title: 'Bulk Booking Request',
+            submitLabel: '{{ trans('button.request') }}',
+            summaryText: rows.length + ' models selected. The inline booking quantities will be used for the request.'
         });
-    }
+
+        return false;
+    });
 
     function openModelRequestModal(options) {
         ensureModelRequestModal();

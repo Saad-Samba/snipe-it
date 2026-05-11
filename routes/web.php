@@ -421,6 +421,9 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
     Route::post('request-estimate/{itemType}/{itemId}', [ViewAssetsController::class, 'estimateRequestItem'])
         ->name('account.request-estimate');
 
+    Route::post('request-projects', [ViewAssetsController::class, 'storeRequestProject'])
+        ->name('account.request-projects.store');
+
     Route::post('request-items-bulk', [ViewAssetsController::class, 'bulkRequestItems'])
         ->name('account.request-items-bulk');
 

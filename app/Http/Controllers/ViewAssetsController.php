@@ -419,6 +419,34 @@ class ViewAssetsController extends Controller
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
 
+    public function storeRequestProject(Request $request): JsonResponse
+    {
+        $user = auth()->user();
+
+        if (! $user || ! $user->hasAccess('models.request')) {
+            throw new AuthorizationException('You are not authorized to create request projects.');
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique_undeleted:projects,name'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $project = new Project();
+        $project->fill($validated);
+        $project->created_by = $user->id;
+        $project->save();
+
+        return response()->json([
+            'status' => 'success',
+            'messages' => trans('admin/projects/message.create.success'),
+            'payload' => [
+                'id' => (int) $project->id,
+                'name' => $project->name,
+            ],
+        ]);
+    }
+
     /**
      * Process a specific requested asset
      * @param null $assetId

@@ -542,6 +542,24 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_requester_can_create_project_from_request_flow()
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-projects.store'), [
+                'name' => 'Popup Project',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('payload.name', 'Popup Project');
+
+        $this->assertDatabaseHas('projects', [
+            'name' => 'Popup Project',
+            'created_by' => $requester->id,
+        ]);
+    }
+
     public function test_model_request_estimate_endpoint_returns_snapshot()
     {
         $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
