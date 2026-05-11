@@ -507,7 +507,7 @@ class ModelRequestWorkflowTest extends TestCase
         );
     }
 
-    public function test_model_request_submission_requires_reference_price()
+    public function test_model_request_submission_without_reference_price_sets_zero_savings()
     {
         $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
         $project = Project::factory()->create();
@@ -515,6 +515,11 @@ class ModelRequestWorkflowTest extends TestCase
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'reference_price' => null,
         ]);
+
+        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+            'name' => 'Unpriced',
+            'created_by' => $requester->id,
+        ])->id);
 
         $this->actingAs($requester)
             ->from(route('requestable-assets'))
@@ -524,13 +529,16 @@ class ModelRequestWorkflowTest extends TestCase
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
-            ->assertRedirect(route('requestable-assets'))
-            ->assertSessionHasErrors('reference_price');
+            ->assertRedirect(route('requestable-assets'));
 
-        $this->assertDatabaseMissing('checkout_requests', [
+        $this->assertDatabaseHas('checkout_requests', [
             'user_id' => $requester->id,
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
+            'reusable_quantity' => 1,
+            'procurement_shortfall' => 0,
+            'estimated_savings' => 0,
+            'reference_price_snapshot' => null,
         ]);
     }
 

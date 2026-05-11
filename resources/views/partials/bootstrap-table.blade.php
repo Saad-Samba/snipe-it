@@ -744,55 +744,6 @@
             }
         },
         @endcan
-        @if (auth()->check() && auth()->user()->hasAccess('models.request'))
-        btnBulkBooking: {
-            text: 'Bulk Booking',
-            icon: 'fa fa-paper-plane',
-            event () {
-                var $table = $('#asssetModelsTable');
-                var rows = $table.bootstrapTable('getSelections');
-
-                if (!rows.length) {
-                    window.alert('Select at least one model.');
-                    return;
-                }
-
-                var modelQuantities = {};
-                var totalReusable = 0;
-
-                for (var i = 0; i < rows.length; i++) {
-                    var row = rows[i];
-
-                    if (!row.available_actions || row.available_actions.request !== true) {
-                        window.alert('Only models with available booking can be included in a bulk booking request.');
-                        return;
-                    }
-
-                    var quantity = getInlineModelBookingQuantity(row.id);
-
-                    if (!quantity || quantity > (row.remaining || 0)) {
-                        window.alert('Booking quantities must be between 1 and the reusable remaining value for each selected model.');
-                        return;
-                    }
-
-                    modelQuantities[row.id] = quantity;
-                    totalReusable += (row.remaining || 0);
-                }
-
-                openBulkModelRequestModal({
-                    requestUrl: '{{ route('account.request-items-bulk') }}',
-                    modelQuantities: modelQuantities,
-                    totalReusable: totalReusable,
-                    title: 'Bulk Booking Request',
-                    submitLabel: '{{ trans('button.request') }}',
-                    summaryText: rows.length + ' models selected. The inline booking quantities will be used for the request.'
-                });
-            },
-            attributes: {
-                title: 'Bulk Booking',
-            }
-        },
-        @endif
         btnShowDeleted: {
             text: '{{ (request()->input('status') == "deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
@@ -1412,7 +1363,7 @@
 
     }
 
-    var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name'])->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values());
+    var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
     var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->can('create', \App\Models\Project::class));
     var createProjectForRequestsUrl = '{{ route('api.projects.store') }}';
 
@@ -1445,7 +1396,7 @@
             + '        <div class="modal-body">'
             + '          <input type="hidden" name="request-action" id="model-request-modal-action" value="create">'
             + '          <input type="hidden" name="request-quantity" id="model-request-modal-hidden-quantity" value="">'
-            + '          <input type="hidden" name="bulk-model-quantities" id="model-request-modal-bulk-model-quantities" value="">'
+            + '          <input type="hidden" name="model_quantities" id="model-request-modal-bulk-model-quantities" value="">'
             + '          <div class="alert alert-danger" id="model-request-modal-error" style="display:none;"></div>'
             + '          <div class="form-group">'
             + '            <label for="model-request-modal-project">{{ trans('general.project') }}</label>'
@@ -1493,6 +1444,57 @@
 
         $('#model-request-modal-create-project').on('click', function () {
             createProjectFromRequestModal();
+        });
+
+        $('#modelsBulkForm').on('submit', function (event) {
+            var bulkAction = $(this).find('select[name="bulk_actions"]').val();
+
+            if (bulkAction !== 'request') {
+                return true;
+            }
+
+            event.preventDefault();
+
+            var $table = $('#asssetModelsTable');
+            var rows = $table.bootstrapTable('getSelections');
+
+            if (!rows.length) {
+                window.alert('Select at least one model.');
+                return false;
+            }
+
+            var modelQuantities = {};
+            var totalReusable = 0;
+
+            for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+
+                if (!row.available_actions || row.available_actions.request !== true) {
+                    window.alert('Only models with available booking can be included in a bulk booking request.');
+                    return false;
+                }
+
+                var quantity = getInlineModelBookingQuantity(row.id);
+
+                if (!quantity || quantity > (row.remaining || 0)) {
+                    window.alert('Booking quantities must be between 1 and the reusable remaining value for each selected model.');
+                    return false;
+                }
+
+                modelQuantities[row.id] = quantity;
+                totalReusable += (row.remaining || 0);
+            }
+
+            openBulkModelRequestModal({
+                requestUrl: '{{ route('account.request-items-bulk') }}',
+                modelQuantities: modelQuantities,
+                totalReusable: totalReusable,
+                title: 'Bulk Booking Request',
+                submitLabel: '{{ trans('button.request') }}',
+                summaryText: rows.length + ' models selected. The inline booking quantities will be used for the request.'
+            });
+
+            return false;
         });
     }
 
@@ -1633,13 +1635,31 @@
             url: createProjectForRequestsUrl,
             method: 'POST',
             dataType: 'json',
+            headers: {
+                Accept: 'application/json'
+            },
             data: {
                 _token: '{{ csrf_token() }}',
                 name: projectName
             }
         }).done(function (response) {
             if (!response || response.status !== 'success' || !response.payload) {
-                $('#model-request-modal-error').text('Unable to create the project.').show();
+                var inlineError = 'Unable to create the project.';
+
+                if (response && response.messages) {
+                    if (typeof response.messages === 'string') {
+                        inlineError = response.messages;
+                    } else if (Array.isArray(response.messages) && response.messages[0]) {
+                        inlineError = response.messages[0];
+                    } else {
+                        var inlineErrorKey = Object.keys(response.messages)[0];
+                        if (inlineErrorKey && response.messages[inlineErrorKey] && response.messages[inlineErrorKey][0]) {
+                            inlineError = response.messages[inlineErrorKey][0];
+                        }
+                    }
+                }
+
+                $('#model-request-modal-error').text(inlineError).show();
                 return;
             }
 
@@ -1657,7 +1677,21 @@
             var message = 'Unable to create the project.';
 
             if (xhr.responseJSON && xhr.responseJSON.messages) {
-                message = xhr.responseJSON.messages;
+                if (typeof xhr.responseJSON.messages === 'string') {
+                    message = xhr.responseJSON.messages;
+                } else if (Array.isArray(xhr.responseJSON.messages) && xhr.responseJSON.messages[0]) {
+                    message = xhr.responseJSON.messages[0];
+                } else {
+                    var messageKey = Object.keys(xhr.responseJSON.messages)[0];
+                    if (messageKey && xhr.responseJSON.messages[messageKey] && xhr.responseJSON.messages[messageKey][0]) {
+                        message = xhr.responseJSON.messages[messageKey][0];
+                    }
+                }
+            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var errorKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (errorKey && xhr.responseJSON.errors[errorKey] && xhr.responseJSON.errors[errorKey][0]) {
+                    message = xhr.responseJSON.errors[errorKey][0];
+                }
             }
 
             $('#model-request-modal-error').text(message).show();

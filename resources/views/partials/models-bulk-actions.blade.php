@@ -13,6 +13,9 @@
                 <label for="bulk_actions" class="sr-only">{{ trans('general.bulk_actions') }}</label>
                 <select name="bulk_actions" class="form-control select2" style="width: 200px;" aria-label="bulk_actions">
                     <option value="edit">{{ trans('general.bulk_edit') }}</option>
+                    @if (auth()->check() && auth()->user()->hasAccess('models.request'))
+                    <option value="request">Bulk Booking</option>
+                    @endif
                     <option value="delete">{{ trans('general.bulk_delete') }}</option>
                 </select>
                 <button class="btn btn-primary" id="bulkModelsEditButton" disabled>{{ trans('button.go') }}</button>

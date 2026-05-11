@@ -190,7 +190,6 @@ class ViewAssetsController extends Controller
         $this->ensureModelRequestAuthorized($item, auth()->user());
         $this->ensureModelRequestProjectProvided($validated['project_id'] ?? null);
         $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
-        $this->ensureModelRequestHasReferencePrice($item);
         $this->ensureModelRequestWithinReusableRemaining($item, (int) $validated['request-quantity']);
 
         $estimateQuantity = (int) ($validated['total-request-quantity'] ?? $validated['request-quantity']);
@@ -253,7 +252,6 @@ class ViewAssetsController extends Controller
                 $this->ensureModelRequestProjectProvided($projectId);
                 $this->ensureModelRequestNeededByDateProvided($neededByDate);
                 $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
-                $this->ensureModelRequestHasReferencePrice($item);
                 $this->ensureModelRequestWithinReusableRemaining($item, $quantity);
             }
         }
@@ -361,15 +359,6 @@ class ViewAssetsController extends Controller
         }
     }
 
-    private function ensureModelRequestHasReferencePrice(AssetModel $item): void
-    {
-        if ($item->reference_price === null) {
-            throw ValidationException::withMessages([
-                'reference_price' => 'Reference price is required before requesting this model.',
-            ]);
-        }
-    }
-
     public function bulkRequestItems(Request $request): RedirectResponse
     {
         $modelQuantities = $request->input('model_quantities');
@@ -399,7 +388,6 @@ class ViewAssetsController extends Controller
             foreach ($validated['model_quantities'] as $modelId => $quantity) {
                 $item = AssetModel::findOrFail((int) $modelId);
                 $this->ensureModelRequestAuthorized($item, $user);
-                $this->ensureModelRequestHasReferencePrice($item);
                 $this->ensureModelRequestWithinReusableRemaining($item, (int) $quantity);
 
                 $requestAttributes = array_merge(
