@@ -283,7 +283,7 @@ class IndexAssetModelsTest extends TestCase
                 ->etc());
     }
 
-    public function testAssetModelIndexExposesRequestActionEvenWhenReusableStockIsUnavailable()
+    public function testAssetModelIndexHidesRequestActionWhenReusableStockIsUnavailable()
     {
         $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
         $managedCategory = Category::factory()->forAssets()->create([
@@ -314,7 +314,7 @@ class IndexAssetModelsTest extends TestCase
             ]))
             ->assertOk()
             ->assertJson(fn (AssertableJson $json) => $json
-                ->where('rows.0.available_actions.request', true)
+                ->where('rows.0.available_actions.request', false)
                 ->where('rows.0.available_actions.cancel_request', false)
                 ->where('rows.0.available_actions.update_request', false)
                 ->where('rows.0.requested_quantity', null)

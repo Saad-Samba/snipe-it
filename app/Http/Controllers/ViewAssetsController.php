@@ -188,8 +188,12 @@ class ViewAssetsController extends Controller
         $item = AssetModel::findOrFail($itemId);
         $this->ensureModelRequestAuthorized($item, auth()->user());
         $this->ensureModelRequestProjectProvided($validated['project_id'] ?? null);
+        $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
+        $this->ensureModelRequestHasReferencePrice($item);
+        $this->ensureModelRequestWithinReusableRemaining($item, (int) $validated['request-quantity']);
 
-        $estimate = $this->estimateAssetModelRequest($item, (int) $validated['request-quantity']);
+        $estimateQuantity = (int) ($validated['total-request-quantity'] ?? $validated['request-quantity']);
+        $estimate = $this->estimateAssetModelRequest($item, $estimateQuantity);
 
         return response()->json($estimate);
     }
@@ -221,6 +225,7 @@ class ViewAssetsController extends Controller
         $logaction->target_type = User::class;
 
         $quantity = (int) ($validated['request-quantity'] ?? 1);
+        $estimateQuantity = (int) ($validated['total-request-quantity'] ?? $quantity);
         $requestAction = $validated['request-action'] ?? 'create';
         $projectId = $validated['project_id'] ?? null;
         $data['item_quantity'] = $quantity;
@@ -244,6 +249,9 @@ class ViewAssetsController extends Controller
             $this->ensureModelRequestAuthorized($item, $user);
             if (! $isCancelRequest) {
                 $this->ensureModelRequestProjectProvided($projectId);
+                $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
+                $this->ensureModelRequestHasReferencePrice($item);
+                $this->ensureModelRequestWithinReusableRemaining($item, $quantity);
             }
         }
 
@@ -261,7 +269,7 @@ class ViewAssetsController extends Controller
             $requestAttributes = $fullItemType == AssetModel::class
                 ? array_merge(
                     ['project_id' => $projectId],
-                    $this->estimateAssetModelRequest($item, $quantity)
+                    $this->estimateAssetModelRequest($item, $estimateQuantity)
                 )
                 : [];
             $checkoutRequest = $item_request
@@ -286,6 +294,7 @@ class ViewAssetsController extends Controller
         return $request->validate([
             'request-action' => ['nullable', 'string', 'in:create,update,cancel'],
             'request-quantity' => ['nullable', 'integer', 'min:1'],
+            'total-request-quantity' => ['nullable', 'integer', 'min:1'],
             'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
         ]);
     }
@@ -309,6 +318,41 @@ class ViewAssetsController extends Controller
         if (! $projectId) {
             throw ValidationException::withMessages([
                 'project_id' => 'Project is required for model requests.',
+            ]);
+        }
+    }
+
+    private function ensureModelRequestQuantityProvided(?int $quantity): void
+    {
+        if (! $quantity) {
+            throw ValidationException::withMessages([
+                'request-quantity' => 'Booking quantity is required for model requests.',
+            ]);
+        }
+    }
+
+    private function ensureModelRequestWithinReusableRemaining(AssetModel $item, int $quantity): void
+    {
+        $availableReusableStock = $item->availableAssets()->count();
+
+        if ($availableReusableStock < 1) {
+            throw ValidationException::withMessages([
+                'request-quantity' => 'No reusable stock is currently available for this model.',
+            ]);
+        }
+
+        if ($quantity > $availableReusableStock) {
+            throw ValidationException::withMessages([
+                'request-quantity' => 'Booking quantity cannot exceed reusable stock for this model.',
+            ]);
+        }
+    }
+
+    private function ensureModelRequestHasReferencePrice(AssetModel $item): void
+    {
+        if ($item->reference_price === null) {
+            throw ValidationException::withMessages([
+                'reference_price' => 'Reference price is required before requesting this model.',
             ]);
         }
     }

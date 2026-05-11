@@ -101,8 +101,9 @@ class AssetModelsTransformer
 
         $activeRequest = $requestingUser ? $assetmodel->isRequestedBy($requestingUser) : null;
         $hasActiveRequest = (bool) $activeRequest;
+        $hasReusableRemaining = ((int) $array['remaining']) > 0;
 
-        $permissions_array['available_actions']['request'] = $canRequestModels && !$hasActiveRequest;
+        $permissions_array['available_actions']['request'] = $canRequestModels && !$hasActiveRequest && $hasReusableRemaining;
         $permissions_array['available_actions']['cancel_request'] = $canRequestModels && $hasActiveRequest;
         $permissions_array['available_actions']['update_request'] = $canRequestModels && $hasActiveRequest;
         $array['requested_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;

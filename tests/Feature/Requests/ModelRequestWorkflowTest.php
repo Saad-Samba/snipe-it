@@ -401,7 +401,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('model_id='.$model->id, false);
     }
 
-    public function test_model_request_can_exceed_remaining_stock_and_persists_shortfall_estimate()
+    public function test_model_request_cannot_exceed_remaining_stock()
     {
         Notification::fake();
 
@@ -424,16 +424,13 @@ class ModelRequestWorkflowTest extends TestCase
                 'request-quantity' => 2,
                 'project_id' => $project->id,
             ])
-            ->assertRedirect();
+            ->assertRedirect(route('requestable-assets'))
+            ->assertSessionHasErrors('request-quantity');
 
-        $this->assertDatabaseHas('checkout_requests', [
+        $this->assertDatabaseMissing('checkout_requests', [
             'user_id' => $requester->id,
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
-            'quantity' => 2,
-            'reusable_quantity' => 1,
-            'procurement_shortfall' => 1,
-            'estimated_savings' => 250.00,
         ]);
     }
 
@@ -479,6 +476,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-action' => 'update',
                 'request-quantity' => 2,
+                'total-request-quantity' => 5,
                 'project_id' => $updatedProject->id,
             ])
             ->assertRedirect();
@@ -488,7 +486,7 @@ class ModelRequestWorkflowTest extends TestCase
             'quantity' => 2,
             'project_id' => $updatedProject->id,
             'reusable_quantity' => 2,
-            'procurement_shortfall' => 0,
+            'procurement_shortfall' => 3,
             'estimated_savings' => number_format($model->reference_price * 2, 2, '.', ''),
         ]);
 
@@ -544,7 +542,8 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->actingAs($requester)
             ->postJson(route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
-                'request-quantity' => 3,
+                'request-quantity' => 1,
+                'total-request-quantity' => 3,
                 'project_id' => $project->id,
             ])
             ->assertOk()

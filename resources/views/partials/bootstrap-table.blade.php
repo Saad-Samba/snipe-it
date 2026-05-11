@@ -1395,23 +1395,27 @@
             + '            <select name="project_id" id="model-request-modal-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
             + '          </div>'
             + '          <div class="form-group">'
-            + '            <label for="model-request-modal-quantity">{{ trans('general.qty') }}</label>'
+            + '            <label for="model-request-modal-quantity">Booking Quantity</label>'
             + '            <input type="number" min="1" name="request-quantity" id="model-request-modal-quantity" class="form-control" required>'
             + '          </div>'
-            + '          <div id="model-request-modal-estimate" class="well well-sm" style="display:none;margin-bottom:0;">'
+            + '          <div class="help-block" style="margin-top:-10px;">Reusable now: <strong id="model-request-modal-remaining">0</strong></div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-total-quantity">Total Requested Quantity <i class="fas fa-info-circle text-muted" data-tooltip="true" title="Optional. Fill this if you want to see the overall shortfall and estimated savings."></i></label>'
+            + '            <input type="number" min="1" name="total-request-quantity" id="model-request-modal-total-quantity" class="form-control">'
+            + '          </div>'
+            + '          <div id="model-request-modal-estimate" class="well well-sm" style="margin-bottom:0;">'
             + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Estimate</div>'
             + '            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">'
-            + '              <span>Requested</span><span id="model-request-modal-estimate-requested">-</span>'
-            + '              <span>Reusable</span><span id="model-request-modal-estimate-reusable">-</span>'
-            + '              <span>Shortfall</span><span id="model-request-modal-estimate-shortfall">-</span>'
-            + '              <span>Estimated Savings</span><span id="model-request-modal-estimate-savings">-</span>'
+            + '              <span>Requested</span><span id="model-request-modal-estimate-requested">0</span>'
+            + '              <span>Reusable</span><span id="model-request-modal-estimate-reusable">0</span>'
+            + '              <span>Shortfall</span><span id="model-request-modal-estimate-shortfall">0</span>'
+            + '              <span>Estimated Savings</span><span id="model-request-modal-estimate-savings">0.00</span>'
             + '            </div>'
             + '          </div>'
             + '        </div>'
             + '        <div class="modal-footer">'
             + '          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>'
-            + '          <button type="button" class="btn btn-info" id="model-request-modal-estimate-button">Estimate</button>'
-            + '          <button type="submit" class="btn btn-primary" id="model-request-modal-submit" style="display:none;" disabled>{{ trans('button.request') }}</button>'
+            + '          <button type="submit" class="btn btn-primary" id="model-request-modal-submit">{{ trans('button.request') }}</button>'
             + '        </div>'
             + '      </form>'
             + '    </div>'
@@ -1420,19 +1424,8 @@
 
         $('body').append(modalHtml);
 
-        $('#model-request-modal-project, #model-request-modal-quantity').on('change keyup', function () {
-            resetModelRequestEstimateState();
-        });
-
-        $('#model-request-modal-estimate-button').on('click', function () {
-            estimateModelRequestModal();
-        });
-
-        $('#model-request-modal-form').on('submit', function (event) {
-            if ($('#model-request-modal-submit').is(':hidden') || $('#model-request-modal-submit').is(':disabled')) {
-                event.preventDefault();
-                estimateModelRequestModal();
-            }
+        $('#model-request-modal-project, #model-request-modal-quantity, #model-request-modal-total-quantity').on('change keyup', function () {
+            updateModelRequestEstimateSummary();
         });
     }
 
@@ -1446,19 +1439,22 @@
         $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
         $('#model-request-modal-project').val(String(options.projectId || ''));
         $('#model-request-modal-quantity').val(options.quantity);
+        $('#model-request-modal-quantity').attr('max', options.remaining || 1);
+        $('#model-request-modal-total-quantity').val(options.totalQuantity || '');
+        $('#model-request-modal-remaining').text(options.remaining || 0);
         $('#model-request-modal-submit').text(options.submitLabel);
         resetModelRequestEstimateState();
         $('#model-request-modal').modal('show');
+        updateModelRequestEstimateSummary();
     }
 
     function resetModelRequestEstimateState() {
         $('#model-request-modal-error').hide().text('');
-        $('#model-request-modal-estimate').hide();
-        $('#model-request-modal-estimate-requested').text('-');
-        $('#model-request-modal-estimate-reusable').text('-');
-        $('#model-request-modal-estimate-shortfall').text('-');
-        $('#model-request-modal-estimate-savings').text('-');
-        $('#model-request-modal-submit').hide().prop('disabled', true);
+        $('#model-request-modal-estimate-requested').text('0');
+        $('#model-request-modal-estimate-reusable').text('0');
+        $('#model-request-modal-estimate-shortfall').text('0');
+        $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(0));
+        $('#model-request-modal-submit').prop('disabled', false);
     }
 
     function formatEstimateCurrency(value) {
@@ -1473,10 +1469,9 @@
     function estimateModelRequestModal() {
         var estimateUrl = $('#model-request-modal-form').data('estimate-url');
         var quantity = $('#model-request-modal-quantity').val();
+        var totalQuantity = $('#model-request-modal-total-quantity').val();
         var projectId = $('#model-request-modal-project').val();
         var action = $('#model-request-modal-action').val();
-
-        resetModelRequestEstimateState();
 
         $.ajax({
             url: estimateUrl,
@@ -1486,6 +1481,7 @@
                 _token: '{{ csrf_token() }}',
                 'request-action': action,
                 'request-quantity': quantity,
+                'total-request-quantity': totalQuantity,
                 project_id: projectId
             }
         }).done(function (response) {
@@ -1493,8 +1489,6 @@
             $('#model-request-modal-estimate-reusable').text(response.reusable_quantity);
             $('#model-request-modal-estimate-shortfall').text(response.procurement_shortfall);
             $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(response.estimated_savings));
-            $('#model-request-modal-estimate').show();
-            $('#model-request-modal-submit').show().prop('disabled', false);
         }).fail(function (xhr) {
             var message = 'Unable to estimate this request.';
 
@@ -1510,19 +1504,35 @@
         });
     }
 
+    function updateModelRequestEstimateSummary() {
+        var projectId = $('#model-request-modal-project').val();
+        var quantity = $('#model-request-modal-quantity').val();
+        var totalQuantity = $('#model-request-modal-total-quantity').val();
+
+        resetModelRequestEstimateState();
+
+        if (!projectId || !quantity) {
+            return;
+        }
+
+        $('#model-request-modal-estimate-requested').text(totalQuantity || quantity);
+        estimateModelRequestModal();
+    }
+
     function modelRequestActionsFormatter(value, row) {
         var requestUrl = '{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
         var estimateUrl = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
         var requestsUrl = '{{ route('account.requested') }}?model_id=' + row.id;
         var requestedQuantity = row.requested_quantity || 1;
         var requestedProjectId = row.requested_project_id || '';
+        var remaining = row.remaining || 0;
         var actionBarId = 'model-request-actions-' + row.id;
 
         if ((row.available_actions) && (row.available_actions.update_request === true)) {
             return '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:118px;">'
                 + '<a href="' + requestsUrl + '" style="display:inline-flex;align-items:center;justify-content:center;width:72px;height:30px;padding:0 10px;border:1px solid #d2d6de;background:#f8fafc;color:#2c7da0;font-size:15px;font-weight:700;line-height:1;text-decoration:none;border-radius:2px;" data-tooltip="true" title="View bookings">'
                 + requestedQuantity + '<span class="sr-only">View bookings</span></a>'
-                + '<button type="button" class="btn btn-info btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', projectId: \'' + requestedProjectId + '\', quantity: ' + requestedQuantity + ', title: \'{{ trans('general.update') }}\', submitLabel: \'{{ trans('general.update') }}\' });" data-tooltip="true" title=\"{{ trans('general.update') }} booking\">'
+                + '<button type="button" class="btn btn-info btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', projectId: \'' + requestedProjectId + '\', quantity: ' + requestedQuantity + ', totalQuantity: ' + requestedQuantity + ', remaining: ' + remaining + ', title: \'{{ trans('general.update') }}\', submitLabel: \'{{ trans('general.update') }}\' });" data-tooltip="true" title=\"{{ trans('general.update') }} booking\">'
                 + '<i class="fas fa-sliders-h" aria-hidden="true"></i><span class="sr-only">{{ trans('general.update') }}</span></button>'
                 + '<form action="' + requestUrl + '" method="POST" style="margin:0;display:inline-flex;">'
                 + '@csrf'
@@ -1533,7 +1543,7 @@
                 + '</div>';
         } else if ((row.available_actions) && (row.available_actions.request === true)) {
             return '<div style="display:flex;align-items:center;gap:6px;min-width:118px;">'
-                + '<button type="button" class="btn btn-primary btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="{{ trans('general.request_item') }}" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', estimateUrl: \'' + estimateUrl + '\', action: \'create\', projectId: \'\', quantity: 1, title: \'{{ trans('general.request_item') }}\', submitLabel: \'{{ trans('button.request') }}\' });"><i class=\"fas fa-paper-plane\" aria-hidden=\"true\"></i><span class=\"sr-only\">{{ trans('button.request') }}</span></button>'
+                + '<button type="button" class="btn btn-primary btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="{{ trans('general.request_item') }}" onclick="openModelRequestModal({ requestUrl: \'' + requestUrl + '\', estimateUrl: \'' + estimateUrl + '\', action: \'create\', projectId: \'\', quantity: 1, totalQuantity: \'\', remaining: ' + remaining + ', title: \'{{ trans('general.request_item') }}\', submitLabel: \'{{ trans('button.request') }}\' });"><i class=\"fas fa-paper-plane\" aria-hidden=\"true\"></i><span class=\"sr-only\">{{ trans('button.request') }}</span></button>'
                 + '</div>';
         }
 
