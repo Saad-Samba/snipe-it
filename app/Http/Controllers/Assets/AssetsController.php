@@ -66,6 +66,7 @@ class AssetsController extends Controller
         $this->authorize('index', Asset::class);
         $company = Company::find($request->input('company_id'));
         $requestContext = null;
+        $requestReviewSummary = null;
 
         if ($request->filled('request_id')) {
             $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project'])->find((int) $request->input('request_id'));
@@ -84,11 +85,24 @@ class AssetsController extends Controller
                 403
             );
             session(['back_url' => $request->fullUrl()]);
+
+            $requestReviewSummary = [
+                'project' => optional($requestContext->project)->name,
+                'needed_by_date' => optional($requestContext->needed_by_date)?->format('Y-m-d'),
+                'total_needed' => (int) $requestContext->quantity,
+                'reusable_now' => (int) ($requestContext->reusable_quantity ?? 0),
+                'due_back_before_needed_by' => (int) ($requestContext->due_back_before_needed_by_quantity ?? 0),
+                'potentially_coverable' => (int) ($requestContext->potentially_coverable_quantity ?? 0),
+                'shortfall' => (int) ($requestContext->procurement_shortfall ?? 0),
+                'booked_count' => $requestContext->bookedAssetsCount(),
+                'reserved_count' => $requestContext->reservedAssetsCount(),
+            ];
         }
 
         return view('hardware/index')
             ->with('company', $company)
-            ->with('requestContext', $requestContext);
+            ->with('requestContext', $requestContext)
+            ->with('requestReviewSummary', $requestReviewSummary);
     }
 
     /**

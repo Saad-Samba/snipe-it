@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class CheckoutRequest extends Model
 {
@@ -29,6 +30,8 @@ class CheckoutRequest extends Model
         'needed_by_date',
         'quantity',
         'reusable_quantity',
+        'due_back_before_needed_by_quantity',
+        'potentially_coverable_quantity',
         'procurement_shortfall',
         'estimated_savings',
         'reference_price_snapshot',
@@ -169,6 +172,64 @@ class CheckoutRequest extends Model
     public function bookedAssetsCount(): int
     {
         return $this->bookedAssetsQuery()->count();
+    }
+
+    public function reservedAssetsQuery()
+    {
+        $reservedStatusId = Setting::getSettings()?->rfq_reserved_statuslabel_id;
+
+        if (! $reservedStatusId || ! $this->project_id || $this->requestable_type !== AssetModel::class) {
+            return Asset::query()->whereRaw('1 = 0');
+        }
+
+        return Asset::withoutGlobalScopes()
+            ->where('model_id', $this->requestable_id)
+            ->where('project_id', $this->project_id)
+            ->where('status_id', $reservedStatusId)
+            ->whereNotNull('expected_checkin');
+    }
+
+    public function reservedAssetsCount(): int
+    {
+        return $this->reservedAssetsQuery()->count();
+    }
+
+    public static function projectSummaryForUser(int $userId, int $projectId): array
+    {
+        $requests = self::query()
+            ->where('user_id', $userId)
+            ->where('project_id', $projectId)
+            ->whereNull('canceled_at')
+            ->get();
+
+        return self::summarizeRequests($requests);
+    }
+
+    public static function summarizeRequests(Collection $requests): array
+    {
+        $reservedStatusId = Setting::getSettings()?->rfq_reserved_statuslabel_id;
+        $projectId = $requests->first()?->project_id;
+
+        $reservedAssets = 0;
+        if ($reservedStatusId && $projectId) {
+            $reservedAssets = Asset::withoutGlobalScopes()
+                ->where('project_id', $projectId)
+                ->where('status_id', $reservedStatusId)
+                ->whereNotNull('expected_checkin')
+                ->count();
+        }
+
+        return [
+            'requests_count' => $requests->count(),
+            'total_needed' => (int) $requests->sum('quantity'),
+            'reusable_now' => (int) $requests->sum(fn ($request) => (int) ($request->reusable_quantity ?? 0)),
+            'due_back_before_needed_by' => (int) $requests->sum(fn ($request) => (int) ($request->due_back_before_needed_by_quantity ?? 0)),
+            'potentially_coverable' => (int) $requests->sum(fn ($request) => (int) ($request->potentially_coverable_quantity ?? 0)),
+            'shortfall' => (int) $requests->sum(fn ($request) => (int) ($request->procurement_shortfall ?? 0)),
+            'estimated_savings' => round((float) $requests->sum(fn ($request) => (float) ($request->estimated_savings ?? 0)), 2),
+            'booked_count' => (int) $requests->sum(fn ($request) => $request->bookedAssetsCount()),
+            'reserved_count' => $reservedAssets,
+        ];
     }
 
     public function derivedAllocationStatus(): string

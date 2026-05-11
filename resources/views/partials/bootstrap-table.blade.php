@@ -1411,17 +1411,14 @@
             + '            <label for="model-request-modal-needed-by-date">Needed By</label>'
             + '            <input type="date" name="needed_by_date" id="model-request-modal-needed-by-date" class="form-control" required>'
             + '          </div>'
-            + '          <div class="help-block" style="margin-top:-10px;">Reusable now: <strong id="model-request-modal-remaining">0</strong></div>'
-            + '          <div class="form-group" id="model-request-modal-total-quantity-group">'
-            + '            <label for="model-request-modal-total-quantity">Total Requested Quantity <i class="fas fa-info-circle text-muted" data-tooltip="true" title="Optional. Fill this if you want to see the overall shortfall and estimated savings."></i></label>'
-            + '            <input type="number" min="1" name="total-request-quantity" id="model-request-modal-total-quantity" class="form-control">'
-            + '          </div>'
             + '          <div id="model-request-modal-bulk-summary" class="help-block" style="display:none;margin-top:-5px;"></div>'
             + '          <div id="model-request-modal-estimate" class="well well-sm" style="margin-bottom:0;">'
             + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Estimate</div>'
             + '            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">'
-            + '              <span>Requested</span><span id="model-request-modal-estimate-requested">0</span>'
-            + '              <span>Reusable</span><span id="model-request-modal-estimate-reusable">0</span>'
+            + '              <span>Total Needed</span><span id="model-request-modal-estimate-requested">0</span>'
+            + '              <span>Reusable Now</span><span id="model-request-modal-estimate-reusable">0</span>'
+            + '              <span>Due Back Before Needed By</span><span id="model-request-modal-estimate-due-back">0</span>'
+            + '              <span>Potentially Coverable By Needed By</span><span id="model-request-modal-estimate-coverable">0</span>'
             + '              <span>Shortfall</span><span id="model-request-modal-estimate-shortfall">0</span>'
             + '              <span>Estimated Savings</span><span id="model-request-modal-estimate-savings">0.00</span>'
             + '            </div>'
@@ -1438,7 +1435,7 @@
 
         $('body').append(modalHtml);
 
-        $('#model-request-modal-project, #model-request-modal-total-quantity').on('change keyup', function () {
+        $('#model-request-modal-project, #model-request-modal-needed-by-date').on('change keyup', function () {
             updateModelRequestEstimateSummary();
         });
 
@@ -1466,34 +1463,34 @@
         }
 
         var modelQuantities = {};
-        var totalReusable = 0;
+        var estimateUrls = {};
 
         for (var i = 0; i < rows.length; i++) {
             var row = rows[i];
 
             if (!row.available_actions || row.available_actions.request !== true) {
-                window.alert('Only models with available booking can be included in a bulk booking request.');
+                window.alert('Only requestable models can be included in a bulk demand request.');
                 return false;
             }
 
             var quantity = getInlineModelBookingQuantity(row.id);
 
-            if (!quantity || quantity > (row.remaining || 0)) {
-                window.alert('Booking quantities must be between 1 and the reusable remaining value for each selected model.');
+            if (!quantity) {
+                window.alert('Enter a total needed quantity for each selected model.');
                 return false;
             }
 
             modelQuantities[row.id] = quantity;
-            totalReusable += (row.remaining || 0);
+            estimateUrls[row.id] = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
         }
 
         openBulkModelRequestModal({
             requestUrl: '{{ route('account.request-items-bulk') }}',
             modelQuantities: modelQuantities,
-            totalReusable: totalReusable,
-            title: 'Bulk Booking Request',
+            estimateUrls: estimateUrls,
+            title: 'Bulk Demand Request',
             submitLabel: '{{ trans('button.request') }}',
-            summaryText: rows.length + ' models selected. The inline booking quantities will be used for the request.'
+            summaryText: rows.length + ' models selected. The inline total needed quantities will be used for the request.'
         });
 
         return false;
@@ -1512,9 +1509,6 @@
         $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
         $('#model-request-modal-project').val(String(options.projectId || ''));
         $('#model-request-modal-needed-by-date').val(options.neededByDate || '');
-        $('#model-request-modal-total-quantity').val(options.totalQuantity || '');
-        $('#model-request-modal-remaining').text(options.remaining || 0);
-        $('#model-request-modal-total-quantity-group').show();
         $('#model-request-modal-estimate').show();
         $('#model-request-modal-bulk-summary').hide().text('');
         $('#model-request-modal-submit').text(options.submitLabel);
@@ -1529,6 +1523,7 @@
         $('#model-request-modal-form').data('bulk-mode', true);
         $('#model-request-modal-form').attr('action', options.requestUrl);
         $('#model-request-modal-form').removeData('estimate-url');
+        $('#model-request-modal-form').data('bulk-estimate-urls', options.estimateUrls || {});
         $('#model-request-modal-title').text(options.title);
         $('#model-request-modal-action').val('create');
         $('#model-request-modal-hidden-quantity').val('');
@@ -1536,20 +1531,20 @@
         $('#model-request-modal-project').html(buildModelRequestProjectOptions(''));
         $('#model-request-modal-project').val('');
         $('#model-request-modal-needed-by-date').val('');
-        $('#model-request-modal-total-quantity').val('');
-        $('#model-request-modal-remaining').text(options.totalReusable || 0);
-        $('#model-request-modal-total-quantity-group').hide();
-        $('#model-request-modal-estimate').hide();
+        $('#model-request-modal-estimate').show();
         $('#model-request-modal-bulk-summary').show().text(options.summaryText || '');
         $('#model-request-modal-submit').text(options.submitLabel);
         resetModelRequestEstimateState();
         $('#model-request-modal').modal('show');
+        updateModelRequestEstimateSummary();
     }
 
     function resetModelRequestEstimateState() {
         $('#model-request-modal-error').hide().text('');
         $('#model-request-modal-estimate-requested').text('0');
         $('#model-request-modal-estimate-reusable').text('0');
+        $('#model-request-modal-estimate-due-back').text('0');
+        $('#model-request-modal-estimate-coverable').text('0');
         $('#model-request-modal-estimate-shortfall').text('0');
         $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(0));
         $('#model-request-modal-submit').prop('disabled', false);
@@ -1567,8 +1562,8 @@
     function estimateModelRequestModal() {
         var estimateUrl = $('#model-request-modal-form').data('estimate-url');
         var quantity = $('#model-request-modal-hidden-quantity').val();
-        var totalQuantity = $('#model-request-modal-total-quantity').val();
         var projectId = $('#model-request-modal-project').val();
+        var neededByDate = $('#model-request-modal-needed-by-date').val();
         var action = $('#model-request-modal-action').val();
 
         $.ajax({
@@ -1579,12 +1574,14 @@
                 _token: '{{ csrf_token() }}',
                 'request-action': action,
                 'request-quantity': quantity,
-                'total-request-quantity': totalQuantity,
-                project_id: projectId
+                project_id: projectId,
+                needed_by_date: neededByDate
             }
         }).done(function (response) {
             $('#model-request-modal-estimate-requested').text(response.requested_quantity);
-            $('#model-request-modal-estimate-reusable').text(response.reusable_quantity);
+            $('#model-request-modal-estimate-reusable').text(response.reusable_now);
+            $('#model-request-modal-estimate-due-back').text(response.due_back_before_needed_by_quantity);
+            $('#model-request-modal-estimate-coverable').text(response.potentially_coverable_by_needed_by);
             $('#model-request-modal-estimate-shortfall').text(response.procurement_shortfall);
             $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(response.estimated_savings));
         }).fail(function (xhr) {
@@ -1602,22 +1599,92 @@
         });
     }
 
-    function updateModelRequestEstimateSummary() {
-        if ($('#model-request-modal-form').data('bulk-mode')) {
+    function estimateBulkModelRequestModal() {
+        var projectId = $('#model-request-modal-project').val();
+        var neededByDate = $('#model-request-modal-needed-by-date').val();
+        var estimateUrls = $('#model-request-modal-form').data('bulk-estimate-urls') || {};
+        var modelQuantities = JSON.parse($('#model-request-modal-bulk-model-quantities').val() || '{}');
+        var requests = [];
+        var modelIds = Object.keys(modelQuantities);
+
+        if (!projectId || !neededByDate || !modelIds.length) {
             return;
         }
 
+        modelIds.forEach(function (modelId) {
+            requests.push($.ajax({
+                url: estimateUrls[modelId],
+                method: 'POST',
+                dataType: 'json',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    'request-action': 'create',
+                    'request-quantity': modelQuantities[modelId],
+                    project_id: projectId,
+                    needed_by_date: neededByDate
+                }
+            }));
+        });
+
+        Promise.all(requests).then(function (responses) {
+            var totals = {
+                requested_quantity: 0,
+                reusable_now: 0,
+                due_back_before_needed_by_quantity: 0,
+                potentially_coverable_by_needed_by: 0,
+                procurement_shortfall: 0,
+                estimated_savings: 0
+            };
+
+            responses.forEach(function (response) {
+                totals.requested_quantity += Number(response.requested_quantity || 0);
+                totals.reusable_now += Number(response.reusable_now || 0);
+                totals.due_back_before_needed_by_quantity += Number(response.due_back_before_needed_by_quantity || 0);
+                totals.potentially_coverable_by_needed_by += Number(response.potentially_coverable_by_needed_by || 0);
+                totals.procurement_shortfall += Number(response.procurement_shortfall || 0);
+                totals.estimated_savings += Number(response.estimated_savings || 0);
+            });
+
+            $('#model-request-modal-estimate-requested').text(totals.requested_quantity);
+            $('#model-request-modal-estimate-reusable').text(totals.reusable_now);
+            $('#model-request-modal-estimate-due-back').text(totals.due_back_before_needed_by_quantity);
+            $('#model-request-modal-estimate-coverable').text(totals.potentially_coverable_by_needed_by);
+            $('#model-request-modal-estimate-shortfall').text(totals.procurement_shortfall);
+            $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(totals.estimated_savings));
+        }).catch(function (xhr) {
+            var message = 'Unable to estimate this request.';
+
+            if (xhr && xhr.responseJSON && xhr.responseJSON.errors) {
+                var firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                    message = xhr.responseJSON.errors[firstKey][0];
+                }
+            }
+
+            $('#model-request-modal-error').text(message).show();
+        });
+    }
+
+    function updateModelRequestEstimateSummary() {
         var projectId = $('#model-request-modal-project').val();
-        var quantity = $('#model-request-modal-hidden-quantity').val();
-        var totalQuantity = $('#model-request-modal-total-quantity').val();
+        var neededByDate = $('#model-request-modal-needed-by-date').val();
 
         resetModelRequestEstimateState();
 
-        if (!projectId || !quantity) {
+        if ($('#model-request-modal-form').data('bulk-mode')) {
+            if (projectId && neededByDate) {
+                estimateBulkModelRequestModal();
+            }
             return;
         }
 
-        $('#model-request-modal-estimate-requested').text(totalQuantity || quantity);
+        var quantity = $('#model-request-modal-hidden-quantity').val();
+
+        if (!projectId || !neededByDate || !quantity) {
+            return;
+        }
+
+        $('#model-request-modal-estimate-requested').text(quantity);
         estimateModelRequestModal();
     }
 
@@ -1707,38 +1774,18 @@
     }
 
     function buildInlineBookingInput(modelId, quantity, maxQuantity) {
-        return '<input type="number" min="1" max="' + maxQuantity + '" id="model-booking-quantity-' + modelId + '" value="' + quantity + '" class="form-control input-sm" style="width:62px;height:30px;padding:4px 6px;display:inline-block;">';
+        return '<input type="number" min="1" id="model-booking-quantity-' + modelId + '" value="' + quantity + '" class="form-control input-sm" style="width:70px;height:30px;padding:4px 6px;display:inline-block;">';
     }
 
     function modelRequestActionsFormatter(value, row) {
         var requestUrl = '{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
         var estimateUrl = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
-        var requestsUrl = '{{ route('account.requested') }}?model_id=' + row.id;
         var requestedQuantity = row.requested_quantity || 1;
-        var requestedProjectId = row.requested_project_id || '';
-        var requestedTotalQuantity = row.requested_total_quantity || requestedQuantity;
-        var requestedNeededByDate = row.requested_needed_by_date || '';
-        var remaining = row.remaining || 0;
-        var actionBarId = 'model-request-actions-' + row.id;
 
-        if ((row.available_actions) && (row.available_actions.update_request === true)) {
-            return '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:170px;">'
-                + buildInlineBookingInput(row.id, requestedQuantity, remaining)
-                + '<button type="button" class="btn btn-info btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" onclick="var quantity = getInlineModelBookingQuantity(' + row.id + '); if (!quantity || quantity > ' + remaining + ') { window.alert(\'Booking quantity must be between 1 and ' + remaining + '.\'); return; } openModelRequestModal({ requestUrl: \'' + requestUrl + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', projectId: \'' + requestedProjectId + '\', quantity: quantity, totalQuantity: ' + requestedTotalQuantity + ', neededByDate: \'' + requestedNeededByDate + '\', remaining: ' + remaining + ', title: \'{{ trans('general.update') }}\', submitLabel: \'{{ trans('general.update') }}\' });" data-tooltip="true" title=\"{{ trans('general.update') }} booking\">'
-                + '<i class="fas fa-sliders-h" aria-hidden="true"></i><span class="sr-only">{{ trans('general.update') }}</span></button>'
-                + '<a href="' + requestsUrl + '" class="btn btn-default btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="View bookings">'
-                + '<i class="fas fa-eye" aria-hidden="true"></i><span class="sr-only">View bookings</span></a>'
-                + '<form action="' + requestUrl + '" method="POST" style="margin:0;display:inline-flex;">'
-                + '@csrf'
-                + '<input type="hidden" name="request-action" value="cancel">'
-                + '<button class="btn btn-danger btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">'
-                + '<i class="fas fa-times" aria-hidden="true"></i><span class="sr-only">{{ trans('button.cancel') }}</span></button>'
-                + '</form>'
-                + '</div>';
-        } else if ((row.available_actions) && (row.available_actions.request === true)) {
+        if ((row.available_actions) && (row.available_actions.request === true)) {
             return '<div style="display:flex;align-items:center;gap:6px;min-width:104px;">'
-                + buildInlineBookingInput(row.id, 1, remaining)
-                + '<button type="button" class="btn btn-primary btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="{{ trans('general.request_item') }}" onclick="var quantity = getInlineModelBookingQuantity(' + row.id + '); if (!quantity || quantity > ' + remaining + ') { window.alert(\'Booking quantity must be between 1 and ' + remaining + '.\'); return; } openModelRequestModal({ requestUrl: \'' + requestUrl + '\', estimateUrl: \'' + estimateUrl + '\', action: \'create\', projectId: \'\', quantity: quantity, totalQuantity: \'\', neededByDate: \'\', remaining: ' + remaining + ', title: \'{{ trans('general.request_item') }}\', submitLabel: \'{{ trans('button.request') }}\' });"><i class=\"fas fa-paper-plane\" aria-hidden=\"true\"></i><span class=\"sr-only\">{{ trans('button.request') }}</span></button>'
+                + buildInlineBookingInput(row.id, requestedQuantity, row.remaining || 0)
+                + '<button type="button" class="btn btn-primary btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="{{ trans('general.request_item') }}" onclick="var quantity = getInlineModelBookingQuantity(' + row.id + '); if (!quantity) { window.alert(\'Enter a total needed quantity first.\'); return; } openModelRequestModal({ requestUrl: \'' + requestUrl + '\', estimateUrl: \'' + estimateUrl + '\', action: \'create\', projectId: \'\', quantity: quantity, neededByDate: \'\', title: \'{{ trans('general.request_item') }}\', submitLabel: \'{{ trans('button.request') }}\' });"><i class=\"fas fa-paper-plane\" aria-hidden=\"true\"></i><span class=\"sr-only\">{{ trans('button.request') }}</span></button>'
                 + '</div>';
         }
 

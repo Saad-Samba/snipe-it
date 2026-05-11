@@ -275,10 +275,18 @@ class AssetsController extends Controller
                     $assets->where(function ($query) use ($requestContext) {
                         $query->whereNull('assets.assigned_to');
 
-                        if ($requestContext && $requestContext->project_id) {
-                            $query->orWhere(function ($projectQuery) use ($requestContext) {
-                                $projectQuery->where('assets.project_id', $requestContext->project_id)
-                                    ->whereNotNull('assets.assigned_to');
+                        if ($requestContext) {
+                            $query->orWhere(function ($assignedQuery) use ($requestContext) {
+                                $assignedQuery->whereNotNull('assets.assigned_to')
+                                    ->where(function ($eligibleAssignedQuery) use ($requestContext) {
+                                        if ($requestContext->project_id) {
+                                            $eligibleAssignedQuery->where('assets.project_id', $requestContext->project_id);
+                                        }
+
+                                        if ($requestContext->needed_by_date) {
+                                            $eligibleAssignedQuery->orWhereDate('assets.expected_checkin', '<=', $requestContext->needed_by_date);
+                                        }
+                                    });
                             });
                         }
                     });

@@ -138,6 +138,15 @@ class AssetModel extends SnipeModel
         return $this->hasMany(\App\Models\Asset::class, 'model_id')->RTD();
     }
 
+    public function dueBackAssetsByDate(?string $neededByDate)
+    {
+        return $this->hasMany(\App\Models\Asset::class, 'model_id')
+            ->whereNotNull('assigned_to')
+            ->whereNotNull('expected_checkin')
+            ->when($neededByDate, fn ($query) => $query->whereDate('expected_checkin', '<=', $neededByDate))
+            ->NotArchived();
+    }
+
     public function assignedAssets()
     {
         return $this->hasMany(\App\Models\Asset::class, 'model_id')->Deployed();

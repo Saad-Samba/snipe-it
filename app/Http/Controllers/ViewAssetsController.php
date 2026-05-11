@@ -11,6 +11,7 @@ use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\CheckoutRequest;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
@@ -190,10 +191,12 @@ class ViewAssetsController extends Controller
         $this->ensureModelRequestAuthorized($item, auth()->user());
         $this->ensureModelRequestProjectProvided($validated['project_id'] ?? null);
         $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
-        $this->ensureModelRequestWithinReusableRemaining($item, (int) $validated['request-quantity']);
-
-        $estimateQuantity = (int) ($validated['total-request-quantity'] ?? $validated['request-quantity']);
-        $estimate = $this->estimateAssetModelRequest($item, $estimateQuantity);
+        $this->ensureModelRequestNeededByDateProvided($validated['needed_by_date'] ?? null);
+        $estimate = $this->estimateAssetModelRequest(
+            $item,
+            (int) $validated['request-quantity'],
+            $validated['needed_by_date'] ?? null
+        );
 
         return response()->json($estimate);
     }
@@ -225,7 +228,6 @@ class ViewAssetsController extends Controller
         $logaction->target_type = User::class;
 
         $quantity = (int) ($validated['request-quantity'] ?? 1);
-        $estimateQuantity = (int) ($validated['total-request-quantity'] ?? $quantity);
         $requestAction = $validated['request-action'] ?? 'create';
         $projectId = $validated['project_id'] ?? null;
         $neededByDate = $validated['needed_by_date'] ?? null;
@@ -252,13 +254,23 @@ class ViewAssetsController extends Controller
                 $this->ensureModelRequestProjectProvided($projectId);
                 $this->ensureModelRequestNeededByDateProvided($neededByDate);
                 $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
-                $this->ensureModelRequestWithinReusableRemaining($item, $quantity);
             }
         }
 
+        $existingRequest = $fullItemType == AssetModel::class
+            ? $this->findActiveModelProjectRequest($item, $user, (int) $projectId)
+            : $item_request;
+
         if ($isCancelRequest) {
-            $item->cancelRequest($requestingUser);
-            $data['item_quantity'] = ($item_request) ? $item_request->quantity : 1;
+            if ($fullItemType == AssetModel::class && $existingRequest) {
+                $existingRequest->update([
+                    'canceled_at' => now(),
+                    'status' => CheckoutRequest::STATUS_CANCELED,
+                ]);
+            } else {
+                $item->cancelRequest($requestingUser);
+            }
+            $data['item_quantity'] = $existingRequest ? $existingRequest->quantity : 1;
             $logaction->logaction(ActionType::RequestCanceled);
 
             if (($settings->alert_email != '') && ($settings->alerts_enabled == '1') && (! config('app.lock_passwords'))) {
@@ -270,11 +282,12 @@ class ViewAssetsController extends Controller
             $requestAttributes = $fullItemType == AssetModel::class
                 ? array_merge(
                     ['project_id' => $projectId, 'needed_by_date' => $neededByDate],
-                    $this->estimateAssetModelRequest($item, $estimateQuantity)
+                    $this->estimateAssetModelRequest($item, $quantity, $neededByDate)
                 )
                 : [];
-            $checkoutRequest = $item_request
-                ? $item->updateRequest($quantity, $user, $requestAttributes)
+
+            $checkoutRequest = $existingRequest
+                ? $this->updateExistingModelProjectRequest($existingRequest, $quantity, $requestAttributes)
                 : $item->request($quantity, $requestAttributes);
 
             if ($fullItemType == AssetModel::class) {
@@ -295,7 +308,6 @@ class ViewAssetsController extends Controller
         return $request->validate([
             'request-action' => ['nullable', 'string', 'in:create,update,cancel'],
             'request-quantity' => ['nullable', 'integer', 'min:1'],
-            'total-request-quantity' => ['nullable', 'integer', 'min:1'],
             'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
             'needed_by_date' => ['nullable', 'date'],
         ]);
@@ -310,9 +322,9 @@ class ViewAssetsController extends Controller
         $this->authorize('view', $item);
     }
 
-    private function estimateAssetModelRequest(AssetModel $item, int $quantity): array
+    private function estimateAssetModelRequest(AssetModel $item, int $quantity, ?string $neededByDate = null): array
     {
-        return EstimateAssetModelReuseAction::run($item, $quantity);
+        return EstimateAssetModelReuseAction::run($item, $quantity, $neededByDate);
     }
 
     private function ensureModelRequestProjectProvided(?int $projectId): void
@@ -337,24 +349,7 @@ class ViewAssetsController extends Controller
     {
         if (! $quantity) {
             throw ValidationException::withMessages([
-                'request-quantity' => 'Booking quantity is required for model requests.',
-            ]);
-        }
-    }
-
-    private function ensureModelRequestWithinReusableRemaining(AssetModel $item, int $quantity): void
-    {
-        $availableReusableStock = $item->availableAssets()->count();
-
-        if ($availableReusableStock < 1) {
-            throw ValidationException::withMessages([
-                'request-quantity' => 'No reusable stock is currently available for this model.',
-            ]);
-        }
-
-        if ($quantity > $availableReusableStock) {
-            throw ValidationException::withMessages([
-                'request-quantity' => 'Booking quantity cannot exceed reusable stock for this model.',
+                'request-quantity' => 'Total needed quantity is required for model requests.',
             ]);
         }
     }
@@ -388,18 +383,19 @@ class ViewAssetsController extends Controller
             foreach ($validated['model_quantities'] as $modelId => $quantity) {
                 $item = AssetModel::findOrFail((int) $modelId);
                 $this->ensureModelRequestAuthorized($item, $user);
-                $this->ensureModelRequestWithinReusableRemaining($item, (int) $quantity);
 
                 $requestAttributes = array_merge(
                     [
                         'project_id' => (int) $validated['project_id'],
                         'needed_by_date' => $validated['needed_by_date'],
                     ],
-                    $this->estimateAssetModelRequest($item, (int) $quantity)
+                    $this->estimateAssetModelRequest($item, (int) $quantity, $validated['needed_by_date'])
                 );
 
-                $checkoutRequest = $item->isRequestedBy($user)
-                    ? $item->updateRequest((int) $quantity, $user, $requestAttributes)
+                $existingRequest = $this->findActiveModelProjectRequest($item, $user, (int) $validated['project_id']);
+
+                $checkoutRequest = $existingRequest
+                    ? $this->updateExistingModelProjectRequest($existingRequest, (int) $quantity, $requestAttributes)
                     : $item->request((int) $quantity, $requestAttributes);
 
                 $data = [
@@ -500,12 +496,38 @@ class ViewAssetsController extends Controller
             $filteredProject = Project::find($projectId);
         }
 
+        $projectSummary = null;
+        if ($filteredProject) {
+            $projectSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $filteredProject->id);
+        }
+
         return view('account/requested', [
             'pageTitle' => 'Submitted Requests',
             'dataUrl' => route('api.assets.requested', $query),
             'requestMode' => 'requester',
             'filteredModel' => $filteredModel,
             'filteredProject' => $filteredProject,
+            'projectSummary' => $projectSummary,
         ]);
+    }
+
+    private function findActiveModelProjectRequest(AssetModel $item, User $user, int $projectId): ?CheckoutRequest
+    {
+        return $item->requests()
+            ->where('user_id', $user->id)
+            ->where('project_id', $projectId)
+            ->whereNull('canceled_at')
+            ->latest('id')
+            ->first();
+    }
+
+    private function updateExistingModelProjectRequest(CheckoutRequest $request, int $quantity, array $attributes): CheckoutRequest
+    {
+        $request->quantity = $quantity;
+        $request->fill($attributes);
+        $request->status = $request->status ?: CheckoutRequest::STATUS_PENDING;
+        $request->save();
+
+        return $request->fresh();
     }
 }

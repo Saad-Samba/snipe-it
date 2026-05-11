@@ -57,6 +57,19 @@
   <div class="col-md-12">
     <div class="box">
       <div class="box-body">
+          @if (isset($requestContext) && $requestContext && isset($requestReviewSummary))
+            <div class="alert alert-info" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+              <div><strong>Project</strong><br>{{ $requestReviewSummary['project'] ?: '-' }}</div>
+              <div><strong>Needed By</strong><br>{{ $requestReviewSummary['needed_by_date'] ?: '-' }}</div>
+              <div><strong>Total Needed</strong><br>{{ $requestReviewSummary['total_needed'] }}</div>
+              <div><strong>Reusable Now</strong><br>{{ $requestReviewSummary['reusable_now'] }}</div>
+              <div><strong>Due Back</strong><br>{{ $requestReviewSummary['due_back_before_needed_by'] }}</div>
+              <div><strong>Potentially Coverable</strong><br>{{ $requestReviewSummary['potentially_coverable'] }}</div>
+              <div><strong>Shortfall</strong><br>{{ $requestReviewSummary['shortfall'] }}</div>
+              <div><strong>Booked</strong><br>{{ $requestReviewSummary['booked_count'] }}</div>
+              <div><strong>Reserved for RFQ</strong><br>{{ $requestReviewSummary['reserved_count'] }}</div>
+            </div>
+          @endif
           <div class="row">
             <div class="col-md-12">
 

@@ -69,6 +69,8 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame('2026-06-01', optional($checkoutRequest->needed_by_date)->format('Y-m-d'));
         $this->assertSame('pending', $checkoutRequest->status);
         $this->assertSame(2, $checkoutRequest->reusable_quantity);
+        $this->assertSame(0, $checkoutRequest->due_back_before_needed_by_quantity);
+        $this->assertSame(2, $checkoutRequest->potentially_coverable_quantity);
         $this->assertSame(0, $checkoutRequest->procurement_shortfall);
         $this->assertSame((float) $model->reference_price * 2, (float) $checkoutRequest->estimated_savings);
         $this->assertSame((float) $model->reference_price, (float) $checkoutRequest->reference_price_snapshot);
@@ -199,6 +201,8 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.project', 'Request Tracking Project')
             ->assertJsonPath('rows.0.booked_count', 0)
             ->assertJsonPath('rows.0.reusable_quantity', 1)
+            ->assertJsonPath('rows.0.due_back_before_needed_by_quantity', 0)
+            ->assertJsonPath('rows.0.potentially_coverable_quantity', 0)
             ->assertJsonPath('rows.0.procurement_shortfall', 1)
             ->assertJsonPath('rows.0.estimated_savings', 499.99);
     }
@@ -405,7 +409,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('model_id='.$model->id, false);
     }
 
-    public function test_model_request_cannot_exceed_remaining_stock()
+    public function test_model_request_can_exceed_reusable_now_and_persists_shortfall()
     {
         Notification::fake();
 
@@ -429,13 +433,17 @@ class ModelRequestWorkflowTest extends TestCase
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
-            ->assertRedirect(route('requestable-assets'))
-            ->assertSessionHasErrors('request-quantity');
+            ->assertRedirect(route('requestable-assets'));
 
-        $this->assertDatabaseMissing('checkout_requests', [
+        $this->assertDatabaseHas('checkout_requests', [
             'user_id' => $requester->id,
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
+            'quantity' => 2,
+            'reusable_quantity' => 1,
+            'due_back_before_needed_by_quantity' => 0,
+            'potentially_coverable_quantity' => 1,
+            'procurement_shortfall' => 1,
         ]);
     }
 
@@ -448,7 +456,6 @@ class ModelRequestWorkflowTest extends TestCase
         $company = Company::factory()->create(['name' => 'Casablanca Site']);
         $coordinator = User::factory()->create(['first_name' => 'Casablanca', 'last_name' => 'RAC']);
         $project = Project::factory()->create();
-        $updatedProject = Project::factory()->create();
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
@@ -480,19 +487,20 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-action' => 'update',
-                'request-quantity' => 2,
-                'total-request-quantity' => 5,
-                'project_id' => $updatedProject->id,
+                'request-quantity' => 5,
+                'project_id' => $project->id,
                 'needed_by_date' => '2026-06-15',
             ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('checkout_requests', [
             'id' => $existingRequest->id,
-            'quantity' => 2,
-            'project_id' => $updatedProject->id,
+            'quantity' => 5,
+            'project_id' => $project->id,
             'needed_by_date' => '2026-06-15',
             'reusable_quantity' => 2,
+            'due_back_before_needed_by_quantity' => 0,
+            'potentially_coverable_quantity' => 2,
             'procurement_shortfall' => 3,
             'estimated_savings' => number_format($model->reference_price * 2, 2, '.', ''),
         ]);
@@ -536,6 +544,8 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'reusable_quantity' => 1,
+            'due_back_before_needed_by_quantity' => 0,
+            'potentially_coverable_quantity' => 1,
             'procurement_shortfall' => 0,
             'estimated_savings' => 0,
             'reference_price_snapshot' => null,
@@ -576,15 +586,17 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->actingAs($requester)
             ->postJson(route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
-                'request-quantity' => 1,
-                'total-request-quantity' => 3,
+                'request-quantity' => 3,
                 'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
             ])
             ->assertOk()
             ->assertJson([
                 'requested_quantity' => 3,
-                'available_reusable_stock' => 1,
+                'reusable_now' => 1,
                 'reusable_quantity' => 1,
+                'due_back_before_needed_by_quantity' => 0,
+                'potentially_coverable_by_needed_by' => 1,
                 'procurement_shortfall' => 2,
                 'estimated_savings' => 325.5,
                 'reference_price_snapshot' => 325.5,
@@ -633,6 +645,7 @@ class ModelRequestWorkflowTest extends TestCase
             'project_id' => $project->id,
             'needed_by_date' => '2026-06-20',
             'quantity' => 1,
+            'potentially_coverable_quantity' => 1,
         ]);
 
         $this->assertDatabaseHas('checkout_requests', [
@@ -641,7 +654,52 @@ class ModelRequestWorkflowTest extends TestCase
             'project_id' => $project->id,
             'needed_by_date' => '2026-06-20',
             'quantity' => 1,
+            'potentially_coverable_quantity' => 1,
         ]);
+    }
+
+    public function test_model_request_estimate_counts_due_back_assets_before_needed_by_date()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 100,
+        ]);
+
+        $disciplineId = Discipline::create([
+            'name' => 'Due Back',
+            'created_by' => $requester->id,
+        ])->id;
+        $companyId = Company::factory()->create()->id;
+
+        $this->createEligibleAsset($model, $companyId, $disciplineId);
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => $companyId,
+            'discipline_id' => $disciplineId,
+            'status_id' => Statuslabel::factory()->rtd()->create()->id,
+            'requestable' => 1,
+            'assigned_to' => User::factory()->create()->id,
+            'assigned_type' => User::class,
+            'expected_checkin' => '2026-06-01',
+        ]);
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-quantity' => 3,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
+            ])
+            ->assertOk()
+            ->assertJson([
+                'requested_quantity' => 3,
+                'reusable_now' => 1,
+                'due_back_before_needed_by_quantity' => 1,
+                'potentially_coverable_by_needed_by' => 2,
+                'procurement_shortfall' => 1,
+                'estimated_savings' => 200.0,
+            ]);
     }
 
     private function createEligibleAsset(AssetModel $model, int $companyId, int $disciplineId): Asset

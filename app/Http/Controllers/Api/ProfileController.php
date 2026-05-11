@@ -116,12 +116,15 @@ class ProfileController extends Controller
                     'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
                     'booked_count' => $bookedCount,
                     'reusable_quantity' => (int) ($checkoutRequest->reusable_quantity ?? 0),
+                    'due_back_before_needed_by_quantity' => (int) ($checkoutRequest->due_back_before_needed_by_quantity ?? 0),
+                    'potentially_coverable_quantity' => (int) ($checkoutRequest->potentially_coverable_quantity ?? 0),
                     'procurement_shortfall' => (int) ($checkoutRequest->procurement_shortfall ?? 0),
                     'estimated_savings' => $checkoutRequest->estimated_savings !== null ? (float) $checkoutRequest->estimated_savings : null,
                     'estimated_savings_formatted' => $checkoutRequest->estimated_savings !== null
                         ? Helper::formatCurrencyOutput($checkoutRequest->estimated_savings)
                         : null,
                     'reference_price_snapshot' => $checkoutRequest->reference_price_snapshot !== null ? (float) $checkoutRequest->reference_price_snapshot : null,
+                    'reserved_count' => $checkoutRequest->reservedAssetsCount(),
                     'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),
                     'status_value' => e($statusValue),
                     'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,
@@ -142,6 +145,7 @@ class ProfileController extends Controller
                         'request_id' => $checkoutRequest->id,
                         'status' => 'RTD',
                         'model_id' => $checkoutRequest->requestable_id,
+                        'project_id' => $checkoutRequest->project_id,
                     ]),
                 ];
 

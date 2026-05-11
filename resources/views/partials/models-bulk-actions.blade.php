@@ -14,7 +14,7 @@
                 <select name="bulk_actions" class="form-control select2" style="width: 200px;" aria-label="bulk_actions">
                     <option value="edit">{{ trans('general.bulk_edit') }}</option>
                     @if (auth()->check() && auth()->user()->hasAccess('models.request'))
-                    <option value="request">Bulk Booking</option>
+                    <option value="request">Bulk Request</option>
                     @endif
                     <option value="delete">{{ trans('general.bulk_delete') }}</option>
                 </select>
