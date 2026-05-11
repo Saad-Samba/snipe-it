@@ -27,8 +27,17 @@ class CheckoutRequest extends Model
         'requested_discipline_id',
         'project_id',
         'quantity',
+        'reusable_quantity',
+        'procurement_shortfall',
+        'estimated_savings',
+        'reference_price_snapshot',
         'status',
         'note',
+    ];
+
+    protected $casts = [
+        'estimated_savings' => 'float',
+        'reference_price_snapshot' => 'float',
     ];
 
     protected $table = 'checkout_requests';

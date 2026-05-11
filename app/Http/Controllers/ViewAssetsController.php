@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
 use App\Actions\CheckoutRequests\CancelCheckoutRequestAction;
 use App\Actions\CheckoutRequests\CreateCheckoutRequestAction;
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
@@ -18,6 +19,7 @@ use App\Notifications\RequestAssetNotification;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 use \Illuminate\Contracts\View\View;
 use Exception;
@@ -176,13 +178,25 @@ class ViewAssetsController extends Controller
         return view('account/requestable-assets', compact('assets', 'models'));
     }
 
+    public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse
+    {
+        if ($itemType !== 'asset_model') {
+            abort(404);
+        }
+
+        $validated = $this->validateModelRequestPayload($request);
+        $item = AssetModel::findOrFail($itemId);
+        $this->ensureModelRequestAuthorized($item, auth()->user());
+        $this->ensureModelRequestProjectProvided($validated['project_id'] ?? null);
+
+        $estimate = $this->estimateAssetModelRequest($item, (int) $validated['request-quantity']);
+
+        return response()->json($estimate);
+    }
+
     public function getRequestItem(Request $request, $itemType, $itemId = null, $cancel_by_admin = false, $requestingUser = null): RedirectResponse
     {
-        $validated = $request->validate([
-            'request-action' => ['nullable', 'string', 'in:create,update,cancel'],
-            'request-quantity' => ['nullable', 'integer', 'min:1'],
-            'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
-        ]);
+        $validated = $this->validateModelRequestPayload($request);
 
         $item = null;
         $fullItemType = 'App\\Models\\'.studly_case($itemType);
@@ -226,27 +240,10 @@ class ViewAssetsController extends Controller
         $item_request = $item->isRequestedBy($user);
         $isCancelRequest = $cancel_by_admin || $requestAction === 'cancel';
 
-        if (($fullItemType == AssetModel::class) && (! $user->hasAccess('models.request'))) {
-            throw new AuthorizationException('You are not authorized to request models.');
-        }
-
         if ($fullItemType == AssetModel::class) {
-            $this->authorize('view', $item);
-        }
-
-        if (!$isCancelRequest && $fullItemType == AssetModel::class) {
-            $remaining = $item->availableAssets()->count();
-
-            if ($quantity > $remaining) {
-                throw ValidationException::withMessages([
-                    'request-quantity' => 'Requested quantity cannot exceed remaining stock ('.$remaining.').',
-                ]);
-            }
-
-            if (! $projectId) {
-                throw ValidationException::withMessages([
-                    'project_id' => 'Project is required for model requests.',
-                ]);
+            $this->ensureModelRequestAuthorized($item, $user);
+            if (! $isCancelRequest) {
+                $this->ensureModelRequestProjectProvided($projectId);
             }
         }
 
@@ -261,7 +258,12 @@ class ViewAssetsController extends Controller
 
             return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.canceled'));
         } else {
-            $requestAttributes = $fullItemType == AssetModel::class ? ['project_id' => $projectId] : [];
+            $requestAttributes = $fullItemType == AssetModel::class
+                ? array_merge(
+                    ['project_id' => $projectId],
+                    $this->estimateAssetModelRequest($item, $quantity)
+                )
+                : [];
             $checkoutRequest = $item_request
                 ? $item->updateRequest($quantity, $user, $requestAttributes)
                 : $item->request($quantity, $requestAttributes);
@@ -276,6 +278,38 @@ class ViewAssetsController extends Controller
             }
 
             return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.success'));
+        }
+    }
+
+    private function validateModelRequestPayload(Request $request): array
+    {
+        return $request->validate([
+            'request-action' => ['nullable', 'string', 'in:create,update,cancel'],
+            'request-quantity' => ['nullable', 'integer', 'min:1'],
+            'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
+        ]);
+    }
+
+    private function ensureModelRequestAuthorized(AssetModel $item, User $user): void
+    {
+        if (! $user->hasAccess('models.request')) {
+            throw new AuthorizationException('You are not authorized to request models.');
+        }
+
+        $this->authorize('view', $item);
+    }
+
+    private function estimateAssetModelRequest(AssetModel $item, int $quantity): array
+    {
+        return EstimateAssetModelReuseAction::run($item, $quantity);
+    }
+
+    private function ensureModelRequestProjectProvided(?int $projectId): void
+    {
+        if (! $projectId) {
+            throw ValidationException::withMessages([
+                'project_id' => 'Project is required for model requests.',
+            ]);
         }
     }
 

@@ -52,6 +52,9 @@
                             <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Model</th>
                             <th data-field="qty" data-sortable="true">{{ trans('general.qty') }}</th>
                             <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
+                            <th data-field="reusable_quantity" data-sortable="true">Reusable</th>
+                            <th data-field="procurement_shortfall" data-sortable="true">Shortfall</th>
+                            <th data-field="estimated_savings" data-sortable="true" data-formatter="requestSavingsFormatter">Estimated Savings</th>
                             <th data-field="booked_count" data-sortable="true">Booked</th>
                             <th data-field="status" data-sortable="true" data-formatter="requestStatusFormatter">Status</th>
                             <th data-field="request_date" data-sortable="true" data-formatter="dateDisplayFormatter"> {{ trans('general.requested_date') }}</th>

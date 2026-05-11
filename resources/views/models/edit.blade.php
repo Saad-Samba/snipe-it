@@ -36,6 +36,14 @@
 @include ('partials.forms.edit.depreciation')
 @include ('partials.forms.edit.minimum_quantity')
 
+<div class="form-group {{ $errors->has('reference_price') ? ' has-error' : '' }}">
+    <label for="reference_price" class="col-md-3 control-label">Reference Price</label>
+    <div class="col-md-7">
+        <input class="form-control" type="number" name="reference_price" min="0.00" max="99999999999999999.99" step="0.01" aria-label="reference_price" id="reference_price" value="{{ old('reference_price', $item->reference_price) }}" />
+        {!! $errors->first('reference_price', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+    </div>
+</div>
+
 <div class="form-group">
     <label for="obsolete" class="col-md-3 control-label">
         {{ trans('admin/models/table.obsolete') }}

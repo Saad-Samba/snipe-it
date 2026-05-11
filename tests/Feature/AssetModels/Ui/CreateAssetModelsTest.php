@@ -88,6 +88,43 @@ class CreateAssetModelsTest extends TestCase
         $this->assertTrue(AssetModel::where('name', 'Managed AFM Model')->exists());
     }
 
+    public function testUserCanCreateAssetModelWithReferencePrice()
+    {
+        $category = Category::factory()->forAssets()->create();
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.create'))
+            ->post(route('models.store'), [
+                'name' => 'Priced Test Model',
+                'category_id' => $category->id,
+                'reference_price' => '1234.56',
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertEquals(
+            1234.56,
+            (float) AssetModel::where('name', 'Priced Test Model')->sole()->reference_price
+        );
+    }
+
+    public function testUserCannotCreateAssetModelWithNegativeReferencePrice()
+    {
+        $category = Category::factory()->forAssets()->create();
+
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.create'))
+            ->post(route('models.store'), [
+                'name' => 'Invalid Price Model',
+                'category_id' => $category->id,
+                'reference_price' => '-1',
+            ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('models.create'));
+        $response->assertSessionHasErrors(['reference_price']);
+        $this->assertFalse(AssetModel::where('name', 'Invalid Price Model')->exists());
+    }
+
     public function testAfmCannotCreateAssetModelInUnmanagedCategory()
     {
         $afm = User::factory()->viewAssetModels()->createAssetModels()->create();

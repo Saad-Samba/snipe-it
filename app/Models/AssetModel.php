@@ -44,6 +44,7 @@ class AssetModel extends SnipeModel
     protected $presenter = AssetModelPresenter::class;
     protected $casts = [
         'obsolete' => 'boolean',
+        'reference_price' => 'float',
     ];
 
     // Declare the rules for the model validation
@@ -57,6 +58,7 @@ class AssetModel extends SnipeModel
         'manufacturer_id'   => 'integer|exists:manufacturers,id|nullable',
         'eol'               => 'integer:min:0|max:240|nullable',
         'obsolete'          => 'boolean',
+        'reference_price'   => 'numeric|nullable|gte:0|max:99999999999999999.99',
     ];
 
 
@@ -78,6 +80,7 @@ class AssetModel extends SnipeModel
         'name',
         'notes',
         'obsolete',
+        'reference_price',
         'require_serial'
     ];
 

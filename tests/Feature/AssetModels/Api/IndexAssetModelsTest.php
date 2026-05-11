@@ -46,6 +46,30 @@ class IndexAssetModelsTest extends TestCase
             ->assertJson(fn(AssertableJson $json) => $json->has('rows', 3)->etc());
     }
 
+    public function testAssetModelIndexReturnsReferencePriceFields()
+    {
+        $model = AssetModel::factory()->create([
+            'name' => 'Priced API Model',
+            'reference_price' => 1499.99,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(
+                route('api.models.index', [
+                    'search' => 'Priced API Model',
+                    'sort' => 'name',
+                    'order' => 'asc',
+                    'offset' => '0',
+                    'limit' => '20',
+                ]))
+            ->assertOk()
+            ->assertJson(fn(AssertableJson $json) => $json
+                ->where('rows.0.id', $model->id)
+                ->where('rows.0.reference_price', 1499.99)
+                ->where('rows.0.reference_price_formatted', '1,499.99')
+                ->etc());
+    }
+
     public function testAfmAssetModelIndexOnlyReturnsManagedCategoryModels()
     {
         $afm = User::factory()->viewAssetModels()->create();
@@ -256,6 +280,44 @@ class IndexAssetModelsTest extends TestCase
                 ->where('rows.0.available_actions.cancel_request', true)
                 ->where('rows.0.available_actions.update_request', true)
                 ->where('rows.0.requested_quantity', 1)
+                ->etc());
+    }
+
+    public function testAssetModelIndexExposesRequestActionEvenWhenReusableStockIsUnavailable()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $requester->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Requestable Without Stock',
+            'category_id' => $managedCategory->id,
+        ]);
+
+        $deployableStatus = Statuslabel::factory()->rtd()->create();
+        $assignedUser = User::factory()->create();
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $deployableStatus->id,
+            'assigned_to' => $assignedUser->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Without Stock',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', true)
+                ->where('rows.0.available_actions.cancel_request', false)
+                ->where('rows.0.available_actions.update_request', false)
+                ->where('rows.0.requested_quantity', null)
                 ->etc());
     }
 

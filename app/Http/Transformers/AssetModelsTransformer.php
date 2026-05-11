@@ -50,6 +50,10 @@ class AssetModelsTransformer
             'image' => ($assetmodel->image != '') ? Storage::disk('public')->url('models/'.e($assetmodel->image)) : null,
             'model_number' => ($assetmodel->model_number ? e($assetmodel->model_number): null),
             'min_amt'   => ($assetmodel->min_amt) ? (int) $assetmodel->min_amt : null,
+            'reference_price' => $assetmodel->reference_price,
+            'reference_price_formatted' => $assetmodel->reference_price !== null
+                ? Helper::formatCurrencyOutput($assetmodel->reference_price)
+                : null,
 
             'depreciation' => ($assetmodel->depreciation) ? [
                 'id' => (int) $assetmodel->depreciation->id,
@@ -98,7 +102,7 @@ class AssetModelsTransformer
         $activeRequest = $requestingUser ? $assetmodel->isRequestedBy($requestingUser) : null;
         $hasActiveRequest = (bool) $activeRequest;
 
-        $permissions_array['available_actions']['request'] = $canRequestModels && !$hasActiveRequest && ((int) $assetmodel->remaining > 0);
+        $permissions_array['available_actions']['request'] = $canRequestModels && !$hasActiveRequest;
         $permissions_array['available_actions']['cancel_request'] = $canRequestModels && $hasActiveRequest;
         $permissions_array['available_actions']['update_request'] = $canRequestModels && $hasActiveRequest;
         $array['requested_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;

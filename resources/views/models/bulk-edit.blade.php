@@ -104,6 +104,15 @@
                             </div>
 
                             @include ('partials.forms.edit.minimum_quantity')
+
+                            <div class="form-group {{ $errors->has('reference_price') ? ' has-error' : '' }}">
+                                <label for="reference_price" class="col-md-3 control-label">Reference Price</label>
+                                <div class="col-md-7">
+                                    <input class="form-control" type="number" name="reference_price" id="reference_price" min="0.00" max="99999999999999999.99" step="0.01" value="{{ old('reference_price') }}" />
+                                    {!! $errors->first('reference_price', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
+                                </div>
+                            </div>
+
                             <!-- require serial boolean -->
                             <div class="form-group">
                                 <label for="require_serial" class="col-md-3 control-label">

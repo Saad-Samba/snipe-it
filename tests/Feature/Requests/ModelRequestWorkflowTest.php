@@ -66,6 +66,10 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->assertSame(2, $checkoutRequest->quantity);
         $this->assertSame('pending', $checkoutRequest->status);
+        $this->assertSame(2, $checkoutRequest->reusable_quantity);
+        $this->assertSame(0, $checkoutRequest->procurement_shortfall);
+        $this->assertSame((float) $model->reference_price * 2, (float) $checkoutRequest->estimated_savings);
+        $this->assertSame((float) $model->reference_price, (float) $checkoutRequest->reference_price_snapshot);
 
         $this->assertDatabaseHas('checkout_request_coordinators', [
             'checkout_request_id' => $checkoutRequest->id,
@@ -175,6 +179,10 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_type' => AssetModel::class,
             'quantity' => 2,
             'project_id' => $project->id,
+            'reusable_quantity' => 1,
+            'procurement_shortfall' => 1,
+            'estimated_savings' => 499.99,
+            'reference_price_snapshot' => 499.99,
         ]);
 
         $this->actingAsForApi($requester)
@@ -185,7 +193,10 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.qty', 2)
             ->assertJsonPath('rows.0.status', 'Pending')
             ->assertJsonPath('rows.0.project', 'Request Tracking Project')
-            ->assertJsonPath('rows.0.booked_count', 0);
+            ->assertJsonPath('rows.0.booked_count', 0)
+            ->assertJsonPath('rows.0.reusable_quantity', 1)
+            ->assertJsonPath('rows.0.procurement_shortfall', 1)
+            ->assertJsonPath('rows.0.estimated_savings', 499.99);
     }
 
     public function test_requested_assets_api_can_filter_to_single_model()
@@ -390,12 +401,15 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('model_id='.$model->id, false);
     }
 
-    public function test_model_request_cannot_exceed_remaining_stock()
+    public function test_model_request_can_exceed_remaining_stock_and_persists_shortfall_estimate()
     {
+        Notification::fake();
+
         $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 250,
         ]);
 
         $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
@@ -410,14 +424,16 @@ class ModelRequestWorkflowTest extends TestCase
                 'request-quantity' => 2,
                 'project_id' => $project->id,
             ])
-            ->assertRedirect(route('requestable-assets'))
-            ->assertSessionHasErrors('request-quantity');
+            ->assertRedirect();
 
-        $this->assertDatabaseMissing('checkout_requests', [
+        $this->assertDatabaseHas('checkout_requests', [
             'user_id' => $requester->id,
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'quantity' => 2,
+            'reusable_quantity' => 1,
+            'procurement_shortfall' => 1,
+            'estimated_savings' => 250.00,
         ]);
     }
 
@@ -471,6 +487,9 @@ class ModelRequestWorkflowTest extends TestCase
             'id' => $existingRequest->id,
             'quantity' => 2,
             'project_id' => $updatedProject->id,
+            'reusable_quantity' => 2,
+            'procurement_shortfall' => 0,
+            'estimated_savings' => number_format($model->reference_price * 2, 2, '.', ''),
         ]);
 
         $this->assertSame(
@@ -481,6 +500,62 @@ class ModelRequestWorkflowTest extends TestCase
                 ->where('requestable_type', AssetModel::class)
                 ->count()
         );
+    }
+
+    public function test_model_request_submission_requires_reference_price()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => null,
+        ]);
+
+        $this->actingAs($requester)
+            ->from(route('requestable-assets'))
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-action' => 'create',
+                'request-quantity' => 1,
+                'project_id' => $project->id,
+            ])
+            ->assertRedirect(route('requestable-assets'))
+            ->assertSessionHasErrors('reference_price');
+
+        $this->assertDatabaseMissing('checkout_requests', [
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+        ]);
+    }
+
+    public function test_model_request_estimate_endpoint_returns_snapshot()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 325.50,
+        ]);
+
+        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+            'name' => 'Estimator',
+            'created_by' => $requester->id,
+        ])->id);
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-quantity' => 3,
+                'project_id' => $project->id,
+            ])
+            ->assertOk()
+            ->assertJson([
+                'requested_quantity' => 3,
+                'available_reusable_stock' => 1,
+                'reusable_quantity' => 1,
+                'procurement_shortfall' => 2,
+                'estimated_savings' => 325.5,
+                'reference_price_snapshot' => 325.5,
+            ]);
     }
 
     private function createEligibleAsset(AssetModel $model, int $companyId, int $disciplineId): Asset

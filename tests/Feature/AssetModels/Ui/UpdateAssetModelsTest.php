@@ -122,6 +122,47 @@ class UpdateAssetModelsTest extends TestCase
 
     }
 
+    public function testUserCanUpdateAssetModelReferencePrice()
+    {
+        $category = Category::factory()->forAssets()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'reference_price' => 100,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => $model->name,
+                'category_id' => $category->id,
+                'reference_price' => '987.65',
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertEquals(987.65, (float) $model->fresh()->reference_price);
+    }
+
+    public function testUserCannotUpdateAssetModelWithNegativeReferencePrice()
+    {
+        $category = Category::factory()->forAssets()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'reference_price' => 100,
+        ]);
+
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.edit', $model))
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => $model->name,
+                'category_id' => $category->id,
+                'reference_price' => '-5',
+            ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('models.edit', $model));
+        $response->assertSessionHasErrors(['reference_price']);
+        $this->assertEquals(100.0, (float) $model->fresh()->reference_price);
+    }
+
     public function testUserCannotChangeAssetModelCategoryType()
     {
         $category = Category::factory()->forAssets()->create();

@@ -18,6 +18,10 @@ class CheckoutRequestFactory extends Factory
             'requestable_id' => Asset::factory(),
             'requestable_type' => Asset::class,
             'quantity' => 1,
+            'reusable_quantity' => 0,
+            'procurement_shortfall' => 1,
+            'estimated_savings' => 0,
+            'reference_price_snapshot' => 0,
             'status' => CheckoutRequest::STATUS_PENDING,
             'user_id' => User::factory(),
         ];

@@ -114,6 +114,13 @@ class ProfileController extends Controller
                     'project_id' => $checkoutRequest->project_id ? (int) $checkoutRequest->project_id : null,
                     'project' => e(optional($checkoutRequest->project)->name),
                     'booked_count' => $bookedCount,
+                    'reusable_quantity' => (int) ($checkoutRequest->reusable_quantity ?? 0),
+                    'procurement_shortfall' => (int) ($checkoutRequest->procurement_shortfall ?? 0),
+                    'estimated_savings' => $checkoutRequest->estimated_savings !== null ? (float) $checkoutRequest->estimated_savings : null,
+                    'estimated_savings_formatted' => $checkoutRequest->estimated_savings !== null
+                        ? Helper::formatCurrencyOutput($checkoutRequest->estimated_savings)
+                        : null,
+                    'reference_price_snapshot' => $checkoutRequest->reference_price_snapshot !== null ? (float) $checkoutRequest->reference_price_snapshot : null,
                     'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),
                     'status_value' => e($statusValue),
                     'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,

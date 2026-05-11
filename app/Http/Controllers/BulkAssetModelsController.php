@@ -102,6 +102,10 @@ class BulkAssetModelsController extends Controller
             $update_array['min_amt'] = $request->input('min_amt');
         }
 
+        if ($request->filled('reference_price')) {
+            $update_array['reference_price'] = $request->input('reference_price');
+        }
+
         if ($request->filled('require_serial')) {
             $update_array['require_serial'] = $request->input('require_serial');
         }
