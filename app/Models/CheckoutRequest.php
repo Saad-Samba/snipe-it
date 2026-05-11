@@ -26,6 +26,7 @@ class CheckoutRequest extends Model
         'user_id',
         'requested_discipline_id',
         'project_id',
+        'needed_by_date',
         'quantity',
         'reusable_quantity',
         'procurement_shortfall',
@@ -36,6 +37,7 @@ class CheckoutRequest extends Model
     ];
 
     protected $casts = [
+        'needed_by_date' => 'date',
         'estimated_savings' => 'float',
         'reference_price_snapshot' => 'float',
     ];

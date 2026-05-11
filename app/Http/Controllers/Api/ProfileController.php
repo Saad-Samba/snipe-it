@@ -113,6 +113,7 @@ class ProfileController extends Controller
                     'qty' => (int) $checkoutRequest->quantity,
                     'project_id' => $checkoutRequest->project_id ? (int) $checkoutRequest->project_id : null,
                     'project' => e(optional($checkoutRequest->project)->name),
+                    'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
                     'booked_count' => $bookedCount,
                     'reusable_quantity' => (int) ($checkoutRequest->reusable_quantity ?? 0),
                     'procurement_shortfall' => (int) ($checkoutRequest->procurement_shortfall ?? 0),

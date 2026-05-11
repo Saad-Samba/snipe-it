@@ -421,6 +421,9 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
     Route::post('request-estimate/{itemType}/{itemId}', [ViewAssetsController::class, 'estimateRequestItem'])
         ->name('account.request-estimate');
 
+    Route::post('request-items-bulk', [ViewAssetsController::class, 'bulkRequestItems'])
+        ->name('account.request-items-bulk');
+
     Route::post('request/{itemType}/{itemId}/{cancel_by_admin?}/{requestingUser?}', [ViewAssetsController::class, 'getRequestItem'])
         ->name('account/request-item');
 

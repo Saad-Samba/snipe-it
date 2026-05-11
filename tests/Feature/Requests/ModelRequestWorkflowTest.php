@@ -55,6 +55,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 2,
                 'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
             ])
             ->assertRedirect();
 
@@ -65,6 +66,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame(2, $checkoutRequest->quantity);
+        $this->assertSame('2026-06-01', optional($checkoutRequest->needed_by_date)->format('Y-m-d'));
         $this->assertSame('pending', $checkoutRequest->status);
         $this->assertSame(2, $checkoutRequest->reusable_quantity);
         $this->assertSame(0, $checkoutRequest->procurement_shortfall);
@@ -106,6 +108,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 1,
                 'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
             ])
             ->assertForbidden();
 
@@ -136,6 +139,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 1,
                 'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
             ])
             ->assertForbidden();
 
@@ -423,6 +427,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'request-action' => 'create',
                 'request-quantity' => 2,
                 'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
             ])
             ->assertRedirect(route('requestable-assets'))
             ->assertSessionHasErrors('request-quantity');
@@ -478,6 +483,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'request-quantity' => 2,
                 'total-request-quantity' => 5,
                 'project_id' => $updatedProject->id,
+                'needed_by_date' => '2026-06-15',
             ])
             ->assertRedirect();
 
@@ -485,6 +491,7 @@ class ModelRequestWorkflowTest extends TestCase
             'id' => $existingRequest->id,
             'quantity' => 2,
             'project_id' => $updatedProject->id,
+            'needed_by_date' => '2026-06-15',
             'reusable_quantity' => 2,
             'procurement_shortfall' => 3,
             'estimated_savings' => number_format($model->reference_price * 2, 2, '.', ''),
@@ -515,6 +522,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'request-action' => 'create',
                 'request-quantity' => 1,
                 'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
             ])
             ->assertRedirect(route('requestable-assets'))
             ->assertSessionHasErrors('reference_price');
@@ -555,6 +563,59 @@ class ModelRequestWorkflowTest extends TestCase
                 'estimated_savings' => 325.5,
                 'reference_price_snapshot' => 325.5,
             ]);
+    }
+
+    public function test_bulk_model_request_uses_inline_quantities_with_shared_metadata()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $category = $this->managedAssetCategoryFor($requester);
+        $modelA = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'reference_price' => 100,
+        ]);
+        $modelB = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'reference_price' => 200,
+        ]);
+
+        $this->createEligibleAsset($modelA, Company::factory()->create()->id, Discipline::create([
+            'name' => 'Bulk A',
+            'created_by' => $requester->id,
+        ])->id);
+        $this->createEligibleAsset($modelB, Company::factory()->create()->id, Discipline::create([
+            'name' => 'Bulk B',
+            'created_by' => $requester->id,
+        ])->id);
+
+        $this->actingAs($requester)
+            ->post(route('account.request-items-bulk'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+                'model_quantities' => [
+                    $modelA->id => 1,
+                    $modelB->id => 1,
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('checkout_requests', [
+            'requestable_id' => $modelA->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'needed_by_date' => '2026-06-20',
+            'quantity' => 1,
+        ]);
+
+        $this->assertDatabaseHas('checkout_requests', [
+            'requestable_id' => $modelB->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'needed_by_date' => '2026-06-20',
+            'quantity' => 1,
+        ]);
     }
 
     private function createEligibleAsset(AssetModel $model, int $companyId, int $disciplineId): Asset

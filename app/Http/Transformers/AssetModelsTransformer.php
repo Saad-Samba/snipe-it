@@ -108,6 +108,12 @@ class AssetModelsTransformer
         $permissions_array['available_actions']['update_request'] = $canRequestModels && $hasActiveRequest;
         $array['requested_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
         $array['requested_project_id'] = $activeRequest ? (int) $activeRequest->project_id : null;
+        $array['requested_total_quantity'] = $activeRequest
+            ? (int) (($activeRequest->reusable_quantity ?? 0) + ($activeRequest->procurement_shortfall ?? 0))
+            : null;
+        $array['requested_needed_by_date'] = $activeRequest && $activeRequest->needed_by_date
+            ? $activeRequest->needed_by_date->format('Y-m-d')
+            : null;
 
         $array += $permissions_array;
 

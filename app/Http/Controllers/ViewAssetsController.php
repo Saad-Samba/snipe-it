@@ -20,6 +20,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use \Illuminate\Contracts\View\View;
 use Exception;
@@ -228,6 +229,7 @@ class ViewAssetsController extends Controller
         $estimateQuantity = (int) ($validated['total-request-quantity'] ?? $quantity);
         $requestAction = $validated['request-action'] ?? 'create';
         $projectId = $validated['project_id'] ?? null;
+        $neededByDate = $validated['needed_by_date'] ?? null;
         $data['item_quantity'] = $quantity;
         $data['requested_by'] = $user->display_name;
         $data['item'] = $item;
@@ -249,6 +251,7 @@ class ViewAssetsController extends Controller
             $this->ensureModelRequestAuthorized($item, $user);
             if (! $isCancelRequest) {
                 $this->ensureModelRequestProjectProvided($projectId);
+                $this->ensureModelRequestNeededByDateProvided($neededByDate);
                 $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
                 $this->ensureModelRequestHasReferencePrice($item);
                 $this->ensureModelRequestWithinReusableRemaining($item, $quantity);
@@ -268,7 +271,7 @@ class ViewAssetsController extends Controller
         } else {
             $requestAttributes = $fullItemType == AssetModel::class
                 ? array_merge(
-                    ['project_id' => $projectId],
+                    ['project_id' => $projectId, 'needed_by_date' => $neededByDate],
                     $this->estimateAssetModelRequest($item, $estimateQuantity)
                 )
                 : [];
@@ -296,6 +299,7 @@ class ViewAssetsController extends Controller
             'request-quantity' => ['nullable', 'integer', 'min:1'],
             'total-request-quantity' => ['nullable', 'integer', 'min:1'],
             'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
+            'needed_by_date' => ['nullable', 'date'],
         ]);
     }
 
@@ -318,6 +322,15 @@ class ViewAssetsController extends Controller
         if (! $projectId) {
             throw ValidationException::withMessages([
                 'project_id' => 'Project is required for model requests.',
+            ]);
+        }
+    }
+
+    private function ensureModelRequestNeededByDateProvided(?string $neededByDate): void
+    {
+        if (! $neededByDate) {
+            throw ValidationException::withMessages([
+                'needed_by_date' => 'Needed by date is required for model requests.',
             ]);
         }
     }
@@ -355,6 +368,67 @@ class ViewAssetsController extends Controller
                 'reference_price' => 'Reference price is required before requesting this model.',
             ]);
         }
+    }
+
+    public function bulkRequestItems(Request $request): RedirectResponse
+    {
+        $modelQuantities = $request->input('model_quantities');
+
+        if (is_string($modelQuantities)) {
+            $decoded = json_decode($modelQuantities, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $request->merge(['model_quantities' => $decoded]);
+            }
+        }
+
+        $validated = $request->validate([
+            'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
+            'needed_by_date' => ['required', 'date'],
+            'model_quantities' => ['required', 'array', 'min:1'],
+            'model_quantities.*' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $user = auth()->user();
+
+        if (! $user->hasAccess('models.request')) {
+            throw new AuthorizationException('You are not authorized to request models.');
+        }
+
+        DB::transaction(function () use ($validated, $user) {
+            foreach ($validated['model_quantities'] as $modelId => $quantity) {
+                $item = AssetModel::findOrFail((int) $modelId);
+                $this->ensureModelRequestAuthorized($item, $user);
+                $this->ensureModelRequestHasReferencePrice($item);
+                $this->ensureModelRequestWithinReusableRemaining($item, (int) $quantity);
+
+                $requestAttributes = array_merge(
+                    [
+                        'project_id' => (int) $validated['project_id'],
+                        'needed_by_date' => $validated['needed_by_date'],
+                    ],
+                    $this->estimateAssetModelRequest($item, (int) $quantity)
+                );
+
+                $checkoutRequest = $item->isRequestedBy($user)
+                    ? $item->updateRequest((int) $quantity, $user, $requestAttributes)
+                    : $item->request((int) $quantity, $requestAttributes);
+
+                $data = [
+                    'item_quantity' => (int) $quantity,
+                    'requested_by' => $user->display_name,
+                    'item' => $item,
+                    'item_type' => 'model',
+                    'target' => $user,
+                    'project' => Project::find((int) $validated['project_id']),
+                    'item_url' => route('view/model', $item->id),
+                ];
+
+                ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
+            }
+        });
+
+        return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
 
     /**
