@@ -202,9 +202,11 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.booked_count', 0)
             ->assertJsonPath('rows.0.reusable_quantity', 1)
             ->assertJsonPath('rows.0.due_back_before_needed_by_quantity', 0)
-            ->assertJsonPath('rows.0.potentially_coverable_quantity', 0)
             ->assertJsonPath('rows.0.procurement_shortfall', 1)
-            ->assertJsonPath('rows.0.estimated_savings', 499.99);
+            ->assertJsonPath('rows.0.estimated_savings', 499.99)
+            ->assertJsonPath('rows.0.project_requests_url', route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertJsonPath('rows.0.request_update_url', route('account.request-row.update', $checkoutRequest))
+            ->assertJsonPath('rows.0.request_cancel_url', route('account.request-row.cancel', $checkoutRequest));
     }
 
     public function test_requested_assets_api_can_filter_to_single_model()
@@ -306,6 +308,32 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.project', 'Project One');
     }
 
+    public function test_project_requests_tab_shows_request_review_for_requester()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create(['name' => 'Requests Tab Project']);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'name' => 'Requests Tab Model',
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'quantity' => 2,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertOk()
+            ->assertSee('Requests')
+            ->assertSee('projectRequestsTable', false)
+            ->assertSee('Quantity')
+            ->assertDontSee('Potentially Coverable');
+    }
+
     public function test_requester_can_open_request_detail_in_hardware_view()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
@@ -404,7 +432,7 @@ class ModelRequestWorkflowTest extends TestCase
             ]))
             ->assertOk()
             ->assertSee('Request #'.$request->id)
-            ->assertDontSee('Submit')
+            ->assertDontSee('>Submit<', false)
             ->assertSee('request_id='.$request->id, false)
             ->assertSee('model_id='.$model->id, false);
     }
@@ -513,6 +541,80 @@ class ModelRequestWorkflowTest extends TestCase
                 ->where('requestable_type', AssetModel::class)
                 ->count()
         );
+    }
+
+    public function test_requester_can_modify_existing_submitted_request_by_exact_row()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $updatedProject = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 400,
+        ]);
+
+        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+            'name' => 'Scoped Update',
+            'created_by' => $requester->id,
+        ])->id);
+
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'quantity' => 1,
+            'needed_by_date' => '2026-06-01',
+        ]);
+
+        $this->actingAs($requester)
+            ->post(route('account.request-row.update', $request), [
+                'request-action' => 'update',
+                'request-quantity' => 2,
+                'project_id' => $updatedProject->id,
+                'needed_by_date' => '2026-07-01',
+            ])
+            ->assertRedirect();
+
+        $request->refresh();
+
+        $this->assertSame(2, $request->quantity);
+        $this->assertSame($updatedProject->id, $request->project_id);
+        $this->assertSame('2026-07-01', optional($request->needed_by_date)->format('Y-m-d'));
+        $this->assertSame(1, $request->reusable_quantity);
+        $this->assertSame(1, $request->procurement_shortfall);
+        $this->assertSame(400.0, (float) $request->estimated_savings);
+    }
+
+    public function test_requester_can_cancel_submitted_request_without_hard_deleting_it()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($requester)
+            ->post(route('account.request-row.cancel', $request))
+            ->assertRedirect();
+
+        $request->refresh();
+
+        $this->assertNotNull($request->canceled_at);
+        $this->assertSame(CheckoutRequest::STATUS_CANCELED, $request->status);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested'))
+            ->assertOk()
+            ->assertJsonPath('total', 0);
     }
 
     public function test_model_request_submission_without_reference_price_sets_zero_savings()

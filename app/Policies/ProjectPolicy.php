@@ -18,7 +18,7 @@ class ProjectPolicy extends SnipePermissionsPolicy
 
     public function view(User $user, $item = null)
     {
-        return $user->isSuperUser();
+        return $user->isSuperUser() || $user->hasAccess('models.request');
     }
 
     public function create(User $user)

@@ -443,6 +443,49 @@ class ViewAssetsController extends Controller
         ]);
     }
 
+    public function updateSubmittedRequest(Request $request, CheckoutRequest $checkoutRequest): RedirectResponse
+    {
+        $this->authorizeSubmittedRequestAccess($checkoutRequest);
+
+        if ($checkoutRequest->requestable_type !== AssetModel::class) {
+            abort(404);
+        }
+
+        $validated = $this->validateModelRequestPayload($request);
+        $quantity = (int) ($validated['request-quantity'] ?? 0);
+        $projectId = (int) ($validated['project_id'] ?? 0);
+        $neededByDate = $validated['needed_by_date'] ?? null;
+
+        $item = $checkoutRequest->requestedItem;
+        abort_if(! $item instanceof AssetModel, 404);
+
+        $this->ensureModelRequestAuthorized($item, auth()->user());
+        $this->ensureModelRequestProjectProvided($projectId);
+        $this->ensureModelRequestNeededByDateProvided($neededByDate);
+        $this->ensureModelRequestQuantityProvided($quantity);
+        $this->ensureUniqueModelProjectRequest($item, auth()->user(), $projectId, $checkoutRequest->id);
+
+        $checkoutRequest->quantity = $quantity;
+        $checkoutRequest->project_id = $projectId;
+        $checkoutRequest->needed_by_date = $neededByDate;
+        $checkoutRequest->fill($this->estimateAssetModelRequest($item, $quantity, $neededByDate));
+        $checkoutRequest->status = CheckoutRequest::STATUS_PENDING;
+        $checkoutRequest->save();
+
+        return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
+    }
+
+    public function cancelSubmittedRequest(CheckoutRequest $checkoutRequest): RedirectResponse
+    {
+        $this->authorizeSubmittedRequestAccess($checkoutRequest);
+
+        $checkoutRequest->canceled_at = now();
+        $checkoutRequest->status = CheckoutRequest::STATUS_CANCELED;
+        $checkoutRequest->save();
+
+        return redirect()->back()->with('success', trans('admin/hardware/message.requests.canceled'));
+    }
+
     /**
      * Process a specific requested asset
      * @param null $assetId
@@ -529,5 +572,32 @@ class ViewAssetsController extends Controller
         $request->save();
 
         return $request->fresh();
+    }
+
+    private function authorizeSubmittedRequestAccess(CheckoutRequest $checkoutRequest): void
+    {
+        if (! auth()->user()->hasAccess('models.request')) {
+            throw new AuthorizationException('You are not authorized to manage submitted requests.');
+        }
+
+        abort_unless((int) $checkoutRequest->user_id === (int) auth()->id(), 403);
+    }
+
+    private function ensureUniqueModelProjectRequest(AssetModel $item, User $user, int $projectId, ?int $ignoreRequestId = null): void
+    {
+        $duplicateQuery = $item->requests()
+            ->where('user_id', $user->id)
+            ->where('project_id', $projectId)
+            ->whereNull('canceled_at');
+
+        if ($ignoreRequestId) {
+            $duplicateQuery->where('id', '!=', $ignoreRequestId);
+        }
+
+        if ($duplicateQuery->exists()) {
+            throw ValidationException::withMessages([
+                'project_id' => 'You already have an active request for this model and project.',
+            ]);
+        }
     }
 }

@@ -114,10 +114,10 @@ class ProfileController extends Controller
                     'project_id' => $checkoutRequest->project_id ? (int) $checkoutRequest->project_id : null,
                     'project' => e(optional($checkoutRequest->project)->name),
                     'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
+                    'needed_by_date_value' => optional($checkoutRequest->needed_by_date)->format('Y-m-d'),
                     'booked_count' => $bookedCount,
                     'reusable_quantity' => (int) ($checkoutRequest->reusable_quantity ?? 0),
                     'due_back_before_needed_by_quantity' => (int) ($checkoutRequest->due_back_before_needed_by_quantity ?? 0),
-                    'potentially_coverable_quantity' => (int) ($checkoutRequest->potentially_coverable_quantity ?? 0),
                     'procurement_shortfall' => (int) ($checkoutRequest->procurement_shortfall ?? 0),
                     'estimated_savings' => $checkoutRequest->estimated_savings !== null ? (float) $checkoutRequest->estimated_savings : null,
                     'estimated_savings_formatted' => $checkoutRequest->estimated_savings !== null
@@ -139,7 +139,7 @@ class ProfileController extends Controller
                         ? route('account.requested', ['model_id' => $checkoutRequest->requestable_id])
                         : null,
                     'project_requests_url' => $checkoutRequest->project_id
-                        ? route('account.requested', ['project_id' => $checkoutRequest->project_id])
+                        ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
                         : null,
                     'request_detail_url' => route('hardware.index', [
                         'request_id' => $checkoutRequest->id,
@@ -147,6 +147,8 @@ class ProfileController extends Controller
                         'model_id' => $checkoutRequest->requestable_id,
                         'project_id' => $checkoutRequest->project_id,
                     ]),
+                    'request_update_url' => route('account.request-row.update', $checkoutRequest),
+                    'request_cancel_url' => route('account.request-row.cancel', $checkoutRequest),
                 ];
 
                 foreach ($showable_fields as $showable_field_name) {

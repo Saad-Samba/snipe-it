@@ -92,7 +92,6 @@ class AssetsController extends Controller
                 'total_needed' => (int) $requestContext->quantity,
                 'reusable_now' => (int) ($requestContext->reusable_quantity ?? 0),
                 'due_back_before_needed_by' => (int) ($requestContext->due_back_before_needed_by_quantity ?? 0),
-                'potentially_coverable' => (int) ($requestContext->potentially_coverable_quantity ?? 0),
                 'shortfall' => (int) ($requestContext->procurement_shortfall ?? 0),
                 'booked_count' => $requestContext->bookedAssetsCount(),
                 'reserved_count' => $requestContext->reservedAssetsCount(),

@@ -224,7 +224,6 @@ class CheckoutRequest extends Model
             'total_needed' => (int) $requests->sum('quantity'),
             'reusable_now' => (int) $requests->sum(fn ($request) => (int) ($request->reusable_quantity ?? 0)),
             'due_back_before_needed_by' => (int) $requests->sum(fn ($request) => (int) ($request->due_back_before_needed_by_quantity ?? 0)),
-            'potentially_coverable' => (int) $requests->sum(fn ($request) => (int) ($request->potentially_coverable_quantity ?? 0)),
             'shortfall' => (int) $requests->sum(fn ($request) => (int) ($request->procurement_shortfall ?? 0)),
             'estimated_savings' => round((float) $requests->sum(fn ($request) => (float) ($request->estimated_savings ?? 0)), 2),
             'booked_count' => (int) $requests->sum(fn ($request) => $request->bookedAssetsCount()),

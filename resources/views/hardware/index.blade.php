@@ -64,10 +64,9 @@
               <div><strong>Total Needed</strong><br>{{ $requestReviewSummary['total_needed'] }}</div>
               <div><strong>Reusable Now</strong><br>{{ $requestReviewSummary['reusable_now'] }}</div>
               <div><strong>Due Back</strong><br>{{ $requestReviewSummary['due_back_before_needed_by'] }}</div>
-              <div><strong>Potentially Coverable</strong><br>{{ $requestReviewSummary['potentially_coverable'] }}</div>
               <div><strong>Shortfall</strong><br>{{ $requestReviewSummary['shortfall'] }}</div>
               <div><strong>Booked</strong><br>{{ $requestReviewSummary['booked_count'] }}</div>
-              <div><strong>Reserved for RFQ</strong><br>{{ $requestReviewSummary['reserved_count'] }}</div>
+              <div><strong>Reserved</strong><br>{{ $requestReviewSummary['reserved_count'] }}</div>
             </div>
           @endif
           <div class="row">

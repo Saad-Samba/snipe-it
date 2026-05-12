@@ -427,6 +427,12 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
     Route::post('request-items-bulk', [ViewAssetsController::class, 'bulkRequestItems'])
         ->name('account.request-items-bulk');
 
+    Route::post('requests/{checkoutRequest}/update', [ViewAssetsController::class, 'updateSubmittedRequest'])
+        ->name('account.request-row.update');
+
+    Route::post('requests/{checkoutRequest}/cancel', [ViewAssetsController::class, 'cancelSubmittedRequest'])
+        ->name('account.request-row.cancel');
+
     Route::post('request/{itemType}/{itemId}/{cancel_by_admin?}/{requestingUser?}', [ViewAssetsController::class, 'getRequestItem'])
         ->name('account/request-item');
 

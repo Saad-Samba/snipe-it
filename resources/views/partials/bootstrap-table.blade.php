@@ -1418,7 +1418,6 @@
             + '              <span>Total Needed</span><span id="model-request-modal-estimate-requested">0</span>'
             + '              <span>Reusable Now</span><span id="model-request-modal-estimate-reusable">0</span>'
             + '              <span>Due Back Before Needed By</span><span id="model-request-modal-estimate-due-back">0</span>'
-            + '              <span>Potentially Coverable By Needed By</span><span id="model-request-modal-estimate-coverable">0</span>'
             + '              <span>Shortfall</span><span id="model-request-modal-estimate-shortfall">0</span>'
             + '              <span>Estimated Savings</span><span id="model-request-modal-estimate-savings">0.00</span>'
             + '            </div>'
@@ -1544,7 +1543,6 @@
         $('#model-request-modal-estimate-requested').text('0');
         $('#model-request-modal-estimate-reusable').text('0');
         $('#model-request-modal-estimate-due-back').text('0');
-        $('#model-request-modal-estimate-coverable').text('0');
         $('#model-request-modal-estimate-shortfall').text('0');
         $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(0));
         $('#model-request-modal-submit').prop('disabled', false);
@@ -1581,7 +1579,6 @@
             $('#model-request-modal-estimate-requested').text(response.requested_quantity);
             $('#model-request-modal-estimate-reusable').text(response.reusable_now);
             $('#model-request-modal-estimate-due-back').text(response.due_back_before_needed_by_quantity);
-            $('#model-request-modal-estimate-coverable').text(response.potentially_coverable_by_needed_by);
             $('#model-request-modal-estimate-shortfall').text(response.procurement_shortfall);
             $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(response.estimated_savings));
         }).fail(function (xhr) {
@@ -1631,7 +1628,6 @@
                 requested_quantity: 0,
                 reusable_now: 0,
                 due_back_before_needed_by_quantity: 0,
-                potentially_coverable_by_needed_by: 0,
                 procurement_shortfall: 0,
                 estimated_savings: 0
             };
@@ -1640,7 +1636,6 @@
                 totals.requested_quantity += Number(response.requested_quantity || 0);
                 totals.reusable_now += Number(response.reusable_now || 0);
                 totals.due_back_before_needed_by_quantity += Number(response.due_back_before_needed_by_quantity || 0);
-                totals.potentially_coverable_by_needed_by += Number(response.potentially_coverable_by_needed_by || 0);
                 totals.procurement_shortfall += Number(response.procurement_shortfall || 0);
                 totals.estimated_savings += Number(response.estimated_savings || 0);
             });
@@ -1648,7 +1643,6 @@
             $('#model-request-modal-estimate-requested').text(totals.requested_quantity);
             $('#model-request-modal-estimate-reusable').text(totals.reusable_now);
             $('#model-request-modal-estimate-due-back').text(totals.due_back_before_needed_by_quantity);
-            $('#model-request-modal-estimate-coverable').text(totals.potentially_coverable_by_needed_by);
             $('#model-request-modal-estimate-shortfall').text(totals.procurement_shortfall);
             $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(totals.estimated_savings));
         }).catch(function (xhr) {
@@ -1820,12 +1814,37 @@
             return '';
         }
 
-        var actionTitle = 'View request';
-
-        return '<a href="' + row.request_detail_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="' + actionTitle + '">'
+        var actions = [];
+        var viewTitle = 'View request';
+        actions.push(
+            '<a href="' + row.request_detail_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="' + viewTitle + '">'
             + '<i class="fas fa-eye" aria-hidden="true"></i>'
-            + '<span class="sr-only">' + actionTitle + '</span>'
-            + '</a>';
+            + '<span class="sr-only">' + viewTitle + '</span>'
+            + '</a>'
+        );
+
+        if (row.request_update_url && row.model_id) {
+            var modifyTitle = 'Modify request';
+            var estimateUrl = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.model_id);
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', projectId: \'' + (row.project_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
+                + '<i class="fas fa-pen" aria-hidden="true"></i>'
+                + '<span class="sr-only">' + modifyTitle + '</span>'
+                + '</button>'
+            );
+        }
+
+        if (row.request_cancel_url) {
+            var cancelTitle = 'Cancel request';
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-danger" data-tooltip="true" title="' + cancelTitle + '" onclick="cancelSubmittedRequestRow(\'' + row.request_cancel_url + '\');">'
+                + '<i class="fas fa-times" aria-hidden="true"></i>'
+                + '<span class="sr-only">' + cancelTitle + '</span>'
+                + '</button>'
+            );
+        }
+
+        return '<div style="display:flex;gap:6px;align-items:center;">' + actions.join('') + '</div>';
     }
 
     function requestDetailLinkFormatter(value, row) {
@@ -1862,6 +1881,26 @@
         }
 
         return formatEstimateCurrency(value);
+    }
+
+    function cancelSubmittedRequestRow(url) {
+        if (!window.confirm('Cancel this request?')) {
+            return;
+        }
+
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.style.display = 'none';
+
+        var token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = '{{ csrf_token() }}';
+        form.appendChild(token);
+
+        document.body.appendChild(form);
+        form.submit();
     }
 
 

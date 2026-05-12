@@ -19,8 +19,8 @@
         <div class="col-md-12">
             <div class="nav-tabs-custom">
                 <ul class="nav nav-tabs">
-                    <li class="active">
-                        <a href="#asset_tab" data-toggle="tab">
+                    <li class="{{ ($activeTab ?? 'assets') === 'assets' ? 'active' : '' }}">
+                        <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'assets']) }}">
                             <span class="hidden-lg hidden-md">
                                 <i class="fas fa-barcode" aria-hidden="true"></i>
                             </span>
@@ -31,8 +31,8 @@
                         </a>
                     </li>
 
-                    <li>
-                        <a href="#licenses_tab" data-toggle="tab">
+                    <li class="{{ ($activeTab ?? 'assets') === 'licenses' ? 'active' : '' }}">
+                        <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'licenses']) }}">
                             <span class="hidden-lg hidden-md">
                                 <i class="far fa-save"></i>
                             </span>
@@ -42,10 +42,24 @@
                             </span>
                         </a>
                     </li>
+
+                    @if (auth()->user()->hasAccess('models.request'))
+                        <li class="{{ ($activeTab ?? 'assets') === 'requests' ? 'active' : '' }}">
+                            <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">
+                                <span class="hidden-lg hidden-md">
+                                    <i class="fas fa-clipboard-list" aria-hidden="true"></i>
+                                </span>
+                                <span class="hidden-xs hidden-sm">
+                                    Requests
+                                    {!! (!empty($requestSummary) && $requestSummary['requests_count'] > 0) ? '<span class="badge badge-secondary">'.number_format($requestSummary['requests_count']).'</span>' : '' !!}
+                                </span>
+                            </a>
+                        </li>
+                    @endif
                 </ul>
 
                 <div class="tab-content">
-                    <div class="tab-pane fade in active" id="asset_tab">
+                    <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'assets' ? 'in active' : '' }}" id="asset_tab">
                         <div class="table table-responsive">
                             @include('partials.asset-bulk-actions')
 
@@ -70,7 +84,7 @@
                         </div>
                     </div>
 
-                    <div class="tab-pane" id="licenses_tab">
+                    <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'licenses' ? 'in active' : '' }}" id="licenses_tab">
                         <div class="table-responsive">
                             <table
                                 data-columns="{{ \App\Presenters\LicensePresenter::dataTableLayout() }}"
@@ -88,6 +102,23 @@
                             </table>
                         </div>
                     </div>
+
+                    @if (auth()->user()->hasAccess('models.request'))
+                        <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
+                            @if (!empty($requestSummary))
+                                @include('account.partials.request-project-summary', ['summary' => $requestSummary])
+                            @endif
+
+                            <div class="table-responsive">
+                                @include('account.partials.submitted-requests-table', [
+                                    'tableId' => 'projectRequestsTable',
+                                    'requestMode' => 'requester',
+                                    'dataUrl' => route('api.assets.requested', ['project_id' => $project->id]),
+                                    'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
+                                ])
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

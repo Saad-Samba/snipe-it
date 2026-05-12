@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\CheckoutRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
@@ -50,7 +51,18 @@ class ProjectsController extends Controller
 
         $project->loadCount(['assets', 'licenses']);
 
-        return view('projects/view')->with('project', $project);
+        $activeTab = request()->query('tab', 'assets');
+        $requestSummary = null;
+
+        if (auth()->user()->hasAccess('models.request')) {
+            $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
+        }
+
+        return view('projects/view', [
+            'project' => $project,
+            'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests'], true) ? $activeTab : 'assets',
+            'requestSummary' => $requestSummary,
+        ]);
     }
 
     public function edit(Project $project) : View
