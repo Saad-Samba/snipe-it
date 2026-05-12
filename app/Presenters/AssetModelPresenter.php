@@ -78,6 +78,16 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'minAmtFormatter',
                 'class' => 'text-right text-padding-number-cell',
             ],
+            [
+                'field' => 'reference_price',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => 'Reference Price',
+                'visible' => true,
+                'formatter' => 'referencePriceFormatter',
+                'class' => 'text-right text-padding-number-cell',
+            ],
 
             [
                 'field' => 'assets_count',

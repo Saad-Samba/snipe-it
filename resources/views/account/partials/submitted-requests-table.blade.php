@@ -17,6 +17,7 @@
         <th data-field="image" data-sortable="true" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
         <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Model</th>
         <th data-field="qty" data-sortable="true">Quantity <a href="#" data-tooltip="true" title="Total quantity needed for this model request."><x-icon type="info-circle" /><span class="sr-only">Total quantity needed for this model request.</span></a></th>
+        <th data-field="requested_discipline" data-sortable="true">Discipline</th>
         <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
         <th data-field="needed_by_date" data-sortable="true" data-formatter="dateDisplayFormatter">Needed By</th>
         <th data-field="reusable_quantity" data-sortable="true"><i class="fas fa-recycle" aria-hidden="true"></i> Reusable Now <a href="#" data-tooltip="true" title="Unassigned deployable assets available immediately."><x-icon type="info-circle" /><span class="sr-only">Unassigned deployable assets available immediately.</span></a></th>

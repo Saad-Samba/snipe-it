@@ -58,6 +58,7 @@ class ProfileController extends Controller
             ->with([
                 'requestedItem',
                 'project',
+                'requestedDiscipline',
                 'user',
             ]);
 
@@ -111,6 +112,8 @@ class ProfileController extends Controller
                     'model_id' => $checkoutRequest->requestable_type === AssetModel::class ? (int) $checkoutRequest->requestable_id : null,
                     'type' => e($checkoutRequest->itemType()),
                     'qty' => (int) $checkoutRequest->quantity,
+                    'requested_discipline_id' => $checkoutRequest->requested_discipline_id ? (int) $checkoutRequest->requested_discipline_id : null,
+                    'requested_discipline' => e(optional($checkoutRequest->requestedDiscipline)->name),
                     'project_id' => $checkoutRequest->project_id ? (int) $checkoutRequest->project_id : null,
                     'project' => e(optional($checkoutRequest->project)->name),
                     'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
@@ -148,6 +151,7 @@ class ProfileController extends Controller
                         'status' => 'RTD',
                         'model_id' => $checkoutRequest->requestable_id,
                         'project_id' => $checkoutRequest->project_id,
+                        'discipline_id' => $checkoutRequest->requested_discipline_id,
                     ]),
                     'request_update_url' => route('account.request-row.update', $checkoutRequest),
                     'request_cancel_url' => route('account.request-row.cancel', $checkoutRequest),

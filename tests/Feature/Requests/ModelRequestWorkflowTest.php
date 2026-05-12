@@ -55,6 +55,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 2,
+                'requested_discipline_id' => $disciplineA->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -67,6 +68,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame(2, $checkoutRequest->quantity);
+        $this->assertSame($disciplineA->id, $checkoutRequest->requested_discipline_id);
         $this->assertSame('2026-06-01', optional($checkoutRequest->needed_by_date)->format('Y-m-d'));
         $this->assertSame('pending', $checkoutRequest->status);
         $this->assertSame(2, $checkoutRequest->reusable_quantity);
@@ -102,14 +104,16 @@ class ModelRequestWorkflowTest extends TestCase
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
 
-        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+        $discipline = Discipline::create([
             'name' => 'Validation',
             'created_by' => $requester->id,
-        ])->id);
+        ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
 
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -133,14 +137,16 @@ class ModelRequestWorkflowTest extends TestCase
             'category_id' => Category::factory()->forAssets()->create()->id,
         ]);
 
-        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+        $discipline = Discipline::create([
             'name' => 'Scoped Validation',
             'created_by' => $requester->id,
-        ])->id);
+        ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
 
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -185,6 +191,10 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'quantity' => 2,
+            'requested_discipline_id' => Discipline::create([
+                'name' => 'API Discipline',
+                'created_by' => $requester->id,
+            ])->id,
             'project_id' => $project->id,
             'reusable_quantity' => 1,
             'procurement_shortfall' => 1,
@@ -198,6 +208,8 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('total', 1)
             ->assertJsonPath('rows.0.request_id', $checkoutRequest->id)
             ->assertJsonPath('rows.0.qty', 2)
+            ->assertJsonPath('rows.0.requested_discipline_id', $checkoutRequest->requested_discipline_id)
+            ->assertJsonPath('rows.0.requested_discipline', 'API Discipline')
             ->assertJsonPath('rows.0.status', 'Pending')
             ->assertJsonPath('rows.0.project', 'Request Tracking Project')
             ->assertJsonPath('rows.0.reusable_quantity', 1)
@@ -451,16 +463,18 @@ class ModelRequestWorkflowTest extends TestCase
             'reference_price' => 250,
         ]);
 
-        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+        $discipline = Discipline::create([
             'name' => 'Validation',
             'created_by' => $requester->id,
-        ])->id);
+        ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
 
         $this->actingAs($requester)
             ->from(route('requestable-assets'))
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-action' => 'create',
                 'request-quantity' => 2,
+                'requested_discipline_id' => $discipline->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -506,6 +520,7 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'quantity' => 1,
+            'requested_discipline_id' => $discipline->id,
             'project_id' => $project->id,
         ]);
 
@@ -519,6 +534,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-action' => 'update',
                 'request-quantity' => 5,
+                'requested_discipline_id' => $discipline->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-15',
             ])
@@ -556,15 +572,17 @@ class ModelRequestWorkflowTest extends TestCase
             'reference_price' => 400,
         ]);
 
-        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+        $discipline = Discipline::create([
             'name' => 'Scoped Update',
             'created_by' => $requester->id,
-        ])->id);
+        ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
 
         $request = CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
             'project_id' => $project->id,
             'quantity' => 1,
             'needed_by_date' => '2026-06-01',
@@ -574,6 +592,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->post(route('account.request-row.update', $request), [
                 'request-action' => 'update',
                 'request-quantity' => 2,
+                'requested_discipline_id' => $discipline->id,
                 'project_id' => $updatedProject->id,
                 'needed_by_date' => '2026-07-01',
             ])
@@ -629,16 +648,18 @@ class ModelRequestWorkflowTest extends TestCase
             'reference_price' => null,
         ]);
 
-        $this->createEligibleAsset($model, Company::factory()->create()->id, Discipline::create([
+        $discipline = Discipline::create([
             'name' => 'Unpriced',
             'created_by' => $requester->id,
-        ])->id);
+        ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
 
         $this->actingAs($requester)
             ->from(route('requestable-assets'))
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-action' => 'create',
                 'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -761,6 +782,116 @@ class ModelRequestWorkflowTest extends TestCase
             'quantity' => 1,
             'potentially_coverable_quantity' => 1,
         ]);
+    }
+
+    public function test_request_cart_submit_creates_distinct_requests_for_same_model_across_disciplines()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 100,
+        ]);
+        $disciplineA = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
+        $disciplineB = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
+        $companyId = Company::factory()->create()->id;
+
+        $this->createEligibleAsset($model, $companyId, $disciplineA->id);
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-cart.items.add'), [
+                'lines' => [
+                    [
+                        'model_id' => $model->id,
+                        'quantity' => 2,
+                        'discipline_id' => $disciplineA->id,
+                    ],
+                    [
+                        'model_id' => $model->id,
+                        'quantity' => 1,
+                        'discipline_id' => $disciplineB->id,
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('cart_count', 2);
+
+        $this->actingAs($requester)
+            ->post(route('account.request-cart.submit'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('checkout_requests', [
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $disciplineA->id,
+            'quantity' => 2,
+        ]);
+
+        $this->assertDatabaseHas('checkout_requests', [
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $disciplineB->id,
+            'quantity' => 1,
+        ]);
+    }
+
+    public function test_reserved_by_other_project_counts_reserved_assets_without_expected_checkin()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $otherProject = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Reserved API', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'name' => 'Reserved Tracking Model',
+        ]);
+
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'quantity' => 1,
+            'project_id' => $project->id,
+        ]);
+
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => Company::factory()->create()->id,
+            'discipline_id' => $discipline->id,
+            'project_id' => $otherProject->id,
+            'status_id' => $reservedStatus->id,
+            'requestable' => 1,
+            'assigned_to' => User::factory()->create()->id,
+            'assigned_type' => User::class,
+            'expected_checkin' => null,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested'))
+            ->assertOk()
+            ->assertJsonPath('rows.0.reserved_by_other_rfqs_count', 1)
+            ->assertJsonPath('rows.0.requested_discipline', 'Reserved API');
     }
 
     public function test_model_request_estimate_counts_due_back_assets_before_needed_by_date()

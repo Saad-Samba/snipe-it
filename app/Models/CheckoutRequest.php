@@ -185,8 +185,7 @@ class CheckoutRequest extends Model
         return Asset::withoutGlobalScopes()
             ->where('model_id', $this->requestable_id)
             ->where('project_id', $this->project_id)
-            ->where('status_id', $reservedStatusId)
-            ->whereNotNull('expected_checkin');
+            ->where('status_id', $reservedStatusId);
     }
 
     public function reservedAssetsCount(): int
@@ -206,8 +205,7 @@ class CheckoutRequest extends Model
             ->where('model_id', $this->requestable_id)
             ->whereNotNull('project_id')
             ->where('project_id', '!=', $this->project_id)
-            ->where('status_id', $reservedStatusId)
-            ->whereNotNull('expected_checkin');
+            ->where('status_id', $reservedStatusId);
     }
 
     public function reservedByOtherRfqsCount(): int
@@ -245,7 +243,6 @@ class CheckoutRequest extends Model
             $reservedAssets = Asset::withoutGlobalScopes()
                 ->where('project_id', $projectId)
                 ->where('status_id', $reservedStatusId)
-                ->whereNotNull('expected_checkin')
                 ->count();
 
             $modelIds = $requests
@@ -261,7 +258,6 @@ class CheckoutRequest extends Model
                     ->whereNotNull('project_id')
                     ->where('project_id', '!=', $projectId)
                     ->where('status_id', $reservedStatusId)
-                    ->whereNotNull('expected_checkin')
                     ->count();
             }
         }

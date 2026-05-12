@@ -424,6 +424,21 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
     Route::post('request-projects', [ViewAssetsController::class, 'storeRequestProject'])
         ->name('account.request-projects.store');
 
+    Route::post('request-cart/items', [ViewAssetsController::class, 'addRequestCartItems'])
+        ->name('account.request-cart.items.add');
+
+    Route::post('request-cart/items/remove', [ViewAssetsController::class, 'removeRequestCartItem'])
+        ->name('account.request-cart.items.remove');
+
+    Route::post('request-cart/clear', [ViewAssetsController::class, 'clearRequestCart'])
+        ->name('account.request-cart.clear');
+
+    Route::post('request-cart/preview', [ViewAssetsController::class, 'previewRequestCart'])
+        ->name('account.request-cart.preview');
+
+    Route::post('request-cart/submit', [ViewAssetsController::class, 'submitRequestCart'])
+        ->name('account.request-cart.submit');
+
     Route::post('request-items-bulk', [ViewAssetsController::class, 'bulkRequestItems'])
         ->name('account.request-items-bulk');
 

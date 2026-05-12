@@ -12,6 +12,7 @@ use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\Discipline;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
@@ -34,6 +35,8 @@ use Exception;
  */
 class ViewAssetsController extends Controller
 {
+    private const MODEL_REQUEST_CART_SESSION_KEY = 'model_request_cart';
+
     /**
      * Extract custom fields that should be displayed in user view.
      *
@@ -229,6 +232,7 @@ class ViewAssetsController extends Controller
 
         $quantity = (int) ($validated['request-quantity'] ?? 1);
         $requestAction = $validated['request-action'] ?? 'create';
+        $requestedDisciplineId = isset($validated['requested_discipline_id']) ? (int) $validated['requested_discipline_id'] : null;
         $projectId = $validated['project_id'] ?? null;
         $neededByDate = $validated['needed_by_date'] ?? null;
         $data['item_quantity'] = $quantity;
@@ -254,11 +258,12 @@ class ViewAssetsController extends Controller
                 $this->ensureModelRequestProjectProvided($projectId);
                 $this->ensureModelRequestNeededByDateProvided($neededByDate);
                 $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
+                $this->ensureModelRequestDisciplineProvided($requestedDisciplineId);
             }
         }
 
         $existingRequest = $fullItemType == AssetModel::class
-            ? $this->findActiveModelProjectRequest($item, $user, (int) $projectId)
+            ? $this->findActiveModelProjectRequest($item, $user, (int) $projectId, $requestedDisciplineId)
             : $item_request;
 
         if ($isCancelRequest) {
@@ -281,7 +286,11 @@ class ViewAssetsController extends Controller
         } else {
             $requestAttributes = $fullItemType == AssetModel::class
                 ? array_merge(
-                    ['project_id' => $projectId, 'needed_by_date' => $neededByDate],
+                    [
+                        'project_id' => $projectId,
+                        'needed_by_date' => $neededByDate,
+                        'requested_discipline_id' => $requestedDisciplineId,
+                    ],
                     $this->estimateAssetModelRequest($item, $quantity, $neededByDate)
                 )
                 : [];
@@ -308,6 +317,7 @@ class ViewAssetsController extends Controller
         return $request->validate([
             'request-action' => ['nullable', 'string', 'in:create,update,cancel'],
             'request-quantity' => ['nullable', 'integer', 'min:1'],
+            'requested_discipline_id' => ['nullable', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
             'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
             'needed_by_date' => ['nullable', 'date'],
         ]);
@@ -350,6 +360,15 @@ class ViewAssetsController extends Controller
         if (! $quantity) {
             throw ValidationException::withMessages([
                 'request-quantity' => 'Total needed quantity is required for model requests.',
+            ]);
+        }
+    }
+
+    private function ensureModelRequestDisciplineProvided(?int $disciplineId): void
+    {
+        if (! $disciplineId) {
+            throw ValidationException::withMessages([
+                'requested_discipline_id' => 'Discipline is required for model requests.',
             ]);
         }
     }
@@ -415,6 +434,207 @@ class ViewAssetsController extends Controller
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
 
+    public function addRequestCartItems(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'lines' => ['required', 'array', 'min:1'],
+            'lines.*.model_id' => ['required', 'integer', 'exists:models,id,deleted_at,NULL'],
+            'lines.*.quantity' => ['required', 'integer', 'min:1'],
+            'lines.*.discipline_id' => ['required', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
+        ]);
+
+        $user = auth()->user();
+
+        if (! $user || ! $user->hasAccess('models.request')) {
+            throw new AuthorizationException('You are not authorized to request models.');
+        }
+
+        $cart = $this->getModelRequestCart($request);
+
+        foreach ($validated['lines'] as $line) {
+            $model = AssetModel::findOrFail((int) $line['model_id']);
+            $this->ensureModelRequestAuthorized($model, $user);
+            $disciplineId = (int) $line['discipline_id'];
+            $key = $this->makeModelRequestCartKey((int) $line['model_id'], $disciplineId);
+
+            $cart[$key] = [
+                'model_id' => (int) $line['model_id'],
+                'quantity' => (int) $line['quantity'],
+                'discipline_id' => $disciplineId,
+            ];
+        }
+
+        $this->putModelRequestCart($request, $cart);
+
+        return response()->json([
+            'status' => 'success',
+            'cart_count' => count($cart),
+        ]);
+    }
+
+    public function removeRequestCartItem(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'model_id' => ['required', 'integer'],
+            'discipline_id' => ['required', 'integer'],
+        ]);
+
+        $cart = $this->getModelRequestCart($request);
+        unset($cart[$this->makeModelRequestCartKey((int) $validated['model_id'], (int) $validated['discipline_id'])]);
+        $this->putModelRequestCart($request, $cart);
+
+        return response()->json([
+            'status' => 'success',
+            'cart_count' => count($cart),
+        ]);
+    }
+
+    public function clearRequestCart(Request $request): JsonResponse
+    {
+        $request->session()->forget(self::MODEL_REQUEST_CART_SESSION_KEY);
+
+        return response()->json([
+            'status' => 'success',
+            'cart_count' => 0,
+        ]);
+    }
+
+    public function previewRequestCart(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
+            'needed_by_date' => ['nullable', 'date'],
+        ]);
+
+        $user = auth()->user();
+
+        if (! $user || ! $user->hasAccess('models.request')) {
+            throw new AuthorizationException('You are not authorized to request models.');
+        }
+
+        $projectId = isset($validated['project_id']) ? (int) $validated['project_id'] : null;
+        $neededByDate = $validated['needed_by_date'] ?? null;
+        $cart = $this->getModelRequestCart($request);
+        $lines = [];
+        $totals = [
+            'quantity' => 0,
+            'reusable_quantity' => 0,
+            'due_back_before_needed_by_quantity' => 0,
+            'reserved_count' => 0,
+            'reserved_by_other_rfqs_count' => 0,
+            'procurement_shortfall' => 0,
+            'estimated_savings' => 0.0,
+            'amount_to_buy' => 0.0,
+        ];
+
+        foreach ($cart as $line) {
+            $model = AssetModel::findOrFail((int) $line['model_id']);
+            $this->ensureModelRequestAuthorized($model, $user);
+            $discipline = Discipline::findOrFail((int) $line['discipline_id']);
+
+            $previewLine = $this->buildModelRequestPreviewLine(
+                $model,
+                $discipline,
+                (int) $line['quantity'],
+                $projectId,
+                $neededByDate
+            );
+
+            $lines[] = $previewLine;
+            $totals['quantity'] += $previewLine['quantity'];
+            $totals['reusable_quantity'] += $previewLine['reusable_quantity'];
+            $totals['due_back_before_needed_by_quantity'] += $previewLine['due_back_before_needed_by_quantity'];
+            $totals['reserved_count'] += $previewLine['reserved_count'];
+            $totals['reserved_by_other_rfqs_count'] += $previewLine['reserved_by_other_rfqs_count'];
+            $totals['procurement_shortfall'] += $previewLine['procurement_shortfall'];
+            $totals['estimated_savings'] += $previewLine['estimated_savings'];
+            $totals['amount_to_buy'] += $previewLine['amount_to_buy'];
+        }
+
+        $totals['estimated_savings'] = round($totals['estimated_savings'], 2);
+        $totals['amount_to_buy'] = round($totals['amount_to_buy'], 2);
+
+        return response()->json([
+            'status' => 'success',
+            'cart_count' => count($cart),
+            'lines' => $lines,
+            'totals' => $totals,
+            'totals_formatted' => [
+                'estimated_savings' => \App\Helpers\Helper::formatCurrencyOutput($totals['estimated_savings']),
+                'amount_to_buy' => \App\Helpers\Helper::formatCurrencyOutput($totals['amount_to_buy']),
+            ],
+        ]);
+    }
+
+    public function submitRequestCart(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
+            'needed_by_date' => ['required', 'date'],
+        ]);
+
+        $user = auth()->user();
+
+        if (! $user || ! $user->hasAccess('models.request')) {
+            throw new AuthorizationException('You are not authorized to request models.');
+        }
+
+        $cart = $this->getModelRequestCart($request);
+
+        if (empty($cart)) {
+            throw ValidationException::withMessages([
+                'cart' => 'Add at least one model to the request cart.',
+            ]);
+        }
+
+        DB::transaction(function () use ($cart, $validated, $user) {
+            foreach ($cart as $line) {
+                $item = AssetModel::findOrFail((int) $line['model_id']);
+                $disciplineId = (int) $line['discipline_id'];
+                $quantity = (int) $line['quantity'];
+
+                $this->ensureModelRequestAuthorized($item, $user);
+                $this->ensureModelRequestDisciplineProvided($disciplineId);
+
+                $requestAttributes = array_merge(
+                    [
+                        'project_id' => (int) $validated['project_id'],
+                        'needed_by_date' => $validated['needed_by_date'],
+                        'requested_discipline_id' => $disciplineId,
+                    ],
+                    $this->estimateAssetModelRequest($item, $quantity, $validated['needed_by_date'])
+                );
+
+                $existingRequest = $this->findActiveModelProjectRequest(
+                    $item,
+                    $user,
+                    (int) $validated['project_id'],
+                    $disciplineId
+                );
+
+                $checkoutRequest = $existingRequest
+                    ? $this->updateExistingModelProjectRequest($existingRequest, $quantity, $requestAttributes)
+                    : $item->request($quantity, $requestAttributes);
+
+                $data = [
+                    'item_quantity' => $quantity,
+                    'requested_by' => $user->display_name,
+                    'item' => $item,
+                    'item_type' => 'model',
+                    'target' => $user,
+                    'project' => Project::find((int) $validated['project_id']),
+                    'item_url' => route('view/model', $item->id),
+                ];
+
+                ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
+            }
+        });
+
+        $request->session()->forget(self::MODEL_REQUEST_CART_SESSION_KEY);
+
+        return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
+    }
+
     public function storeRequestProject(Request $request): JsonResponse
     {
         $user = auth()->user();
@@ -454,6 +674,7 @@ class ViewAssetsController extends Controller
         $validated = $this->validateModelRequestPayload($request);
         $quantity = (int) ($validated['request-quantity'] ?? 0);
         $projectId = (int) ($validated['project_id'] ?? 0);
+        $requestedDisciplineId = isset($validated['requested_discipline_id']) ? (int) $validated['requested_discipline_id'] : 0;
         $neededByDate = $validated['needed_by_date'] ?? null;
 
         $item = $checkoutRequest->requestedItem;
@@ -463,10 +684,12 @@ class ViewAssetsController extends Controller
         $this->ensureModelRequestProjectProvided($projectId);
         $this->ensureModelRequestNeededByDateProvided($neededByDate);
         $this->ensureModelRequestQuantityProvided($quantity);
-        $this->ensureUniqueModelProjectRequest($item, auth()->user(), $projectId, $checkoutRequest->id);
+        $this->ensureModelRequestDisciplineProvided($requestedDisciplineId);
+        $this->ensureUniqueModelProjectRequest($item, auth()->user(), $projectId, $requestedDisciplineId, $checkoutRequest->id);
 
         $checkoutRequest->quantity = $quantity;
         $checkoutRequest->project_id = $projectId;
+        $checkoutRequest->requested_discipline_id = $requestedDisciplineId;
         $checkoutRequest->needed_by_date = $neededByDate;
         $checkoutRequest->fill($this->estimateAssetModelRequest($item, $quantity, $neededByDate));
         $checkoutRequest->status = CheckoutRequest::STATUS_PENDING;
@@ -554,11 +777,12 @@ class ViewAssetsController extends Controller
         ]);
     }
 
-    private function findActiveModelProjectRequest(AssetModel $item, User $user, int $projectId): ?CheckoutRequest
+    private function findActiveModelProjectRequest(AssetModel $item, User $user, int $projectId, ?int $disciplineId = null): ?CheckoutRequest
     {
         return $item->requests()
             ->where('user_id', $user->id)
             ->where('project_id', $projectId)
+            ->where('requested_discipline_id', $disciplineId)
             ->whereNull('canceled_at')
             ->latest('id')
             ->first();
@@ -574,6 +798,75 @@ class ViewAssetsController extends Controller
         return $request->fresh();
     }
 
+    private function getModelRequestCart(Request $request): array
+    {
+        $cart = $request->session()->get(self::MODEL_REQUEST_CART_SESSION_KEY, []);
+
+        return is_array($cart) ? $cart : [];
+    }
+
+    private function putModelRequestCart(Request $request, array $cart): void
+    {
+        $request->session()->put(self::MODEL_REQUEST_CART_SESSION_KEY, $cart);
+    }
+
+    private function makeModelRequestCartKey(int $modelId, int $disciplineId): string
+    {
+        return $modelId.':'.$disciplineId;
+    }
+
+    private function buildModelRequestPreviewLine(
+        AssetModel $model,
+        Discipline $discipline,
+        int $quantity,
+        ?int $projectId,
+        ?string $neededByDate
+    ): array {
+        $estimate = $neededByDate
+            ? $this->estimateAssetModelRequest($model, $quantity, $neededByDate)
+            : [
+                'reusable_quantity' => 0,
+                'due_back_before_needed_by_quantity' => 0,
+                'procurement_shortfall' => 0,
+                'estimated_savings' => 0,
+                'reference_price_snapshot' => $model->reference_price !== null ? (float) $model->reference_price : null,
+            ];
+
+        $requestContext = new CheckoutRequest([
+            'project_id' => $projectId,
+            'requested_discipline_id' => $discipline->id,
+            'quantity' => $quantity,
+            'procurement_shortfall' => $estimate['procurement_shortfall'] ?? 0,
+            'reference_price_snapshot' => $estimate['reference_price_snapshot'] ?? null,
+        ]);
+        $requestContext->requestable_id = $model->id;
+        $requestContext->requestable_type = AssetModel::class;
+
+        $reservedCount = $projectId ? $requestContext->reservedAssetsCount() : 0;
+        $reservedByOtherProjectsCount = $projectId ? $requestContext->reservedByOtherRfqsCount() : 0;
+        $amountToBuy = round(
+            ((float) ($estimate['procurement_shortfall'] ?? 0)) * ((float) ($estimate['reference_price_snapshot'] ?? 0)),
+            2
+        );
+
+        return [
+            'model_id' => (int) $model->id,
+            'model_name' => $model->name,
+            'discipline_id' => (int) $discipline->id,
+            'discipline_name' => $discipline->name,
+            'quantity' => $quantity,
+            'reusable_quantity' => (int) ($estimate['reusable_quantity'] ?? 0),
+            'due_back_before_needed_by_quantity' => (int) ($estimate['due_back_before_needed_by_quantity'] ?? 0),
+            'reserved_count' => $reservedCount,
+            'reserved_by_other_rfqs_count' => $reservedByOtherProjectsCount,
+            'procurement_shortfall' => (int) ($estimate['procurement_shortfall'] ?? 0),
+            'estimated_savings' => round((float) ($estimate['estimated_savings'] ?? 0), 2),
+            'estimated_savings_formatted' => \App\Helpers\Helper::formatCurrencyOutput((float) ($estimate['estimated_savings'] ?? 0)),
+            'amount_to_buy' => $amountToBuy,
+            'amount_to_buy_formatted' => \App\Helpers\Helper::formatCurrencyOutput($amountToBuy),
+        ];
+    }
+
     private function authorizeSubmittedRequestAccess(CheckoutRequest $checkoutRequest): void
     {
         if (! auth()->user()->hasAccess('models.request')) {
@@ -583,11 +876,12 @@ class ViewAssetsController extends Controller
         abort_unless((int) $checkoutRequest->user_id === (int) auth()->id(), 403);
     }
 
-    private function ensureUniqueModelProjectRequest(AssetModel $item, User $user, int $projectId, ?int $ignoreRequestId = null): void
+    private function ensureUniqueModelProjectRequest(AssetModel $item, User $user, int $projectId, int $disciplineId, ?int $ignoreRequestId = null): void
     {
         $duplicateQuery = $item->requests()
             ->where('user_id', $user->id)
             ->where('project_id', $projectId)
+            ->where('requested_discipline_id', $disciplineId)
             ->whereNull('canceled_at');
 
         if ($ignoreRequestId) {
@@ -596,7 +890,7 @@ class ViewAssetsController extends Controller
 
         if ($duplicateQuery->exists()) {
             throw ValidationException::withMessages([
-                'project_id' => 'You already have an active request for this model and project.',
+                'project_id' => 'You already have an active request for this model, project, and discipline.',
             ]);
         }
     }
