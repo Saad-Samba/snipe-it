@@ -140,10 +140,13 @@ class AssetModel extends SnipeModel
 
     public function dueBackAssetsByDate(?string $neededByDate)
     {
+        $reservedStatusId = Setting::getSettings()?->rfq_reserved_statuslabel_id;
+
         return $this->hasMany(\App\Models\Asset::class, 'model_id')
             ->whereNotNull('assigned_to')
             ->whereNotNull('expected_checkin')
             ->when($neededByDate, fn ($query) => $query->whereDate('expected_checkin', '<=', $neededByDate))
+            ->when($reservedStatusId, fn ($query) => $query->where('status_id', '!=', $reservedStatusId))
             ->NotArchived();
     }
 

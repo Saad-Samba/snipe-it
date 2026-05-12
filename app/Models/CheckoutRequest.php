@@ -194,6 +194,35 @@ class CheckoutRequest extends Model
         return $this->reservedAssetsQuery()->count();
     }
 
+    public function reservedByOtherRfqsQuery()
+    {
+        $reservedStatusId = Setting::getSettings()?->rfq_reserved_statuslabel_id;
+
+        if (! $reservedStatusId || ! $this->project_id || $this->requestable_type !== AssetModel::class) {
+            return Asset::query()->whereRaw('1 = 0');
+        }
+
+        return Asset::withoutGlobalScopes()
+            ->where('model_id', $this->requestable_id)
+            ->whereNotNull('project_id')
+            ->where('project_id', '!=', $this->project_id)
+            ->where('status_id', $reservedStatusId)
+            ->whereNotNull('expected_checkin');
+    }
+
+    public function reservedByOtherRfqsCount(): int
+    {
+        return $this->reservedByOtherRfqsQuery()->count();
+    }
+
+    public function amountToBuy(): float
+    {
+        return round(
+            ((float) ($this->procurement_shortfall ?? 0)) * ((float) ($this->reference_price_snapshot ?? 0)),
+            2
+        );
+    }
+
     public static function projectSummaryForUser(int $userId, int $projectId): array
     {
         $requests = self::query()
@@ -211,12 +240,30 @@ class CheckoutRequest extends Model
         $projectId = $requests->first()?->project_id;
 
         $reservedAssets = 0;
+        $reservedByOtherRfqs = 0;
         if ($reservedStatusId && $projectId) {
             $reservedAssets = Asset::withoutGlobalScopes()
                 ->where('project_id', $projectId)
                 ->where('status_id', $reservedStatusId)
                 ->whereNotNull('expected_checkin')
                 ->count();
+
+            $modelIds = $requests
+                ->filter(fn ($request) => $request->requestable_type === AssetModel::class)
+                ->pluck('requestable_id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($modelIds->isNotEmpty()) {
+                $reservedByOtherRfqs = Asset::withoutGlobalScopes()
+                    ->whereIn('model_id', $modelIds)
+                    ->whereNotNull('project_id')
+                    ->where('project_id', '!=', $projectId)
+                    ->where('status_id', $reservedStatusId)
+                    ->whereNotNull('expected_checkin')
+                    ->count();
+            }
         }
 
         return [
@@ -226,8 +273,9 @@ class CheckoutRequest extends Model
             'due_back_before_needed_by' => (int) $requests->sum(fn ($request) => (int) ($request->due_back_before_needed_by_quantity ?? 0)),
             'shortfall' => (int) $requests->sum(fn ($request) => (int) ($request->procurement_shortfall ?? 0)),
             'estimated_savings' => round((float) $requests->sum(fn ($request) => (float) ($request->estimated_savings ?? 0)), 2),
-            'booked_count' => (int) $requests->sum(fn ($request) => $request->bookedAssetsCount()),
             'reserved_count' => $reservedAssets,
+            'reserved_by_other_rfqs_count' => $reservedByOtherRfqs,
+            'amount_to_buy' => round((float) $requests->sum(fn ($request) => $request->amountToBuy()), 2),
         ];
     }
 

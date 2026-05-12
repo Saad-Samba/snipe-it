@@ -115,7 +115,6 @@ class ProfileController extends Controller
                     'project' => e(optional($checkoutRequest->project)->name),
                     'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
                     'needed_by_date_value' => optional($checkoutRequest->needed_by_date)->format('Y-m-d'),
-                    'booked_count' => $bookedCount,
                     'reusable_quantity' => (int) ($checkoutRequest->reusable_quantity ?? 0),
                     'due_back_before_needed_by_quantity' => (int) ($checkoutRequest->due_back_before_needed_by_quantity ?? 0),
                     'procurement_shortfall' => (int) ($checkoutRequest->procurement_shortfall ?? 0),
@@ -123,8 +122,11 @@ class ProfileController extends Controller
                     'estimated_savings_formatted' => $checkoutRequest->estimated_savings !== null
                         ? Helper::formatCurrencyOutput($checkoutRequest->estimated_savings)
                         : null,
+                    'amount_to_buy' => $checkoutRequest->amountToBuy(),
+                    'amount_to_buy_formatted' => Helper::formatCurrencyOutput($checkoutRequest->amountToBuy()),
                     'reference_price_snapshot' => $checkoutRequest->reference_price_snapshot !== null ? (float) $checkoutRequest->reference_price_snapshot : null,
                     'reserved_count' => $checkoutRequest->reservedAssetsCount(),
+                    'reserved_by_other_rfqs_count' => $checkoutRequest->reservedByOtherRfqsCount(),
                     'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),
                     'status_value' => e($statusValue),
                     'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,

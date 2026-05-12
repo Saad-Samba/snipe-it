@@ -1883,6 +1883,18 @@
         return formatEstimateCurrency(value);
     }
 
+    function requestAmountToBuyFormatter(value, row) {
+        if (row && row.amount_to_buy_formatted) {
+            return row.amount_to_buy_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
     function cancelSubmittedRequestRow(url) {
         if (!window.confirm('Cancel this request?')) {
             return;

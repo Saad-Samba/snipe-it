@@ -10,6 +10,7 @@ use App\Models\Company;
 use App\Models\Discipline;
 use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
+use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
 use App\Notifications\RequestAssetNotification;
@@ -199,11 +200,13 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.qty', 2)
             ->assertJsonPath('rows.0.status', 'Pending')
             ->assertJsonPath('rows.0.project', 'Request Tracking Project')
-            ->assertJsonPath('rows.0.booked_count', 0)
             ->assertJsonPath('rows.0.reusable_quantity', 1)
             ->assertJsonPath('rows.0.due_back_before_needed_by_quantity', 0)
             ->assertJsonPath('rows.0.procurement_shortfall', 1)
             ->assertJsonPath('rows.0.estimated_savings', 499.99)
+            ->assertJsonPath('rows.0.amount_to_buy', 499.99)
+            ->assertJsonPath('rows.0.reserved_count', 0)
+            ->assertJsonPath('rows.0.reserved_by_other_rfqs_count', 0)
             ->assertJsonPath('rows.0.project_requests_url', route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertJsonPath('rows.0.request_update_url', route('account.request-row.update', $checkoutRequest))
             ->assertJsonPath('rows.0.request_cancel_url', route('account.request-row.cancel', $checkoutRequest));
@@ -801,6 +804,63 @@ class ModelRequestWorkflowTest extends TestCase
                 'potentially_coverable_by_needed_by' => 2,
                 'procurement_shortfall' => 1,
                 'estimated_savings' => 200.0,
+            ]);
+    }
+
+    public function test_model_request_estimate_excludes_rfq_reserved_assets_from_due_back()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $otherProject = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 100,
+        ]);
+
+        $disciplineId = Discipline::create([
+            'name' => 'Reserved Due Back',
+            'created_by' => $requester->id,
+        ])->id;
+        $companyId = Company::factory()->create()->id;
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $this->createEligibleAsset($model, $companyId, $disciplineId);
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => $companyId,
+            'discipline_id' => $disciplineId,
+            'project_id' => $otherProject->id,
+            'status_id' => $reservedStatus->id,
+            'requestable' => 1,
+            'assigned_to' => User::factory()->create()->id,
+            'assigned_type' => User::class,
+            'expected_checkin' => '2026-06-01',
+        ]);
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-quantity' => 3,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
+            ])
+            ->assertOk()
+            ->assertJson([
+                'requested_quantity' => 3,
+                'reusable_now' => 1,
+                'due_back_before_needed_by_quantity' => 0,
+                'potentially_coverable_by_needed_by' => 1,
+                'procurement_shortfall' => 2,
+                'estimated_savings' => 100.0,
             ]);
     }
 
