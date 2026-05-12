@@ -5,7 +5,7 @@
     <div><strong>Due Back</strong><br>{{ $summary['due_back_before_needed_by'] }}</div>
     <div><strong>Shortfall</strong><br>{{ $summary['shortfall'] }}</div>
     <div><strong>Reserved</strong><br>{{ $summary['reserved_count'] }}</div>
-    <div><strong>Reserved by Other RFQs</strong><br>{{ $summary['reserved_by_other_rfqs_count'] }}</div>
+    <div><strong>Reserved by Other Project</strong><br>{{ $summary['reserved_by_other_rfqs_count'] }}</div>
     <div><strong>Estimated Savings</strong><br>{{ \App\Helpers\Helper::formatCurrencyOutput($summary['estimated_savings']) }}</div>
     <div><strong>Amount to Buy</strong><br>{{ \App\Helpers\Helper::formatCurrencyOutput($summary['amount_to_buy']) }}</div>
 </div>

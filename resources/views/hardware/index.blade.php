@@ -66,7 +66,7 @@
               <div><strong>Due Back</strong><br>{{ $requestReviewSummary['due_back_before_needed_by'] }}</div>
               <div><strong>Shortfall</strong><br>{{ $requestReviewSummary['shortfall'] }}</div>
               <div><strong>Reserved</strong><br>{{ $requestReviewSummary['reserved_count'] }}</div>
-              <div><strong>Reserved by Other RFQs</strong><br>{{ $requestReviewSummary['reserved_by_other_rfqs_count'] }}</div>
+              <div><strong>Reserved by Other Project</strong><br>{{ $requestReviewSummary['reserved_by_other_rfqs_count'] }}</div>
               <div><strong>Amount to Buy</strong><br>{{ \App\Helpers\Helper::formatCurrencyOutput($requestReviewSummary['amount_to_buy']) }}</div>
             </div>
           @endif
