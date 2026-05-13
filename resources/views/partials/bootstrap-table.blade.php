@@ -904,6 +904,10 @@
 
     });
 
+    $('.snipe-table').on('click mousedown touchstart focus', '.model-request-inline-control', function (event) {
+        event.stopPropagation();
+    });
+
     // Initialize sort-order for bulk actions (label-generation) for snipe-tables
     $('.snipe-table').each(function (i, table) {
         table_cookie_segment = $(table).data('cookie-id-table');
@@ -1531,7 +1535,6 @@
             + '                  <th>Quantity</th>'
             + '                  <th>Reusable Now</th>'
             + '                  <th>Due Back</th>'
-            + '                  <th>Reserved</th>'
             + '                  <th>Reserved by Other Project</th>'
             + '                  <th>Shortfall</th>'
             + '                  <th>Estimated Savings</th>'
@@ -1548,7 +1551,6 @@
             + '              <span>Total Needed</span><span id="model-request-cart-total-requested">0</span>'
             + '              <span>Reusable Now</span><span id="model-request-cart-total-reusable">0</span>'
             + '              <span>Due Back</span><span id="model-request-cart-total-due-back">0</span>'
-            + '              <span>Reserved</span><span id="model-request-cart-total-reserved">0</span>'
             + '              <span>Reserved by Other Project</span><span id="model-request-cart-total-reserved-other">0</span>'
             + '              <span>Shortfall</span><span id="model-request-cart-total-shortfall">0</span>'
             + '              <span>Estimated Savings</span><span id="model-request-cart-total-savings">0.00</span>'
@@ -1607,11 +1609,11 @@
     }
 
     function buildInlineBookingInput(modelId, quantity) {
-        return '<input type="number" min="1" id="model-booking-quantity-' + modelId + '" value="' + quantity + '" class="form-control input-sm" style="width:70px;height:30px;padding:4px 6px;display:inline-block;">';
+        return '<input type="number" min="1" id="model-booking-quantity-' + modelId + '" value="' + quantity + '" class="form-control input-sm model-request-inline-control" style="width:70px;height:30px;padding:4px 6px;display:inline-block;">';
     }
 
     function buildInlineDisciplineSelect(modelId, selectedDisciplineId) {
-        return '<select id="model-booking-discipline-' + modelId + '" class="form-control input-sm" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
+        return '<select id="model-booking-discipline-' + modelId + '" class="form-control input-sm model-request-inline-control" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
             + buildModelRequestDisciplineOptions(selectedDisciplineId || '')
             + '</select>';
     }
@@ -1783,7 +1785,7 @@
         var rows = [];
 
         if (!lines.length) {
-            rows.push('<tr><td colspan="11" class="text-muted">Your request cart is empty.</td></tr>');
+            rows.push('<tr><td colspan="10" class="text-muted">Your request cart is empty.</td></tr>');
         }
 
         lines.forEach(function (line) {
@@ -1794,7 +1796,6 @@
                 + '<td>' + line.quantity + '</td>'
                 + '<td>' + (metadataReady ? line.reusable_quantity : '&mdash;') + '</td>'
                 + '<td>' + (metadataReady ? line.due_back_before_needed_by_quantity : '&mdash;') + '</td>'
-                + '<td>' + (metadataReady ? line.reserved_count : '&mdash;') + '</td>'
                 + '<td>' + (metadataReady ? line.reserved_by_other_rfqs_count : '&mdash;') + '</td>'
                 + '<td>' + (metadataReady ? line.procurement_shortfall : '&mdash;') + '</td>'
                 + '<td>' + (metadataReady ? line.estimated_savings_formatted : '&mdash;') + '</td>'
@@ -1815,7 +1816,6 @@
         $('#model-request-cart-total-requested').text(totals.quantity || 0);
         $('#model-request-cart-total-reusable').html(metadataReady ? (totals.reusable_quantity || 0) : '&mdash;');
         $('#model-request-cart-total-due-back').html(metadataReady ? (totals.due_back_before_needed_by_quantity || 0) : '&mdash;');
-        $('#model-request-cart-total-reserved').html(metadataReady ? (totals.reserved_count || 0) : '&mdash;');
         $('#model-request-cart-total-reserved-other').html(metadataReady ? (totals.reserved_by_other_rfqs_count || 0) : '&mdash;');
         $('#model-request-cart-total-shortfall').html(metadataReady ? (totals.procurement_shortfall || 0) : '&mdash;');
         $('#model-request-cart-total-savings').html(metadataReady ? formattedTotals.estimated_savings : '&mdash;');
@@ -1958,7 +1958,7 @@
             return '<div style="display:flex;align-items:center;gap:6px;min-width:104px;">'
                 + buildInlineBookingInput(row.id, requestedQuantity)
                 + buildInlineDisciplineSelect(row.id, '')
-                + '<button type="button" class="btn btn-primary btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="Add to cart" onclick="var quantity = getInlineModelBookingQuantity(' + row.id + '); var disciplineId = getInlineModelDisciplineId(' + row.id + '); if (!quantity) { window.alert(\'Enter a total needed quantity first.\'); return; } if (!disciplineId) { window.alert(\'Select a discipline first.\'); return; } addLinesToRequestCart([{ model_id: ' + row.id + ', quantity: quantity, discipline_id: disciplineId }], false);"><i class=\"fas fa-cart-plus\" aria-hidden=\"true\"></i><span class=\"sr-only\">Add to cart</span></button>'
+                + '<button type="button" class="btn btn-primary btn-sm model-request-inline-control" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="Add to cart" onclick="var quantity = getInlineModelBookingQuantity(' + row.id + '); var disciplineId = getInlineModelDisciplineId(' + row.id + '); if (!quantity) { window.alert(\'Enter a total needed quantity first.\'); return; } if (!disciplineId) { window.alert(\'Select a discipline first.\'); return; } addLinesToRequestCart([{ model_id: ' + row.id + ', quantity: quantity, discipline_id: disciplineId }], false);"><i class=\"fas fa-cart-plus\" aria-hidden=\"true\"></i><span class=\"sr-only\">Add to cart</span></button>'
                 + '</div>';
         }
 
