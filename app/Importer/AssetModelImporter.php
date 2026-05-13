@@ -33,6 +33,7 @@ class AssetModelImporter extends ItemImporter
         $csvKey = $this->lookupCustomKey($field);
 
         if (! array_key_exists($csvKey, $row)) {
+            unset($this->item[$field]);
             return;
         }
 
