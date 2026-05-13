@@ -337,7 +337,7 @@ class AssetsController extends Controller
 
         if ($request->filled('assignment')) {
             if ($request->input('assignment') === 'assigned') {
-                $assets->where('assets.assigned_to', '>', 0);
+                $assets->whereNotNull('assets.assigned_to');
             } elseif ($request->input('assignment') === 'unassigned') {
                 $assets->whereNull('assets.assigned_to');
             }
