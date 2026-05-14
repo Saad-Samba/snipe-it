@@ -7,17 +7,21 @@
 **{{ trans('general.project') }}:** {{ $project_name }}
 @endif
 
-**{{ trans('mail.user') }}:** {{ $requester->display_name }}
+**Requestor:** {{ $requester->display_name }}
 
 **{{ trans('general.requested') }}:** {{ $submitted_at }}
 
 @component('mail::table')
-| {{ trans('general.asset_model') }} | {{ trans('general.project') }} | {{ trans('general.discipline') }} | {{ trans('general.qty') }} | {{ trans('mail.rac_reusable_now_in_scope') }} | Needed By | Actions |
-| ------------- | ------------- | ------------- | ------------- | ------------- | ------------- | ------------- |
+| Model | {{ trans('general.project') }} | {{ trans('general.discipline') }} | {{ trans('general.qty') }} | {{ trans('mail.rac_reusable_now_in_scope') }} | Needed By |
+| ------------- | ------------- | ------------- | ------------- | ------------- | ------------- |
 @foreach($lines as $line)
-| {{ $line['model_name'] }} | {{ $line['project_name'] }} | {{ $line['discipline_name'] }} | {{ $line['requested_quantity'] }} | {{ $line['reusable_quantity'] }} | {{ $line['needed_by_date'] }} | [{{ trans('mail.rac_model_link') }}]({{ $line['model_show_url'] }}) / [{{ trans('mail.rac_project_link') }}]({{ $line['project_requests_url'] }}) / [{{ trans('mail.rac_review_link') }}]({{ $line['request_detail_url'] }}) |
+| [{{ $line['model_name'] }}]({{ $line['model_show_url'] }}) | {{ $line['project_name'] }} | {{ $line['discipline_name'] }} | {{ $line['requested_quantity'] }} | {{ $line['reusable_quantity'] }} | {{ $line['needed_by_date'] }} |
 @endforeach
 @endcomponent
+
+@foreach($lines as $line)
+- [{{ trans('mail.rac_project_link') }}]({{ $line['project_requests_url'] }}) / [{{ trans('mail.rac_review_link') }}]({{ $line['request_detail_url'] }})
+@endforeach
 
 {{ trans('mail.best_regards') }}
 

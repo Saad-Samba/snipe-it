@@ -29,7 +29,7 @@ class RacScopedRequestSummaryNotification extends Notification
             'project_name' => $this->summary['project_name'],
             'lines' => $this->summary['lines'],
         ])
-            ->subject('👀 '.trans('mail.rac_request_scope_match_subject', ['project' => $projectName]))
+            ->subject(trans('mail.rac_request_scope_match_subject', ['project' => $projectName]))
             ->withSymfonyMessage(function (Email $message) {
                 $message->getHeaders()->addTextHeader(
                     'X-System-Sender', 'Snipe-IT'
