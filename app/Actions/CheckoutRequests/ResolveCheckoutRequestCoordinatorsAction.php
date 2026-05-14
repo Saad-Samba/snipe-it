@@ -6,16 +6,16 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\RegionalAssetCoordinatorAssignment;
-use App\Notifications\RequestAssetNotification;
+use Illuminate\Support\Collection;
 
 class ResolveCheckoutRequestCoordinatorsAction
 {
-    public static function run(CheckoutRequest $checkoutRequest, array $notificationData = []): void
+    public static function run(CheckoutRequest $checkoutRequest): Collection
     {
         if ($checkoutRequest->requestable_type !== AssetModel::class) {
             $checkoutRequest->coordinatorTargets()->delete();
 
-            return;
+            return collect();
         }
 
         $eligibleAssetPairs = Asset::query()
@@ -23,42 +23,54 @@ class ResolveCheckoutRequestCoordinatorsAction
             ->where('model_id', $checkoutRequest->requestable_id)
             ->whereNotNull('company_id')
             ->whereNotNull('discipline_id')
-            ->get(['company_id', 'discipline_id'])
-            ->map(fn (Asset $asset) => [
-                'company_id' => (int) $asset->company_id,
-                'discipline_id' => (int) $asset->discipline_id,
-            ])
-            ->unique()
-            ->values();
+            ->get(['company_id', 'discipline_id']);
 
         $checkoutRequest->coordinatorTargets()->delete();
 
         if ($eligibleAssetPairs->isEmpty()) {
-            return;
+            return collect();
         }
 
+        $reusableCountsByScope = $eligibleAssetPairs
+            ->groupBy(fn (Asset $asset) => self::makeScopeKey((int) $asset->company_id, (int) $asset->discipline_id))
+            ->map(fn (Collection $assets) => $assets->count());
+
         $assignments = RegionalAssetCoordinatorAssignment::query()
-            ->with('coordinator')
+            ->with(['coordinator', 'company', 'discipline'])
             ->get();
 
-        $eligibleAssignmentKeys = $eligibleAssetPairs
-            ->map(fn (array $pair) => $pair['company_id'].'-'.$pair['discipline_id'])
-            ->all();
-
-        $assignments = $assignments->filter(function (RegionalAssetCoordinatorAssignment $assignment) use ($eligibleAssignmentKeys) {
-            return in_array($assignment->company_id.'-'.$assignment->discipline_id, $eligibleAssignmentKeys, true);
+        $matchedAssignments = $assignments->filter(function (RegionalAssetCoordinatorAssignment $assignment) use ($reusableCountsByScope) {
+            return $reusableCountsByScope->has(self::makeScopeKey((int) $assignment->company_id, (int) $assignment->discipline_id));
         });
 
-        foreach ($assignments as $assignment) {
+        foreach ($matchedAssignments as $assignment) {
             $checkoutRequest->coordinatorTargets()->create([
                 'user_id' => $assignment->user_id,
                 'company_id' => $assignment->company_id,
                 'discipline_id' => $assignment->discipline_id,
             ]);
-
-            if (!empty($notificationData) && $assignment->coordinator) {
-                $assignment->coordinator->notify(new RequestAssetNotification($notificationData));
-            }
         }
+
+        return $matchedAssignments
+            ->filter(fn (RegionalAssetCoordinatorAssignment $assignment) => $assignment->coordinator)
+            ->groupBy('user_id')
+            ->map(function (Collection $userAssignments, int|string $userId) use ($reusableCountsByScope) {
+                /** @var RegionalAssetCoordinatorAssignment $firstAssignment */
+                $firstAssignment = $userAssignments->first();
+
+                return [
+                    'user_id' => (int) $userId,
+                    'coordinator' => $firstAssignment->coordinator,
+                    'reusable_quantity' => $userAssignments->sum(
+                        fn (RegionalAssetCoordinatorAssignment $assignment) => (int) ($reusableCountsByScope[self::makeScopeKey((int) $assignment->company_id, (int) $assignment->discipline_id)] ?? 0)
+                    ),
+                ];
+            })
+            ->values();
+    }
+
+    private static function makeScopeKey(int $companyId, int $disciplineId): string
+    {
+        return $companyId.'-'.$disciplineId;
     }
 }

@@ -13,6 +13,7 @@ use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
+use App\Notifications\RacScopedRequestSummaryNotification;
 use App\Notifications\RequestAssetNotification;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -92,8 +93,18 @@ class ModelRequestWorkflowTest extends TestCase
             'discipline_id' => $disciplineB->id,
         ]);
 
-        Notification::assertSentTo($coordinatorA, RequestAssetNotification::class);
-        Notification::assertSentTo($coordinatorB, RequestAssetNotification::class);
+        Notification::assertSentTo($coordinatorA, RacScopedRequestSummaryNotification::class, function ($notification) use ($project, $disciplineA) {
+            return $notification->projectName() === $project->name
+                && count($notification->lines()) === 1
+                && $notification->lines()[0]['discipline_name'] === $disciplineA->name
+                && $notification->lines()[0]['reusable_quantity'] === 1;
+        });
+        Notification::assertSentTo($coordinatorB, RacScopedRequestSummaryNotification::class, function ($notification) use ($project, $disciplineA) {
+            return $notification->projectName() === $project->name
+                && count($notification->lines()) === 1
+                && $notification->lines()[0]['discipline_name'] === $disciplineA->name
+                && $notification->lines()[0]['reusable_quantity'] === 1;
+        });
     }
 
     public function test_model_request_requires_models_request_permission()
@@ -1116,7 +1127,115 @@ class ModelRequestWorkflowTest extends TestCase
             ])
             ->assertRedirect();
 
-        Notification::assertSentTo($coordinator, RequestAssetNotification::class);
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class, function ($notification) use ($project) {
+            return $notification->projectName() === $project->name
+                && count($notification->lines()) === 1
+                && $notification->lines()[0]['requested_quantity'] === 2
+                && $notification->lines()[0]['reusable_quantity'] === 1;
+        });
+    }
+
+    public function test_request_cart_submit_batches_multiple_relevant_lines_into_one_rac_email()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $disciplineA = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
+        $disciplineB = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
+        $coordinator = User::factory()->create(['first_name' => 'Batch', 'last_name' => 'RAC']);
+        $companyId = Company::factory()->create()->id;
+        $modelA = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $modelB = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $this->createEligibleAsset($modelA, $companyId, $disciplineA->id);
+        $this->createEligibleAsset($modelB, $companyId, $disciplineB->id);
+
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $companyId,
+            'discipline_id' => $disciplineA->id,
+            'created_by' => $requester->id,
+        ]);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $companyId,
+            'discipline_id' => $disciplineB->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-cart.items.add'), [
+                'lines' => [
+                    [
+                        'model_id' => $modelA->id,
+                        'quantity' => 2,
+                        'discipline_id' => $disciplineA->id,
+                    ],
+                    [
+                        'model_id' => $modelB->id,
+                        'quantity' => 1,
+                        'discipline_id' => $disciplineB->id,
+                    ],
+                ],
+            ])
+            ->assertOk();
+
+        $this->actingAs($requester)
+            ->post(route('account.request-cart.submit'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+            ])
+            ->assertRedirect();
+
+        $this->assertCount(1, Notification::sent($coordinator, RacScopedRequestSummaryNotification::class));
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class, function ($notification) use ($project) {
+            return $notification->projectName() === $project->name
+                && count($notification->lines()) === 2;
+        });
+    }
+
+    public function test_due_back_only_matches_do_not_trigger_rac_email()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Due Back Only', 'created_by' => $requester->id]);
+        $coordinator = User::factory()->create(['first_name' => 'DueBack', 'last_name' => 'RAC']);
+        $companyId = Company::factory()->create()->id;
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $companyId,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $dueBackAsset = Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => $companyId,
+            'discipline_id' => $discipline->id,
+        ]);
+        $dueBackAsset->checkOut($requester, $requester, now(), '2026-05-30', 'Due back');
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
+            ])
+            ->assertRedirect();
+
+        Notification::assertNotSentTo($coordinator, RacScopedRequestSummaryNotification::class);
     }
 
     public function test_reserved_by_other_project_counts_reserved_assets_without_expected_checkin()

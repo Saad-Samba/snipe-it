@@ -16,6 +16,7 @@ use App\Models\Discipline;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
+use App\Notifications\RacScopedRequestSummaryNotification;
 use App\Notifications\RequestAssetCancelation;
 use App\Notifications\RequestAssetNotification;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -284,6 +285,7 @@ class ViewAssetsController extends Controller
 
             return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.canceled'));
         } else {
+            $coordinatorNotificationBuckets = [];
             $requestAttributes = $fullItemType == AssetModel::class
                 ? array_merge(
                     [
@@ -300,13 +302,23 @@ class ViewAssetsController extends Controller
                 : $item->request($quantity, $requestAttributes);
 
             if ($fullItemType == AssetModel::class) {
-                ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
+                $coordinatorMatches = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+                $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
+                    $coordinatorNotificationBuckets,
+                    $checkoutRequest,
+                    $user,
+                    $data['project'],
+                    $data['requested_date'],
+                    $coordinatorMatches
+                );
             }
 
             if (($settings->alert_email != '') && ($settings->alerts_enabled == '1') && (! config('app.lock_passwords'))) {
                 $logaction->logaction('requested');
                 $settings->notify(new RequestAssetNotification($data));
             }
+
+            $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);
 
             return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.success'));
         }
@@ -587,7 +599,11 @@ class ViewAssetsController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($cart, $validated, $user) {
+        $project = Project::find((int) $validated['project_id']);
+        $submittedAt = now()->toDateTimeString();
+        $coordinatorNotificationBuckets = [];
+
+        DB::transaction(function () use ($cart, $validated, $user, $project, $submittedAt, &$coordinatorNotificationBuckets) {
             foreach ($cart as $line) {
                 $item = AssetModel::findOrFail((int) $line['model_id']);
                 $disciplineId = (int) $line['discipline_id'];
@@ -619,19 +635,28 @@ class ViewAssetsController extends Controller
                 $data = [
                     'item_quantity' => $quantity,
                     'requested_by' => $user->display_name,
-                    'requested_date' => now()->toDateTimeString(),
+                    'requested_date' => $submittedAt,
                     'item' => $item,
                     'item_type' => 'model',
                     'target' => $user,
-                    'project' => Project::find((int) $validated['project_id']),
+                    'project' => $project,
                     'item_url' => route('view/model', $item->id),
                 ];
 
-                ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
+                $coordinatorMatches = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+                $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
+                    $coordinatorNotificationBuckets,
+                    $checkoutRequest,
+                    $user,
+                    $project,
+                    $submittedAt,
+                    $coordinatorMatches
+                );
             }
         });
 
         $request->session()->forget(self::MODEL_REQUEST_CART_SESSION_KEY);
+        $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);
 
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
@@ -814,6 +839,79 @@ class ViewAssetsController extends Controller
     private function makeModelRequestCartKey(int $modelId, int $disciplineId): string
     {
         return $modelId.':'.$disciplineId;
+    }
+
+    private function addCoordinatorSummaryLine(
+        array $buckets,
+        CheckoutRequest $checkoutRequest,
+        User $requester,
+        ?Project $project,
+        string $submittedAt,
+        $coordinatorMatches
+    ): array {
+        foreach ($coordinatorMatches as $match) {
+            $coordinator = $match['coordinator'] ?? null;
+            $reusableQuantity = (int) ($match['reusable_quantity'] ?? 0);
+
+            if (! $coordinator || $reusableQuantity < 1) {
+                continue;
+            }
+
+            $coordinatorId = (int) $match['user_id'];
+
+            if (! isset($buckets[$coordinatorId])) {
+                $buckets[$coordinatorId] = [
+                    'rac_user' => $coordinator,
+                    'requester' => $requester,
+                    'submitted_at' => $submittedAt,
+                    'project_name' => $project?->name,
+                    'lines' => [],
+                ];
+            }
+
+            $buckets[$coordinatorId]['lines'][] = [
+                'model_name' => $checkoutRequest->requestedItem()?->name ?? $checkoutRequest->name(),
+                'project_name' => $project?->name ?: '-',
+                'discipline_name' => optional($checkoutRequest->requestedDiscipline)->name ?: '-',
+                'requested_quantity' => (int) $checkoutRequest->quantity,
+                'reusable_quantity' => $reusableQuantity,
+                'needed_by_date' => optional($checkoutRequest->needed_by_date)?->format('Y-m-d') ?: '-',
+                'model_show_url' => route('models.show', $checkoutRequest->requestable_id),
+                'project_requests_url' => $checkoutRequest->project_id
+                    ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
+                    : route('account.requested'),
+                'request_detail_url' => $this->requestDetailUrlFor($checkoutRequest),
+            ];
+        }
+
+        return $buckets;
+    }
+
+    private function sendCoordinatorSummaryNotifications(array $buckets): void
+    {
+        foreach ($buckets as $bucket) {
+            $bucket['rac_user']->notify(new RacScopedRequestSummaryNotification($bucket));
+        }
+    }
+
+    private function requestDetailUrlFor(CheckoutRequest $checkoutRequest): string
+    {
+        $query = [
+            'request_id' => $checkoutRequest->id,
+            'model_id' => $checkoutRequest->requestable_id,
+            'project_id' => $checkoutRequest->project_id,
+            'discipline_id' => $checkoutRequest->requested_discipline_id,
+        ];
+
+        $reservedStatusId = Setting::rfqReservedStatusId();
+
+        if ($reservedStatusId) {
+            $query['status_id'] = $reservedStatusId;
+        } else {
+            $query['status'] = 'RTD';
+        }
+
+        return route('hardware.index', $query);
     }
 
     private function buildModelRequestPreviewLine(
