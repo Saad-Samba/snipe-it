@@ -623,6 +623,135 @@ class ModelRequestWorkflowTest extends TestCase
             ]));
     }
 
+    public function test_requested_assets_api_exposes_bucket_specific_asset_review_urls()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Bucket Links', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested'))
+            ->assertOk()
+            ->assertJsonPath('rows.0.reusable_now_url', route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reusable_now',
+            ]))
+            ->assertJsonPath('rows.0.due_back_url', route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'due_back',
+            ]))
+            ->assertJsonPath('rows.0.reserved_assets_url', route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reserved',
+            ]))
+            ->assertJsonPath('rows.0.reserved_by_other_project_url', route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reserved_other_project',
+            ]));
+    }
+
+    public function test_request_bucket_filters_return_the_expected_assets()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $company = Company::factory()->create();
+        $project = Project::factory()->create();
+        $otherProject = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Bucket Filter', 'created_by' => $requester->id]);
+        $otherDiscipline = Discipline::create(['name' => 'Other Bucket Filter', 'created_by' => $requester->id]);
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+            'needed_by_date' => '2026-06-20',
+        ]);
+
+        $reusableAsset = $this->createEligibleAsset($model, $company->id, $discipline->id);
+
+        $dueBackAsset = $this->createEligibleAsset($model, $company->id, $otherDiscipline->id);
+        $dueBackAsset->assigned_to = $requester->id;
+        $dueBackAsset->assigned_type = User::class;
+        $dueBackAsset->expected_checkin = '2026-06-15';
+        $dueBackAsset->save();
+
+        $reservedAsset = $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $reservedAsset->project_id = $project->id;
+        $reservedAsset->discipline_id = $discipline->id;
+        $reservedAsset->status_id = $reservedStatus->id;
+        $reservedAsset->assigned_to = $requester->id;
+        $reservedAsset->assigned_type = User::class;
+        $reservedAsset->save();
+
+        $reservedOtherProjectAsset = $this->createEligibleAsset($model, $company->id, $otherDiscipline->id);
+        $reservedOtherProjectAsset->project_id = $otherProject->id;
+        $reservedOtherProjectAsset->status_id = $reservedStatus->id;
+        $reservedOtherProjectAsset->assigned_to = $requester->id;
+        $reservedOtherProjectAsset->assigned_type = User::class;
+        $reservedOtherProjectAsset->save();
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reusable_now',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $reusableAsset->id);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'due_back',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $dueBackAsset->id);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reserved',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $reservedAsset->id);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reserved_other_project',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $reservedOtherProjectAsset->id);
+    }
+
     public function test_request_filtered_assets_api_keeps_showing_project_booked_assets_for_the_request()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();

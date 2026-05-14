@@ -104,6 +104,9 @@ class ProfileController extends Controller
                 $statusValue = $checkoutRequest->requesterAllocationStatus();
                 $reservedStatusId = Setting::rfqReservedStatusId();
                 $liveMetrics = $checkoutRequest->liveRequestMetrics();
+                $requestAssetBucketBaseQuery = [
+                    'request_id' => $checkoutRequest->id,
+                ];
                 $requestDetailQuery = [
                     'request_id' => $checkoutRequest->id,
                     'model_id' => $checkoutRequest->requestable_id,
@@ -162,6 +165,18 @@ class ProfileController extends Controller
                         ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
                         : null,
                     'request_detail_url' => route('hardware.index', $requestDetailQuery),
+                    'reusable_now_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
+                        'request_bucket' => 'reusable_now',
+                    ])),
+                    'due_back_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
+                        'request_bucket' => 'due_back',
+                    ])),
+                    'reserved_assets_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
+                        'request_bucket' => 'reserved',
+                    ])),
+                    'reserved_by_other_project_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
+                        'request_bucket' => 'reserved_other_project',
+                    ])),
                     'request_update_url' => route('account.request-row.update', $checkoutRequest),
                     'request_cancel_url' => route('account.request-row.cancel', $checkoutRequest),
                 ];

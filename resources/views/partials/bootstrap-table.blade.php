@@ -2116,6 +2116,34 @@
         return value;
     }
 
+    function requestAvailabilityLinkFormatter(value, row, urlField) {
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        if (row && row[urlField]) {
+            return '<a href="' + row[urlField] + '">' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestReusableNowFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'reusable_now_url');
+    }
+
+    function requestDueBackFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'due_back_url');
+    }
+
+    function requestReservedFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'reserved_assets_url');
+    }
+
+    function requestReservedByOtherProjectFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'reserved_by_other_project_url');
+    }
+
     function requestSavingsFormatter(value, row) {
         if (row && row.estimated_savings_formatted) {
             return row.estimated_savings_formatted;

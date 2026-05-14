@@ -410,6 +410,50 @@ class AssetsController extends Controller
             $assets->where('assets.discipline_id', '=', $request->input('discipline_id'));
         }
 
+        if ($requestContext && $request->filled('request_bucket') && $requestContext->requestable_type === AssetModel::class) {
+            $reservedStatusId = Setting::rfqReservedStatusId();
+
+            $assets->where('assets.model_id', '=', $requestContext->requestable_id);
+
+            switch ($request->input('request_bucket')) {
+                case 'reusable_now':
+                    $assets->RTD();
+                    break;
+                case 'due_back':
+                    $assets->whereNotNull('assets.assigned_to')
+                        ->whereNotNull('assets.expected_checkin')
+                        ->when(
+                            $requestContext->needed_by_date,
+                            fn ($query) => $query->whereDate('assets.expected_checkin', '<=', $requestContext->needed_by_date)
+                        )
+                        ->when(
+                            $reservedStatusId,
+                            fn ($query) => $query->where('assets.status_id', '!=', $reservedStatusId)
+                        )
+                        ->NotArchived();
+                    break;
+                case 'reserved':
+                    $assets->where('assets.project_id', '=', $requestContext->project_id)
+                        ->when(
+                            $requestContext->requested_discipline_id,
+                            fn ($query) => $query->where('assets.discipline_id', '=', $requestContext->requested_discipline_id)
+                        )
+                        ->when(
+                            $reservedStatusId,
+                            fn ($query) => $query->where('assets.status_id', '=', $reservedStatusId)
+                        );
+                    break;
+                case 'reserved_other_project':
+                    $assets->whereNotNull('assets.project_id')
+                        ->where('assets.project_id', '!=', $requestContext->project_id)
+                        ->when(
+                            $reservedStatusId,
+                            fn ($query) => $query->where('assets.status_id', '=', $reservedStatusId)
+                        );
+                    break;
+            }
+        }
+
         if ($request->filled('company_id')) {
             $assets->where('assets.company_id', '=', $request->input('company_id'));
         }
