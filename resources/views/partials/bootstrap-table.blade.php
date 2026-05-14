@@ -1465,6 +1465,7 @@
         $('.snipe-table[data-request-mode="requester"]').each(function () {
             $(this).find('thead th[data-request-tooltip]').each(function () {
                 var $header = $(this);
+                var $headerInner = $header.find('.th-inner').first();
 
                 if ($header.find('.request-column-tooltip').length) {
                     return;
@@ -1472,7 +1473,12 @@
 
                 var tooltipText = $header.attr('data-request-tooltip');
                 var iconHtml = ' <a href="#" class="request-column-tooltip" data-tooltip="true" title="' + escapeHtml(tooltipText) + '" onclick="return false;"><i class="fas fa-info-circle" aria-hidden="true"></i></a>';
-                $header.append(iconHtml);
+
+                if ($headerInner.length) {
+                    $headerInner.append(iconHtml);
+                } else {
+                    $header.append(iconHtml);
+                }
             });
 
             $('[data-tooltip="true"]').tooltip();
