@@ -775,6 +775,8 @@ class ModelRequestWorkflowTest extends TestCase
                 'request_bucket' => 'reserved',
             ]))
             ->assertOk()
+            ->assertSee('request-'.$checkoutRequest->id.'-reserved-assetsListingTable', false)
+            ->assertSee('data-search-text=""', false)
             ->assertSee('request_bucket=reserved', false);
     }
 

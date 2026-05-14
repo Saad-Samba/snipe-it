@@ -73,24 +73,34 @@
           @endif
           <div class="row">
             <div class="col-md-12">
+                @php
+                    $requestTableCookieId = null;
+                    if (Request::filled('request_id')) {
+                        $requestTableCookieId = 'request-'.e(Request::get('request_id'));
+                        if (Request::filled('request_bucket')) {
+                            $requestTableCookieId .= '-'.e(Request::get('request_bucket'));
+                        }
+                        $requestTableCookieId .= '-assetsListingTable';
+                    }
+                @endphp
 
                 @include('partials.asset-bulk-actions', ['status' => Request::get('status')])
                    
               <table
                 data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout() }}"
-                data-cookie-id-table="{{ request()->has('status') ? e(request()->input('status')) : ''  }}assetsListingTable"
-                data-id-table="{{ request()->has('status') ? e(request()->input('status')) : ''  }}assetsListingTable"
+                data-cookie-id-table="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
+                data-id-table="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 data-side-pagination="server"
                 data-show-footer="true"
                 data-sort-order="asc"
                 data-sort-name="name"
-                data-search-text="{{ session()->get('search') }}"
+                data-search-text="{{ Request::filled('request_id') ? '' : session()->get('search') }}"
                 data-show-columns-search="true"
                 data-toolbar="#assetsBulkEditToolbar"
                 data-bulk-button-id="#bulkAssetEditButton"
                 data-bulk-form-id="#assetsBulkForm"
                 data-buttons="assetButtons"
-                id="{{ request()->has('status') ? e(request()->input('status')) : ''  }}assetsListingTable"
+                id="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 class="table table-striped snipe-table"
                 data-url="{{ route('api.assets.index',
                     array('status' => e(Request::get('status')),
