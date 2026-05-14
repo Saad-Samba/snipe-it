@@ -100,6 +100,7 @@
                     'reusable_assets'=>e(Request::get('reusable_assets')),
                     'order_number'=>e(strval(Request::get('order_number'))),
                     'company_id'=>e(Request::get('company_id')),
+                    'project_id'=>e(Request::get('project_id')),
                     'discipline_id'=>e(Request::get('discipline_id')),
                     'status_id'=>e(Request::get('status_id')))) }}"
                 data-export-options='{

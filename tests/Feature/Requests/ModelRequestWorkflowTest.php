@@ -379,6 +379,15 @@ class ModelRequestWorkflowTest extends TestCase
         $company = Company::factory()->create(['name' => 'Casablanca Site']);
         $discipline = Discipline::create(['name' => 'Power', 'created_by' => $requester->id]);
         $project = Project::factory()->create();
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'Allocatable Model',
@@ -390,20 +399,73 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_type' => AssetModel::class,
             'status' => CheckoutRequest::STATUS_PENDING,
             'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
         ]);
 
-        $asset = $this->createEligibleAsset($model, $company->id, $discipline->id);
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'project_id' => $project->id,
+            'status_id' => $reservedStatus->id,
+            'requestable' => 1,
+            'assigned_to' => $requester->id,
+            'assigned_type' => User::class,
+        ]);
 
         $this->actingAs($requester)
             ->get(route('hardware.index', [
                 'request_id' => $request->id,
-                'status' => 'RTD',
                 'model_id' => $model->id,
+                'project_id' => $project->id,
+                'discipline_id' => $discipline->id,
+                'status_id' => $reservedStatus->id,
             ]))
             ->assertOk()
             ->assertSee('Request #'.$request->id)
             ->assertSee('request_id='.$request->id, false)
-            ->assertSee('model_id='.$model->id, false);
+            ->assertSee('model_id='.$model->id, false)
+            ->assertSee('project_id='.$project->id, false)
+            ->assertSee('discipline_id='.$discipline->id, false)
+            ->assertSee('status_id='.$reservedStatus->id, false);
+    }
+
+    public function test_requested_assets_api_uses_reserved_status_for_request_detail_url_when_configured()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Reserved Detail', 'created_by' => $requester->id]);
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested'))
+            ->assertOk()
+            ->assertJsonPath('rows.0.request_detail_url', route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'model_id' => $model->id,
+                'project_id' => $project->id,
+                'discipline_id' => $discipline->id,
+                'status_id' => $reservedStatus->id,
+            ]));
     }
 
     public function test_request_filtered_assets_api_keeps_showing_project_booked_assets_for_the_request()
