@@ -105,7 +105,7 @@ class ProfileController extends Controller
                 $statusValue = $bookedCount >= $checkoutRequest->quantity
                     ? CheckoutRequest::STATUS_FULLY_ALLOCATED
                     : ($bookedCount > 0 ? CheckoutRequest::STATUS_PARTIALLY_ALLOCATED : CheckoutRequest::STATUS_PENDING);
-                $reservedStatusId = Setting::getSettings()?->rfq_reserved_statuslabel_id;
+                $reservedStatusId = Setting::rfqReservedStatusId();
                 $requestDetailQuery = [
                     'request_id' => $checkoutRequest->id,
                     'model_id' => $checkoutRequest->requestable_id,

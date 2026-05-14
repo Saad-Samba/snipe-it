@@ -140,7 +140,7 @@ class AssetModel extends SnipeModel
 
     public function dueBackAssetsByDate(?string $neededByDate)
     {
-        $reservedStatusId = Setting::getSettings()?->rfq_reserved_statuslabel_id;
+        $reservedStatusId = Setting::rfqReservedStatusId();
 
         return $this->hasMany(\App\Models\Asset::class, 'model_id')
             ->whereNotNull('assigned_to')

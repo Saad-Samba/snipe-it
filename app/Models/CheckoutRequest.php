@@ -176,7 +176,7 @@ class CheckoutRequest extends Model
 
     public function reservedAssetsQuery()
     {
-        $reservedStatusId = Setting::getSettings()?->rfq_reserved_statuslabel_id;
+        $reservedStatusId = Setting::rfqReservedStatusId();
 
         if (! $reservedStatusId || ! $this->project_id || $this->requestable_type !== AssetModel::class) {
             return Asset::query()->whereRaw('1 = 0');
@@ -185,6 +185,7 @@ class CheckoutRequest extends Model
         return Asset::withoutGlobalScopes()
             ->where('model_id', $this->requestable_id)
             ->where('project_id', $this->project_id)
+            ->when($this->requested_discipline_id, fn ($query) => $query->where('discipline_id', $this->requested_discipline_id))
             ->where('status_id', $reservedStatusId);
     }
 
@@ -195,7 +196,7 @@ class CheckoutRequest extends Model
 
     public function reservedByOtherRfqsQuery()
     {
-        $reservedStatusId = Setting::getSettings()?->rfq_reserved_statuslabel_id;
+        $reservedStatusId = Setting::rfqReservedStatusId();
 
         if (! $reservedStatusId || ! $this->project_id || $this->requestable_type !== AssetModel::class) {
             return Asset::query()->whereRaw('1 = 0');
@@ -234,16 +235,13 @@ class CheckoutRequest extends Model
 
     public static function summarizeRequests(Collection $requests): array
     {
-        $reservedStatusId = Setting::getSettings()?->rfq_reserved_statuslabel_id;
+        $reservedStatusId = Setting::rfqReservedStatusId();
         $projectId = $requests->first()?->project_id;
 
         $reservedAssets = 0;
         $reservedByOtherRfqs = 0;
         if ($reservedStatusId && $projectId) {
-            $reservedAssets = Asset::withoutGlobalScopes()
-                ->where('project_id', $projectId)
-                ->where('status_id', $reservedStatusId)
-                ->count();
+            $reservedAssets = $requests->sum(fn ($request) => $request->reservedAssetsCount());
 
             $modelIds = $requests
                 ->filter(fn ($request) => $request->requestable_type === AssetModel::class)

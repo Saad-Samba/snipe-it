@@ -468,6 +468,44 @@ class ModelRequestWorkflowTest extends TestCase
             ]));
     }
 
+    public function test_requested_assets_api_falls_back_to_reserved_status_name_for_request_detail_url()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Fallback Detail', 'created_by' => $requester->id]);
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = null;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested'))
+            ->assertOk()
+            ->assertJsonPath('rows.0.request_detail_url', route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'model_id' => $model->id,
+                'project_id' => $project->id,
+                'discipline_id' => $discipline->id,
+                'status_id' => $reservedStatus->id,
+            ]));
+    }
+
     public function test_request_filtered_assets_api_keeps_showing_project_booked_assets_for_the_request()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
@@ -978,6 +1016,64 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('rows.0.reserved_by_other_rfqs_count', 1)
             ->assertJsonPath('rows.0.requested_discipline', 'Reserved API');
+    }
+
+    public function test_reserved_count_requires_matching_request_discipline()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $matchingDiscipline = Discipline::create(['name' => 'Matching Discipline', 'created_by' => $requester->id]);
+        $otherDiscipline = Discipline::create(['name' => 'Other Discipline', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'name' => 'Reserved Discipline Model',
+        ]);
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = null;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $matchingDiscipline->id,
+            'quantity' => 1,
+            'project_id' => $project->id,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => Company::factory()->create()->id,
+            'discipline_id' => $otherDiscipline->id,
+            'project_id' => $project->id,
+            'status_id' => $reservedStatus->id,
+            'requestable' => 1,
+            'assigned_to' => User::factory()->create()->id,
+            'assigned_type' => User::class,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => Company::factory()->create()->id,
+            'discipline_id' => $matchingDiscipline->id,
+            'project_id' => $project->id,
+            'status_id' => $reservedStatus->id,
+            'requestable' => 1,
+            'assigned_to' => User::factory()->create()->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested'))
+            ->assertOk()
+            ->assertJsonPath('rows.0.reserved_count', 1);
     }
 
     public function test_model_request_estimate_counts_due_back_assets_before_needed_by_date()

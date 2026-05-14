@@ -24,7 +24,7 @@
         <th data-field="reusable_quantity" data-sortable="true" data-request-tooltip="Unassigned deployable assets available immediately.">Reusable Now</th>
         <th data-field="due_back_before_needed_by_quantity" data-sortable="true" data-request-tooltip="Assigned assets in active use that are expected back on or before the needed-by date. RFQ-reserved assets are excluded.">Due Back</th>
         <th data-field="reserved_count" data-sortable="true" data-request-tooltip="Assets marked in the RFQ reserved status for this same project with an expected checkin date.">Reserved</th>
-        <th data-field="reserved_by_other_rfqs_count" data-sortable="true" data-request-tooltip="Assets marked in the RFQ reserved status for a different project, regardless of whether they are due back before this request.">Reserved by Other Project</th>
+        <th data-field="reserved_by_other_rfqs_count" data-sortable="true" data-request-tooltip="Assets marked in the RFQ reserved status for a different project. This bucket is project-based only; discipline is not considered.">Reserved by Other Project</th>
         <th data-field="procurement_shortfall" data-sortable="true" data-request-tooltip="Remaining quantity not covered by reusable now plus due back.">Shortfall</th>
         <th data-field="estimated_savings" data-sortable="true" data-formatter="requestSavingsFormatter" data-request-tooltip="The model cost used here is the one saved at the time of the request.">Estimated Savings</th>
         <th data-field="amount_to_buy" data-sortable="true" data-formatter="requestAmountToBuyFormatter">Amount to Buy</th>

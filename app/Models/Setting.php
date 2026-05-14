@@ -105,6 +105,19 @@ class Setting extends Model
         return self::$_cache;
     }
 
+    public static function rfqReservedStatusId(): ?int
+    {
+        $configuredStatusId = self::getSettings()?->rfq_reserved_statuslabel_id;
+
+        if ($configuredStatusId) {
+            return (int) $configuredStatusId;
+        }
+
+        return Statuslabel::query()
+            ->where('name', 'Reserved for RFQ')
+            ->value('id');
+    }
+
     /**
      * Check to see if setup process is complete.
      *  Cache is expired on Setting model saved in EventServiceProvider.
