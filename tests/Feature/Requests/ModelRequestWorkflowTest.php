@@ -752,6 +752,32 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.id', $reservedOtherProjectAsset->id);
     }
 
+    public function test_request_bucket_is_forwarded_by_the_hardware_review_page_table()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Forward Bucket', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reserved',
+            ]))
+            ->assertOk()
+            ->assertSee('request_bucket=reserved', false);
+    }
+
     public function test_request_filtered_assets_api_keeps_showing_project_booked_assets_for_the_request()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();

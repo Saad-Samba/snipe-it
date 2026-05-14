@@ -95,6 +95,7 @@
                 data-url="{{ route('api.assets.index',
                     array('status' => e(Request::get('status')),
                     'request_id'=>e(Request::get('request_id')),
+                    'request_bucket'=>e(Request::get('request_bucket')),
                     'model_id'=>e(Request::get('model_id')),
                     'category_id'=>e(Request::get('category_id')),
                     'reusable_assets'=>e(Request::get('reusable_assets')),
