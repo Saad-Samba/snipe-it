@@ -1074,6 +1074,51 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_request_cart_submit_includes_requested_date_for_rac_notifications()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 100,
+        ]);
+        $discipline = Discipline::create(['name' => 'Cart Notify', 'created_by' => $requester->id]);
+        $coordinator = User::factory()->create(['first_name' => 'Notify', 'last_name' => 'RAC']);
+        $companyId = Company::factory()->create()->id;
+
+        $this->createEligibleAsset($model, $companyId, $discipline->id);
+
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $companyId,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-cart.items.add'), [
+                'lines' => [
+                    [
+                        'model_id' => $model->id,
+                        'quantity' => 2,
+                        'discipline_id' => $discipline->id,
+                    ],
+                ],
+            ])
+            ->assertOk();
+
+        $this->actingAs($requester)
+            ->post(route('account.request-cart.submit'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+            ])
+            ->assertRedirect();
+
+        Notification::assertSentTo($coordinator, RequestAssetNotification::class);
+    }
+
     public function test_reserved_by_other_project_counts_reserved_assets_without_expected_checkin()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();

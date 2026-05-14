@@ -619,6 +619,7 @@ class ViewAssetsController extends Controller
                 $data = [
                     'item_quantity' => $quantity,
                     'requested_by' => $user->display_name,
+                    'requested_date' => now()->toDateTimeString(),
                     'item' => $item,
                     'item_type' => 'model',
                     'target' => $user,
