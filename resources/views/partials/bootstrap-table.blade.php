@@ -1376,6 +1376,7 @@
     var modelRequestCartRemoveUrl = '{{ route('account.request-cart.items.remove') }}';
     var modelRequestCartClearUrl = '{{ route('account.request-cart.clear') }}';
     var modelRequestCartSubmitUrl = '{{ route('account.request-cart.submit') }}';
+    var modelRequestCartToastTimer = null;
 
     function buildModelRequestProjectOptions(selectedProjectId) {
         var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
@@ -1418,6 +1419,64 @@
         }
 
         return formatEstimateCurrency(value);
+    }
+
+    function requestReferencePriceFormatter(value, row) {
+        if (row && row.reference_price_snapshot_formatted) {
+            return row.reference_price_snapshot_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function ensureModelRequestCartToast() {
+        if (document.getElementById('model-request-cart-toast')) {
+            return;
+        }
+
+        var toastHtml = ''
+            + '<div id="model-request-cart-toast" style="display:none;position:fixed;right:20px;bottom:20px;z-index:1060;max-width:320px;background:#222d32;color:#fff;padding:12px 16px;border-radius:6px;box-shadow:0 8px 18px rgba(0,0,0,0.2);font-size:13px;">'
+            + '  <div id="model-request-cart-toast-message"></div>'
+            + '</div>';
+
+        $('body').append(toastHtml);
+    }
+
+    function showModelRequestCartToast(message) {
+        ensureModelRequestCartToast();
+
+        $('#model-request-cart-toast-message').text(message);
+        $('#model-request-cart-toast').stop(true, true).fadeIn(150);
+
+        if (modelRequestCartToastTimer) {
+            window.clearTimeout(modelRequestCartToastTimer);
+        }
+
+        modelRequestCartToastTimer = window.setTimeout(function () {
+            $('#model-request-cart-toast').fadeOut(250);
+        }, 2200);
+    }
+
+    function attachRequestTableHeaderTooltips() {
+        $('.snipe-table[data-request-mode="requester"]').each(function () {
+            $(this).find('thead th[data-request-tooltip]').each(function () {
+                var $header = $(this);
+
+                if ($header.find('.request-column-tooltip').length) {
+                    return;
+                }
+
+                var tooltipText = $header.attr('data-request-tooltip');
+                var iconHtml = ' <a href="#" class="request-column-tooltip" data-tooltip="true" title="' + escapeHtml(tooltipText) + '" onclick="return false;"><i class="fas fa-info-circle" aria-hidden="true"></i></a>';
+                $header.append(iconHtml);
+            });
+
+            $('[data-tooltip="true"]').tooltip();
+        });
     }
 
     function ensureModelRequestModal() {
@@ -1629,6 +1688,7 @@
             }
         }).done(function (response) {
             updateModelRequestCartCount(response.cart_count || 0);
+            showModelRequestCartToast(lines.length > 1 ? 'Items added to cart.' : 'Item added to cart.');
 
             if (openCartOnSuccess) {
                 openModelRequestCartModal();
@@ -2073,6 +2133,11 @@
 
         return formatEstimateCurrency(value);
     }
+
+    $(function () {
+        attachRequestTableHeaderTooltips();
+        $('.snipe-table').on('post-header.bs.table load-success.bs.table', attachRequestTableHeaderTooltips);
+    });
 
     function cancelSubmittedRequestRow(url) {
         if (!window.confirm('Cancel this request?')) {

@@ -128,6 +128,9 @@ class ProfileController extends Controller
                     'amount_to_buy' => $checkoutRequest->amountToBuy(),
                     'amount_to_buy_formatted' => Helper::formatCurrencyOutput($checkoutRequest->amountToBuy()),
                     'reference_price_snapshot' => $checkoutRequest->reference_price_snapshot !== null ? (float) $checkoutRequest->reference_price_snapshot : null,
+                    'reference_price_snapshot_formatted' => $checkoutRequest->reference_price_snapshot !== null
+                        ? Helper::formatCurrencyOutput($checkoutRequest->reference_price_snapshot)
+                        : null,
                     'reserved_count' => $checkoutRequest->reservedAssetsCount(),
                     'reserved_by_other_rfqs_count' => $checkoutRequest->reservedByOtherRfqsCount(),
                     'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),

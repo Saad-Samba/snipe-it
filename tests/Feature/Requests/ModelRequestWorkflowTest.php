@@ -217,6 +217,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.procurement_shortfall', 1)
             ->assertJsonPath('rows.0.estimated_savings', 499.99)
             ->assertJsonPath('rows.0.amount_to_buy', 499.99)
+            ->assertJsonPath('rows.0.reference_price_snapshot_formatted', '499.99')
             ->assertJsonPath('rows.0.reserved_count', 0)
             ->assertJsonPath('rows.0.reserved_by_other_rfqs_count', 0)
             ->assertJsonPath('rows.0.project_requests_url', route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
@@ -346,7 +347,30 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('Requests')
             ->assertSee('projectRequestsTable', false)
             ->assertSee('Quantity')
+            ->assertSee('Reference Price')
             ->assertDontSee('Potentially Coverable');
+    }
+
+    public function test_submitted_requests_page_shows_reference_price_column()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'reference_price_snapshot' => 1250.00,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('account.requested'))
+            ->assertOk()
+            ->assertSee('Reference Price');
     }
 
     public function test_requester_can_open_request_detail_in_hardware_view()
