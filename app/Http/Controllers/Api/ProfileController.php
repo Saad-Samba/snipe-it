@@ -101,11 +101,9 @@ class ProfileController extends Controller
 
             // Make sure the asset and request still exist
             if ($checkoutRequest && $checkoutRequest->itemRequested()) {
-                $bookedCount = $checkoutRequest->bookedAssetsCount();
-                $statusValue = $bookedCount >= $checkoutRequest->quantity
-                    ? CheckoutRequest::STATUS_FULLY_ALLOCATED
-                    : ($bookedCount > 0 ? CheckoutRequest::STATUS_PARTIALLY_ALLOCATED : CheckoutRequest::STATUS_PENDING);
+                $statusValue = $checkoutRequest->requesterAllocationStatus();
                 $reservedStatusId = Setting::rfqReservedStatusId();
+                $liveMetrics = $checkoutRequest->liveRequestMetrics();
                 $requestDetailQuery = [
                     'request_id' => $checkoutRequest->id,
                     'model_id' => $checkoutRequest->requestable_id,
@@ -132,15 +130,15 @@ class ProfileController extends Controller
                     'project' => e(optional($checkoutRequest->project)->name),
                     'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
                     'needed_by_date_value' => optional($checkoutRequest->needed_by_date)->format('Y-m-d'),
-                    'reusable_quantity' => (int) ($checkoutRequest->reusable_quantity ?? 0),
-                    'due_back_before_needed_by_quantity' => (int) ($checkoutRequest->due_back_before_needed_by_quantity ?? 0),
-                    'procurement_shortfall' => (int) ($checkoutRequest->procurement_shortfall ?? 0),
-                    'estimated_savings' => $checkoutRequest->estimated_savings !== null ? (float) $checkoutRequest->estimated_savings : null,
-                    'estimated_savings_formatted' => $checkoutRequest->estimated_savings !== null
-                        ? Helper::formatCurrencyOutput($checkoutRequest->estimated_savings)
+                    'reusable_quantity' => (int) ($liveMetrics['reusable_quantity'] ?? 0),
+                    'due_back_before_needed_by_quantity' => (int) ($liveMetrics['due_back_before_needed_by_quantity'] ?? 0),
+                    'procurement_shortfall' => (int) ($liveMetrics['procurement_shortfall'] ?? 0),
+                    'estimated_savings' => isset($liveMetrics['estimated_savings']) ? (float) $liveMetrics['estimated_savings'] : null,
+                    'estimated_savings_formatted' => isset($liveMetrics['estimated_savings'])
+                        ? Helper::formatCurrencyOutput((float) $liveMetrics['estimated_savings'])
                         : null,
-                    'amount_to_buy' => $checkoutRequest->amountToBuy(),
-                    'amount_to_buy_formatted' => Helper::formatCurrencyOutput($checkoutRequest->amountToBuy()),
+                    'amount_to_buy' => (float) ($liveMetrics['amount_to_buy'] ?? 0),
+                    'amount_to_buy_formatted' => Helper::formatCurrencyOutput((float) ($liveMetrics['amount_to_buy'] ?? 0)),
                     'reference_price_snapshot' => $checkoutRequest->reference_price_snapshot !== null ? (float) $checkoutRequest->reference_price_snapshot : null,
                     'reference_price_snapshot_formatted' => $checkoutRequest->reference_price_snapshot !== null
                         ? Helper::formatCurrencyOutput($checkoutRequest->reference_price_snapshot)

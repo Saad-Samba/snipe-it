@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,6 +12,8 @@ class CheckoutRequest extends Model
 {
     use HasFactory;
     use SoftDeletes;
+
+    protected ?array $liveRequestMetricsCache = null;
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_IN_PROGRESS = 'in_progress';
@@ -166,6 +169,7 @@ class CheckoutRequest extends Model
         return Asset::withoutGlobalScopes()
             ->where('model_id', $this->requestable_id)
             ->where('project_id', $this->project_id)
+            ->when($this->requested_discipline_id, fn ($query) => $query->where('discipline_id', $this->requested_discipline_id))
             ->whereNotNull('assigned_to');
     }
 
@@ -222,6 +226,118 @@ class CheckoutRequest extends Model
         );
     }
 
+    public function liveRequestMetrics(): array
+    {
+        if ($this->liveRequestMetricsCache !== null) {
+            return $this->liveRequestMetricsCache;
+        }
+
+        if ($this->requestable_type !== AssetModel::class) {
+            $referencePrice = $this->reference_price_snapshot !== null ? (float) $this->reference_price_snapshot : 0.0;
+            $reusableQuantity = (int) ($this->reusable_quantity ?? 0);
+            $dueBackQuantity = (int) ($this->due_back_before_needed_by_quantity ?? 0);
+            $coverableQuantity = min((int) $this->quantity, $reusableQuantity + $dueBackQuantity);
+            $shortfall = max((int) $this->quantity - ($reusableQuantity + $dueBackQuantity), 0);
+
+            return $this->liveRequestMetricsCache = [
+                'reusable_quantity' => $reusableQuantity,
+                'due_back_before_needed_by_quantity' => $dueBackQuantity,
+                'procurement_shortfall' => $shortfall,
+                'estimated_savings' => round($coverableQuantity * $referencePrice, 2),
+                'reference_price' => $referencePrice,
+                'amount_to_buy' => round($shortfall * $referencePrice, 2),
+            ];
+        }
+
+        /** @var AssetModel|null $model */
+        $model = $this->requestedItem()->first();
+
+        if (! $model) {
+            return $this->liveRequestMetricsCache = [
+                'reusable_quantity' => 0,
+                'due_back_before_needed_by_quantity' => 0,
+                'procurement_shortfall' => (int) $this->quantity,
+                'estimated_savings' => 0.0,
+                'reference_price' => $this->reference_price_snapshot !== null ? (float) $this->reference_price_snapshot : 0.0,
+                'amount_to_buy' => round(((float) ($this->reference_price_snapshot ?? 0)) * ((int) $this->quantity), 2),
+            ];
+        }
+
+        $estimate = EstimateAssetModelReuseAction::run(
+            $model,
+            (int) $this->quantity,
+            optional($this->needed_by_date)?->format('Y-m-d')
+        );
+
+        $referencePrice = $this->reference_price_snapshot !== null
+            ? (float) $this->reference_price_snapshot
+            : (float) ($estimate['reference_price_snapshot'] ?? 0);
+        $reusableQuantity = (int) ($estimate['reusable_quantity'] ?? 0);
+        $dueBackQuantity = (int) ($estimate['due_back_before_needed_by_quantity'] ?? 0);
+        $coverableQuantity = min((int) $this->quantity, $reusableQuantity + $dueBackQuantity);
+        $shortfall = max((int) $this->quantity - ($reusableQuantity + $dueBackQuantity), 0);
+
+        return $this->liveRequestMetricsCache = [
+            'reusable_quantity' => $reusableQuantity,
+            'due_back_before_needed_by_quantity' => $dueBackQuantity,
+            'procurement_shortfall' => $shortfall,
+            'estimated_savings' => round($coverableQuantity * $referencePrice, 2),
+            'reference_price' => $referencePrice,
+            'amount_to_buy' => round($shortfall * $referencePrice, 2),
+        ];
+    }
+
+    public function liveReusableQuantity(): int
+    {
+        return (int) ($this->liveRequestMetrics()['reusable_quantity'] ?? 0);
+    }
+
+    public function liveDueBackBeforeNeededByQuantity(): int
+    {
+        return (int) ($this->liveRequestMetrics()['due_back_before_needed_by_quantity'] ?? 0);
+    }
+
+    public function liveProcurementShortfall(): int
+    {
+        return (int) ($this->liveRequestMetrics()['procurement_shortfall'] ?? 0);
+    }
+
+    public function liveEstimatedSavings(): float
+    {
+        return round((float) ($this->liveRequestMetrics()['estimated_savings'] ?? 0), 2);
+    }
+
+    public function liveAmountToBuy(): float
+    {
+        return round((float) ($this->liveRequestMetrics()['amount_to_buy'] ?? 0), 2);
+    }
+
+    public function requesterAllocationStatus(): string
+    {
+        $resolvedStatus = $this->resolvedStatus();
+
+        if (in_array($resolvedStatus, [
+            self::STATUS_CANCELED,
+            self::STATUS_IN_PROGRESS,
+            self::STATUS_REJECTED,
+            self::STATUS_FULFILLED,
+        ], true)) {
+            return $resolvedStatus;
+        }
+
+        $reservedCount = $this->reservedAssetsCount();
+
+        if ($reservedCount >= $this->quantity) {
+            return self::STATUS_FULLY_ALLOCATED;
+        }
+
+        if ($reservedCount > 0) {
+            return self::STATUS_PARTIALLY_ALLOCATED;
+        }
+
+        return self::STATUS_PENDING;
+    }
+
     public static function projectSummaryForUser(int $userId, int $projectId): array
     {
         $requests = self::query()
@@ -263,13 +379,13 @@ class CheckoutRequest extends Model
         return [
             'requests_count' => $requests->count(),
             'total_needed' => (int) $requests->sum('quantity'),
-            'reusable_now' => (int) $requests->sum(fn ($request) => (int) ($request->reusable_quantity ?? 0)),
-            'due_back_before_needed_by' => (int) $requests->sum(fn ($request) => (int) ($request->due_back_before_needed_by_quantity ?? 0)),
-            'shortfall' => (int) $requests->sum(fn ($request) => (int) ($request->procurement_shortfall ?? 0)),
-            'estimated_savings' => round((float) $requests->sum(fn ($request) => (float) ($request->estimated_savings ?? 0)), 2),
+            'reusable_now' => (int) $requests->sum(fn ($request) => $request->liveReusableQuantity()),
+            'due_back_before_needed_by' => (int) $requests->sum(fn ($request) => $request->liveDueBackBeforeNeededByQuantity()),
+            'shortfall' => (int) $requests->sum(fn ($request) => $request->liveProcurementShortfall()),
+            'estimated_savings' => round((float) $requests->sum(fn ($request) => $request->liveEstimatedSavings()), 2),
             'reserved_count' => $reservedAssets,
             'reserved_by_other_rfqs_count' => $reservedByOtherRfqs,
-            'amount_to_buy' => round((float) $requests->sum(fn ($request) => $request->amountToBuy()), 2),
+            'amount_to_buy' => round((float) $requests->sum(fn ($request) => $request->liveAmountToBuy()), 2),
         ];
     }
 

@@ -181,20 +181,22 @@ class ModelRequestWorkflowTest extends TestCase
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Request Tracking Project']);
+        $discipline = Discipline::create([
+            'name' => 'API Discipline',
+            'created_by' => $requester->id,
+        ]);
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'QA Routing Model',
         ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
 
         $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'quantity' => 2,
-            'requested_discipline_id' => Discipline::create([
-                'name' => 'API Discipline',
-                'created_by' => $requester->id,
-            ])->id,
+            'requested_discipline_id' => $discipline->id,
             'project_id' => $project->id,
             'reusable_quantity' => 1,
             'procurement_shortfall' => 1,
@@ -223,6 +225,110 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.project_requests_url', route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertJsonPath('rows.0.request_update_url', route('account.request-row.update', $checkoutRequest))
             ->assertJsonPath('rows.0.request_cancel_url', route('account.request-row.cancel', $checkoutRequest));
+    }
+
+    public function test_requested_assets_api_uses_live_reusable_quantity_for_same_model_across_disciplines()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $disciplineA = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
+        $disciplineB = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 250,
+        ]);
+
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $disciplineA->id);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $disciplineB->id);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $disciplineA->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+            'reusable_quantity' => 99,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $disciplineB->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+            'reusable_quantity' => 0,
+        ]);
+
+        $response = $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested', ['project_id' => $project->id]))
+            ->assertOk()
+            ->json('rows');
+
+        $this->assertCount(2, $response);
+        $this->assertSame([2, 2], collect($response)->pluck('reusable_quantity')->sort()->values()->all());
+    }
+
+    public function test_requested_assets_api_status_uses_discipline_aware_reserved_count()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $disciplineA = Discipline::create(['name' => 'Operations', 'created_by' => $requester->id]);
+        $disciplineB = Discipline::create(['name' => 'Software', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = null;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => Company::factory()->create()->id,
+            'discipline_id' => $disciplineA->id,
+            'project_id' => $project->id,
+            'status_id' => $reservedStatus->id,
+            'requestable' => 1,
+            'assigned_to' => User::factory()->create()->id,
+            'assigned_type' => User::class,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $disciplineA->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $disciplineB->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+        ]);
+
+        $rows = $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.requested', ['project_id' => $project->id]))
+            ->assertOk()
+            ->json('rows');
+
+        $indexedByDiscipline = collect($rows)->keyBy('requested_discipline');
+
+        $this->assertSame('Fully allocated', $indexedByDiscipline['Operations']['status']);
+        $this->assertSame(1, $indexedByDiscipline['Operations']['reserved_count']);
+        $this->assertSame('Pending', $indexedByDiscipline['Software']['status']);
+        $this->assertSame(0, $indexedByDiscipline['Software']['reserved_count']);
     }
 
     public function test_requested_assets_api_can_filter_to_single_model()

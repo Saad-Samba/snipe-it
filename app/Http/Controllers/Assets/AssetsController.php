@@ -85,18 +85,19 @@ class AssetsController extends Controller
                 403
             );
             session(['back_url' => $request->fullUrl()]);
+            $liveMetrics = $requestContext->liveRequestMetrics();
 
             $requestReviewSummary = [
                 'project' => optional($requestContext->project)->name,
                 'discipline' => optional($requestContext->requestedDiscipline)->name,
                 'needed_by_date' => optional($requestContext->needed_by_date)?->format('Y-m-d'),
                 'total_needed' => (int) $requestContext->quantity,
-                'reusable_now' => (int) ($requestContext->reusable_quantity ?? 0),
-                'due_back_before_needed_by' => (int) ($requestContext->due_back_before_needed_by_quantity ?? 0),
-                'shortfall' => (int) ($requestContext->procurement_shortfall ?? 0),
+                'reusable_now' => (int) ($liveMetrics['reusable_quantity'] ?? 0),
+                'due_back_before_needed_by' => (int) ($liveMetrics['due_back_before_needed_by_quantity'] ?? 0),
+                'shortfall' => (int) ($liveMetrics['procurement_shortfall'] ?? 0),
                 'reserved_count' => $requestContext->reservedAssetsCount(),
                 'reserved_by_other_rfqs_count' => $requestContext->reservedByOtherRfqsCount(),
-                'amount_to_buy' => $requestContext->amountToBuy(),
+                'amount_to_buy' => (float) ($liveMetrics['amount_to_buy'] ?? 0),
             ];
         }
 
