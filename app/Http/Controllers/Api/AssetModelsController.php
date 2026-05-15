@@ -11,7 +11,6 @@ use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +33,6 @@ class AssetModelsController extends Controller
     public function index(Request $request) : JsonResponse | array
     {
         $this->authorize('view', AssetModel::class);
-        $hasRequestableColumn = Schema::hasColumn('models', 'requestable');
         $allowed_columns =
             [
                 'id',
@@ -56,6 +54,7 @@ class AssetModelsController extends Controller
                 'deleted_at',
                 'updated_at',
                 'require_serial',
+                'requestable',
                 // These are *relationships* so we wouldn't normally include them in this array,
                 // since they would normally create a `column not found` error,
                 // BUT we account for them in the ordering switch down at the end of this method
@@ -63,10 +62,6 @@ class AssetModelsController extends Controller
                 'manufacturer',
                 'category',
             ];
-
-        if ($hasRequestableColumn) {
-            $allowed_columns[] = 'requestable';
-        }
 
         $selectedColumns = [
             'models.id',
@@ -85,12 +80,9 @@ class AssetModelsController extends Controller
             'models.fieldset_id',
             'models.deleted_at',
             'models.updated_at',
-            'models.require_serial'
+            'models.require_serial',
+            'models.requestable',
         ];
-
-        if ($hasRequestableColumn) {
-            $selectedColumns[] = 'models.requestable';
-        }
 
         $assetmodels = AssetModel::select($selectedColumns)
             ->with('category.fieldset.fields.defaultValues', 'depreciation', 'manufacturer', 'fieldset.fields.defaultValues', 'adminuser')
@@ -129,11 +121,11 @@ class AssetModelsController extends Controller
             $assetmodels = $assetmodels->where('models.model_number', '=', $request->input('model_number'));
         }
 
-        if ($hasRequestableColumn && $request->input('requestable') == 'true') {
+        if ($request->input('requestable') == 'true') {
             $assetmodels = $assetmodels->where('models.requestable', '=', '1');
-        } elseif ($hasRequestableColumn && $request->input('requestable') == 'false') {
+        } elseif ($request->input('requestable') == 'false') {
             $assetmodels = $assetmodels->where('models.requestable', '=', '0');
-        }        
+        }
 
         if ($request->filled('notes')) {
             $assetmodels = $assetmodels->where('models.notes', '=', $request->input('notes'));
