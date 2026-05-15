@@ -12,9 +12,9 @@
   @if (Request::get('status')=='Pending')
     {{ trans('general.pending') }}
   @elseif (Request::get('status')=='RTD')
-    {{ trans('general.ready_to_deploy') }}
+    {{ trans('general.unassigned') }}
   @elseif (Request::get('status')=='Deployed')
-    {{ trans('general.deployed') }}
+    {{ trans('general.assigned') }}
   @elseif (Request::get('status')=='Undeployable')
     {{ trans('general.undeployable') }}
   @elseif (Request::get('status')=='Deployable')
@@ -77,6 +77,8 @@
                 class="table table-striped snipe-table"
                 data-url="{{ route('api.assets.index',
                     array('status' => e(Request::get('status')),
+                    'assignment'=>e(Request::get('assignment')),
+                    'model_obsolete'=>e(Request::get('model_obsolete')),
                     'order_number'=>e(strval(Request::get('order_number'))),
                     'company_id'=>e(Request::get('company_id')),
                     'status_id'=>e(Request::get('status_id')))) }}"

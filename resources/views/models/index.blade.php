@@ -36,7 +36,10 @@
                         id="asssetModelsTable"
                         data-buttons="modelButtons"
                         class="table table-striped snipe-table"
-                        data-url="{{ route('api.models.index', ['status' => e(request('status'))]) }}"
+                        data-url="{{ route('api.models.index', [
+                            'status' => e(request('status')),
+                            'obsolete' => e(request('obsolete')),
+                        ]) }}"
                         data-export-options='{
               "fileName": "export-models-{{ date('Y-m-d') }}",
               "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]

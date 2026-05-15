@@ -17,4 +17,13 @@ return array(
     'add_default_values'        => 'Add default values',
     'obsolete_help'             => 'Mark as obsolete when the model is no longer supported or supplied by the manufacturer (e.g. removed from official catalogue or marked end-of-life), or when it is no longer suitable for use within current operational requirements.',
     'obsolete_status_warning'   => 'Do not change obsolete status',
+    'obsolete_indicator'        => 'Obsolete',
+    'obsolete_asset_tooltip'    => 'This asset belongs to a model marked obsolete.',
+    'filter_all_to_obsolete'    => 'Click to show obsolete only.',
+    'filter_all_to_active'      => 'Click to show not obsolete only.',
+    'filter_obsolete_to_active' => 'Filtering obsolete only. Click to show not obsolete only.',
+    'filter_active_to_all'      => 'Filtering not obsolete only. Click to show all items.',
+    'filter_all_option'         => 'All',
+    'filter_obsolete_option'    => 'Obsolete only',
+    'filter_active_option'      => 'Not obsolete only',
 );

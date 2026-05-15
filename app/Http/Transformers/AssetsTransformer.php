@@ -37,6 +37,7 @@ class AssetsTransformer
             'model' => ($asset->model) ? [
                 'id' => (int) $asset->model->id,
                 'name'=> e($asset->model->name),
+                'obsolete' => (bool) $asset->model->obsolete,
             ] : null,
             'byod' => ($asset->byod ? true : false),
             'requestable' => ($asset->requestable ? true : false),

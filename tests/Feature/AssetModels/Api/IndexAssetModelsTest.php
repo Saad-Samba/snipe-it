@@ -67,6 +67,31 @@ class IndexAssetModelsTest extends TestCase
                 ->etc());
     }
 
+    public function testAssetModelIndexCanFilterByObsoleteState()
+    {
+        $obsoleteModel = AssetModel::factory()->create([
+            'name' => 'Obsolete model',
+            'obsolete' => true,
+        ]);
+
+        $activeModel = AssetModel::factory()->create([
+            'name' => 'Active model',
+            'obsolete' => false,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.models.index', ['obsolete' => 1]))
+            ->assertOk()
+            ->assertResponseContainsInRows($obsoleteModel, 'name')
+            ->assertResponseDoesNotContainInRows($activeModel, 'name');
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.models.index', ['obsolete' => 0]))
+            ->assertOk()
+            ->assertResponseContainsInRows($activeModel, 'name')
+            ->assertResponseDoesNotContainInRows($obsoleteModel, 'name');
+    }
+
     public function testAssetModelIndexSearchReturnsExpectedAssetModels()
     {
         AssetModel::factory()->count(3)->create();

@@ -133,6 +133,11 @@
                 </label>
 
                 <label class="form-control">
+                    <input type="checkbox" name="model_obsolete" value="1" @checked($template->checkmarkValue('model_obsolete')) />
+                    {{ trans('admin/reports/general.custom_export.model_obsolete') }}
+                </label>
+
+                <label class="form-control">
                     <input type="checkbox" name="category" value="1" @checked($template->checkmarkValue('category')) />
                     {{ trans('general.category') }}
                 </label>

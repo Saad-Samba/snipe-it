@@ -45,7 +45,6 @@ class AssetModelsController extends Controller
                 'obsolete',
                 'created_at',
                 'manufacturer',
-                'requestable',
                 'assets_count',
                 'assets_assigned_count',
                 'assets_archived_count',
@@ -55,6 +54,7 @@ class AssetModelsController extends Controller
                 'deleted_at',
                 'updated_at',
                 'require_serial',
+                'requestable',
                 // These are *relationships* so we wouldn't normally include them in this array,
                 // since they would normally create a `column not found` error,
                 // BUT we account for them in the ordering switch down at the end of this method
@@ -63,7 +63,7 @@ class AssetModelsController extends Controller
                 'category',
             ];
 
-        $assetmodels = AssetModel::select([
+        $selectedColumns = [
             'models.id',
             'models.image',
             'models.name',
@@ -71,7 +71,6 @@ class AssetModelsController extends Controller
             'models.min_amt',
             'models.eol',
             'models.created_by',
-            'models.requestable',
             'models.notes',
             'models.obsolete',
             'models.created_at',
@@ -81,8 +80,11 @@ class AssetModelsController extends Controller
             'models.fieldset_id',
             'models.deleted_at',
             'models.updated_at',
-            'models.require_serial'
-         ])
+            'models.require_serial',
+            'models.requestable',
+        ];
+
+        $assetmodels = AssetModel::select($selectedColumns)
             ->with('category.fieldset.fields.defaultValues', 'depreciation', 'manufacturer', 'fieldset.fields.defaultValues', 'adminuser')
             ->withCount('assets as assets_count')
             ->withCount('availableAssets as remaining')
@@ -123,7 +125,7 @@ class AssetModelsController extends Controller
             $assetmodels = $assetmodels->where('models.requestable', '=', '1');
         } elseif ($request->input('requestable') == 'false') {
             $assetmodels = $assetmodels->where('models.requestable', '=', '0');
-        }        
+        }
 
         if ($request->filled('notes')) {
             $assetmodels = $assetmodels->where('models.notes', '=', $request->input('notes'));
@@ -131,6 +133,10 @@ class AssetModelsController extends Controller
 
         if ($request->filled('category_id')) {
             $assetmodels = $assetmodels->where('models.category_id', '=', $request->input('category_id'));
+        }
+
+        if ($request->filled('obsolete')) {
+            $assetmodels = $assetmodels->where('models.obsolete', '=', filter_var($request->input('obsolete'), FILTER_VALIDATE_BOOLEAN));
         }
 
         if ($request->filled('depreciation_id')) {
