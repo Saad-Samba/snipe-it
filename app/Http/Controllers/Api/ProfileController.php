@@ -149,7 +149,7 @@ class ProfileController extends Controller
                         ? route('models.show', $checkoutRequest->requestable_id)
                         : null,
                     'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)
-                        ? route('account.requested', ['model_id' => $checkoutRequest->requestable_id])
+                        ? route('requests.index', ['model_id' => $checkoutRequest->requestable_id])
                         : null,
                     'project_requests_url' => $checkoutRequest->project_id
                         ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
@@ -167,8 +167,8 @@ class ProfileController extends Controller
                     'reserved_by_other_project_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
                         'request_bucket' => 'reserved_other_project',
                     ])),
-                    'request_update_url' => route('account.request-row.update', $checkoutRequest),
-                    'request_cancel_url' => route('account.request-row.cancel', $checkoutRequest),
+                    'request_update_url' => route('requests.update', $checkoutRequest),
+                    'request_cancel_url' => route('requests.cancel', $checkoutRequest),
                 ];
 
                 foreach ($showable_fields as $showable_field_name) {

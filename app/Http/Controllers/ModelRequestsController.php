@@ -680,7 +680,7 @@ class ModelRequestsController extends Controller
                 'model_show_url' => route('models.show', $checkoutRequest->requestable_id),
                 'project_requests_url' => $checkoutRequest->project_id
                     ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
-                    : route('account.requested'),
+                    : route('requests.index'),
                 'request_detail_url' => $this->requestDetailUrlFor($checkoutRequest),
             ];
         }

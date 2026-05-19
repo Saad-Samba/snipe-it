@@ -175,7 +175,7 @@ class ModelRequestWorkflowTest extends TestCase
         $requester = User::factory()->create();
 
         $this->actingAs($requester)
-            ->get(route('account.requested'))
+            ->get(route('requests.index'))
             ->assertForbidden();
     }
 
@@ -234,8 +234,8 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.reserved_count', 0)
             ->assertJsonPath('rows.0.reserved_by_other_rfqs_count', 0)
             ->assertJsonPath('rows.0.project_requests_url', route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
-            ->assertJsonPath('rows.0.request_update_url', route('account.request-row.update', $checkoutRequest))
-            ->assertJsonPath('rows.0.request_cancel_url', route('account.request-row.cancel', $checkoutRequest));
+            ->assertJsonPath('rows.0.request_update_url', route('requests.update', $checkoutRequest))
+            ->assertJsonPath('rows.0.request_cancel_url', route('requests.cancel', $checkoutRequest));
     }
 
     public function test_requested_assets_api_uses_live_reusable_quantity_for_same_model_across_disciplines()
@@ -506,7 +506,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAs($requester)
-            ->get(route('account.requested'))
+            ->get(route('requests.index'))
             ->assertOk()
             ->assertSee('Reference Price');
     }
@@ -959,7 +959,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAs($requester)
-            ->post(route('account.request-row.update', $request), [
+            ->post(route('requests.update', $request), [
                 'request-action' => 'update',
                 'request-quantity' => 2,
                 'requested_discipline_id' => $discipline->id,
@@ -995,7 +995,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAs($requester)
-            ->post(route('account.request-row.cancel', $request))
+            ->post(route('requests.cancel', $request))
             ->assertRedirect();
 
         $request->refresh();

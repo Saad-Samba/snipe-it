@@ -19,7 +19,7 @@
                                 Showing requests for model:
                                 <strong>{{ $filteredModel->name }}</strong>
                             </span>
-                            <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+                            <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">View all submitted requests</a>
                         </div>
                     @endif
                     @if (!empty($filteredProject))
@@ -30,7 +30,7 @@
                             </span>
                             <span style="display:flex;gap:8px;flex-wrap:wrap;">
                                 <a href="{{ route('projects.show', ['project' => $filteredProject->id, 'tab' => 'requests']) }}" class="btn btn-default btn-sm">Open project requests</a>
-                                <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+                                <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">View all submitted requests</a>
                             </span>
                         </div>
                     @endif

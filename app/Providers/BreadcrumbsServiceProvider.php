@@ -49,7 +49,7 @@ class BreadcrumbsServiceProvider extends ServiceProvider
             if ((request()->is('hardware*')) && (request()->filled('request_id'))) {
                 Breadcrumbs::for('hardware.index', fn (Trail $trail) =>
                 $trail->parent('home', route('home'))
-                    ->push('Requests', route('account.requested'))
+                    ->push('Requests', route('requests.index'))
                     ->push('Request #'.request()->integer('request_id'), route('hardware.index', request()->query()))
                 );
 

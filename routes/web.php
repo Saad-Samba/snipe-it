@@ -398,13 +398,6 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
             ->push(trans('general.profile'), route('account'))
             ->push(trans('general.viewassets'), route('view-assets')));
 
-    Route::get('requested', [ModelRequestsController::class, 'getRequestedAssets'])
-        ->name('account.requested')
-        ->breadcrumbs(fn (Trail $trail) =>
-        $trail->parent('home')
-            ->push('Requests', route('account.requested'))
-            ->push('Submitted Requests', route('account.requested')));
-
     Route::get(
         'requestable-assets', [ModelRequestsController::class, 'getRequestableIndex'])
         ->name('requestable-assets')
@@ -442,12 +435,6 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
 
     Route::post('request-items-bulk', [ModelRequestsController::class, 'bulkRequestItems'])
         ->name('account.request-items-bulk');
-
-    Route::post('requests/{checkoutRequest}/update', [ModelRequestsController::class, 'updateSubmittedRequest'])
-        ->name('account.request-row.update');
-
-    Route::post('requests/{checkoutRequest}/cancel', [ModelRequestsController::class, 'cancelSubmittedRequest'])
-        ->name('account.request-row.cancel');
 
     Route::post('request/{itemType}/{itemId}/{cancel_by_admin?}/{requestingUser?}', [ModelRequestsController::class, 'getRequestItem'])
         ->name('account/request-item');
@@ -499,6 +486,21 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
         ]
     )->name('profile.email_assets');
 
+});
+
+Route::group(['prefix' => 'requests', 'middleware' => ['auth']], function () {
+    Route::get('/', [ModelRequestsController::class, 'getRequestedAssets'])
+        ->name('requests.index')
+        ->breadcrumbs(fn (Trail $trail) =>
+        $trail->parent('home')
+            ->push('Requests', route('requests.index'))
+            ->push('Submitted Requests', route('requests.index')));
+
+    Route::post('{checkoutRequest}/update', [ModelRequestsController::class, 'updateSubmittedRequest'])
+        ->name('requests.update');
+
+    Route::post('{checkoutRequest}/cancel', [ModelRequestsController::class, 'cancelSubmittedRequest'])
+        ->name('requests.cancel');
 });
 
 Route::group(['middleware' => ['auth']], function () {
