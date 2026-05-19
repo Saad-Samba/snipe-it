@@ -20,6 +20,7 @@ use App\Http\Controllers\LabelsController;
 use App\Http\Controllers\UploadedFilesController;
 use App\Http\Controllers\ManufacturersController;
 use App\Http\Controllers\ModalController;
+use App\Http\Controllers\ModelRequestsController;
 use App\Http\Controllers\NotesController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectsController;
@@ -397,7 +398,7 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
             ->push(trans('general.profile'), route('account'))
             ->push(trans('general.viewassets'), route('view-assets')));
 
-    Route::get('requested', [ViewAssetsController::class, 'getRequestedAssets'])
+    Route::get('requested', [ModelRequestsController::class, 'getRequestedAssets'])
         ->name('account.requested')
         ->breadcrumbs(fn (Trail $trail) =>
         $trail->parent('home')
@@ -405,50 +406,50 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
             ->push('Submitted Requests', route('account.requested')));
 
     Route::get(
-        'requestable-assets', [ViewAssetsController::class, 'getRequestableIndex'])
+        'requestable-assets', [ModelRequestsController::class, 'getRequestableIndex'])
         ->name('requestable-assets')
         ->breadcrumbs(fn (Trail $trail) =>
         $trail->parent('home')
             ->push(trans('general.requestable_items'), route('requestable-assets')));
 
 
-    Route::post('request-asset/{asset}', [ViewAssetsController::class, 'store'])
+    Route::post('request-asset/{asset}', [ModelRequestsController::class, 'store'])
         ->name('account.request-asset');
 
-    Route::post('request-asset/{asset}/cancel', [ViewAssetsController::class, 'destroy'])
+    Route::post('request-asset/{asset}/cancel', [ModelRequestsController::class, 'destroy'])
         ->name('account.request-asset.cancel');
 
-    Route::post('request-estimate/{itemType}/{itemId}', [ViewAssetsController::class, 'estimateRequestItem'])
+    Route::post('request-estimate/{itemType}/{itemId}', [ModelRequestsController::class, 'estimateRequestItem'])
         ->name('account.request-estimate');
 
-    Route::post('request-projects', [ViewAssetsController::class, 'storeRequestProject'])
+    Route::post('request-projects', [ModelRequestsController::class, 'storeRequestProject'])
         ->name('account.request-projects.store');
 
-    Route::post('request-cart/items', [ViewAssetsController::class, 'addRequestCartItems'])
+    Route::post('request-cart/items', [ModelRequestsController::class, 'addRequestCartItems'])
         ->name('account.request-cart.items.add');
 
-    Route::post('request-cart/items/remove', [ViewAssetsController::class, 'removeRequestCartItem'])
+    Route::post('request-cart/items/remove', [ModelRequestsController::class, 'removeRequestCartItem'])
         ->name('account.request-cart.items.remove');
 
-    Route::post('request-cart/clear', [ViewAssetsController::class, 'clearRequestCart'])
+    Route::post('request-cart/clear', [ModelRequestsController::class, 'clearRequestCart'])
         ->name('account.request-cart.clear');
 
-    Route::post('request-cart/preview', [ViewAssetsController::class, 'previewRequestCart'])
+    Route::post('request-cart/preview', [ModelRequestsController::class, 'previewRequestCart'])
         ->name('account.request-cart.preview');
 
-    Route::post('request-cart/submit', [ViewAssetsController::class, 'submitRequestCart'])
+    Route::post('request-cart/submit', [ModelRequestsController::class, 'submitRequestCart'])
         ->name('account.request-cart.submit');
 
-    Route::post('request-items-bulk', [ViewAssetsController::class, 'bulkRequestItems'])
+    Route::post('request-items-bulk', [ModelRequestsController::class, 'bulkRequestItems'])
         ->name('account.request-items-bulk');
 
-    Route::post('requests/{checkoutRequest}/update', [ViewAssetsController::class, 'updateSubmittedRequest'])
+    Route::post('requests/{checkoutRequest}/update', [ModelRequestsController::class, 'updateSubmittedRequest'])
         ->name('account.request-row.update');
 
-    Route::post('requests/{checkoutRequest}/cancel', [ViewAssetsController::class, 'cancelSubmittedRequest'])
+    Route::post('requests/{checkoutRequest}/cancel', [ModelRequestsController::class, 'cancelSubmittedRequest'])
         ->name('account.request-row.cancel');
 
-    Route::post('request/{itemType}/{itemId}/{cancel_by_admin?}/{requestingUser?}', [ViewAssetsController::class, 'getRequestItem'])
+    Route::post('request/{itemType}/{itemId}/{cancel_by_admin?}/{requestingUser?}', [ModelRequestsController::class, 'getRequestItem'])
         ->name('account/request-item');
 
     Route::get(
