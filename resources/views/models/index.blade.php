@@ -40,6 +40,7 @@
                             'status' => e(request('status')),
                             'category_id' => e(request('category_id')),
                             'available_models' => e(request('available_models')),
+                            'obsolete' => e(request('obsolete')),
                         ]) }}"
                         data-export-options='{
               "fileName": "export-models-{{ date('Y-m-d') }}",

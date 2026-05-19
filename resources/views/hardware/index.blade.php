@@ -15,9 +15,9 @@
   @if (Request::get('status')=='Pending')
     {{ trans('general.pending') }}
   @elseif (Request::get('status')=='RTD')
-    {{ trans('general.ready_to_deploy') }}
+    {{ trans('general.unassigned') }}
   @elseif (Request::get('status')=='Deployed')
-    {{ trans('general.deployed') }}
+    {{ trans('general.assigned') }}
   @elseif (Request::get('status')=='Undeployable')
     {{ trans('general.undeployable') }}
   @elseif (Request::get('status')=='Deployable')
@@ -109,6 +109,8 @@
                     'model_id'=>e(Request::get('model_id')),
                     'category_id'=>e(Request::get('category_id')),
                     'reusable_assets'=>e(Request::get('reusable_assets')),
+                    'assignment'=>e(Request::get('assignment')),
+                    'model_obsolete'=>e(Request::get('model_obsolete')),
                     'order_number'=>e(strval(Request::get('order_number'))),
                     'company_id'=>e(Request::get('company_id')),
                     'project_id'=>e(Request::get('project_id')),

@@ -10,8 +10,46 @@ class ShowStatusLabelTest extends TestCase
 {
     public function testPageRenders()
     {
+        $statuslabel = Statuslabel::factory()->create();
+
         $this->actingAs(User::factory()->superuser()->create())
-            ->get(route('statuslabels.show', Statuslabel::factory()->create()))
-            ->assertOk();
+            ->get(route('statuslabels.show', $statuslabel))
+            ->assertOk()
+            ->assertSee('status_id='.$statuslabel->id, false)
+            ->assertSee('model_obsolete=1', false)
+            ->assertSee('model_obsolete=0', false)
+            ->assertDontSee('assignment=assigned', false)
+            ->assertDontSee('assignment=unassigned', false);
     }
+
+    public function testDeployableStatusPageIncludesStackableObsoleteAndAssignmentButtons()
+    {
+        $statuslabel = Statuslabel::factory()->readyToDeploy()->create();
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('statuslabels.show', $statuslabel))
+            ->assertOk()
+            ->assertSee('model_obsolete=1', false)
+            ->assertSee('model_obsolete=0', false)
+            ->assertSee('assignment=assigned', false)
+            ->assertSee('assignment=unassigned', false);
+    }
+
+    public function testDeployableStatusPagePropagatesStackedAssignmentAndObsoleteFiltersToApiUrl()
+    {
+        $statuslabel = Statuslabel::factory()->readyToDeploy()->create();
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('statuslabels.show', [
+                'statuslabel' => $statuslabel,
+                'assignment' => 'assigned',
+                'model_obsolete' => 1,
+            ]))
+            ->assertOk()
+            ->assertSee(route('api.assets.index'), false)
+            ->assertSee('status_id='.$statuslabel->id, false)
+            ->assertSee('assignment=assigned', false)
+            ->assertSee('model_obsolete=1', false);
+    }
+
 }

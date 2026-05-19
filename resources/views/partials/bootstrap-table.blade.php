@@ -77,6 +77,10 @@
                     'columns',
                     'btnAdd',
                     'btnShowDeleted',
+                    'btnFilterObsoleteModels',
+                    'btnFilterCurrentModels',
+                    'btnShowAssignedOnly',
+                    'btnShowUnassignedOnly',
                     'btnShowAdmins',
                     'btnShowExpiring',
                     'btnShowInactive',
@@ -208,7 +212,12 @@
                             tableButton.tooltip({container: 'body', title: title});
 
                             // This handles the case where we want a different color button than the default
-                            if ((override_class) && ((override_class.indexOf('btn-info') >= 0)) || (override_class.indexOf('btn-danger') >= 0)) {
+                            if ((override_class) && (
+                                (override_class.indexOf('btn-info') >= 0)
+                                || (override_class.indexOf('btn-danger') >= 0)
+                                || (override_class.indexOf('btn-warning') >= 0)
+                                || (override_class.indexOf('btn-success') >= 0)
+                            )) {
                                 tableButton.removeClass('btn-primary');
                             }
                         }
@@ -325,6 +334,73 @@
     }); // End Groups table buttons
     @endcan
 
+    function obsoleteOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'obsolete';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-triangle-exclamation',
+            event() {
+                window.location.href = isActive ? routes.all : routes.obsolete;
+            },
+            attributes: {
+                title: isActive ? labels.obsolete : labels.all,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-warning' : '',
+            }
+        };
+    }
+
+    function activeOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'active';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-circle-check',
+            event() {
+                window.location.href = isActive ? routes.all : routes.active;
+            },
+            attributes: {
+                title: isActive ? labels.active : labels.inactive,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-success' : '',
+            }
+        };
+    }
+
+    function assignedOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'assigned';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-user-check',
+            event() {
+                window.location.href = isActive ? routes.all : routes.assigned;
+            },
+            attributes: {
+                title: isActive ? labels.assigned : labels.all,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-info' : '',
+            }
+        };
+    }
+
+    function unassignedOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'unassigned';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-box-open',
+            event() {
+                window.location.href = isActive ? routes.all : routes.unassigned;
+            },
+            attributes: {
+                title: isActive ? labels.unassigned : labels.inactive,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-success' : '',
+            }
+        };
+    }
 
     // Asset table buttons
     window.assetButtons = () => ({
@@ -370,11 +446,56 @@
             }
         },
 
+        @php
+            $assetQuery = request()->query();
+            $isStatusLabelPage = request()->routeIs('statuslabels.show') && request()->route('statuslabel');
+            $isDeployableStatusPage = request()->routeIs('statuslabels.show')
+                && request()->route('statuslabel')
+                && request()->route('statuslabel')->deployable == 1
+                && request()->route('statuslabel')->pending == 0
+                && request()->route('statuslabel')->archived == 0;
+            if ($isStatusLabelPage) {
+                $assetQuery['status_id'] = request()->route('statuslabel')->id;
+            }
+            $assetFilter = $assetQuery['model_obsolete'] ?? null;
+            $assetObsoleteBaseQuery = $assetQuery;
+            unset($assetObsoleteBaseQuery['model_obsolete']);
+            $assetObsoleteAllUrl = route('hardware.index', $assetObsoleteBaseQuery);
+            $assetObsoleteUrl = route('hardware.index', array_merge($assetObsoleteBaseQuery, ['model_obsolete' => 1]));
+            $assetActiveUrl = route('hardware.index', array_merge($assetObsoleteBaseQuery, ['model_obsolete' => 0]));
+            $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
+
+            $assignmentFilter = request()->query('assignment');
+            $assetAssignmentBaseQuery = $assetQuery;
+            unset($assetAssignmentBaseQuery['assignment']);
+            $assetAssignmentAllUrl = route('hardware.index', $assetAssignmentBaseQuery);
+            $assetAssignmentState = $assignmentFilter === 'assigned' ? 'assigned' : ($assignmentFilter === 'unassigned' ? 'unassigned' : 'all');
+            if ($isDeployableStatusPage) {
+                $statusLabelRouteParams = ['statuslabel' => request()->route('statuslabel')->id];
+                $assetObsoleteAllUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetObsoleteBaseQuery));
+                $assetObsoleteUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetObsoleteBaseQuery, ['model_obsolete' => 1]));
+                $assetActiveUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetObsoleteBaseQuery, ['model_obsolete' => 0]));
+                $assetAssignmentAllUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetAssignmentBaseQuery));
+                $assetAssignedUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetAssignmentBaseQuery, ['assignment' => 'assigned']));
+                $assetUnassignedUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetAssignmentBaseQuery, ['assignment' => 'unassigned']));
+            } elseif ($isStatusLabelPage) {
+                $assetObsoleteAllUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id]);
+                $assetObsoleteUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'model_obsolete' => 1]);
+                $assetActiveUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'model_obsolete' => 0]);
+                $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
+            }
+
+            $assetDeletedBaseQuery = $assetQuery;
+            unset($assetDeletedBaseQuery['status']);
+            $assetDeletedToggleUrl = request()->input('status') == 'Deleted'
+                ? route('hardware.index', $assetDeletedBaseQuery)
+                : route('hardware.index', array_merge($assetDeletedBaseQuery, ['status' => 'Deleted']));
+        @endphp
         btnShowDeleted: {
             text: '{{ (request()->input('status') == "Deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
             event () {
-                window.location.href = '{{ (request()->input('status') == "Deleted") ? route('hardware.index') : route('hardware.index', ['status' => 'Deleted']) }}';
+                window.location.href = {!! \Illuminate\Support\Js::from($assetDeletedToggleUrl) !!};
             },
             attributes: {
                 class: '{{ (request()->input('status') == "Deleted") ? ' btn-danger' : '' }}',
@@ -382,6 +503,70 @@
 
             }
         },
+        btnFilterObsoleteModels: obsoleteOnlyButtonConfig(
+            '{{ $assetState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetObsoleteAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($assetObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($assetActiveUrl) !!}
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+        btnFilterCurrentModels: activeOnlyButtonConfig(
+            '{{ $assetState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetObsoleteAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($assetObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($assetActiveUrl) !!}
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+        @if ($isDeployableStatusPage || ! $isStatusLabelPage)
+        btnShowAssignedOnly: assignedOnlyButtonConfig(
+            '{{ $assetAssignmentState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetAssignmentAllUrl) !!},
+                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'assigned']))) !!},
+                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'unassigned']))) !!}
+            },
+            {
+                all: '{{ trans('general.filter_all_to_assigned') }}',
+                assigned: '{{ trans('general.filter_assigned_to_all') }}',
+                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
+                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
+            }
+        ),
+        btnShowUnassignedOnly: unassignedOnlyButtonConfig(
+            '{{ $assetAssignmentState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetAssignmentAllUrl) !!},
+                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'assigned']))) !!},
+                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'unassigned']))) !!}
+            },
+            {
+                all: '{{ trans('general.filter_all_to_assigned') }}',
+                assigned: '{{ trans('general.filter_assigned_to_all') }}',
+                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
+                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
+            }
+        ),
+        @endif
     });
 
     @can('create', \App\Models\Location::class)
@@ -726,8 +911,7 @@
     };
 
     // Custom Field table buttons
-    window.modelButtons = () => {
-        var buttons = {
+    window.modelButtons = () => ({
         @can('create', \App\Models\AssetModel::class)
         btnAdd: {
             text: '{{ trans('general.create') }}',
@@ -744,11 +928,26 @@
             }
         },
         @endcan
+        @php
+            $modelQuery = request()->query();
+            $modelFilter = $modelQuery['obsolete'] ?? null;
+            $modelBaseQuery = $modelQuery;
+            unset($modelBaseQuery['obsolete']);
+            $modelAllUrl = route('models.index', $modelBaseQuery);
+            $modelObsoleteUrl = route('models.index', array_merge($modelBaseQuery, ['obsolete' => 1]));
+            $modelActiveUrl = route('models.index', array_merge($modelBaseQuery, ['obsolete' => 0]));
+            $modelState = $modelFilter === '1' ? 'obsolete' : ($modelFilter === '0' ? 'active' : 'all');
+            $modelDeletedBaseQuery = $modelQuery;
+            unset($modelDeletedBaseQuery['status']);
+            $modelDeletedToggleUrl = request()->input('status') == 'deleted'
+                ? route('models.index', $modelDeletedBaseQuery)
+                : route('models.index', array_merge($modelDeletedBaseQuery, ['status' => 'deleted']));
+        @endphp
         btnShowDeleted: {
             text: '{{ (request()->input('status') == "deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
             event () {
-                window.location.href = '{{ (request()->input('status') == "deleted") ? route('models.index') : route('models.index', ['status' => 'deleted']) }}';
+                window.location.href = {!! \Illuminate\Support\Js::from($modelDeletedToggleUrl) !!};
             },
             attributes: {
                 class: '{{ (request()->input('status') == "deleted") ? ' btn-danger' : '' }}',
@@ -756,10 +955,41 @@
 
             }
         },
-        };
-
-        return buttons;
-    };
+        btnFilterObsoleteModels: obsoleteOnlyButtonConfig(
+            '{{ $modelState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($modelAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($modelObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($modelActiveUrl) !!}
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+        btnFilterCurrentModels: activeOnlyButtonConfig(
+            '{{ $modelState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($modelAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($modelObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($modelActiveUrl) !!}
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+    });
 
     @can('create', \App\Models\Statuslabel::class)
     // Status label table buttons
@@ -1068,7 +1298,13 @@
                     var tag_icon = '';
                 }
 
-                return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a></span>';
+                var obsoleteIndicator = '';
+
+                if ((destination === 'models') && (value.obsolete === true || value.obsolete === 1 || value.obsolete === '1')) {
+                    obsoleteIndicator = ' <span class="label label-warning" data-tooltip="true" title="{{ trans('admin/models/general.obsolete_asset_tooltip') }}">{{ trans('admin/models/general.obsolete_indicator') }}</span>';
+                }
+
+                return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a>' + obsoleteIndicator + '</nobr>';
             }
         };
     }
@@ -2426,6 +2662,14 @@
         } else {
             return '<x-icon type="x" class="text-danger" /><span class="sr-only">{{ trans('general.false') }}</span>';
         }
+    }
+
+    function yesNoFormatter(value) {
+        if ((value) && ((value == 'true') || (value == '1'))) {
+            return '{{ trans('general.yes') }}';
+        }
+
+        return '{{ trans('general.no') }}';
     }
 
     function dateDisplayFormatter(value) {

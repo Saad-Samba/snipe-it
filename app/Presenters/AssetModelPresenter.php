@@ -161,7 +161,7 @@ class AssetModelPresenter extends Presenter
                 'sortable' => true,
                 'visible' => false,
                 'title' => trans('admin/models/table.obsolete'),
-                'formatter' => 'trueFalseFormatter',
+                'formatter' => 'yesNoFormatter',
             ],
             [
                 'field' => 'fieldset',

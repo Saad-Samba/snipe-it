@@ -362,7 +362,21 @@ class AssetsController extends Controller
         if ($request->input('requestable') == 'true') {
             $assets->where('assets.requestable', '=', '1');
         }
-        
+
+        if ($request->filled('model_obsolete')) {
+            $assets->whereHas('model', function ($query) use ($request) {
+                $query->where('obsolete', '=', filter_var($request->input('model_obsolete'), FILTER_VALIDATE_BOOLEAN));
+            });
+        }
+
+        if ($request->filled('assignment')) {
+            if ($request->input('assignment') === 'assigned') {
+                $assets->whereNotNull('assets.assigned_to');
+            } elseif ($request->input('assignment') === 'unassigned') {
+                $assets->whereNull('assets.assigned_to');
+            }
+        }
+
         if ($request->filled('model_id')) {
             // If model_id is already an array, just use it as-is
             if (is_array($request->input('model_id'))) {
