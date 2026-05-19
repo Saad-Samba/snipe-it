@@ -16,13 +16,10 @@ class CheckoutRequest extends Model
     protected ?array $liveRequestMetricsCache = null;
 
     public const STATUS_PENDING = 'pending';
-    public const STATUS_IN_PROGRESS = 'in_progress';
     public const STATUS_FULLY_ALLOCATED = 'fully_allocated';
     public const STATUS_PARTIALLY_ALLOCATED = 'partially_allocated';
     public const STATUS_NOT_ALLOCATED = 'not_allocated';
     public const STATUS_CANCELED = 'canceled';
-    public const STATUS_UNDER_REVIEW = 'under_review';
-    public const STATUS_APPROVED = 'approved';
     public const STATUS_FULFILLED = 'fulfilled';
     public const STATUS_REJECTED = 'rejected';
 
@@ -130,10 +127,6 @@ class CheckoutRequest extends Model
 
         if ($this->fulfilled_at || $this->status === self::STATUS_FULFILLED) {
             return $this->status ?: self::STATUS_FULLY_ALLOCATED;
-        }
-
-        if (in_array($this->status, [self::STATUS_UNDER_REVIEW, self::STATUS_APPROVED], true)) {
-            return self::STATUS_IN_PROGRESS;
         }
 
         if ($this->status === self::STATUS_REJECTED) {
@@ -316,8 +309,6 @@ class CheckoutRequest extends Model
 
         if (in_array($resolvedStatus, [
             self::STATUS_CANCELED,
-            self::STATUS_IN_PROGRESS,
-            self::STATUS_REJECTED,
             self::STATUS_FULFILLED,
         ], true)) {
             return $resolvedStatus;
