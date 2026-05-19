@@ -19,8 +19,8 @@ class IndexCategoriesTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('categories.index'))
             ->assertOk()
-            ->assertSeeText('Available Models')
-            ->assertSeeText('Available Assets')
+            ->assertSee('Available Models', false)
+            ->assertSee('Available Assets', false)
             ->assertSeeText('Category Manager')
             ->assertSeeText('My Categories');
     }

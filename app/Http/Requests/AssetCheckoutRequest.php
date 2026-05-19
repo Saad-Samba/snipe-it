@@ -34,7 +34,7 @@ class AssetCheckoutRequest extends Request
                 'date',
             ],
             'expected_checkin' => [
-                'required',
+                'nullable',
                 'date'
             ],
             'project_id' => [

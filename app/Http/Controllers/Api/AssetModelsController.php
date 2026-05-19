@@ -55,7 +55,6 @@ class AssetModelsController extends Controller
                 'deleted_at',
                 'updated_at',
                 'require_serial',
-                'requestable',
                 // These are *relationships* so we wouldn't normally include them in this array,
                 // since they would normally create a `column not found` error,
                 // BUT we account for them in the ordering switch down at the end of this method
@@ -83,7 +82,6 @@ class AssetModelsController extends Controller
             'models.deleted_at',
             'models.updated_at',
             'models.require_serial',
-            'models.requestable',
         ];
 
         $assetmodels = AssetModel::select($selectedColumns)
@@ -125,11 +123,6 @@ class AssetModelsController extends Controller
             $assetmodels = $assetmodels->where('models.model_number', '=', $request->input('model_number'));
         }
 
-        if ($request->input('requestable') == 'true') {
-            $assetmodels = $assetmodels->where('models.requestable', '=', '1');
-        } elseif ($request->input('requestable') == 'false') {
-            $assetmodels = $assetmodels->where('models.requestable', '=', '0');
-        }
         if ($request->filled('notes')) {
             $assetmodels = $assetmodels->where('models.notes', '=', $request->input('notes'));
         }

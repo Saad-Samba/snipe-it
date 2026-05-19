@@ -913,13 +913,14 @@ class ModelRequestWorkflowTest extends TestCase
             'id' => $existingRequest->id,
             'quantity' => 5,
             'project_id' => $project->id,
-            'needed_by_date' => '2026-06-15',
             'reusable_quantity' => 2,
             'due_back_before_needed_by_quantity' => 0,
             'potentially_coverable_quantity' => 2,
             'procurement_shortfall' => 3,
             'estimated_savings' => number_format($model->reference_price * 2, 2, '.', ''),
         ]);
+
+        $this->assertSame('2026-06-15', optional($existingRequest->fresh()->needed_by_date)->format('Y-m-d'));
 
         $this->assertSame(
             1,
@@ -1138,7 +1139,6 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $modelA->id,
             'requestable_type' => AssetModel::class,
             'project_id' => $project->id,
-            'needed_by_date' => '2026-06-20',
             'quantity' => 1,
             'potentially_coverable_quantity' => 1,
         ]);
@@ -1147,10 +1147,33 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $modelB->id,
             'requestable_type' => AssetModel::class,
             'project_id' => $project->id,
-            'needed_by_date' => '2026-06-20',
             'quantity' => 1,
             'potentially_coverable_quantity' => 1,
         ]);
+
+        $this->assertSame(
+            '2026-06-20',
+            optional(
+                CheckoutRequest::query()
+                    ->where('user_id', $requester->id)
+                    ->where('requestable_id', $modelA->id)
+                    ->where('requestable_type', AssetModel::class)
+                    ->first()
+                    ?->needed_by_date
+            )->format('Y-m-d')
+        );
+
+        $this->assertSame(
+            '2026-06-20',
+            optional(
+                CheckoutRequest::query()
+                    ->where('user_id', $requester->id)
+                    ->where('requestable_id', $modelB->id)
+                    ->where('requestable_type', AssetModel::class)
+                    ->first()
+                    ?->needed_by_date
+            )->format('Y-m-d')
+        );
     }
 
     public function test_request_cart_submit_creates_distinct_requests_for_same_model_across_disciplines()
