@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Transformers\ProfileTransformer;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
-use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
@@ -102,7 +101,6 @@ class ProfileController extends Controller
             // Make sure the asset and request still exist
             if ($checkoutRequest && $checkoutRequest->itemRequested()) {
                 $statusValue = $checkoutRequest->requesterAllocationStatus();
-                $reservedStatusId = Setting::rfqReservedStatusId();
                 $liveMetrics = $checkoutRequest->liveRequestMetrics();
                 $requestAssetBucketBaseQuery = [
                     'request_id' => $checkoutRequest->id,
@@ -110,15 +108,7 @@ class ProfileController extends Controller
                 $requestDetailQuery = [
                     'request_id' => $checkoutRequest->id,
                     'model_id' => $checkoutRequest->requestable_id,
-                    'project_id' => $checkoutRequest->project_id,
-                    'discipline_id' => $checkoutRequest->requested_discipline_id,
                 ];
-
-                if ($reservedStatusId) {
-                    $requestDetailQuery['status_id'] = $reservedStatusId;
-                } else {
-                    $requestDetailQuery['status'] = 'RTD';
-                }
 
                 $assets = [
                     'request_id' => (int) $checkoutRequest->id,

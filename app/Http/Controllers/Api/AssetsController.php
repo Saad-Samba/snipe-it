@@ -435,10 +435,6 @@ class AssetsController extends Controller
                 case 'reserved':
                     $assets->where('assets.project_id', '=', $requestContext->project_id)
                         ->when(
-                            $requestContext->requested_discipline_id,
-                            fn ($query) => $query->where('assets.discipline_id', '=', $requestContext->requested_discipline_id)
-                        )
-                        ->when(
                             $reservedStatusId,
                             fn ($query) => $query->where('assets.status_id', '=', $reservedStatusId)
                         );

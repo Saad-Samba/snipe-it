@@ -338,8 +338,8 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->assertSame('Fully allocated', $indexedByDiscipline['Operations']['status']);
         $this->assertSame(1, $indexedByDiscipline['Operations']['reserved_count']);
-        $this->assertSame('Pending', $indexedByDiscipline['Software']['status']);
-        $this->assertSame(0, $indexedByDiscipline['Software']['reserved_count']);
+        $this->assertSame('Fully allocated', $indexedByDiscipline['Software']['status']);
+        $this->assertSame(1, $indexedByDiscipline['Software']['reserved_count']);
     }
 
     public function test_requested_assets_api_can_filter_to_single_model()
@@ -468,6 +468,27 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertDontSee('Potentially Coverable');
     }
 
+    public function test_requester_cannot_open_project_assets_tab_from_project_requests_view()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create(['name' => 'Restricted Project']);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'assets']))
+            ->assertForbidden();
+    }
+
     public function test_submitted_requests_page_shows_reference_price_column()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
@@ -547,20 +568,11 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('status_id='.$reservedStatus->id, false);
     }
 
-    public function test_requested_assets_api_uses_reserved_status_for_request_detail_url_when_configured()
+    public function test_requested_assets_api_points_request_detail_url_to_unfiltered_request_review()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create();
         $discipline = Discipline::create(['name' => 'Reserved Detail', 'created_by' => $requester->id]);
-        $reservedStatus = Statuslabel::factory()->create([
-            'name' => 'Reserved for RFQ',
-            'deployable' => 1,
-            'default_label' => 0,
-        ]);
-        $settings = Setting::getSettings();
-        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
-        $settings->save();
-        Setting::$_cache = $settings->fresh();
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
@@ -579,47 +591,6 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.request_detail_url', route('hardware.index', [
                 'request_id' => $checkoutRequest->id,
                 'model_id' => $model->id,
-                'project_id' => $project->id,
-                'discipline_id' => $discipline->id,
-                'status_id' => $reservedStatus->id,
-            ]));
-    }
-
-    public function test_requested_assets_api_falls_back_to_reserved_status_name_for_request_detail_url()
-    {
-        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
-        $project = Project::factory()->create();
-        $discipline = Discipline::create(['name' => 'Fallback Detail', 'created_by' => $requester->id]);
-        $reservedStatus = Statuslabel::factory()->create([
-            'name' => 'Reserved for RFQ',
-            'deployable' => 1,
-            'default_label' => 0,
-        ]);
-        $settings = Setting::getSettings();
-        $settings->rfq_reserved_statuslabel_id = null;
-        $settings->save();
-        Setting::$_cache = $settings->fresh();
-        $model = AssetModel::factory()->create([
-            'category_id' => $this->managedAssetCategoryFor($requester)->id,
-        ]);
-
-        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
-            'user_id' => $requester->id,
-            'requestable_id' => $model->id,
-            'requestable_type' => AssetModel::class,
-            'project_id' => $project->id,
-            'requested_discipline_id' => $discipline->id,
-        ]);
-
-        $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested'))
-            ->assertOk()
-            ->assertJsonPath('rows.0.request_detail_url', route('hardware.index', [
-                'request_id' => $checkoutRequest->id,
-                'model_id' => $model->id,
-                'project_id' => $project->id,
-                'discipline_id' => $discipline->id,
-                'status_id' => $reservedStatus->id,
             ]));
     }
 
@@ -1445,7 +1416,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.requested_discipline', 'Reserved API');
     }
 
-    public function test_reserved_count_requires_matching_request_discipline()
+    public function test_reserved_count_ignores_request_discipline_when_summarizing_project_stock()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create();
@@ -1500,7 +1471,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAsForApi($requester)
             ->getJson(route('api.assets.requested'))
             ->assertOk()
-            ->assertJsonPath('rows.0.reserved_count', 1);
+            ->assertJsonPath('rows.0.reserved_count', 2);
     }
 
     public function test_model_request_estimate_counts_due_back_assets_before_needed_by_date()

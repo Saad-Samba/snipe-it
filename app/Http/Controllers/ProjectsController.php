@@ -47,14 +47,22 @@ class ProjectsController extends Controller
 
     public function show(Project $project) : View
     {
-        $this->authorize('view', $project);
+        $activeTab = request()->query('tab', 'assets');
+        $isRequesterProjectReview = ! auth()->user()->isSuperUser()
+            && auth()->user()->hasAccess('models.request')
+            && $activeTab === 'requests';
+        $requestSummary = null;
+
+        if ($isRequesterProjectReview) {
+            $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
+            abort_if(($requestSummary['requests_count'] ?? 0) < 1, 403);
+        } else {
+            $this->authorize('view', $project);
+        }
 
         $project->loadCount(['assets', 'licenses']);
 
-        $activeTab = request()->query('tab', 'assets');
-        $requestSummary = null;
-
-        if (auth()->user()->hasAccess('models.request')) {
+        if (auth()->user()->hasAccess('models.request') && ! $requestSummary) {
             $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
         }
 
@@ -62,6 +70,7 @@ class ProjectsController extends Controller
             'project' => $project,
             'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests'], true) ? $activeTab : 'assets',
             'requestSummary' => $requestSummary,
+            'showFullProjectTabs' => auth()->user()->isSuperUser(),
         ]);
     }
 

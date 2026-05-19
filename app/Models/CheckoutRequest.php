@@ -169,7 +169,6 @@ class CheckoutRequest extends Model
         return Asset::withoutGlobalScopes()
             ->where('model_id', $this->requestable_id)
             ->where('project_id', $this->project_id)
-            ->when($this->requested_discipline_id, fn ($query) => $query->where('discipline_id', $this->requested_discipline_id))
             ->whereNotNull('assigned_to');
     }
 
@@ -189,7 +188,6 @@ class CheckoutRequest extends Model
         return Asset::withoutGlobalScopes()
             ->where('model_id', $this->requestable_id)
             ->where('project_id', $this->project_id)
-            ->when($this->requested_discipline_id, fn ($query) => $query->where('discipline_id', $this->requested_discipline_id))
             ->where('status_id', $reservedStatusId);
     }
 
