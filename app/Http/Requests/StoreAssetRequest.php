@@ -14,7 +14,9 @@ use Illuminate\Validation\Validator;
 
 class StoreAssetRequest extends ImageUploadRequest
 {
-    use MayContainCustomFields;
+    use MayContainCustomFields {
+        withValidator as withCustomFieldValidator;
+    }
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -42,6 +44,8 @@ class StoreAssetRequest extends ImageUploadRequest
 
     public function withValidator(Validator $validator): void
     {
+        $this->withCustomFieldValidator($validator);
+
         $validator->after(function (Validator $validator) {
             if (Company::currentUserLacksCompanyAssignmentForFullMultipleCompanySupport()) {
                 $validator->errors()->add('company_id', 'You cannot complete this action because your account is not assigned to a company.');
