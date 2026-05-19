@@ -550,7 +550,7 @@ class ModelRequestsController extends Controller
 
         return view('account/requested', [
             'pageTitle' => 'Submitted Requests',
-            'dataUrl' => route('api.assets.requested', $query),
+            'dataUrl' => route('api.requests.index', $query),
             'requestMode' => 'requester',
             'filteredModel' => $filteredModel,
             'filteredProject' => $filteredProject,

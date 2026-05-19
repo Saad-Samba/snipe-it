@@ -117,7 +117,7 @@
                                 @include('account.partials.submitted-requests-table', [
                                     'tableId' => 'projectRequestsTable',
                                     'requestMode' => 'requester',
-                                    'dataUrl' => route('api.assets.requested', ['project_id' => $project->id]),
+                                    'dataUrl' => route('api.requests.index', ['project_id' => $project->id]),
                                     'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
                                 ])
                             </div>

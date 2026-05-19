@@ -4,9 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
-use App\Http\Transformers\ProfileTransformer;
-use App\Models\AssetModel;
-use App\Models\CheckoutRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
@@ -14,7 +11,6 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Passport\TokenRepository;
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Support\Facades\Gate;
-use App\Models\CustomField;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -41,150 +37,6 @@ class ProfileController extends Controller
         $this->validation = $validation;
         $this->tokenRepository = $tokenRepository;
     }
-
-    /**
-     * Display a listing of requested assets.
-     *
-     * @author [A. Gianotto] [<snipe@snipe.net>]
-     * @since [v4.3.0]
-     */
-    public function requestedAssets(Request $request) :  array
-    {
-        if (! auth()->user()->hasAccess('models.request')) {
-            abort(403, 'You are not authorized to view submitted requests.');
-        }
-
-        $checkoutRequests = CheckoutRequest::query()
-            ->with([
-                'requestedItem',
-                'project',
-                'requestedDiscipline',
-                'user',
-            ]);
-
-        $checkoutRequests->where('user_id', auth()->id())
-            ->whereNull('canceled_at');
-
-        if ($request->filled('model_id')) {
-            $checkoutRequests
-                ->where('requestable_type', \App\Models\AssetModel::class)
-                ->where('requestable_id', (int) $request->input('model_id'));
-        }
-
-        if ($request->filled('project_id')) {
-            $checkoutRequests->where('project_id', (int) $request->input('project_id'));
-        }
-
-        if ($request->filled('project')) {
-            $projectSearch = trim((string) $request->input('project'));
-            $checkoutRequests->whereHas('project', function ($query) use ($projectSearch) {
-                $query->where('name', 'LIKE', '%'.$projectSearch.'%');
-            });
-        }
-
-        $checkoutRequests = $checkoutRequests->get();
-
-        $results = array();
-        $show_field = array();
-        $showable_fields = array();
-        $results['total'] = $checkoutRequests->count();
-
-        $all_custom_fields = CustomField::all(); //used as a 'cache' of custom fields throughout this page load
-        foreach ($all_custom_fields as $field) {
-            if (($field->field_encrypted=='0') && ($field->show_in_requestable_list=='1')) {
-                $showable_fields[] = $field->db_column_name();
-            }
-        }
-
-        foreach ($checkoutRequests as $checkoutRequest) {
-
-            // Make sure the asset and request still exist
-            if ($checkoutRequest && $checkoutRequest->itemRequested()) {
-                $statusValue = $checkoutRequest->requesterAllocationStatus();
-                $liveMetrics = $checkoutRequest->liveRequestMetrics();
-                $requestAssetBucketBaseQuery = [
-                    'request_id' => $checkoutRequest->id,
-                ];
-                $requestDetailQuery = [
-                    'request_id' => $checkoutRequest->id,
-                    'model_id' => $checkoutRequest->requestable_id,
-                ];
-
-                $assets = [
-                    'request_id' => (int) $checkoutRequest->id,
-                    'image' => e($checkoutRequest->itemRequested()->present()->getImageUrl()),
-                    'name' => e($checkoutRequest->name()),
-                    'model_id' => $checkoutRequest->requestable_type === AssetModel::class ? (int) $checkoutRequest->requestable_id : null,
-                    'type' => e($checkoutRequest->itemType()),
-                    'qty' => (int) $checkoutRequest->quantity,
-                    'requested_discipline_id' => $checkoutRequest->requested_discipline_id ? (int) $checkoutRequest->requested_discipline_id : null,
-                    'requested_discipline' => e(optional($checkoutRequest->requestedDiscipline)->name),
-                    'project_id' => $checkoutRequest->project_id ? (int) $checkoutRequest->project_id : null,
-                    'project' => e(optional($checkoutRequest->project)->name),
-                    'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
-                    'needed_by_date_value' => optional($checkoutRequest->needed_by_date)->format('Y-m-d'),
-                    'reusable_quantity' => (int) ($liveMetrics['reusable_quantity'] ?? 0),
-                    'due_back_before_needed_by_quantity' => (int) ($liveMetrics['due_back_before_needed_by_quantity'] ?? 0),
-                    'procurement_shortfall' => (int) ($liveMetrics['procurement_shortfall'] ?? 0),
-                    'estimated_savings' => isset($liveMetrics['estimated_savings']) ? (float) $liveMetrics['estimated_savings'] : null,
-                    'estimated_savings_formatted' => isset($liveMetrics['estimated_savings'])
-                        ? Helper::formatCurrencyOutput((float) $liveMetrics['estimated_savings'])
-                        : null,
-                    'amount_to_buy' => (float) ($liveMetrics['amount_to_buy'] ?? 0),
-                    'amount_to_buy_formatted' => Helper::formatCurrencyOutput((float) ($liveMetrics['amount_to_buy'] ?? 0)),
-                    'reference_price_snapshot' => $checkoutRequest->reference_price_snapshot !== null ? (float) $checkoutRequest->reference_price_snapshot : null,
-                    'reference_price_snapshot_formatted' => $checkoutRequest->reference_price_snapshot !== null
-                        ? Helper::formatCurrencyOutput($checkoutRequest->reference_price_snapshot)
-                        : null,
-                    'reserved_count' => $checkoutRequest->reservedAssetsCount(),
-                    'reserved_by_other_rfqs_count' => $checkoutRequest->reservedByOtherRfqsCount(),
-                    'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),
-                    'status_value' => e($statusValue),
-                    'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,
-                    'requested_by' => ($checkoutRequest->requestingUser()) ? e($checkoutRequest->requestingUser()->display_name) : null,
-                    'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin, 'datetime'),
-                    'request_date' => Helper::getFormattedDateObject($checkoutRequest->created_at, 'datetime'),
-                    'updated_at' => Helper::getFormattedDateObject($checkoutRequest->updated_at, 'datetime'),
-                    'model_show_url' => ($checkoutRequest->requestable_type === AssetModel::class)
-                        ? route('models.show', $checkoutRequest->requestable_id)
-                        : null,
-                    'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)
-                        ? route('requests.index', ['model_id' => $checkoutRequest->requestable_id])
-                        : null,
-                    'project_requests_url' => $checkoutRequest->project_id
-                        ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
-                        : null,
-                    'request_detail_url' => route('hardware.index', $requestDetailQuery),
-                    'reusable_now_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
-                        'request_bucket' => 'reusable_now',
-                    ])),
-                    'due_back_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
-                        'request_bucket' => 'due_back',
-                    ])),
-                    'reserved_assets_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
-                        'request_bucket' => 'reserved',
-                    ])),
-                    'reserved_by_other_project_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
-                        'request_bucket' => 'reserved_other_project',
-                    ])),
-                    'request_update_url' => route('requests.update', $checkoutRequest),
-                    'request_cancel_url' => route('requests.cancel', $checkoutRequest),
-                ];
-
-                foreach ($showable_fields as $showable_field_name) {
-                    $show_field['custom_fields.'.$showable_field_name] =  $checkoutRequest->itemRequested()->{$showable_field_name};
-                }
-
-                // Merge the plain asset data and the custom fields data
-                $results['rows'][] = array_merge($assets, $show_field);
-            }
-
-
-        }
-
-        return $results;
-    }
-
 
     /**
      * Delete an API token

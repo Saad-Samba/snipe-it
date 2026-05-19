@@ -40,7 +40,7 @@
                     @include('account.partials.submitted-requests-table', [
                         'tableId' => 'userRequests',
                         'requestMode' => $requestMode ?? 'requester',
-                        'dataUrl' => $dataUrl ?? route('api.assets.requested'),
+                        'dataUrl' => $dataUrl ?? route('api.requests.index'),
                         'exportFileName' => 'my-requested-assets-'.date('Y-m-d'),
                     ])
 

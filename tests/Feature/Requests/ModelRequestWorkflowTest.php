@@ -184,7 +184,7 @@ class ModelRequestWorkflowTest extends TestCase
         $requester = User::factory()->create();
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested'))
+            ->getJson(route('api.requests.index'))
             ->assertForbidden();
     }
 
@@ -216,7 +216,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested'))
+            ->getJson(route('api.requests.index'))
             ->assertOk()
             ->assertJsonPath('total', 1)
             ->assertJsonPath('rows.0.request_id', $checkoutRequest->id)
@@ -273,7 +273,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $response = $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested', ['project_id' => $project->id]))
+            ->getJson(route('api.requests.index', ['project_id' => $project->id]))
             ->assertOk()
             ->json('rows');
 
@@ -330,7 +330,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $rows = $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested', ['project_id' => $project->id]))
+            ->getJson(route('api.requests.index', ['project_id' => $project->id]))
             ->assertOk()
             ->json('rows');
 
@@ -369,7 +369,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested', ['model_id' => $modelA->id]))
+            ->getJson(route('api.requests.index', ['model_id' => $modelA->id]))
             ->assertOk()
             ->assertJsonPath('total', 1)
             ->assertJsonPath('rows.0.name', 'Filtered Model');
@@ -402,7 +402,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested', ['project' => 'Alpha Expansion']))
+            ->getJson(route('api.requests.index', ['project' => 'Alpha Expansion']))
             ->assertOk()
             ->assertJsonPath('total', 1)
             ->assertJsonPath('rows.0.project', 'Alpha Expansion');
@@ -435,7 +435,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested', ['project_id' => $matchingProject->id]))
+            ->getJson(route('api.requests.index', ['project_id' => $matchingProject->id]))
             ->assertOk()
             ->assertJsonPath('total', 1)
             ->assertJsonPath('rows.0.project', 'Project One');
@@ -586,7 +586,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested'))
+            ->getJson(route('api.requests.index'))
             ->assertOk()
             ->assertJsonPath('rows.0.request_detail_url', route('hardware.index', [
                 'request_id' => $checkoutRequest->id,
@@ -612,7 +612,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested'))
+            ->getJson(route('api.requests.index'))
             ->assertOk()
             ->assertJsonPath('rows.0.reusable_now_url', route('hardware.index', [
                 'request_id' => $checkoutRequest->id,
@@ -1004,7 +1004,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame(CheckoutRequest::STATUS_CANCELED, $request->status);
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested'))
+            ->getJson(route('api.requests.index'))
             ->assertOk()
             ->assertJsonPath('total', 0);
     }
@@ -1433,7 +1433,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested'))
+            ->getJson(route('api.requests.index'))
             ->assertOk()
             ->assertJsonPath('rows.0.reserved_by_other_rfqs_count', 1)
             ->assertJsonPath('rows.0.requested_discipline', 'Reserved API');
@@ -1492,7 +1492,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested'))
+            ->getJson(route('api.requests.index'))
             ->assertOk()
             ->assertJsonPath('rows.0.reserved_count', 2);
     }
