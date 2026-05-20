@@ -31,6 +31,7 @@ class ModelRequestWorkflowTest extends TestCase
         $coordinatorB = User::factory()->create(['first_name' => 'Rabat', 'last_name' => 'RAC']);
         $companyA = Company::factory()->create(['name' => 'Casablanca Site']);
         $companyB = Company::factory()->create(['name' => 'Rabat Site']);
+        $destinationCompany = Company::factory()->create(['name' => 'Receiving Site']);
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
@@ -57,6 +58,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 2,
                 'requested_discipline_id' => $disciplineA->id,
+                'company_id' => $destinationCompany->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -70,6 +72,7 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->assertSame(2, $checkoutRequest->quantity);
         $this->assertSame($disciplineA->id, $checkoutRequest->requested_discipline_id);
+        $this->assertSame($destinationCompany->id, $checkoutRequest->company_id);
         $this->assertSame('2026-06-01', optional($checkoutRequest->needed_by_date)->format('Y-m-d'));
         $this->assertSame('pending', $checkoutRequest->status);
         $this->assertSame(2, $checkoutRequest->reusable_quantity);
@@ -96,12 +99,14 @@ class ModelRequestWorkflowTest extends TestCase
         Notification::assertSentTo($coordinatorA, RacScopedRequestSummaryNotification::class, function ($notification) use ($project, $disciplineA) {
             return $notification->projectName() === $project->name
                 && count($notification->lines()) === 1
+                && $notification->lines()[0]['company_name'] === 'Receiving Site'
                 && $notification->lines()[0]['discipline_name'] === $disciplineA->name
                 && $notification->lines()[0]['reusable_quantity'] === 1;
         });
         Notification::assertSentTo($coordinatorB, RacScopedRequestSummaryNotification::class, function ($notification) use ($project, $disciplineA) {
             return $notification->projectName() === $project->name
                 && count($notification->lines()) === 1
+                && $notification->lines()[0]['company_name'] === 'Receiving Site'
                 && $notification->lines()[0]['discipline_name'] === $disciplineA->name
                 && $notification->lines()[0]['reusable_quantity'] === 1;
         });
@@ -120,11 +125,15 @@ class ModelRequestWorkflowTest extends TestCase
             'created_by' => $requester->id,
         ]);
         $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
+        $destinationCompany = Company::factory()->create();
+        $destinationCompany = Company::factory()->create();
+        $destinationCompany = Company::factory()->create();
 
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 1,
                 'requested_discipline_id' => $discipline->id,
+                'company_id' => $destinationCompany->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -153,11 +162,13 @@ class ModelRequestWorkflowTest extends TestCase
             'created_by' => $requester->id,
         ]);
         $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
+        $destinationCompany = Company::factory()->create();
 
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 1,
                 'requested_discipline_id' => $discipline->id,
+                'company_id' => $destinationCompany->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -196,6 +207,7 @@ class ModelRequestWorkflowTest extends TestCase
             'name' => 'API Discipline',
             'created_by' => $requester->id,
         ]);
+        $destinationCompany = Company::factory()->create(['name' => 'API Destination']);
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'QA Routing Model',
@@ -208,6 +220,7 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_type' => AssetModel::class,
             'quantity' => 2,
             'requested_discipline_id' => $discipline->id,
+            'company_id' => $destinationCompany->id,
             'project_id' => $project->id,
             'reusable_quantity' => 1,
             'procurement_shortfall' => 1,
@@ -223,6 +236,8 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.qty', 2)
             ->assertJsonPath('rows.0.requested_discipline_id', $checkoutRequest->requested_discipline_id)
             ->assertJsonPath('rows.0.requested_discipline', 'API Discipline')
+            ->assertJsonPath('rows.0.company_id', $destinationCompany->id)
+            ->assertJsonPath('rows.0.company', 'API Destination')
             ->assertJsonPath('rows.0.status', 'Pending')
             ->assertJsonPath('rows.0.project', 'Request Tracking Project')
             ->assertJsonPath('rows.0.reusable_quantity', 1)
@@ -251,12 +266,15 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->createEligibleAsset($model, Company::factory()->create()->id, $disciplineA->id);
         $this->createEligibleAsset($model, Company::factory()->create()->id, $disciplineB->id);
+        $destinationCompanyA = Company::factory()->create();
+        $destinationCompanyB = Company::factory()->create();
 
         CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'requested_discipline_id' => $disciplineA->id,
+            'company_id' => $destinationCompanyA->id,
             'project_id' => $project->id,
             'quantity' => 1,
             'reusable_quantity' => 99,
@@ -267,6 +285,7 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'requested_discipline_id' => $disciplineB->id,
+            'company_id' => $destinationCompanyB->id,
             'project_id' => $project->id,
             'quantity' => 1,
             'reusable_quantity' => 0,
@@ -316,6 +335,7 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'requested_discipline_id' => $disciplineA->id,
+            'company_id' => Company::factory()->create()->id,
             'project_id' => $project->id,
             'quantity' => 1,
         ]);
@@ -325,6 +345,7 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'requested_discipline_id' => $disciplineB->id,
+            'company_id' => Company::factory()->create()->id,
             'project_id' => $project->id,
             'quantity' => 1,
         ]);
@@ -837,6 +858,7 @@ class ModelRequestWorkflowTest extends TestCase
             'created_by' => $requester->id,
         ]);
         $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
+        $destinationCompany = Company::factory()->create();
 
         $this->actingAs($requester)
             ->from(route('requestable-assets'))
@@ -844,6 +866,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'request-action' => 'create',
                 'request-quantity' => 2,
                 'requested_discipline_id' => $discipline->id,
+                'company_id' => $destinationCompany->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -890,6 +913,7 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_type' => AssetModel::class,
             'quantity' => 1,
             'requested_discipline_id' => $discipline->id,
+            'company_id' => $company->id,
             'project_id' => $project->id,
         ]);
 
@@ -904,6 +928,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'request-action' => 'update',
                 'request-quantity' => 5,
                 'requested_discipline_id' => $discipline->id,
+                'company_id' => $company->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-15',
             ])
@@ -937,6 +962,8 @@ class ModelRequestWorkflowTest extends TestCase
         $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
         $project = Project::factory()->create();
         $updatedProject = Project::factory()->create();
+        $company = Company::factory()->create();
+        $updatedCompany = Company::factory()->create();
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'reference_price' => 400,
@@ -953,6 +980,7 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'requested_discipline_id' => $discipline->id,
+            'company_id' => $company->id,
             'project_id' => $project->id,
             'quantity' => 1,
             'needed_by_date' => '2026-06-01',
@@ -963,6 +991,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'request-action' => 'update',
                 'request-quantity' => 2,
                 'requested_discipline_id' => $discipline->id,
+                'company_id' => $updatedCompany->id,
                 'project_id' => $updatedProject->id,
                 'needed_by_date' => '2026-07-01',
             ])
@@ -972,10 +1001,97 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->assertSame(2, $request->quantity);
         $this->assertSame($updatedProject->id, $request->project_id);
+        $this->assertSame($updatedCompany->id, $request->company_id);
         $this->assertSame('2026-07-01', optional($request->needed_by_date)->format('Y-m-d'));
         $this->assertSame(1, $request->reusable_quantity);
         $this->assertSame(1, $request->procurement_shortfall);
         $this->assertSame(400.0, (float) $request->estimated_savings);
+    }
+
+    public function test_model_request_requires_company()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $discipline = Discipline::create([
+            'name' => 'Company Required',
+            'created_by' => $requester->id,
+        ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
+
+        $this->actingAs($requester)
+            ->from(route('requestable-assets'))
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-action' => 'create',
+                'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
+            ])
+            ->assertSessionHasErrors('company_id');
+    }
+
+    public function test_model_request_duplicate_detection_is_scoped_by_destination_company()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $discipline = Discipline::create([
+            'name' => 'Duplicate Scope',
+            'created_by' => $requester->id,
+        ]);
+        $sourceCompany = Company::factory()->create();
+        $destinationCompanyA = Company::factory()->create();
+        $destinationCompanyB = Company::factory()->create();
+        $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-action' => 'create',
+                'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $destinationCompanyA->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-action' => 'create',
+                'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $destinationCompanyB->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($requester)
+            ->from(route('requestable-assets'))
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-action' => 'create',
+                'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $destinationCompanyA->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
+            ])
+            ->assertSessionHasErrors('project_id');
+
+        $this->assertSame(
+            2,
+            CheckoutRequest::query()
+                ->where('user_id', $requester->id)
+                ->where('requestable_id', $model->id)
+                ->where('requestable_type', AssetModel::class)
+                ->whereNull('canceled_at')
+                ->count()
+        );
     }
 
     public function test_requester_can_cancel_submitted_request_without_hard_deleting_it()
@@ -1023,6 +1139,7 @@ class ModelRequestWorkflowTest extends TestCase
             'created_by' => $requester->id,
         ]);
         $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
+        $destinationCompany = Company::factory()->create();
 
         $this->actingAs($requester)
             ->from(route('requestable-assets'))
@@ -1030,6 +1147,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'request-action' => 'create',
                 'request-quantity' => 1,
                 'requested_discipline_id' => $discipline->id,
+                'company_id' => $destinationCompany->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -1079,10 +1197,12 @@ class ModelRequestWorkflowTest extends TestCase
             'name' => 'Estimator',
             'created_by' => $requester->id,
         ])->id);
+        $destinationCompany = Company::factory()->create();
 
         $this->actingAs($requester)
             ->postJson(route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 3,
+                'company_id' => $destinationCompany->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -1123,9 +1243,11 @@ class ModelRequestWorkflowTest extends TestCase
             'name' => 'Bulk B',
             'created_by' => $requester->id,
         ])->id);
+        $destinationCompany = Company::factory()->create();
 
         $this->actingAs($requester)
             ->post(route('account.request-items-bulk'), [
+                'company_id' => $destinationCompany->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-20',
                 'model_quantities' => [
@@ -1199,11 +1321,13 @@ class ModelRequestWorkflowTest extends TestCase
                         'model_id' => $model->id,
                         'quantity' => 2,
                         'discipline_id' => $disciplineA->id,
+                        'company_id' => $companyId,
                     ],
                     [
                         'model_id' => $model->id,
                         'quantity' => 1,
                         'discipline_id' => $disciplineB->id,
+                        'company_id' => $companyId,
                     ],
                 ],
             ])
@@ -1223,6 +1347,7 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_type' => AssetModel::class,
             'project_id' => $project->id,
             'requested_discipline_id' => $disciplineA->id,
+            'company_id' => $companyId,
             'quantity' => 2,
         ]);
 
@@ -1232,8 +1357,107 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_type' => AssetModel::class,
             'project_id' => $project->id,
             'requested_discipline_id' => $disciplineB->id,
+            'company_id' => $companyId,
             'quantity' => 1,
         ]);
+    }
+
+    public function test_request_cart_submit_creates_distinct_requests_for_same_model_and_discipline_across_companies()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 100,
+        ]);
+        $discipline = Discipline::create(['name' => 'Shared Discipline', 'created_by' => $requester->id]);
+        $companyAId = Company::factory()->create()->id;
+        $companyBId = Company::factory()->create()->id;
+
+        $this->createEligibleAsset($model, $companyAId, $discipline->id);
+        $this->createEligibleAsset($model, $companyBId, $discipline->id);
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-cart.items.add'), [
+                'lines' => [
+                    [
+                        'model_id' => $model->id,
+                        'quantity' => 2,
+                        'discipline_id' => $discipline->id,
+                        'company_id' => $companyAId,
+                    ],
+                    [
+                        'model_id' => $model->id,
+                        'quantity' => 1,
+                        'discipline_id' => $discipline->id,
+                        'company_id' => $companyBId,
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('cart_count', 2);
+
+        $this->actingAs($requester)
+            ->post(route('account.request-cart.submit'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('checkout_requests', [
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $companyAId,
+            'quantity' => 2,
+        ]);
+
+        $this->assertDatabaseHas('checkout_requests', [
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $companyBId,
+            'quantity' => 1,
+        ]);
+    }
+
+    public function test_request_cart_preview_discards_legacy_lines_missing_company()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 100,
+        ]);
+        $discipline = Discipline::create(['name' => 'Legacy Cart Discipline', 'created_by' => $requester->id]);
+
+        $response = $this->actingAs($requester)
+            ->withSession([
+                'model_request_cart' => [
+                    $model->id.':'.$discipline->id => [
+                        'model_id' => $model->id,
+                        'quantity' => 2,
+                        'discipline_id' => $discipline->id,
+                    ],
+                ],
+            ])
+            ->postJson(route('account.request-cart.preview'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('cart_count', 0)
+            ->assertJsonPath('lines', []);
+
+        $this->assertSame([], session('model_request_cart'));
     }
 
     public function test_request_cart_submit_includes_requested_date_for_rac_notifications()
@@ -1266,6 +1490,7 @@ class ModelRequestWorkflowTest extends TestCase
                         'model_id' => $model->id,
                         'quantity' => 2,
                         'discipline_id' => $discipline->id,
+                        'company_id' => $companyId,
                     ],
                 ],
             ])
@@ -1326,11 +1551,13 @@ class ModelRequestWorkflowTest extends TestCase
                         'model_id' => $modelA->id,
                         'quantity' => 2,
                         'discipline_id' => $disciplineA->id,
+                        'company_id' => $companyId,
                     ],
                     [
                         'model_id' => $modelB->id,
                         'quantity' => 1,
                         'discipline_id' => $disciplineB->id,
+                        'company_id' => $companyId,
                     ],
                 ],
             ])
@@ -1381,6 +1608,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 1,
                 'requested_discipline_id' => $discipline->id,
+                'company_id' => $companyId,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -1527,6 +1755,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAs($requester)
             ->postJson(route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 3,
+                'company_id' => $companyId,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
@@ -1584,6 +1813,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAs($requester)
             ->postJson(route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
                 'request-quantity' => 3,
+                'company_id' => $companyId,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])

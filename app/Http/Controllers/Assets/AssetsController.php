@@ -69,10 +69,10 @@ class AssetsController extends Controller
         $requestReviewSummary = null;
 
         if ($request->filled('request_id')) {
-            $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project', 'requestedDiscipline'])->find((int) $request->input('request_id'));
+            $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project', 'company', 'requestedDiscipline'])->find((int) $request->input('request_id'));
 
             if (! $requestContext) {
-                $requestContext = CheckoutRequestCoordinator::with(['checkoutRequest.requestedItem', 'checkoutRequest.user', 'checkoutRequest.project', 'checkoutRequest.requestedDiscipline'])
+                $requestContext = CheckoutRequestCoordinator::with(['checkoutRequest.requestedItem', 'checkoutRequest.user', 'checkoutRequest.project', 'checkoutRequest.company', 'checkoutRequest.requestedDiscipline'])
                     ->find((int) $request->input('request_id'))
                     ?->checkoutRequest;
             }
@@ -89,6 +89,7 @@ class AssetsController extends Controller
 
             $requestReviewSummary = [
                 'project' => optional($requestContext->project)->name,
+                'company' => optional($requestContext->company)->name,
                 'discipline' => optional($requestContext->requestedDiscipline)->name,
                 'needed_by_date' => optional($requestContext->needed_by_date)?->format('Y-m-d'),
                 'total_needed' => (int) $requestContext->quantity,

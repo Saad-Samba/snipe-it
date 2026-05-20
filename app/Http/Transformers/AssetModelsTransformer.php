@@ -99,11 +99,15 @@ class AssetModelsTransformer
             && $requestingUser->hasAccess('models.request')
             && $assetmodel->deleted_at == '';
 
-        $activeRequest = $requestingUser ? $assetmodel->isRequestedBy($requestingUser) : null;
+        $activeRequests = $requestingUser
+            ? $assetmodel->requests->where('canceled_at', null)->where('user_id', $requestingUser->id)
+            : collect();
+        $activeRequest = $activeRequests->count() === 1 ? $activeRequests->first() : null;
         $permissions_array['available_actions']['request'] = $canRequestModels;
         $permissions_array['available_actions']['cancel_request'] = false;
         $permissions_array['available_actions']['update_request'] = false;
         $array['requested_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
+        $array['requested_company_id'] = $activeRequest ? (int) $activeRequest->company_id : null;
         $array['requested_project_id'] = $activeRequest ? (int) $activeRequest->project_id : null;
         $array['requested_total_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
         $array['requested_needed_by_date'] = $activeRequest && $activeRequest->needed_by_date

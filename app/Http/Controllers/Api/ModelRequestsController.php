@@ -21,6 +21,7 @@ class ModelRequestsController extends Controller
             ->with([
                 'requestedItem',
                 'project',
+                'company',
                 'requestedDiscipline',
                 'user',
             ])
@@ -80,6 +81,8 @@ class ModelRequestsController extends Controller
                 'qty' => (int) $checkoutRequest->quantity,
                 'requested_discipline_id' => $checkoutRequest->requested_discipline_id ? (int) $checkoutRequest->requested_discipline_id : null,
                 'requested_discipline' => e(optional($checkoutRequest->requestedDiscipline)->name),
+                'company_id' => $checkoutRequest->company_id ? (int) $checkoutRequest->company_id : null,
+                'company' => e(optional($checkoutRequest->company)->name),
                 'project_id' => $checkoutRequest->project_id ? (int) $checkoutRequest->project_id : null,
                 'project' => e(optional($checkoutRequest->project)->name),
                 'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),

@@ -137,16 +137,46 @@
                                                 <td>{{$requestableModel->assets->where('requestable', '1')->count()}}</td>
 
                                                 <td>
+                                                    @php($activeRequests = $requestableModel->requests->where('canceled_at', null)->where('user_id', Auth::id()))
+                                                    @php($activeRequest = $activeRequests->count() === 1 ? $activeRequests->first() : null)
+                                                    @php($hasMultipleActiveRequests = $activeRequests->count() > 1)
                                                     <form action="{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $requestableModel->id])}}" method="POST" accept-charset="utf-8">
                                                         {{ csrf_field() }}
+                                                        @if ($activeRequest)
+                                                            <input type="hidden" name="request-action" value="cancel">
+                                                        @endif
                                                     <div class="form-inline">
-                                                        <input type="text" style="width: 70px; margin-right: 10px;" class="form-control" name="request-quantity" value="" placeholder="{{ trans('general.qty') }}">
-                                                    @if ($requestableModel->isRequestedBy(Auth::user()))
+                                                        <input type="text" style="width: 70px; margin-right: 10px;" class="form-control" name="request-quantity" value="{{ $activeRequest?->quantity }}" placeholder="{{ trans('general.qty') }}">
+                                                        <select name="requested_discipline_id" class="form-control" style="margin-right: 10px; max-width: 180px;" required>
+                                                            <option value="">{{ trans('general.select_discipline') }}</option>
+                                                            @foreach(\App\Models\Discipline::orderBy('name')->get(['id', 'name']) as $discipline)
+                                                                <option value="{{ $discipline->id }}" @selected((int) $activeRequest?->requested_discipline_id === (int) $discipline->id)>{{ $discipline->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <select name="company_id" class="form-control" style="margin-right: 10px; max-width: 180px;" required>
+                                                            <option value="">{{ trans('general.select_company') }}</option>
+                                                            @foreach(\App\Models\Company::orderBy('name')->get(['id', 'name']) as $company)
+                                                                <option value="{{ $company->id }}" @selected((int) $activeRequest?->company_id === (int) $company->id)>{{ $company->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <select name="project_id" class="form-control" style="margin-right: 10px; max-width: 180px;" required>
+                                                            <option value="">{{ trans('general.select_project') }}</option>
+                                                            @foreach(\App\Models\Project::orderBy('name')->get(['id', 'name']) as $project)
+                                                                <option value="{{ $project->id }}" @selected((int) $activeRequest?->project_id === (int) $project->id)>{{ $project->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <input type="date" style="margin-right: 10px;" class="form-control" name="needed_by_date" value="{{ optional($activeRequest?->needed_by_date)->format('Y-m-d') }}" required>
+                                                    @if ($activeRequest)
                                                         <input class="btn btn-danger btn-sm" type="submit" value="{{ trans('button.cancel') }}">
                                                     @else
                                                         <input class="btn btn-primary btn-sm" type="submit" value="{{ trans('button.request') }}">
                                                     @endif
                                                     </div>
+                                                    @if ($hasMultipleActiveRequests)
+                                                        <p class="help-block" style="margin-top: 8px;">
+                                                            Manage existing requests from <a href="{{ route('requests.index', ['model_id' => $requestableModel->id]) }}">Submitted Requests</a>.
+                                                        </p>
+                                                    @endif
                                                     </form>
                                                 </td>
                                         </tr>

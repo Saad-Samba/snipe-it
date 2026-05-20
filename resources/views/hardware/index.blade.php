@@ -60,6 +60,7 @@
           @if (isset($requestContext) && $requestContext && isset($requestReviewSummary))
             <div class="alert alert-info" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
               <div><strong>Project</strong><br>{{ $requestReviewSummary['project'] ?: '-' }}</div>
+              <div><strong>{{ trans('general.company') }}</strong><br>{{ $requestReviewSummary['company'] ?: '-' }}</div>
               <div><strong>Discipline</strong><br>{{ $requestReviewSummary['discipline'] ?: '-' }}</div>
               <div><strong>Needed By</strong><br>{{ $requestReviewSummary['needed_by_date'] ?: '-' }}</div>
               <div><strong>Total Needed</strong><br>{{ $requestReviewSummary['total_needed'] }}</div>

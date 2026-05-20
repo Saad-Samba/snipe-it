@@ -12,6 +12,7 @@ use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\Company;
 use App\Models\Discipline;
 use App\Models\Project;
 use App\Models\Setting;
@@ -60,6 +61,7 @@ class ModelRequestsController extends Controller
         $this->ensureModelRequestProjectProvided($validated['project_id'] ?? null);
         $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
         $this->ensureModelRequestNeededByDateProvided($validated['needed_by_date'] ?? null);
+        $this->ensureModelRequestCompanyProvided(isset($validated['company_id']) ? (int) $validated['company_id'] : null);
 
         return response()->json(
             $this->estimateAssetModelRequest(
@@ -97,6 +99,7 @@ class ModelRequestsController extends Controller
         $quantity = (int) ($validated['request-quantity'] ?? 1);
         $requestAction = $validated['request-action'] ?? 'create';
         $requestedDisciplineId = isset($validated['requested_discipline_id']) ? (int) $validated['requested_discipline_id'] : null;
+        $companyId = isset($validated['company_id']) ? (int) $validated['company_id'] : null;
         $projectId = $validated['project_id'] ?? null;
         $neededByDate = $validated['needed_by_date'] ?? null;
         $data['item_quantity'] = $quantity;
@@ -104,6 +107,7 @@ class ModelRequestsController extends Controller
         $data['item'] = $item;
         $data['item_type'] = $itemType;
         $data['target'] = auth()->user();
+        $data['company'] = $companyId ? Company::find($companyId) : null;
         $data['project'] = $projectId ? Project::find($projectId) : null;
         $data['item_url'] = $fullItemType == Asset::class
             ? route('hardware.show', $item->id)
@@ -120,12 +124,24 @@ class ModelRequestsController extends Controller
                 $this->ensureModelRequestNeededByDateProvided($neededByDate);
                 $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
                 $this->ensureModelRequestDisciplineProvided($requestedDisciplineId);
+                $this->ensureModelRequestCompanyProvided($companyId);
             }
         }
 
         $existingRequest = $fullItemType == AssetModel::class
-            ? $this->findActiveModelProjectRequest($item, $user, (int) $projectId, $requestedDisciplineId)
+            ? $this->findActiveModelProjectRequest($item, $user, (int) $projectId, $requestedDisciplineId, $companyId)
             : $item_request;
+
+        if (
+            $fullItemType == AssetModel::class
+            && ! $isCancelRequest
+            && $requestAction === 'create'
+            && $existingRequest
+        ) {
+            throw ValidationException::withMessages([
+                'project_id' => 'You already have an active request for this model, project, discipline, and company.',
+            ]);
+        }
 
         if ($isCancelRequest) {
             if ($fullItemType == AssetModel::class && $existingRequest) {
@@ -153,6 +169,7 @@ class ModelRequestsController extends Controller
                     'project_id' => $projectId,
                     'needed_by_date' => $neededByDate,
                     'requested_discipline_id' => $requestedDisciplineId,
+                    'company_id' => $companyId,
                 ],
                 $this->estimateAssetModelRequest($item, $quantity, $neededByDate)
             )
@@ -195,6 +212,7 @@ class ModelRequestsController extends Controller
         }
 
         $validated = $request->validate([
+            'company_id' => ['required', 'integer', 'exists:companies,id'],
             'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
             'needed_by_date' => ['required', 'date'],
             'model_quantities' => ['required', 'array', 'min:1'],
@@ -213,13 +231,14 @@ class ModelRequestsController extends Controller
 
                 $requestAttributes = array_merge(
                     [
+                        'company_id' => (int) $validated['company_id'],
                         'project_id' => (int) $validated['project_id'],
                         'needed_by_date' => $validated['needed_by_date'],
                     ],
                     $this->estimateAssetModelRequest($item, (int) $quantity, $validated['needed_by_date'])
                 );
 
-                $existingRequest = $this->findActiveModelProjectRequest($item, $user, (int) $validated['project_id']);
+                $existingRequest = $this->findActiveModelProjectRequest($item, $user, (int) $validated['project_id'], null, (int) $validated['company_id']);
                 $checkoutRequest = $existingRequest
                     ? $this->updateExistingModelProjectRequest($existingRequest, (int) $quantity, $requestAttributes)
                     : $item->request((int) $quantity, $requestAttributes);
@@ -248,6 +267,7 @@ class ModelRequestsController extends Controller
             'lines.*.model_id' => ['required', 'integer', 'exists:models,id,deleted_at,NULL'],
             'lines.*.quantity' => ['required', 'integer', 'min:1'],
             'lines.*.discipline_id' => ['required', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
+            'lines.*.company_id' => ['required', 'integer', 'exists:companies,id'],
         ]);
 
         $user = auth()->user();
@@ -260,11 +280,13 @@ class ModelRequestsController extends Controller
             $model = AssetModel::findOrFail((int) $line['model_id']);
             $this->ensureModelRequestAuthorized($model, $user);
             $disciplineId = (int) $line['discipline_id'];
-            $key = $this->makeModelRequestCartKey((int) $line['model_id'], $disciplineId);
+            $companyId = (int) $line['company_id'];
+            $key = $this->makeModelRequestCartKey((int) $line['model_id'], $disciplineId, $companyId);
             $cart[$key] = [
                 'model_id' => (int) $line['model_id'],
                 'quantity' => (int) $line['quantity'],
                 'discipline_id' => $disciplineId,
+                'company_id' => $companyId,
             ];
         }
 
@@ -278,10 +300,11 @@ class ModelRequestsController extends Controller
         $validated = $request->validate([
             'model_id' => ['required', 'integer'],
             'discipline_id' => ['required', 'integer'],
+            'company_id' => ['required', 'integer'],
         ]);
 
         $cart = $this->getModelRequestCart($request);
-        unset($cart[$this->makeModelRequestCartKey((int) $validated['model_id'], (int) $validated['discipline_id'])]);
+        unset($cart[$this->makeModelRequestCartKey((int) $validated['model_id'], (int) $validated['discipline_id'], (int) $validated['company_id'])]);
         $this->putModelRequestCart($request, $cart);
 
         return response()->json(['status' => 'success', 'cart_count' => count($cart)]);
@@ -325,10 +348,12 @@ class ModelRequestsController extends Controller
             $model = AssetModel::findOrFail((int) $line['model_id']);
             $this->ensureModelRequestAuthorized($model, $user);
             $discipline = Discipline::findOrFail((int) $line['discipline_id']);
+            $company = Company::findOrFail((int) $line['company_id']);
 
             $previewLine = $this->buildModelRequestPreviewLine(
                 $model,
                 $discipline,
+                $company,
                 (int) $line['quantity'],
                 $projectId,
                 $neededByDate
@@ -387,13 +412,16 @@ class ModelRequestsController extends Controller
             foreach ($cart as $line) {
                 $item = AssetModel::findOrFail((int) $line['model_id']);
                 $disciplineId = (int) $line['discipline_id'];
+                $companyId = (int) $line['company_id'];
                 $quantity = (int) $line['quantity'];
 
                 $this->ensureModelRequestAuthorized($item, $user);
                 $this->ensureModelRequestDisciplineProvided($disciplineId);
+                $this->ensureModelRequestCompanyProvided($companyId);
 
                 $requestAttributes = array_merge(
                     [
+                        'company_id' => $companyId,
                         'project_id' => (int) $validated['project_id'],
                         'needed_by_date' => $validated['needed_by_date'],
                         'requested_discipline_id' => $disciplineId,
@@ -401,7 +429,7 @@ class ModelRequestsController extends Controller
                     $this->estimateAssetModelRequest($item, $quantity, $validated['needed_by_date'])
                 );
 
-                $existingRequest = $this->findActiveModelProjectRequest($item, $user, (int) $validated['project_id'], $disciplineId);
+                $existingRequest = $this->findActiveModelProjectRequest($item, $user, (int) $validated['project_id'], $disciplineId, $companyId);
                 $checkoutRequest = $existingRequest
                     ? $this->updateExistingModelProjectRequest($existingRequest, $quantity, $requestAttributes)
                     : $item->request($quantity, $requestAttributes);
@@ -459,6 +487,7 @@ class ModelRequestsController extends Controller
         $quantity = (int) ($validated['request-quantity'] ?? 0);
         $projectId = (int) ($validated['project_id'] ?? 0);
         $requestedDisciplineId = isset($validated['requested_discipline_id']) ? (int) $validated['requested_discipline_id'] : 0;
+        $companyId = isset($validated['company_id']) ? (int) $validated['company_id'] : 0;
         $neededByDate = $validated['needed_by_date'] ?? null;
 
         $item = $checkoutRequest->requestedItem;
@@ -469,11 +498,13 @@ class ModelRequestsController extends Controller
         $this->ensureModelRequestNeededByDateProvided($neededByDate);
         $this->ensureModelRequestQuantityProvided($quantity);
         $this->ensureModelRequestDisciplineProvided($requestedDisciplineId);
-        $this->ensureUniqueModelProjectRequest($item, auth()->user(), $projectId, $requestedDisciplineId, $checkoutRequest->id);
+        $this->ensureModelRequestCompanyProvided($companyId);
+        $this->ensureUniqueModelProjectRequest($item, auth()->user(), $projectId, $requestedDisciplineId, $companyId, $checkoutRequest->id);
 
         $checkoutRequest->quantity = $quantity;
         $checkoutRequest->project_id = $projectId;
         $checkoutRequest->requested_discipline_id = $requestedDisciplineId;
+        $checkoutRequest->company_id = $companyId;
         $checkoutRequest->needed_by_date = $neededByDate;
         $checkoutRequest->fill($this->estimateAssetModelRequest($item, $quantity, $neededByDate));
         $checkoutRequest->status = CheckoutRequest::STATUS_PENDING;
@@ -564,6 +595,7 @@ class ModelRequestsController extends Controller
             'request-action' => ['nullable', 'string', 'in:create,update,cancel'],
             'request-quantity' => ['nullable', 'integer', 'min:1'],
             'requested_discipline_id' => ['nullable', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
+            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
             'needed_by_date' => ['nullable', 'date'],
         ]);
@@ -611,12 +643,20 @@ class ModelRequestsController extends Controller
         }
     }
 
-    private function findActiveModelProjectRequest(AssetModel $item, User $user, int $projectId, ?int $disciplineId = null): ?CheckoutRequest
+    private function ensureModelRequestCompanyProvided(?int $companyId): void
+    {
+        if (! $companyId) {
+            throw ValidationException::withMessages(['company_id' => 'Company is required for model requests.']);
+        }
+    }
+
+    private function findActiveModelProjectRequest(AssetModel $item, User $user, int $projectId, ?int $disciplineId = null, ?int $companyId = null): ?CheckoutRequest
     {
         return $item->requests()
             ->where('user_id', $user->id)
             ->where('project_id', $projectId)
             ->where('requested_discipline_id', $disciplineId)
+            ->where('company_id', $companyId)
             ->whereNull('canceled_at')
             ->latest('id')
             ->first();
@@ -635,18 +675,52 @@ class ModelRequestsController extends Controller
     private function getModelRequestCart(Request $request): array
     {
         $cart = $request->session()->get(self::MODEL_REQUEST_CART_SESSION_KEY, []);
+        $normalizedCart = $this->normalizeModelRequestCart(is_array($cart) ? $cart : []);
 
-        return is_array($cart) ? $cart : [];
+        if ($normalizedCart !== $cart) {
+            $request->session()->put(self::MODEL_REQUEST_CART_SESSION_KEY, $normalizedCart);
+        }
+
+        return $normalizedCart;
     }
 
     private function putModelRequestCart(Request $request, array $cart): void
     {
-        $request->session()->put(self::MODEL_REQUEST_CART_SESSION_KEY, $cart);
+        $request->session()->put(self::MODEL_REQUEST_CART_SESSION_KEY, $this->normalizeModelRequestCart($cart));
     }
 
-    private function makeModelRequestCartKey(int $modelId, int $disciplineId): string
+    private function normalizeModelRequestCart(array $cart): array
     {
-        return $modelId.':'.$disciplineId;
+        $normalizedCart = [];
+
+        foreach ($cart as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            $modelId = (int) ($line['model_id'] ?? 0);
+            $quantity = (int) ($line['quantity'] ?? 0);
+            $disciplineId = (int) ($line['discipline_id'] ?? 0);
+            $companyId = (int) ($line['company_id'] ?? 0);
+
+            if ($modelId < 1 || $quantity < 1 || $disciplineId < 1 || $companyId < 1) {
+                continue;
+            }
+
+            $normalizedCart[$this->makeModelRequestCartKey($modelId, $disciplineId, $companyId)] = [
+                'model_id' => $modelId,
+                'quantity' => $quantity,
+                'discipline_id' => $disciplineId,
+                'company_id' => $companyId,
+            ];
+        }
+
+        return $normalizedCart;
+    }
+
+    private function makeModelRequestCartKey(int $modelId, int $disciplineId, int $companyId): string
+    {
+        return $modelId.':'.$disciplineId.':'.$companyId;
     }
 
     private function addCoordinatorSummaryLine(array $buckets, CheckoutRequest $checkoutRequest, User $requester, ?Project $project, string $submittedAt, $coordinatorMatches): array
@@ -673,6 +747,7 @@ class ModelRequestsController extends Controller
             $buckets[$coordinatorId]['lines'][] = [
                 'model_name' => $checkoutRequest->requestedItem()?->name ?? $checkoutRequest->name(),
                 'project_name' => $project?->name ?: '-',
+                'company_name' => optional($checkoutRequest->company)->name ?: '-',
                 'discipline_name' => optional($checkoutRequest->requestedDiscipline)->name ?: '-',
                 'requested_quantity' => (int) $checkoutRequest->quantity,
                 'reusable_quantity' => $reusableQuantity,
@@ -714,7 +789,7 @@ class ModelRequestsController extends Controller
         return route('hardware.index', $query);
     }
 
-    private function buildModelRequestPreviewLine(AssetModel $model, Discipline $discipline, int $quantity, ?int $projectId, ?string $neededByDate): array
+    private function buildModelRequestPreviewLine(AssetModel $model, Discipline $discipline, Company $company, int $quantity, ?int $projectId, ?string $neededByDate): array
     {
         $estimate = $neededByDate
             ? $this->estimateAssetModelRequest($model, $quantity, $neededByDate)
@@ -745,6 +820,8 @@ class ModelRequestsController extends Controller
             'model_name' => $model->name,
             'discipline_id' => (int) $discipline->id,
             'discipline_name' => $discipline->name,
+            'company_id' => (int) $company->id,
+            'company_name' => $company->name,
             'quantity' => $quantity,
             'reusable_quantity' => (int) ($estimate['reusable_quantity'] ?? 0),
             'due_back_before_needed_by_quantity' => (int) ($estimate['due_back_before_needed_by_quantity'] ?? 0),
@@ -767,12 +844,13 @@ class ModelRequestsController extends Controller
         abort_unless((int) $checkoutRequest->user_id === (int) auth()->id(), 403);
     }
 
-    private function ensureUniqueModelProjectRequest(AssetModel $item, User $user, int $projectId, int $disciplineId, ?int $ignoreRequestId = null): void
+    private function ensureUniqueModelProjectRequest(AssetModel $item, User $user, int $projectId, int $disciplineId, int $companyId, ?int $ignoreRequestId = null): void
     {
         $duplicateQuery = $item->requests()
             ->where('user_id', $user->id)
             ->where('project_id', $projectId)
             ->where('requested_discipline_id', $disciplineId)
+            ->where('company_id', $companyId)
             ->whereNull('canceled_at');
 
         if ($ignoreRequestId) {
@@ -781,7 +859,7 @@ class ModelRequestsController extends Controller
 
         if ($duplicateQuery->exists()) {
             throw ValidationException::withMessages([
-                'project_id' => 'You already have an active request for this model, project, and discipline.',
+                'project_id' => 'You already have an active request for this model, project, discipline, and company.',
             ]);
         }
     }
