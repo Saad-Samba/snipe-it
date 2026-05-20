@@ -75,6 +75,7 @@
                 buttonsClass: "tableButton tableButton btn-primary hidden-print",
                 buttonsOrder: [
                     'columns',
+                    'btnReuseAnalysisExport',
                     'btnAdd',
                     'btnShowDeleted',
                     'btnFilterObsoleteModels',
@@ -231,6 +232,24 @@
             });
 
         });
+    });
+
+
+    window.projectRequestButtons = () => ({
+        btnReuseAnalysisExport: {
+            text: 'Export Reuse Analysis',
+            icon: 'far fa-file-excel',
+            event () {
+                var exportUrl = $('#projectRequestsTable').data('reuse-analysis-export-url');
+
+                if (exportUrl) {
+                    window.location.href = exportUrl;
+                }
+            },
+            attributes: {
+                title: 'Export Reuse Analysis',
+            }
+        },
     });
 
 

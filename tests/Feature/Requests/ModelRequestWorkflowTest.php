@@ -15,8 +15,11 @@ use App\Models\Statuslabel;
 use App\Models\User;
 use App\Notifications\RacScopedRequestSummaryNotification;
 use App\Notifications\RequestAssetNotification;
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
+use ZipArchive;
 
 class ModelRequestWorkflowTest extends TestCase
 {
@@ -1828,6 +1831,98 @@ class ModelRequestWorkflowTest extends TestCase
             ]);
     }
 
+    public function test_authorized_requester_can_export_project_requests_into_reuse_analysis_workbook()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create(['name' => 'Reuse Export Project']);
+        $discipline = Discipline::create([
+            'name' => 'Platform',
+            'created_by' => $requester->id,
+        ]);
+        $company = Company::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'name' => 'Canoe Run',
+            'reference_price' => 1250,
+        ]);
+
+        $this->createEligibleAsset($model, $company->id, $discipline->id);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'project_id' => $project->id,
+            'quantity' => 2,
+            'reference_price_snapshot' => 1250,
+        ]);
+
+        $response = $this->actingAs($requester)
+            ->get(route('projects.requests.export-reuse-analysis', $project));
+
+        $response->assertOk();
+        $response->assertDownload('project-reuse-export-project-reuse-analysis-'.date('Y-m-d').'.xlsx');
+
+        $workbookPath = $response->baseResponse->getFile()->getPathname();
+
+        $this->assertSame('Platform', $this->workbookCellValue($workbookPath, 'B9'));
+        $this->assertSame($model->category->name, $this->workbookCellValue($workbookPath, 'C9'));
+        $this->assertSame('Canoe Run', $this->workbookCellValue($workbookPath, 'D9'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'E9'));
+        $this->assertSame('2', $this->workbookCellValue($workbookPath, 'G9'));
+        $this->assertSame('2500', $this->workbookCellValue($workbookPath, 'H9'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'Y9'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'Z9'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'AB9'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'AD9'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'AE9'));
+        $this->assertNull($this->workbookCellValue($workbookPath, 'W9'));
+        $this->assertNull($this->workbookCellValue($workbookPath, 'AG9'));
+        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'H9'));
+        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'W9'));
+    }
+
+    public function test_project_requests_reuse_analysis_export_requires_project_request_access()
+    {
+        $requester = User::factory()->create();
+        $project = Project::factory()->create();
+
+        $this->actingAs($requester)
+            ->get(route('projects.requests.export-reuse-analysis', $project))
+            ->assertForbidden();
+    }
+
+    public function test_project_requests_tab_configures_reuse_analysis_toolbar_button()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create(['name' => 'Requests Export Toolbar']);
+        $discipline = Discipline::create([
+            'name' => 'Toolbar Discipline',
+            'created_by' => $requester->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertOk()
+            ->assertSee('data-buttons="projectRequestButtons"', false)
+            ->assertSee(route('projects.requests.export-reuse-analysis', $project), false);
+    }
+
     private function createEligibleAsset(AssetModel $model, int $companyId, int $disciplineId): Asset
     {
         return Asset::factory()->create([
@@ -1846,5 +1941,77 @@ class ModelRequestWorkflowTest extends TestCase
         return Category::factory()->forAssets()->create([
             'manager_id' => $user->id,
         ]);
+    }
+
+    private function workbookCellValue(string $workbookPath, string $cellReference): ?string
+    {
+        $zip = new ZipArchive;
+        $zip->open($workbookPath);
+
+        $sharedStrings = $this->sharedStringsLookup((string) $zip->getFromName('xl/sharedStrings.xml'));
+        $sheetXPath = $this->worksheetXPath((string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+        $zip->close();
+
+        $cell = $sheetXPath->query(sprintf('//spreadsheet:c[@r="%s"]', $cellReference))->item(0);
+        if (! $cell) {
+            return null;
+        }
+
+        $valueNode = $sheetXPath->query('./spreadsheet:v', $cell)->item(0);
+        if (! $valueNode) {
+            return null;
+        }
+
+        if ($cell->attributes?->getNamedItem('t')?->nodeValue === 's') {
+            return $sharedStrings[(int) $valueNode->textContent] ?? null;
+        }
+
+        if (is_numeric($valueNode->textContent)) {
+            return rtrim(rtrim(number_format((float) $valueNode->textContent, 10, '.', ''), '0'), '.');
+        }
+
+        return $valueNode->textContent;
+    }
+
+    private function workbookCellHasFormula(string $workbookPath, string $cellReference): bool
+    {
+        $zip = new ZipArchive;
+        $zip->open($workbookPath);
+        $sheetXPath = $this->worksheetXPath((string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+        $zip->close();
+
+        return $sheetXPath->query(sprintf('//spreadsheet:c[@r="%s"]/spreadsheet:f', $cellReference))->length > 0;
+    }
+
+    private function worksheetXPath(string $worksheetXml): DOMXPath
+    {
+        $document = new DOMDocument('1.0', 'UTF-8');
+        $document->loadXML($worksheetXml);
+
+        $xpath = new DOMXPath($document);
+        $xpath->registerNamespace('spreadsheet', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+
+        return $xpath;
+    }
+
+    private function sharedStringsLookup(string $sharedStringsXml): array
+    {
+        $document = new DOMDocument('1.0', 'UTF-8');
+        $document->loadXML($sharedStringsXml);
+
+        $xpath = new DOMXPath($document);
+        $xpath->registerNamespace('spreadsheet', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+
+        $lookup = [];
+        foreach ($xpath->query('/spreadsheet:sst/spreadsheet:si') as $index => $sharedStringNode) {
+            $text = '';
+            foreach ($xpath->query('.//spreadsheet:t', $sharedStringNode) as $textNode) {
+                $text .= $textNode->textContent;
+            }
+
+            $lookup[$index] = $text;
+        }
+
+        return $lookup;
     }
 }

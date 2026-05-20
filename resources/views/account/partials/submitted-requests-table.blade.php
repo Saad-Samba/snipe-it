@@ -1,6 +1,10 @@
 <table
         data-cookie-id-table="{{ $tableId }}"
         data-id-table="{{ $tableId }}"
+        @if (!empty($reuseAnalysisExportUrl))
+        data-buttons="projectRequestButtons"
+        data-reuse-analysis-export-url="{{ $reuseAnalysisExportUrl }}"
+        @endif
         data-side-pagination="server"
         data-sort-order="desc"
         data-request-mode="{{ $requestMode ?? 'requester' }}"

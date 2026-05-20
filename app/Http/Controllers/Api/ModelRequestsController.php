@@ -17,7 +17,7 @@ class ModelRequestsController extends Controller
             abort(403, 'You are not authorized to view submitted requests.');
         }
 
-        $checkoutRequests = CheckoutRequest::query()
+        $checkoutRequests = CheckoutRequest::requesterScopedQuery(auth()->user())
             ->with([
                 'requestedItem',
                 'project',
@@ -25,8 +25,7 @@ class ModelRequestsController extends Controller
                 'requestedDiscipline',
                 'user',
             ])
-            ->where('user_id', auth()->id())
-            ->whereNull('canceled_at');
+        ;
 
         if ($request->filled('model_id')) {
             $checkoutRequests

@@ -106,6 +106,9 @@ Route::group(['middleware' => 'auth'], function () {
     /*
     * Projects
     */
+    Route::get('projects/{project}/requests/export-reuse-analysis', [ProjectsController::class, 'exportReuseAnalysis'])
+        ->name('projects.requests.export-reuse-analysis');
+
     Route::resource('projects', ProjectsController::class);
 
     /*
