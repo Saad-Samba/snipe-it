@@ -5,6 +5,8 @@ namespace Tests\Feature\AssetModels\Api;
 use App\Models\Asset;
 use App\Models\Company;
 use App\Models\AssetModel;
+use App\Models\CheckoutRequest;
+use App\Models\Project;
 use App\Models\Statuslabel;
 use App\Models\User;
 use App\Models\Category;
@@ -343,6 +345,53 @@ class IndexAssetModelsTest extends TestCase
                 ->where('rows.0.available_actions.cancel_request', false)
                 ->where('rows.0.available_actions.update_request', false)
                 ->where('rows.0.requested_quantity', null)
+                ->etc());
+    }
+
+    public function testAssetModelIndexDoesNotExposeSingularRequestMetadataWhenMultipleActiveRequestsExist()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $requester->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Requestable Multiple Requests Model',
+            'category_id' => $managedCategory->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'company_id' => Company::factory()->create()->id,
+            'project_id' => Project::factory()->create()->id,
+            'quantity' => 1,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'company_id' => Company::factory()->create()->id,
+            'project_id' => Project::factory()->create()->id,
+            'quantity' => 2,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Multiple Requests Model',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', true)
+                ->where('rows.0.requested_quantity', null)
+                ->where('rows.0.requested_company_id', null)
+                ->where('rows.0.requested_project_id', null)
+                ->where('rows.0.requested_needed_by_date', null)
                 ->etc());
     }
 

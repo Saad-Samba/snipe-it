@@ -137,7 +137,9 @@
                                                 <td>{{$requestableModel->assets->where('requestable', '1')->count()}}</td>
 
                                                 <td>
-                                                    @php($activeRequest = $requestableModel->isRequestedBy(Auth::user()))
+                                                    @php($activeRequests = $requestableModel->requests->where('canceled_at', null)->where('user_id', Auth::id()))
+                                                    @php($activeRequest = $activeRequests->count() === 1 ? $activeRequests->first() : null)
+                                                    @php($hasMultipleActiveRequests = $activeRequests->count() > 1)
                                                     <form action="{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $requestableModel->id])}}" method="POST" accept-charset="utf-8">
                                                         {{ csrf_field() }}
                                                         @if ($activeRequest)
@@ -170,6 +172,11 @@
                                                         <input class="btn btn-primary btn-sm" type="submit" value="{{ trans('button.request') }}">
                                                     @endif
                                                     </div>
+                                                    @if ($hasMultipleActiveRequests)
+                                                        <p class="help-block" style="margin-top: 8px;">
+                                                            Manage existing requests from <a href="{{ route('requests.index', ['model_id' => $requestableModel->id]) }}">Submitted Requests</a>.
+                                                        </p>
+                                                    @endif
                                                     </form>
                                                 </td>
                                         </tr>
