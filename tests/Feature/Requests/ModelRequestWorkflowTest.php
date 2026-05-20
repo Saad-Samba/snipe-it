@@ -1427,6 +1427,39 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_request_cart_preview_discards_legacy_lines_missing_company()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 100,
+        ]);
+        $discipline = Discipline::create(['name' => 'Legacy Cart Discipline', 'created_by' => $requester->id]);
+
+        $response = $this->actingAs($requester)
+            ->withSession([
+                'model_request_cart' => [
+                    $model->id.':'.$discipline->id => [
+                        'model_id' => $model->id,
+                        'quantity' => 2,
+                        'discipline_id' => $discipline->id,
+                    ],
+                ],
+            ])
+            ->postJson(route('account.request-cart.preview'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('cart_count', 0)
+            ->assertJsonPath('lines', []);
+
+        $this->assertSame([], session('model_request_cart'));
+    }
+
     public function test_request_cart_submit_includes_requested_date_for_rac_notifications()
     {
         Notification::fake();

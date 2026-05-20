@@ -675,13 +675,47 @@ class ModelRequestsController extends Controller
     private function getModelRequestCart(Request $request): array
     {
         $cart = $request->session()->get(self::MODEL_REQUEST_CART_SESSION_KEY, []);
+        $normalizedCart = $this->normalizeModelRequestCart(is_array($cart) ? $cart : []);
 
-        return is_array($cart) ? $cart : [];
+        if ($normalizedCart !== $cart) {
+            $request->session()->put(self::MODEL_REQUEST_CART_SESSION_KEY, $normalizedCart);
+        }
+
+        return $normalizedCart;
     }
 
     private function putModelRequestCart(Request $request, array $cart): void
     {
-        $request->session()->put(self::MODEL_REQUEST_CART_SESSION_KEY, $cart);
+        $request->session()->put(self::MODEL_REQUEST_CART_SESSION_KEY, $this->normalizeModelRequestCart($cart));
+    }
+
+    private function normalizeModelRequestCart(array $cart): array
+    {
+        $normalizedCart = [];
+
+        foreach ($cart as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            $modelId = (int) ($line['model_id'] ?? 0);
+            $quantity = (int) ($line['quantity'] ?? 0);
+            $disciplineId = (int) ($line['discipline_id'] ?? 0);
+            $companyId = (int) ($line['company_id'] ?? 0);
+
+            if ($modelId < 1 || $quantity < 1 || $disciplineId < 1 || $companyId < 1) {
+                continue;
+            }
+
+            $normalizedCart[$this->makeModelRequestCartKey($modelId, $disciplineId, $companyId)] = [
+                'model_id' => $modelId,
+                'quantity' => $quantity,
+                'discipline_id' => $disciplineId,
+                'company_id' => $companyId,
+            ];
+        }
+
+        return $normalizedCart;
     }
 
     private function makeModelRequestCartKey(int $modelId, int $disciplineId, int $companyId): string
