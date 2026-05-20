@@ -1604,6 +1604,7 @@
     }
 
     var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
+    var modelRequestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name']));
     var modelRequestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name']));
     var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
     var createProjectForRequestsUrl = '{{ route('account.request-projects.store') }}';
@@ -1631,6 +1632,17 @@
         modelRequestDisciplines.forEach(function(discipline) {
             var selected = String(discipline.id) === String(selectedDisciplineId) ? ' selected' : '';
             options.push('<option value=\"' + discipline.id + '\"' + selected + '>' + discipline.name + '</option>');
+        });
+
+        return options.join('');
+    }
+
+    function buildModelRequestCompanyOptions(selectedCompanyId) {
+        var options = ['<option value=\"\">{{ trans('general.select_company') }}</option>'];
+
+        modelRequestCompanies.forEach(function(company) {
+            var selected = String(company.id) === String(selectedCompanyId) ? ' selected' : '';
+            options.push('<option value=\"' + company.id + '\"' + selected + '>' + company.name + '</option>');
         });
 
         return options.join('');
@@ -1748,6 +1760,10 @@
             + '            <select name="requested_discipline_id" id="model-request-modal-discipline" class="form-control" required>' + buildModelRequestDisciplineOptions('') + '</select>'
             + '          </div>'
             + '          <div class="form-group">'
+            + '            <label for="model-request-modal-company">{{ trans('general.company') }}</label>'
+            + '            <select name="company_id" id="model-request-modal-company" class="form-control" required>' + buildModelRequestCompanyOptions('') + '</select>'
+            + '          </div>'
+            + '          <div class="form-group">'
             + '            <label for="model-request-modal-project">{{ trans('general.project') }}</label>'
             + '            <div class="input-group">'
             + '              <select name="project_id" id="model-request-modal-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
@@ -1782,7 +1798,7 @@
 
         $('body').append(modalHtml);
 
-        $('#model-request-modal-project, #model-request-modal-needed-by-date, #model-request-modal-quantity').on('change keyup', function () {
+        $('#model-request-modal-project, #model-request-modal-needed-by-date, #model-request-modal-quantity, #model-request-modal-company').on('change keyup', function () {
             updateModelRequestEstimateSummary();
         });
 
@@ -1811,6 +1827,12 @@
             + '          <div class="row">'
             + '            <div class="col-md-6">'
             + '              <div class="form-group">'
+            + '                <label for="model-request-cart-company">{{ trans('general.company') }}</label>'
+            + '                <select name="company_id" id="model-request-cart-company" class="form-control" required>' + buildModelRequestCompanyOptions('') + '</select>'
+            + '              </div>'
+            + '            </div>'
+            + '            <div class="col-md-6">'
+            + '              <div class="form-group">'
             + '                <label for="model-request-cart-project">{{ trans('general.project') }}</label>'
             + '                <div class="input-group">'
             + '                  <select name="project_id" id="model-request-cart-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
@@ -1820,6 +1842,8 @@
             + '                </div>'
             + '              </div>'
             + '            </div>'
+            + '          </div>'
+            + '          <div class="row">'
             + '            <div class="col-md-6">'
             + '              <div class="form-group">'
             + '                <label for="model-request-cart-needed-by-date">Needed By</label>'
@@ -1871,7 +1895,7 @@
 
         $('body').append(modalHtml);
 
-        $('#model-request-cart-project, #model-request-cart-needed-by-date').on('change keyup', function () {
+        $('#model-request-cart-company, #model-request-cart-project, #model-request-cart-needed-by-date').on('change keyup', function () {
             refreshModelRequestCartPreview();
         });
 
@@ -2010,6 +2034,8 @@
         $('#model-request-modal-quantity').val(options.quantity || '');
         $('#model-request-modal-discipline').html(buildModelRequestDisciplineOptions(options.requestedDisciplineId || ''));
         $('#model-request-modal-discipline').val(String(options.requestedDisciplineId || ''));
+        $('#model-request-modal-company').html(buildModelRequestCompanyOptions(options.companyId || ''));
+        $('#model-request-modal-company').val(String(options.companyId || ''));
         $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
         $('#model-request-modal-project').val(String(options.projectId || ''));
         $('#model-request-modal-needed-by-date').val(options.neededByDate || '');
@@ -2032,6 +2058,7 @@
     function estimateModelRequestModal() {
         var estimateUrl = $('#model-request-modal-form').data('estimate-url');
         var quantity = $('#model-request-modal-quantity').val();
+        var companyId = $('#model-request-modal-company').val();
         var projectId = $('#model-request-modal-project').val();
         var neededByDate = $('#model-request-modal-needed-by-date').val();
         var action = $('#model-request-modal-action').val();
@@ -2044,6 +2071,7 @@
                 _token: '{{ csrf_token() }}',
                 'request-action': action,
                 'request-quantity': quantity,
+                company_id: companyId,
                 project_id: projectId,
                 needed_by_date: neededByDate
             }
@@ -2069,13 +2097,14 @@
     }
 
     function updateModelRequestEstimateSummary() {
+        var companyId = $('#model-request-modal-company').val();
         var projectId = $('#model-request-modal-project').val();
         var neededByDate = $('#model-request-modal-needed-by-date').val();
         var quantity = $('#model-request-modal-quantity').val();
 
         resetModelRequestEstimateState();
 
-        if (!projectId || !neededByDate || !quantity) {
+        if (!companyId || !projectId || !neededByDate || !quantity) {
             return;
         }
 
@@ -2125,9 +2154,10 @@
     }
 
     function refreshModelRequestCartPreview() {
+        var companyId = $('#model-request-cart-company').val();
         var projectId = $('#model-request-cart-project').val();
         var neededByDate = $('#model-request-cart-needed-by-date').val();
-        var metadataReady = Boolean(projectId && neededByDate);
+        var metadataReady = Boolean(companyId && projectId && neededByDate);
 
         $.ajax({
             url: modelRequestCartPreviewUrl,
@@ -2135,6 +2165,7 @@
             dataType: 'json',
             data: {
                 _token: '{{ csrf_token() }}',
+                company_id: companyId,
                 project_id: projectId,
                 needed_by_date: neededByDate
             }
@@ -2308,7 +2339,7 @@
             var modifyTitle = 'Modify request';
             var estimateUrl = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.model_id);
             actions.push(
-                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', projectId: \'' + (row.project_id || '') + '\', requestedDisciplineId: \'' + (row.requested_discipline_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
+                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', companyId: \'' + (row.company_id || '') + '\', projectId: \'' + (row.project_id || '') + '\', requestedDisciplineId: \'' + (row.requested_discipline_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
                 + '<i class="fas fa-pen" aria-hidden="true"></i>'
                 + '<span class="sr-only">' + modifyTitle + '</span>'
                 + '</button>'

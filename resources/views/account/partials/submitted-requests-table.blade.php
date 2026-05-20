@@ -18,6 +18,7 @@
         <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Model</th>
         <th data-field="reference_price_snapshot" data-sortable="true" data-formatter="requestReferencePriceFormatter">Reference Price</th>
         <th data-field="qty" data-sortable="true" data-request-tooltip="Total quantity needed for this model request.">Quantity</th>
+        <th data-field="company" data-sortable="true">{{ trans('general.company') }}</th>
         <th data-field="requested_discipline" data-sortable="true">Discipline</th>
         <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
         <th data-field="needed_by_date" data-sortable="true" data-formatter="dateDisplayFormatter">Needed By</th>

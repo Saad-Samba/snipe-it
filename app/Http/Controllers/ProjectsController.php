@@ -56,6 +56,8 @@ class ProjectsController extends Controller
         if ($isRequesterProjectReview) {
             $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
             abort_if(($requestSummary['requests_count'] ?? 0) < 1, 403);
+        } elseif (! auth()->user()->isSuperUser() && auth()->user()->hasAccess('models.request')) {
+            abort(403);
         } else {
             $this->authorize('view', $project);
         }

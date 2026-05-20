@@ -15,8 +15,9 @@
     <thead>
     <tr>
         <th align="left" style="padding:0 12px 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368; width:58%;">Model</th>
-        <th align="center" style="padding:0 12px 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368; width:12%;">{{ trans('general.qty') }}</th>
-        <th align="right" style="padding:0 0 10px 12px; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368; width:30%;">Needed By</th>
+        <th align="left" style="padding:0 12px 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368; width:18%;">{{ trans('general.company') }}</th>
+        <th align="center" style="padding:0 12px 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368; width:10%;">{{ trans('general.qty') }}</th>
+        <th align="right" style="padding:0 0 10px 12px; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368; width:14%;">Needed By</th>
     </tr>
     </thead>
     <tbody>
@@ -24,6 +25,9 @@
         <tr>
             <td align="left" style="padding:14px 12px 14px 0; border-bottom:1px solid #f1f3f4;">
                 <a href="{{ $line['model_show_url'] }}">{{ $line['model_name'] }}</a>
+            </td>
+            <td align="left" style="padding:14px 12px 14px 0; border-bottom:1px solid #f1f3f4; white-space:nowrap;">
+                {{ $line['company_name'] }}
             </td>
             <td align="center" style="padding:14px 12px; border-bottom:1px solid #f1f3f4; white-space:nowrap;">
                 {{ $line['requested_quantity'] }}

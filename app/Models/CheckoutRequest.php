@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
+use App\Models\Company;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -26,6 +27,7 @@ class CheckoutRequest extends Model
     protected $fillable = [
         'user_id',
         'requested_discipline_id',
+        'company_id',
         'project_id',
         'needed_by_date',
         'quantity',
@@ -65,6 +67,11 @@ class CheckoutRequest extends Model
     public function requestedDiscipline()
     {
         return $this->belongsTo(Discipline::class, 'requested_discipline_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 
     public function project()
