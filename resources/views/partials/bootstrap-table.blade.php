@@ -1827,12 +1827,6 @@
             + '          <div class="row">'
             + '            <div class="col-md-6">'
             + '              <div class="form-group">'
-            + '                <label for="model-request-cart-company">{{ trans('general.company') }}</label>'
-            + '                <select name="company_id" id="model-request-cart-company" class="form-control" required>' + buildModelRequestCompanyOptions('') + '</select>'
-            + '              </div>'
-            + '            </div>'
-            + '            <div class="col-md-6">'
-            + '              <div class="form-group">'
             + '                <label for="model-request-cart-project">{{ trans('general.project') }}</label>'
             + '                <div class="input-group">'
             + '                  <select name="project_id" id="model-request-cart-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
@@ -1857,6 +1851,7 @@
             + '                <tr>'
             + '                  <th>Model</th>'
             + '                  <th>Discipline</th>'
+            + '                  <th>{{ trans('general.company') }}</th>'
             + '                  <th>Quantity</th>'
             + '                  <th>Reusable Now</th>'
             + '                  <th>Due Back</th>'
@@ -1895,7 +1890,7 @@
 
         $('body').append(modalHtml);
 
-        $('#model-request-cart-company, #model-request-cart-project, #model-request-cart-needed-by-date').on('change keyup', function () {
+        $('#model-request-cart-project, #model-request-cart-needed-by-date').on('change keyup', function () {
             refreshModelRequestCartPreview();
         });
 
@@ -1933,6 +1928,13 @@
         return Number.isFinite(disciplineId) ? disciplineId : 0;
     }
 
+    function getInlineModelCompanyId(modelId) {
+        var value = $('#model-booking-company-' + modelId).val();
+        var companyId = parseInt(value, 10);
+
+        return Number.isFinite(companyId) ? companyId : 0;
+    }
+
     function buildInlineBookingInput(modelId, quantity) {
         return '<input type="number" min="1" id="model-booking-quantity-' + modelId + '" value="' + quantity + '" class="form-control input-sm model-request-inline-control" style="width:70px;height:30px;padding:4px 6px;display:inline-block;">';
     }
@@ -1940,6 +1942,12 @@
     function buildInlineDisciplineSelect(modelId, selectedDisciplineId) {
         return '<select id="model-booking-discipline-' + modelId + '" class="form-control input-sm model-request-inline-control" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
             + buildModelRequestDisciplineOptions(selectedDisciplineId || '')
+            + '</select>';
+    }
+
+    function buildInlineCompanySelect(modelId, selectedCompanyId) {
+        return '<select id="model-booking-company-' + modelId + '" class="form-control input-sm model-request-inline-control" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
+            + buildModelRequestCompanyOptions(selectedCompanyId || '')
             + '</select>';
     }
 
@@ -2002,6 +2010,7 @@
 
             var quantity = getInlineModelBookingQuantity(row.id);
             var disciplineId = getInlineModelDisciplineId(row.id);
+            var companyId = getInlineModelCompanyId(row.id);
 
             if (!quantity) {
                 window.alert('Enter a total needed quantity for each selected model.');
@@ -2013,10 +2022,16 @@
                 return false;
             }
 
+            if (!companyId) {
+                window.alert('Select a company for each selected model.');
+                return false;
+            }
+
             lines.push({
                 model_id: row.id,
                 quantity: quantity,
-                discipline_id: disciplineId
+                discipline_id: disciplineId,
+                company_id: companyId
             });
         }
 
@@ -2116,7 +2131,7 @@
         var rows = [];
 
         if (!lines.length) {
-            rows.push('<tr><td colspan="10" class="text-muted">Your request cart is empty.</td></tr>');
+            rows.push('<tr><td colspan="11" class="text-muted">Your request cart is empty.</td></tr>');
         }
 
         lines.forEach(function (line) {
@@ -2124,6 +2139,7 @@
                 '<tr>'
                 + '<td>' + escapeHtml(line.model_name) + '</td>'
                 + '<td>' + escapeHtml(line.discipline_name) + '</td>'
+                + '<td>' + escapeHtml(line.company_name) + '</td>'
                 + '<td>' + line.quantity + '</td>'
                 + '<td>' + (metadataReady ? line.reusable_quantity : '&mdash;') + '</td>'
                 + '<td>' + (metadataReady ? line.due_back_before_needed_by_quantity : '&mdash;') + '</td>'
@@ -2131,7 +2147,7 @@
                 + '<td>' + (metadataReady ? line.procurement_shortfall : '&mdash;') + '</td>'
                 + '<td>' + (metadataReady ? line.estimated_savings_formatted : '&mdash;') + '</td>'
                 + '<td>' + (metadataReady ? line.amount_to_buy_formatted : '&mdash;') + '</td>'
-                + '<td><button type="button" class="btn btn-danger btn-xs" onclick="removeLineFromModelRequestCart(' + line.model_id + ', ' + line.discipline_id + ')"><i class="fas fa-times" aria-hidden="true"></i></button></td>'
+                + '<td><button type="button" class="btn btn-danger btn-xs" onclick="removeLineFromModelRequestCart(' + line.model_id + ', ' + line.discipline_id + ', ' + line.company_id + ')"><i class="fas fa-times" aria-hidden="true"></i></button></td>'
                 + '</tr>'
             );
         });
@@ -2154,10 +2170,9 @@
     }
 
     function refreshModelRequestCartPreview() {
-        var companyId = $('#model-request-cart-company').val();
         var projectId = $('#model-request-cart-project').val();
         var neededByDate = $('#model-request-cart-needed-by-date').val();
-        var metadataReady = Boolean(companyId && projectId && neededByDate);
+        var metadataReady = Boolean(projectId && neededByDate);
 
         $.ajax({
             url: modelRequestCartPreviewUrl,
@@ -2165,7 +2180,6 @@
             dataType: 'json',
             data: {
                 _token: '{{ csrf_token() }}',
-                company_id: companyId,
                 project_id: projectId,
                 needed_by_date: neededByDate
             }
@@ -2195,11 +2209,12 @@
         refreshModelRequestCartPreview();
     }
 
-    function removeLineFromModelRequestCart(modelId, disciplineId) {
+    function removeLineFromModelRequestCart(modelId, disciplineId, companyId) {
         $.post(modelRequestCartRemoveUrl, {
             _token: '{{ csrf_token() }}',
             model_id: modelId,
-            discipline_id: disciplineId
+            discipline_id: disciplineId,
+            company_id: companyId
         }).done(function (response) {
             updateModelRequestCartCount(response.cart_count || 0);
             refreshModelRequestCartPreview();
@@ -2291,7 +2306,8 @@
             return '<div style="display:flex;align-items:center;gap:6px;min-width:104px;">'
                 + buildInlineBookingInput(row.id, requestedQuantity)
                 + buildInlineDisciplineSelect(row.id, '')
-                + '<button type="button" class="btn btn-primary btn-sm model-request-inline-control" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="Add to cart" onclick="var quantity = getInlineModelBookingQuantity(' + row.id + '); var disciplineId = getInlineModelDisciplineId(' + row.id + '); if (!quantity) { window.alert(\'Enter a total needed quantity first.\'); return; } if (!disciplineId) { window.alert(\'Select a discipline first.\'); return; } addLinesToRequestCart([{ model_id: ' + row.id + ', quantity: quantity, discipline_id: disciplineId }], false);"><i class=\"fas fa-cart-plus\" aria-hidden=\"true\"></i><span class=\"sr-only\">Add to cart</span></button>'
+                + buildInlineCompanySelect(row.id, '')
+                + '<button type="button" class="btn btn-primary btn-sm model-request-inline-control" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="Add to cart" onclick="var quantity = getInlineModelBookingQuantity(' + row.id + '); var disciplineId = getInlineModelDisciplineId(' + row.id + '); var companyId = getInlineModelCompanyId(' + row.id + '); if (!quantity) { window.alert(\'Enter a total needed quantity first.\'); return; } if (!disciplineId) { window.alert(\'Select a discipline first.\'); return; } if (!companyId) { window.alert(\'Select a company first.\'); return; } addLinesToRequestCart([{ model_id: ' + row.id + ', quantity: quantity, discipline_id: disciplineId, company_id: companyId }], false);"><i class=\"fas fa-cart-plus\" aria-hidden=\"true\"></i><span class=\"sr-only\">Add to cart</span></button>'
                 + '</div>';
         }
 

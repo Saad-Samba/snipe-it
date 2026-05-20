@@ -267,6 +267,7 @@ class ModelRequestsController extends Controller
             'lines.*.model_id' => ['required', 'integer', 'exists:models,id,deleted_at,NULL'],
             'lines.*.quantity' => ['required', 'integer', 'min:1'],
             'lines.*.discipline_id' => ['required', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
+            'lines.*.company_id' => ['required', 'integer', 'exists:companies,id'],
         ]);
 
         $user = auth()->user();
@@ -279,11 +280,13 @@ class ModelRequestsController extends Controller
             $model = AssetModel::findOrFail((int) $line['model_id']);
             $this->ensureModelRequestAuthorized($model, $user);
             $disciplineId = (int) $line['discipline_id'];
-            $key = $this->makeModelRequestCartKey((int) $line['model_id'], $disciplineId);
+            $companyId = (int) $line['company_id'];
+            $key = $this->makeModelRequestCartKey((int) $line['model_id'], $disciplineId, $companyId);
             $cart[$key] = [
                 'model_id' => (int) $line['model_id'],
                 'quantity' => (int) $line['quantity'],
                 'discipline_id' => $disciplineId,
+                'company_id' => $companyId,
             ];
         }
 
@@ -297,10 +300,11 @@ class ModelRequestsController extends Controller
         $validated = $request->validate([
             'model_id' => ['required', 'integer'],
             'discipline_id' => ['required', 'integer'],
+            'company_id' => ['required', 'integer'],
         ]);
 
         $cart = $this->getModelRequestCart($request);
-        unset($cart[$this->makeModelRequestCartKey((int) $validated['model_id'], (int) $validated['discipline_id'])]);
+        unset($cart[$this->makeModelRequestCartKey((int) $validated['model_id'], (int) $validated['discipline_id'], (int) $validated['company_id'])]);
         $this->putModelRequestCart($request, $cart);
 
         return response()->json(['status' => 'success', 'cart_count' => count($cart)]);
@@ -316,7 +320,6 @@ class ModelRequestsController extends Controller
     public function previewRequestCart(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
             'needed_by_date' => ['nullable', 'date'],
         ]);
@@ -345,10 +348,12 @@ class ModelRequestsController extends Controller
             $model = AssetModel::findOrFail((int) $line['model_id']);
             $this->ensureModelRequestAuthorized($model, $user);
             $discipline = Discipline::findOrFail((int) $line['discipline_id']);
+            $company = Company::findOrFail((int) $line['company_id']);
 
             $previewLine = $this->buildModelRequestPreviewLine(
                 $model,
                 $discipline,
+                $company,
                 (int) $line['quantity'],
                 $projectId,
                 $neededByDate
@@ -383,7 +388,6 @@ class ModelRequestsController extends Controller
     public function submitRequestCart(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'company_id' => ['required', 'integer', 'exists:companies,id'],
             'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
             'needed_by_date' => ['required', 'date'],
         ]);
@@ -408,14 +412,16 @@ class ModelRequestsController extends Controller
             foreach ($cart as $line) {
                 $item = AssetModel::findOrFail((int) $line['model_id']);
                 $disciplineId = (int) $line['discipline_id'];
+                $companyId = (int) $line['company_id'];
                 $quantity = (int) $line['quantity'];
 
                 $this->ensureModelRequestAuthorized($item, $user);
                 $this->ensureModelRequestDisciplineProvided($disciplineId);
+                $this->ensureModelRequestCompanyProvided($companyId);
 
                 $requestAttributes = array_merge(
                     [
-                        'company_id' => (int) $validated['company_id'],
+                        'company_id' => $companyId,
                         'project_id' => (int) $validated['project_id'],
                         'needed_by_date' => $validated['needed_by_date'],
                         'requested_discipline_id' => $disciplineId,
@@ -423,7 +429,7 @@ class ModelRequestsController extends Controller
                     $this->estimateAssetModelRequest($item, $quantity, $validated['needed_by_date'])
                 );
 
-                $existingRequest = $this->findActiveModelProjectRequest($item, $user, (int) $validated['project_id'], $disciplineId, (int) $validated['company_id']);
+                $existingRequest = $this->findActiveModelProjectRequest($item, $user, (int) $validated['project_id'], $disciplineId, $companyId);
                 $checkoutRequest = $existingRequest
                     ? $this->updateExistingModelProjectRequest($existingRequest, $quantity, $requestAttributes)
                     : $item->request($quantity, $requestAttributes);
@@ -678,9 +684,9 @@ class ModelRequestsController extends Controller
         $request->session()->put(self::MODEL_REQUEST_CART_SESSION_KEY, $cart);
     }
 
-    private function makeModelRequestCartKey(int $modelId, int $disciplineId): string
+    private function makeModelRequestCartKey(int $modelId, int $disciplineId, int $companyId): string
     {
-        return $modelId.':'.$disciplineId;
+        return $modelId.':'.$disciplineId.':'.$companyId;
     }
 
     private function addCoordinatorSummaryLine(array $buckets, CheckoutRequest $checkoutRequest, User $requester, ?Project $project, string $submittedAt, $coordinatorMatches): array
@@ -749,7 +755,7 @@ class ModelRequestsController extends Controller
         return route('hardware.index', $query);
     }
 
-    private function buildModelRequestPreviewLine(AssetModel $model, Discipline $discipline, int $quantity, ?int $projectId, ?string $neededByDate): array
+    private function buildModelRequestPreviewLine(AssetModel $model, Discipline $discipline, Company $company, int $quantity, ?int $projectId, ?string $neededByDate): array
     {
         $estimate = $neededByDate
             ? $this->estimateAssetModelRequest($model, $quantity, $neededByDate)
@@ -780,6 +786,8 @@ class ModelRequestsController extends Controller
             'model_name' => $model->name,
             'discipline_id' => (int) $discipline->id,
             'discipline_name' => $discipline->name,
+            'company_id' => (int) $company->id,
+            'company_name' => $company->name,
             'quantity' => $quantity,
             'reusable_quantity' => (int) ($estimate['reusable_quantity'] ?? 0),
             'due_back_before_needed_by_quantity' => (int) ($estimate['due_back_before_needed_by_quantity'] ?? 0),
