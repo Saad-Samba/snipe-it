@@ -2439,6 +2439,18 @@
         return formatEstimateCurrency(value);
     }
 
+    function requestTotalNeedCostFormatter(value, row) {
+        if (row && row.total_need_cost_formatted) {
+            return row.total_need_cost_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
     function requestAmountToBuyFormatter(value, row) {
         if (row && row.amount_to_buy_formatted) {
             return row.amount_to_buy_formatted;

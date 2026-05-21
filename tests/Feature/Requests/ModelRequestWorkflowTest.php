@@ -245,6 +245,9 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.procurement_shortfall', 1)
             ->assertJsonPath('rows.0.estimated_savings', 499.99)
             ->assertJsonPath('rows.0.amount_to_buy', 499.99)
+            ->assertJsonPath('rows.0.category', $model->category->name)
+            ->assertJsonPath('rows.0.total_need_cost', 999.98)
+            ->assertJsonPath('rows.0.total_need_cost_formatted', '999.98')
             ->assertJsonPath('rows.0.reference_price_snapshot_formatted', '499.99')
             ->assertJsonPath('rows.0.reserved_count', 0)
             ->assertJsonPath('rows.0.reserved_by_other_rfqs_count', 0)
@@ -1828,6 +1831,40 @@ class ModelRequestWorkflowTest extends TestCase
             ]);
     }
 
+    public function test_project_requests_tab_shows_category_and_total_need_cost_columns()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create(['name' => 'Requests Columns Project']);
+        $discipline = Discipline::create([
+            'name' => 'Requests Columns Discipline',
+            'created_by' => $requester->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'reference_price' => 1200,
+        ]);
+
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'project_id' => $project->id,
+            'quantity' => 2,
+            'reference_price_snapshot' => 1200,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertOk()
+            ->assertSee('data-field="category"', false)
+            ->assertSee('data-field="total_need_cost"', false)
+            ->assertSee('Category', false)
+            ->assertSee('Total Need Cost', false);
+    }
+
     private function createEligibleAsset(AssetModel $model, int $companyId, int $disciplineId): Asset
     {
         return Asset::factory()->create([
@@ -1847,4 +1884,5 @@ class ModelRequestWorkflowTest extends TestCase
             'manager_id' => $user->id,
         ]);
     }
+
 }

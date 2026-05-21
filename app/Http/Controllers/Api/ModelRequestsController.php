@@ -17,7 +17,7 @@ class ModelRequestsController extends Controller
             abort(403, 'You are not authorized to view submitted requests.');
         }
 
-        $checkoutRequests = CheckoutRequest::query()
+        $checkoutRequests = CheckoutRequest::requesterScopedQuery(auth()->user())
             ->with([
                 'requestedItem',
                 'project',
@@ -25,8 +25,7 @@ class ModelRequestsController extends Controller
                 'requestedDiscipline',
                 'user',
             ])
-            ->where('user_id', auth()->id())
-            ->whereNull('canceled_at');
+        ;
 
         if ($request->filled('model_id')) {
             $checkoutRequests
@@ -75,6 +74,7 @@ class ModelRequestsController extends Controller
             $assets = [
                 'request_id' => (int) $checkoutRequest->id,
                 'image' => e($checkoutRequest->itemRequested()->present()->getImageUrl()),
+                'category' => e($this->categoryName($checkoutRequest)),
                 'name' => e($checkoutRequest->name()),
                 'model_id' => $checkoutRequest->requestable_type === AssetModel::class ? (int) $checkoutRequest->requestable_id : null,
                 'type' => e($checkoutRequest->itemType()),
@@ -99,6 +99,12 @@ class ModelRequestsController extends Controller
                 'reference_price_snapshot' => $checkoutRequest->reference_price_snapshot !== null ? (float) $checkoutRequest->reference_price_snapshot : null,
                 'reference_price_snapshot_formatted' => $checkoutRequest->reference_price_snapshot !== null
                     ? Helper::formatCurrencyOutput($checkoutRequest->reference_price_snapshot)
+                    : null,
+                'total_need_cost' => $checkoutRequest->reference_price_snapshot !== null
+                    ? round((float) $checkoutRequest->reference_price_snapshot * (int) $checkoutRequest->quantity, 2)
+                    : null,
+                'total_need_cost_formatted' => $checkoutRequest->reference_price_snapshot !== null
+                    ? Helper::formatCurrencyOutput((float) $checkoutRequest->reference_price_snapshot * (int) $checkoutRequest->quantity)
                     : null,
                 'reserved_count' => $checkoutRequest->reservedAssetsCount(),
                 'reserved_by_other_rfqs_count' => $checkoutRequest->reservedByOtherRfqsCount(),
@@ -144,5 +150,14 @@ class ModelRequestsController extends Controller
         }
 
         return $results;
+    }
+
+    private function categoryName(CheckoutRequest $checkoutRequest): ?string
+    {
+        if ($checkoutRequest->requestable_type === AssetModel::class) {
+            return optional(optional($checkoutRequest->itemRequested())->category)->name;
+        }
+
+        return optional(optional(optional($checkoutRequest->itemRequested())->model)->category)->name;
     }
 }

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Project;
 use App\Models\CheckoutRequest;
+use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
@@ -48,14 +48,14 @@ class ProjectsController extends Controller
     public function show(Project $project) : View
     {
         $activeTab = request()->query('tab', 'assets');
+        $isRequestsTab = $activeTab === 'requests';
         $isRequesterProjectReview = ! auth()->user()->isSuperUser()
             && auth()->user()->hasAccess('models.request')
-            && $activeTab === 'requests';
+            && $isRequestsTab;
         $requestSummary = null;
 
         if ($isRequesterProjectReview) {
-            $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
-            abort_if(($requestSummary['requests_count'] ?? 0) < 1, 403);
+            $requestSummary = $this->authorizeProjectRequestsAccess($project);
         } elseif (! auth()->user()->isSuperUser() && auth()->user()->hasAccess('models.request')) {
             abort(403);
         } else {
@@ -107,5 +107,21 @@ class ProjectsController extends Controller
         $project->delete();
 
         return redirect()->route('projects.index')->with('success', trans('admin/projects/message.delete.success'));
+    }
+
+    private function authorizeProjectRequestsAccess(Project $project): ?array
+    {
+        abort_unless(auth()->user()->hasAccess('models.request'), 403, 'You are not authorized to view submitted requests.');
+
+        if (auth()->user()->isSuperUser()) {
+            $this->authorize('view', $project);
+
+            return null;
+        }
+
+        $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
+        abort_if(($requestSummary['requests_count'] ?? 0) < 1, 403);
+
+        return $requestSummary;
     }
 }
