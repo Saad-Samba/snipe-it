@@ -1912,37 +1912,39 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame('Category', $this->workbookCellValue($workbookPath, 'C3'));
         $this->assertSame('Model', $this->workbookCellValue($workbookPath, 'D3'));
         $this->assertSame('Reference Price', $this->workbookCellValue($workbookPath, 'E3'));
-        $this->assertSame('Quantity', $this->workbookCellValue($workbookPath, 'G3'));
-        $this->assertSame('Shortfall', $this->workbookCellValue($workbookPath, 'Q3'));
+        $this->assertSame('Quantity', $this->workbookCellValue($workbookPath, 'F3'));
+        $this->assertSame('Transfer Cost', $this->workbookCellValue($workbookPath, 'H3'));
+        $this->assertSame('Shortfall', $this->workbookCellValue($workbookPath, 'L3'));
+        $this->assertSame('Reused Asset List (S/N)', $this->workbookCellValue($workbookPath, 'N3'));
 
         $this->assertSame('Electrical', $this->workbookCellValue($workbookPath, 'B4'));
         $this->assertSame($electricalModel->category->name, $this->workbookCellValue($workbookPath, 'C4'));
         $this->assertSame('Alpha Meter', $this->workbookCellValue($workbookPath, 'D4'));
         $this->assertSame('500', $this->workbookCellValue($workbookPath, 'E4'));
-        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'G4'));
-        $this->assertSame('500', $this->workbookCellValue($workbookPath, 'H4'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'F4'));
+        $this->assertSame('500', $this->workbookCellValue($workbookPath, 'G4'));
 
         $this->assertSame('Platform', $this->workbookCellValue($workbookPath, 'B5'));
         $this->assertSame($platformModel->category->name, $this->workbookCellValue($workbookPath, 'C5'));
         $this->assertSame('Canoe Run', $this->workbookCellValue($workbookPath, 'D5'));
         $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'E5'));
-        $this->assertSame('2', $this->workbookCellValue($workbookPath, 'G5'));
-        $this->assertSame('2500', $this->workbookCellValue($workbookPath, 'H5'));
+        $this->assertSame('2', $this->workbookCellValue($workbookPath, 'F5'));
+        $this->assertSame('2500', $this->workbookCellValue($workbookPath, 'G5'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'I5'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'J5'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'K5'));
         $this->assertSame('1', $this->workbookCellValue($workbookPath, 'L5'));
         $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'M5'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'O5'));
-        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'Q5'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'R5'));
-        $this->assertSame('RFQ-PLAT-001', $this->workbookCellValue($workbookPath, 'T5'));
-        $this->assertNull($this->workbookCellValue($workbookPath, 'J5'));
+        $this->assertSame('RFQ-PLAT-001', $this->workbookCellValue($workbookPath, 'N5'));
+        $this->assertNull($this->workbookCellValue($workbookPath, 'H5'));
+        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'G5'));
         $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'H5'));
-        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'J5'));
 
         $this->assertSame('Total (USD)', $this->workbookCellValue($workbookPath, 'D6'));
-        $this->assertSame('3000', $this->workbookCellValue($workbookPath, 'H6'));
-        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'M6'));
-        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'O6'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'R6'));
+        $this->assertSame('3000', $this->workbookCellValue($workbookPath, 'G6'));
+        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'J6'));
+        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'K6'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'M6'));
     }
 
     public function test_project_requests_reuse_analysis_export_requires_project_request_access()
