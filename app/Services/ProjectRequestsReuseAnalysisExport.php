@@ -8,15 +8,18 @@ use App\Models\CheckoutRequest;
 use App\Models\Project;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use RuntimeException;
 
 class ProjectRequestsReuseAnalysisExport
 {
-    private const DATA_START_ROW = 9;
-    private const TEMPLATE_DATA_ROW = 9;
-    private const TEMPLATE_TOTAL_ROW = 46;
-    private const LAST_TEMPLATE_COLUMN = 'AG';
+    private const HEADER_ROW = 3;
+    private const DATA_START_ROW = 4;
+    private const TEMPLATE_DATA_ROW = 4;
+    private const TEMPLATE_SAMPLE_ROW_COUNT = 5;
+    private const TEMPLATE_TOTAL_ROW = 9;
+    private const LAST_TEMPLATE_COLUMN = 'T';
 
     /**
      * @param  Collection<int, CheckoutRequest>  $requests
@@ -35,24 +38,34 @@ class ProjectRequestsReuseAnalysisExport
             throw new RuntimeException('Reuse analysis worksheet not found in template.');
         }
 
+        $this->rewriteHeaders($worksheet);
+
+        $requests = $requests
+            ->sortBy([
+                fn (CheckoutRequest $checkoutRequest) => mb_strtolower((string) optional($checkoutRequest->requestedDiscipline)->name),
+                fn (CheckoutRequest $checkoutRequest) => mb_strtolower((string) $checkoutRequest->name()),
+            ])
+            ->values();
+
         $requestCount = $requests->count();
         $dataRowCount = max($requestCount, 1);
+        $totalRowIndex = self::TEMPLATE_TOTAL_ROW - (self::TEMPLATE_SAMPLE_ROW_COUNT - 1);
+
+        if (self::TEMPLATE_SAMPLE_ROW_COUNT > 1) {
+            $worksheet->removeRow(self::TEMPLATE_DATA_ROW + 1, self::TEMPLATE_SAMPLE_ROW_COUNT - 1);
+        }
 
         if ($dataRowCount > 1) {
-            $worksheet->insertNewRowBefore(self::TEMPLATE_TOTAL_ROW, $dataRowCount - 1);
+            $worksheet->insertNewRowBefore($totalRowIndex, $dataRowCount - 1);
 
             for ($row = self::TEMPLATE_DATA_ROW + 1; $row <= self::DATA_START_ROW + $dataRowCount - 1; $row++) {
                 $this->copyRowStyle($worksheet, self::TEMPLATE_DATA_ROW, $row);
             }
+
+            $totalRowIndex += $dataRowCount - 1;
         }
 
         $lastDataRow = self::DATA_START_ROW + $dataRowCount - 1;
-        $totalRowIndex = self::TEMPLATE_TOTAL_ROW + ($dataRowCount - 1);
-
-        if ($lastDataRow + 1 <= $totalRowIndex - 1) {
-            $worksheet->removeRow($lastDataRow + 1, $totalRowIndex - $lastDataRow - 1);
-            $totalRowIndex = $lastDataRow + 1;
-        }
 
         $totals = [
             'total_need_cost' => 0.0,
@@ -70,21 +83,24 @@ class ProjectRequestsReuseAnalysisExport
             $rowData = $this->buildRowData($checkoutRequest);
 
             $totals['total_need_cost'] += (float) ($rowData['H'] ?? 0);
-            $totals['reuse_value'] += (float) ($rowData['Z'] ?? 0);
-            $totals['net_saving'] += (float) ($rowData['AB'] ?? 0);
-            $totals['amount_to_buy'] += (float) ($rowData['AE'] ?? 0);
+            $totals['reuse_value'] += (float) ($rowData['M'] ?? 0);
+            $totals['net_saving'] += (float) ($rowData['O'] ?? 0);
+            $totals['amount_to_buy'] += (float) ($rowData['R'] ?? 0);
 
             foreach ($rowData as $column => $value) {
                 $worksheet->setCellValue($column.$rowNumber, $value);
             }
+
+            $this->centerNumericCells($worksheet, $rowNumber);
         }
 
         $this->clearWritableColumns($worksheet, $totalRowIndex);
         $worksheet->setCellValue('D'.$totalRowIndex, 'Total (USD)');
         $worksheet->setCellValue('H'.$totalRowIndex, round($totals['total_need_cost'], 2));
-        $worksheet->setCellValue('Z'.$totalRowIndex, round($totals['reuse_value'], 2));
-        $worksheet->setCellValue('AB'.$totalRowIndex, round($totals['net_saving'], 2));
-        $worksheet->setCellValue('AE'.$totalRowIndex, round($totals['amount_to_buy'], 2));
+        $worksheet->setCellValue('M'.$totalRowIndex, round($totals['reuse_value'], 2));
+        $worksheet->setCellValue('O'.$totalRowIndex, round($totals['net_saving'], 2));
+        $worksheet->setCellValue('R'.$totalRowIndex, round($totals['amount_to_buy'], 2));
+        $this->centerNumericCells($worksheet, $totalRowIndex);
 
         $outputPath = tempnam(sys_get_temp_dir(), 'reuse-analysis-');
         if ($outputPath === false) {
@@ -115,12 +131,24 @@ class ProjectRequestsReuseAnalysisExport
             'E' => $unitPrice,
             'G' => $requiredQuantity,
             'H' => $unitPrice !== null ? round($unitPrice * $requiredQuantity, 2) : null,
-            'Y' => $reuseQuantity,
-            'Z' => $reuseValue,
-            'AB' => $reuseValue,
-            'AD' => $procurementShortfall,
-            'AE' => $amountToBuy,
+            'J' => null,
+            'L' => $reuseQuantity,
+            'M' => $reuseValue,
+            'O' => $reuseValue,
+            'Q' => $procurementShortfall,
+            'R' => $amountToBuy,
+            'T' => $this->reservedAssetSerials($checkoutRequest),
         ];
+    }
+
+    private function rewriteHeaders(Worksheet $worksheet): void
+    {
+        $worksheet->setCellValue('B'.self::HEADER_ROW, 'Discipline');
+        $worksheet->setCellValue('C'.self::HEADER_ROW, 'Category');
+        $worksheet->setCellValue('D'.self::HEADER_ROW, 'Model');
+        $worksheet->setCellValue('E'.self::HEADER_ROW, 'Reference Price');
+        $worksheet->setCellValue('G'.self::HEADER_ROW, 'Quantity');
+        $worksheet->setCellValue('Q'.self::HEADER_ROW, 'Shortfall');
     }
 
     private function assetFamilyName(CheckoutRequest $checkoutRequest): ?string
@@ -144,6 +172,21 @@ class ProjectRequestsReuseAnalysisExport
         return null;
     }
 
+    private function reservedAssetSerials(CheckoutRequest $checkoutRequest): ?string
+    {
+        $serials = $checkoutRequest->reservedAssetsQuery()
+            ->orderBy('serial')
+            ->pluck('serial')
+            ->filter(fn ($serial) => filled($serial))
+            ->values();
+
+        if ($serials->isEmpty()) {
+            return null;
+        }
+
+        return $serials->implode(', ');
+    }
+
     private function copyRowStyle(Worksheet $worksheet, int $sourceRow, int $targetRow): void
     {
         $worksheet->duplicateStyle(
@@ -159,13 +202,21 @@ class ProjectRequestsReuseAnalysisExport
     private function clearWritableColumns(Worksheet $worksheet, int $rowNumber): void
     {
         $columnsToClear = [
-            'B', 'C', 'D', 'E', 'G', 'H',
-            'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-            'W', 'Y', 'Z', 'AB', 'AD', 'AE', 'AG',
+            'B', 'C', 'D', 'E', 'G', 'H', 'J', 'L', 'M', 'O', 'Q', 'R', 'T',
         ];
 
         foreach ($columnsToClear as $column) {
             $worksheet->setCellValue($column.$rowNumber, null);
+        }
+    }
+
+    private function centerNumericCells(Worksheet $worksheet, int $rowNumber): void
+    {
+        foreach (['E', 'G', 'H', 'J', 'L', 'M', 'O', 'Q', 'R'] as $column) {
+            $worksheet->getStyle($column.$rowNumber)
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
         }
     }
 }

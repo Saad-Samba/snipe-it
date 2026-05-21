@@ -1835,27 +1835,69 @@ class ModelRequestWorkflowTest extends TestCase
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Reuse Export Project']);
-        $discipline = Discipline::create([
+        $electricalDiscipline = Discipline::create([
+            'name' => 'Electrical',
+            'created_by' => $requester->id,
+        ]);
+        $platformDiscipline = Discipline::create([
             'name' => 'Platform',
             'created_by' => $requester->id,
         ]);
         $company = Company::factory()->create();
-        $model = AssetModel::factory()->create([
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $electricalModel = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'name' => 'Alpha Meter',
+            'reference_price' => 500,
+        ]);
+        $platformModel = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'name' => 'Canoe Run',
             'reference_price' => 1250,
         ]);
 
-        $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $this->createEligibleAsset($electricalModel, $company->id, $electricalDiscipline->id);
+        $this->createEligibleAsset($platformModel, $company->id, $platformDiscipline->id);
 
         CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
-            'requestable_id' => $model->id,
+            'requestable_id' => $platformModel->id,
             'requestable_type' => AssetModel::class,
-            'requested_discipline_id' => $discipline->id,
+            'requested_discipline_id' => $platformDiscipline->id,
             'project_id' => $project->id,
             'quantity' => 2,
             'reference_price_snapshot' => 1250,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $electricalModel->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $electricalDiscipline->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+            'reference_price_snapshot' => 500,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $platformModel->id,
+            'company_id' => $company->id,
+            'discipline_id' => $platformDiscipline->id,
+            'project_id' => $project->id,
+            'status_id' => $reservedStatus->id,
+            'requestable' => 1,
+            'assigned_to' => User::factory()->create()->id,
+            'assigned_type' => User::class,
+            'serial' => 'RFQ-PLAT-001',
         ]);
 
         $response = $this->actingAs($requester)
@@ -1866,21 +1908,41 @@ class ModelRequestWorkflowTest extends TestCase
 
         $workbookPath = $response->baseResponse->getFile()->getPathname();
 
-        $this->assertSame('Platform', $this->workbookCellValue($workbookPath, 'B9'));
-        $this->assertSame($model->category->name, $this->workbookCellValue($workbookPath, 'C9'));
-        $this->assertSame('Canoe Run', $this->workbookCellValue($workbookPath, 'D9'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'E9'));
-        $this->assertSame('2', $this->workbookCellValue($workbookPath, 'G9'));
-        $this->assertSame('2500', $this->workbookCellValue($workbookPath, 'H9'));
-        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'Y9'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'Z9'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'AB9'));
-        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'AD9'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'AE9'));
-        $this->assertNull($this->workbookCellValue($workbookPath, 'W9'));
-        $this->assertNull($this->workbookCellValue($workbookPath, 'AG9'));
-        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'H9'));
-        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'W9'));
+        $this->assertSame('Discipline', $this->workbookCellValue($workbookPath, 'B3'));
+        $this->assertSame('Category', $this->workbookCellValue($workbookPath, 'C3'));
+        $this->assertSame('Model', $this->workbookCellValue($workbookPath, 'D3'));
+        $this->assertSame('Reference Price', $this->workbookCellValue($workbookPath, 'E3'));
+        $this->assertSame('Quantity', $this->workbookCellValue($workbookPath, 'G3'));
+        $this->assertSame('Shortfall', $this->workbookCellValue($workbookPath, 'Q3'));
+
+        $this->assertSame('Electrical', $this->workbookCellValue($workbookPath, 'B4'));
+        $this->assertSame($electricalModel->category->name, $this->workbookCellValue($workbookPath, 'C4'));
+        $this->assertSame('Alpha Meter', $this->workbookCellValue($workbookPath, 'D4'));
+        $this->assertSame('500', $this->workbookCellValue($workbookPath, 'E4'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'G4'));
+        $this->assertSame('500', $this->workbookCellValue($workbookPath, 'H4'));
+
+        $this->assertSame('Platform', $this->workbookCellValue($workbookPath, 'B5'));
+        $this->assertSame($platformModel->category->name, $this->workbookCellValue($workbookPath, 'C5'));
+        $this->assertSame('Canoe Run', $this->workbookCellValue($workbookPath, 'D5'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'E5'));
+        $this->assertSame('2', $this->workbookCellValue($workbookPath, 'G5'));
+        $this->assertSame('2500', $this->workbookCellValue($workbookPath, 'H5'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'L5'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'M5'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'O5'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'Q5'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'R5'));
+        $this->assertSame('RFQ-PLAT-001', $this->workbookCellValue($workbookPath, 'T5'));
+        $this->assertNull($this->workbookCellValue($workbookPath, 'J5'));
+        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'H5'));
+        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'J5'));
+
+        $this->assertSame('Total (USD)', $this->workbookCellValue($workbookPath, 'D6'));
+        $this->assertSame('3000', $this->workbookCellValue($workbookPath, 'H6'));
+        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'M6'));
+        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'O6'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'R6'));
     }
 
     public function test_project_requests_reuse_analysis_export_requires_project_request_access()
