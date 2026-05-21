@@ -1908,43 +1908,52 @@ class ModelRequestWorkflowTest extends TestCase
 
         $workbookPath = $response->baseResponse->getFile()->getPathname();
 
-        $this->assertSame('Discipline', $this->workbookCellValue($workbookPath, 'B3'));
-        $this->assertSame('Category', $this->workbookCellValue($workbookPath, 'C3'));
-        $this->assertSame('Model', $this->workbookCellValue($workbookPath, 'D3'));
-        $this->assertSame('Reference Price', $this->workbookCellValue($workbookPath, 'E3'));
-        $this->assertSame('Quantity', $this->workbookCellValue($workbookPath, 'F3'));
-        $this->assertSame('Transfer Cost', $this->workbookCellValue($workbookPath, 'H3'));
-        $this->assertSame('Shortfall', $this->workbookCellValue($workbookPath, 'L3'));
-        $this->assertSame('Reused Asset List (S/N)', $this->workbookCellValue($workbookPath, 'N3'));
+        $this->assertSame('Discipline', $this->workbookCellValue($workbookPath, 'B3', 'Reuse Analysis'));
+        $this->assertSame('Category', $this->workbookCellValue($workbookPath, 'C3', 'Reuse Analysis'));
+        $this->assertSame('Model', $this->workbookCellValue($workbookPath, 'D3', 'Reuse Analysis'));
+        $this->assertSame('Reference Price', $this->workbookCellValue($workbookPath, 'E3', 'Reuse Analysis'));
+        $this->assertSame('Quantity', $this->workbookCellValue($workbookPath, 'F3', 'Reuse Analysis'));
+        $this->assertSame('Transfer Cost', $this->workbookCellValue($workbookPath, 'H3', 'Reuse Analysis'));
+        $this->assertSame('Shortfall', $this->workbookCellValue($workbookPath, 'L3', 'Reuse Analysis'));
+        $this->assertSame('Reused Asset List (S/N)', $this->workbookCellValue($workbookPath, 'N3', 'Reuse Analysis'));
 
-        $this->assertSame('Electrical', $this->workbookCellValue($workbookPath, 'B4'));
-        $this->assertSame($electricalModel->category->name, $this->workbookCellValue($workbookPath, 'C4'));
-        $this->assertSame('Alpha Meter', $this->workbookCellValue($workbookPath, 'D4'));
-        $this->assertSame('500', $this->workbookCellValue($workbookPath, 'E4'));
-        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'F4'));
-        $this->assertSame('500', $this->workbookCellValue($workbookPath, 'G4'));
+        $this->assertSame('Electrical', $this->workbookCellValue($workbookPath, 'B4', 'Reuse Analysis'));
+        $this->assertSame($electricalModel->category->name, $this->workbookCellValue($workbookPath, 'C4', 'Reuse Analysis'));
+        $this->assertSame('Alpha Meter', $this->workbookCellValue($workbookPath, 'D4', 'Reuse Analysis'));
+        $this->assertSame('500', $this->workbookCellValue($workbookPath, 'E4', 'Reuse Analysis'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'F4', 'Reuse Analysis'));
+        $this->assertSame('500', $this->workbookCellValue($workbookPath, 'G4', 'Reuse Analysis'));
 
-        $this->assertSame('Platform', $this->workbookCellValue($workbookPath, 'B5'));
-        $this->assertSame($platformModel->category->name, $this->workbookCellValue($workbookPath, 'C5'));
-        $this->assertSame('Canoe Run', $this->workbookCellValue($workbookPath, 'D5'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'E5'));
-        $this->assertSame('2', $this->workbookCellValue($workbookPath, 'F5'));
-        $this->assertSame('2500', $this->workbookCellValue($workbookPath, 'G5'));
-        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'I5'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'J5'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'K5'));
-        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'L5'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'M5'));
-        $this->assertSame('RFQ-PLAT-001', $this->workbookCellValue($workbookPath, 'N5'));
-        $this->assertNull($this->workbookCellValue($workbookPath, 'H5'));
-        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'G5'));
-        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'H5'));
+        $this->assertSame('Platform', $this->workbookCellValue($workbookPath, 'B5', 'Reuse Analysis'));
+        $this->assertSame($platformModel->category->name, $this->workbookCellValue($workbookPath, 'C5', 'Reuse Analysis'));
+        $this->assertSame('Canoe Run', $this->workbookCellValue($workbookPath, 'D5', 'Reuse Analysis'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'E5', 'Reuse Analysis'));
+        $this->assertSame('2', $this->workbookCellValue($workbookPath, 'F5', 'Reuse Analysis'));
+        $this->assertSame('2500', $this->workbookCellValue($workbookPath, 'G5', 'Reuse Analysis'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'I5', 'Reuse Analysis'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'J5', 'Reuse Analysis'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'K5', 'Reuse Analysis'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'L5', 'Reuse Analysis'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'M5', 'Reuse Analysis'));
+        $this->assertSame('RFQ-PLAT-001', $this->workbookCellValue($workbookPath, 'N5', 'Reuse Analysis'));
+        $this->assertNull($this->workbookCellValue($workbookPath, 'H5', 'Reuse Analysis'));
+        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'G5', 'Reuse Analysis'));
+        $this->assertFalse($this->workbookCellHasFormula($workbookPath, 'H5', 'Reuse Analysis'));
 
-        $this->assertSame('Total (USD)', $this->workbookCellValue($workbookPath, 'D6'));
-        $this->assertSame('3000', $this->workbookCellValue($workbookPath, 'G6'));
-        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'J6'));
-        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'K6'));
-        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'M6'));
+        $this->assertSame('Discipline', $this->workbookCellValue($workbookPath, 'A1', 'Discipline Summary'));
+        $this->assertSame('Quantity', $this->workbookCellValue($workbookPath, 'B1', 'Discipline Summary'));
+        $this->assertSame('Electrical', $this->workbookCellValue($workbookPath, 'A2', 'Discipline Summary'));
+        $this->assertSame('1', $this->workbookCellValue($workbookPath, 'B2', 'Discipline Summary'));
+        $this->assertSame('500', $this->workbookCellValue($workbookPath, 'C2', 'Discipline Summary'));
+        $this->assertSame('Platform', $this->workbookCellValue($workbookPath, 'A3', 'Discipline Summary'));
+        $this->assertSame('2', $this->workbookCellValue($workbookPath, 'B3', 'Discipline Summary'));
+        $this->assertSame('2500', $this->workbookCellValue($workbookPath, 'C3', 'Discipline Summary'));
+        $this->assertSame('Grand Total', $this->workbookCellValue($workbookPath, 'A4', 'Discipline Summary'));
+        $this->assertSame('3', $this->workbookCellValue($workbookPath, 'B4', 'Discipline Summary'));
+        $this->assertSame('3000', $this->workbookCellValue($workbookPath, 'C4', 'Discipline Summary'));
+        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'F4', 'Discipline Summary'));
+        $this->assertSame('1750', $this->workbookCellValue($workbookPath, 'G4', 'Discipline Summary'));
+        $this->assertSame('1250', $this->workbookCellValue($workbookPath, 'I4', 'Discipline Summary'));
     }
 
     public function test_project_requests_reuse_analysis_export_requires_project_request_access()
@@ -2007,15 +2016,16 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
     }
 
-    private function workbookCellValue(string $workbookPath, string $cellReference): ?string
+    private function workbookCellValue(string $workbookPath, string $cellReference, string $sheetName = 'Reuse Analysis'): ?string
     {
         $zip = new ZipArchive;
         $zip->open($workbookPath);
 
         $sharedStrings = $this->sharedStringsLookup((string) $zip->getFromName('xl/sharedStrings.xml'));
-        $sheetXPath = $this->worksheetXPath((string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+        $worksheetXml = $this->worksheetXmlByName($zip, $sheetName);
         $zip->close();
 
+        $sheetXPath = $this->worksheetXPath($worksheetXml);
         $cell = $sheetXPath->query(sprintf('//spreadsheet:c[@r="%s"]', $cellReference))->item(0);
         if (! $cell) {
             return null;
@@ -2037,14 +2047,40 @@ class ModelRequestWorkflowTest extends TestCase
         return $valueNode->textContent;
     }
 
-    private function workbookCellHasFormula(string $workbookPath, string $cellReference): bool
+    private function workbookCellHasFormula(string $workbookPath, string $cellReference, string $sheetName = 'Reuse Analysis'): bool
     {
         $zip = new ZipArchive;
         $zip->open($workbookPath);
-        $sheetXPath = $this->worksheetXPath((string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+        $worksheetXml = $this->worksheetXmlByName($zip, $sheetName);
         $zip->close();
 
+        $sheetXPath = $this->worksheetXPath($worksheetXml);
+
         return $sheetXPath->query(sprintf('//spreadsheet:c[@r="%s"]/spreadsheet:f', $cellReference))->length > 0;
+    }
+
+    private function worksheetXmlByName(ZipArchive $zip, string $sheetName): string
+    {
+        $workbookDocument = new DOMDocument('1.0', 'UTF-8');
+        $workbookDocument->loadXML((string) $zip->getFromName('xl/workbook.xml'));
+
+        $workbookXPath = new DOMXPath($workbookDocument);
+        $workbookXPath->registerNamespace('spreadsheet', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        $workbookXPath->registerNamespace('office', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
+
+        $sheetNode = $workbookXPath->query(sprintf('//spreadsheet:sheet[@name="%s"]', $sheetName))->item(0);
+        $relationshipId = $sheetNode?->attributes?->getNamedItemNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id')?->nodeValue;
+
+        $relationshipsDocument = new DOMDocument('1.0', 'UTF-8');
+        $relationshipsDocument->loadXML((string) $zip->getFromName('xl/_rels/workbook.xml.rels'));
+
+        $relationshipsXPath = new DOMXPath($relationshipsDocument);
+        $relationshipsXPath->registerNamespace('relationships', 'http://schemas.openxmlformats.org/package/2006/relationships');
+
+        $relationshipNode = $relationshipsXPath->query(sprintf('//relationships:Relationship[@Id="%s"]', $relationshipId))->item(0);
+        $target = $relationshipNode?->attributes?->getNamedItem('Target')?->nodeValue;
+
+        return (string) $zip->getFromName('xl/'.$target);
     }
 
     private function worksheetXPath(string $worksheetXml): DOMXPath

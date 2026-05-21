@@ -8,12 +8,17 @@ use App\Models\CheckoutRequest;
 use App\Models\Project;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use RuntimeException;
 
 class ProjectRequestsReuseAnalysisExport
 {
+    private const RAW_SHEET_NAME = 'Reuse Analysis';
+    private const SUMMARY_SHEET_NAME = 'Discipline Summary';
     private const HEADER_ROW = 3;
     private const DATA_START_ROW = 4;
     private const TEMPLATE_DATA_ROW = 4;
@@ -32,14 +37,11 @@ class ProjectRequestsReuseAnalysisExport
         }
 
         $spreadsheet = IOFactory::load($templatePath);
-        $worksheet = $spreadsheet->getSheetByName('Reuse Analysis');
+        $rawWorksheet = $spreadsheet->getSheetByName(self::RAW_SHEET_NAME);
 
-        if (! $worksheet instanceof Worksheet) {
+        if (! $rawWorksheet instanceof Worksheet) {
             throw new RuntimeException('Reuse analysis worksheet not found in template.');
         }
-
-        $this->removeSpacerColumns($worksheet);
-        $this->rewriteHeaders($worksheet);
 
         $requests = $requests
             ->sortBy([
@@ -48,60 +50,8 @@ class ProjectRequestsReuseAnalysisExport
             ])
             ->values();
 
-        $requestCount = $requests->count();
-        $dataRowCount = max($requestCount, 1);
-        $totalRowIndex = self::TEMPLATE_TOTAL_ROW - (self::TEMPLATE_SAMPLE_ROW_COUNT - 1);
-
-        if (self::TEMPLATE_SAMPLE_ROW_COUNT > 1) {
-            $worksheet->removeRow(self::TEMPLATE_DATA_ROW + 1, self::TEMPLATE_SAMPLE_ROW_COUNT - 1);
-        }
-
-        if ($dataRowCount > 1) {
-            $worksheet->insertNewRowBefore($totalRowIndex, $dataRowCount - 1);
-
-            for ($row = self::TEMPLATE_DATA_ROW + 1; $row <= self::DATA_START_ROW + $dataRowCount - 1; $row++) {
-                $this->copyRowStyle($worksheet, self::TEMPLATE_DATA_ROW, $row);
-            }
-
-            $totalRowIndex += $dataRowCount - 1;
-        }
-
-        $lastDataRow = self::DATA_START_ROW + $dataRowCount - 1;
-
-        $totals = [
-            'total_need_cost' => 0.0,
-            'reuse_value' => 0.0,
-            'net_saving' => 0.0,
-            'amount_to_buy' => 0.0,
-        ];
-
-        foreach (range(self::DATA_START_ROW, $lastDataRow) as $rowNumber) {
-            $this->clearWritableColumns($worksheet, $rowNumber);
-        }
-
-        foreach ($requests->values() as $index => $checkoutRequest) {
-            $rowNumber = self::DATA_START_ROW + $index;
-            $rowData = $this->buildRowData($checkoutRequest);
-
-            $totals['total_need_cost'] += (float) ($rowData['G'] ?? 0);
-            $totals['reuse_value'] += (float) ($rowData['J'] ?? 0);
-            $totals['net_saving'] += (float) ($rowData['K'] ?? 0);
-            $totals['amount_to_buy'] += (float) ($rowData['M'] ?? 0);
-
-            foreach ($rowData as $column => $value) {
-                $worksheet->setCellValue($column.$rowNumber, $value);
-            }
-
-            $this->centerNumericCells($worksheet, $rowNumber);
-        }
-
-        $this->clearWritableColumns($worksheet, $totalRowIndex);
-        $worksheet->setCellValue('D'.$totalRowIndex, 'Total (USD)');
-        $worksheet->setCellValue('G'.$totalRowIndex, round($totals['total_need_cost'], 2));
-        $worksheet->setCellValue('J'.$totalRowIndex, round($totals['reuse_value'], 2));
-        $worksheet->setCellValue('K'.$totalRowIndex, round($totals['net_saving'], 2));
-        $worksheet->setCellValue('M'.$totalRowIndex, round($totals['amount_to_buy'], 2));
-        $this->centerNumericCells($worksheet, $totalRowIndex);
+        $this->prepareRawWorksheet($rawWorksheet, $requests);
+        $this->buildSummaryWorksheet($spreadsheet, $requests);
 
         $outputPath = tempnam(sys_get_temp_dir(), 'reuse-analysis-');
         if ($outputPath === false) {
@@ -115,7 +65,142 @@ class ProjectRequestsReuseAnalysisExport
         return $outputPath;
     }
 
-    private function buildRowData(CheckoutRequest $checkoutRequest): array
+    /**
+     * @param  Collection<int, CheckoutRequest>  $requests
+     */
+    private function prepareRawWorksheet(Worksheet $worksheet, Collection $requests): void
+    {
+        $this->removeSpacerColumns($worksheet);
+        $this->rewriteRawHeaders($worksheet);
+
+        if (self::TEMPLATE_SAMPLE_ROW_COUNT > 1) {
+            $worksheet->removeRow(self::TEMPLATE_DATA_ROW + 1, self::TEMPLATE_SAMPLE_ROW_COUNT - 1);
+        }
+
+        $worksheet->removeRow(self::DATA_START_ROW + 1, 1);
+
+        $requestCount = $requests->count();
+        $dataRowCount = max($requestCount, 1);
+
+        if ($dataRowCount > 1) {
+            $worksheet->insertNewRowBefore(self::DATA_START_ROW + 1, $dataRowCount - 1);
+
+            for ($row = self::TEMPLATE_DATA_ROW + 1; $row <= self::DATA_START_ROW + $dataRowCount - 1; $row++) {
+                $this->copyRowStyle($worksheet, self::TEMPLATE_DATA_ROW, $row);
+            }
+        }
+
+        $lastDataRow = self::DATA_START_ROW + $dataRowCount - 1;
+
+        foreach (range(self::DATA_START_ROW, $lastDataRow) as $rowNumber) {
+            $this->clearRawWritableColumns($worksheet, $rowNumber);
+        }
+
+        foreach ($requests->values() as $index => $checkoutRequest) {
+            $rowNumber = self::DATA_START_ROW + $index;
+
+            foreach ($this->buildRawRowData($checkoutRequest) as $column => $value) {
+                $worksheet->setCellValue($column.$rowNumber, $value);
+            }
+
+            $this->centerNumericCells($worksheet, $rowNumber, ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']);
+        }
+    }
+
+    /**
+     * @param  Collection<int, CheckoutRequest>  $requests
+     */
+    private function buildSummaryWorksheet(Spreadsheet $spreadsheet, Collection $requests): void
+    {
+        $existingWorksheet = $spreadsheet->getSheetByName(self::SUMMARY_SHEET_NAME);
+        if ($existingWorksheet instanceof Worksheet) {
+            $spreadsheet->removeSheetByIndex($spreadsheet->getIndex($existingWorksheet));
+        }
+
+        $worksheet = new Worksheet($spreadsheet, self::SUMMARY_SHEET_NAME);
+        $spreadsheet->addSheet($worksheet);
+
+        $headers = [
+            'A1' => 'Discipline',
+            'B1' => 'Quantity',
+            'C1' => 'Total Need Cost',
+            'D1' => 'Transfer Cost',
+            'E1' => 'Reuse Qty',
+            'F1' => 'Reuse Value',
+            'G1' => 'Net Saving',
+            'H1' => 'Shortfall',
+            'I1' => 'Amount to Buy',
+        ];
+
+        foreach ($headers as $cell => $value) {
+            $worksheet->setCellValue($cell, $value);
+        }
+
+        $disciplineGroups = $requests->groupBy(
+            fn (CheckoutRequest $checkoutRequest) => (string) (optional($checkoutRequest->requestedDiscipline)->name ?: 'Unassigned')
+        );
+
+        $rowNumber = 2;
+        $grandTotals = [
+            'quantity' => 0,
+            'total_need_cost' => 0.0,
+            'reuse_qty' => 0,
+            'reuse_value' => 0.0,
+            'net_saving' => 0.0,
+            'shortfall' => 0,
+            'amount_to_buy' => 0.0,
+        ];
+
+        foreach ($disciplineGroups as $discipline => $disciplineRequests) {
+            $summary = $this->summarizeDisciplineRequests($disciplineRequests);
+
+            $worksheet->setCellValue('A'.$rowNumber, $discipline);
+            $worksheet->setCellValue('B'.$rowNumber, $summary['quantity']);
+            $worksheet->setCellValue('C'.$rowNumber, $summary['total_need_cost']);
+            $worksheet->setCellValue('D'.$rowNumber, null);
+            $worksheet->setCellValue('E'.$rowNumber, $summary['reuse_qty']);
+            $worksheet->setCellValue('F'.$rowNumber, $summary['reuse_value']);
+            $worksheet->setCellValue('G'.$rowNumber, $summary['net_saving']);
+            $worksheet->setCellValue('H'.$rowNumber, $summary['shortfall']);
+            $worksheet->setCellValue('I'.$rowNumber, $summary['amount_to_buy']);
+
+            $grandTotals['quantity'] += $summary['quantity'];
+            $grandTotals['total_need_cost'] += $summary['total_need_cost'];
+            $grandTotals['reuse_qty'] += $summary['reuse_qty'];
+            $grandTotals['reuse_value'] += $summary['reuse_value'];
+            $grandTotals['net_saving'] += $summary['net_saving'];
+            $grandTotals['shortfall'] += $summary['shortfall'];
+            $grandTotals['amount_to_buy'] += $summary['amount_to_buy'];
+
+            $rowNumber++;
+        }
+
+        $worksheet->setCellValue('A'.$rowNumber, 'Grand Total');
+        $worksheet->setCellValue('B'.$rowNumber, $grandTotals['quantity']);
+        $worksheet->setCellValue('C'.$rowNumber, round($grandTotals['total_need_cost'], 2));
+        $worksheet->setCellValue('D'.$rowNumber, null);
+        $worksheet->setCellValue('E'.$rowNumber, $grandTotals['reuse_qty']);
+        $worksheet->setCellValue('F'.$rowNumber, round($grandTotals['reuse_value'], 2));
+        $worksheet->setCellValue('G'.$rowNumber, round($grandTotals['net_saving'], 2));
+        $worksheet->setCellValue('H'.$rowNumber, $grandTotals['shortfall']);
+        $worksheet->setCellValue('I'.$rowNumber, round($grandTotals['amount_to_buy'], 2));
+
+        $worksheet->getStyle('A1:I1')->applyFromArray($this->summaryHeaderStyle());
+        $worksheet->getStyle('A'.$rowNumber.':I'.$rowNumber)->applyFromArray($this->summaryTotalStyle());
+        $this->centerNumericCells($worksheet, $rowNumber, ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']);
+
+        foreach (range(2, $rowNumber - 1) as $dataRow) {
+            $this->centerNumericCells($worksheet, $dataRow, ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']);
+        }
+
+        foreach (range('A', 'I') as $column) {
+            $worksheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $worksheet->freezePane('A2');
+    }
+
+    private function buildRawRowData(CheckoutRequest $checkoutRequest): array
     {
         $liveMetrics = $checkoutRequest->liveRequestMetrics();
         $unitPrice = $checkoutRequest->reference_price_snapshot !== null ? (float) $checkoutRequest->reference_price_snapshot : null;
@@ -142,7 +227,43 @@ class ProjectRequestsReuseAnalysisExport
         ];
     }
 
-    private function rewriteHeaders(Worksheet $worksheet): void
+    /**
+     * @param  Collection<int, CheckoutRequest>  $requests
+     * @return array{quantity:int,total_need_cost:float,reuse_qty:int,reuse_value:float,net_saving:float,shortfall:int,amount_to_buy:float}
+     */
+    private function summarizeDisciplineRequests(Collection $requests): array
+    {
+        $summary = [
+            'quantity' => 0,
+            'total_need_cost' => 0.0,
+            'reuse_qty' => 0,
+            'reuse_value' => 0.0,
+            'net_saving' => 0.0,
+            'shortfall' => 0,
+            'amount_to_buy' => 0.0,
+        ];
+
+        foreach ($requests as $checkoutRequest) {
+            $rowData = $this->buildRawRowData($checkoutRequest);
+
+            $summary['quantity'] += (int) ($rowData['F'] ?? 0);
+            $summary['total_need_cost'] += (float) ($rowData['G'] ?? 0);
+            $summary['reuse_qty'] += (int) ($rowData['I'] ?? 0);
+            $summary['reuse_value'] += (float) ($rowData['J'] ?? 0);
+            $summary['net_saving'] += (float) ($rowData['K'] ?? 0);
+            $summary['shortfall'] += (int) ($rowData['L'] ?? 0);
+            $summary['amount_to_buy'] += (float) ($rowData['M'] ?? 0);
+        }
+
+        $summary['total_need_cost'] = round($summary['total_need_cost'], 2);
+        $summary['reuse_value'] = round($summary['reuse_value'], 2);
+        $summary['net_saving'] = round($summary['net_saving'], 2);
+        $summary['amount_to_buy'] = round($summary['amount_to_buy'], 2);
+
+        return $summary;
+    }
+
+    private function rewriteRawHeaders(Worksheet $worksheet): void
     {
         $worksheet->setCellValue('B'.self::HEADER_ROW, 'Discipline');
         $worksheet->setCellValue('C'.self::HEADER_ROW, 'Category');
@@ -157,13 +278,6 @@ class ProjectRequestsReuseAnalysisExport
         $worksheet->setCellValue('L'.self::HEADER_ROW, 'Shortfall');
         $worksheet->setCellValue('M'.self::HEADER_ROW, 'Amount to Buy');
         $worksheet->setCellValue('N'.self::HEADER_ROW, 'Reused Asset List (S/N)');
-    }
-
-    private function removeSpacerColumns(Worksheet $worksheet): void
-    {
-        foreach (['S', 'P', 'N', 'K', 'I', 'F'] as $column) {
-            $worksheet->removeColumn($column, 1);
-        }
     }
 
     private function assetFamilyName(CheckoutRequest $checkoutRequest): ?string
@@ -202,6 +316,13 @@ class ProjectRequestsReuseAnalysisExport
         return $serials->implode(', ');
     }
 
+    private function removeSpacerColumns(Worksheet $worksheet): void
+    {
+        foreach (['S', 'P', 'N', 'K', 'I', 'F'] as $column) {
+            $worksheet->removeColumn($column, 1);
+        }
+    }
+
     private function copyRowStyle(Worksheet $worksheet, int $sourceRow, int $targetRow): void
     {
         $worksheet->duplicateStyle(
@@ -214,24 +335,69 @@ class ProjectRequestsReuseAnalysisExport
         );
     }
 
-    private function clearWritableColumns(Worksheet $worksheet, int $rowNumber): void
+    private function clearRawWritableColumns(Worksheet $worksheet, int $rowNumber): void
     {
-        $columnsToClear = [
-            'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-        ];
-
-        foreach ($columnsToClear as $column) {
+        foreach (['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'] as $column) {
             $worksheet->setCellValue($column.$rowNumber, null);
         }
     }
 
-    private function centerNumericCells(Worksheet $worksheet, int $rowNumber): void
+    /**
+     * @param  array<int, string>  $columns
+     */
+    private function centerNumericCells(Worksheet $worksheet, int $rowNumber, array $columns): void
     {
-        foreach (['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'] as $column) {
+        foreach ($columns as $column) {
             $worksheet->getStyle($column.$rowNumber)
                 ->getAlignment()
                 ->setHorizontal(Alignment::HORIZONTAL_CENTER)
                 ->setVertical(Alignment::VERTICAL_CENTER);
         }
+    }
+
+    private function summaryHeaderStyle(): array
+    {
+        return [
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'D9EDF7'],
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+            ],
+        ];
+    }
+
+    private function summaryTotalStyle(): array
+    {
+        return [
+            'font' => [
+                'bold' => true,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'EAF7FF'],
+            ],
+            'borders' => [
+                'top' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+                'bottom' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ];
     }
 }
