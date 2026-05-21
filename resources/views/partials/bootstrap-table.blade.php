@@ -75,7 +75,6 @@
                 buttonsClass: "tableButton tableButton btn-primary hidden-print",
                 buttonsOrder: [
                     'columns',
-                    'btnReuseAnalysisExport',
                     'btnAdd',
                     'btnShowDeleted',
                     'btnFilterObsoleteModels',
@@ -232,24 +231,6 @@
             });
 
         });
-    });
-
-
-    window.projectRequestButtons = () => ({
-        btnReuseAnalysisExport: {
-            text: 'Export Reuse Analysis',
-            icon: 'far fa-file-excel',
-            event () {
-                var exportUrl = $('#projectRequestsTable').data('reuse-analysis-export-url');
-
-                if (exportUrl) {
-                    window.location.href = exportUrl;
-                }
-            },
-            attributes: {
-                title: 'Export Reuse Analysis',
-            }
-        },
     });
 
 
@@ -2449,6 +2430,18 @@
     function requestSavingsFormatter(value, row) {
         if (row && row.estimated_savings_formatted) {
             return row.estimated_savings_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function requestTotalNeedCostFormatter(value, row) {
+        if (row && row.total_need_cost_formatted) {
+            return row.total_need_cost_formatted;
         }
 
         if (value === null || value === undefined || value === '') {

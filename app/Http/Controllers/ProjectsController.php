@@ -2,14 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AssetModel;
-use App\Models\Project;
 use App\Models\CheckoutRequest;
-use App\Services\ProjectRequestsReuseAnalysisExport;
+use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\View\View;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProjectsController extends Controller
 {
@@ -75,36 +72,8 @@ class ProjectsController extends Controller
             'project' => $project,
             'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests'], true) ? $activeTab : 'assets',
             'requestSummary' => $requestSummary,
-            'reuseAnalysisExportUrl' => $isRequestsTab && auth()->user()->hasAccess('models.request')
-                ? route('projects.requests.export-reuse-analysis', $project)
-                : null,
             'showFullProjectTabs' => auth()->user()->isSuperUser(),
         ]);
-    }
-
-    public function exportReuseAnalysis(Project $project, ProjectRequestsReuseAnalysisExport $export): BinaryFileResponse
-    {
-        $this->authorizeProjectRequestsAccess($project);
-
-        $requests = CheckoutRequest::requesterScopedQuery(auth()->user())
-            ->with([
-                'requestedItem',
-                'project',
-                'requestedDiscipline',
-            ])
-            ->where('project_id', $project->id)
-            ->get()
-            ->filter(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requestable_type === AssetModel::class)
-            ->values();
-
-        $filePath = $export->create($project, $requests);
-        $downloadName = 'project-'.str_slug($project->name).'-reuse-analysis-'.date('Y-m-d').'.xlsx';
-
-        return response()->download(
-            $filePath,
-            $downloadName,
-            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
-        )->deleteFileAfterSend(true);
     }
 
     public function edit(Project $project) : View

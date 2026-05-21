@@ -119,7 +119,6 @@
                                     'requestMode' => 'requester',
                                     'dataUrl' => route('api.requests.index', ['project_id' => $project->id]),
                                     'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
-                                    'reuseAnalysisExportUrl' => $reuseAnalysisExportUrl,
                                 ])
                             </div>
                         </div>
