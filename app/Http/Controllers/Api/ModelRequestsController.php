@@ -87,6 +87,8 @@ class ModelRequestsController extends Controller
                 'project' => e(optional($checkoutRequest->project)->name),
                 'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
                 'needed_by_date_value' => optional($checkoutRequest->needed_by_date)->format('Y-m-d'),
+                'award_date' => Helper::getFormattedDateObject($checkoutRequest->award_date, 'date'),
+                'award_date_value' => optional($checkoutRequest->award_date)->format('Y-m-d'),
                 'reusable_quantity' => (int) ($liveMetrics['reusable_quantity'] ?? 0),
                 'due_back_before_needed_by_quantity' => (int) ($liveMetrics['due_back_before_needed_by_quantity'] ?? 0),
                 'procurement_shortfall' => (int) ($liveMetrics['procurement_shortfall'] ?? 0),

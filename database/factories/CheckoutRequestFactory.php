@@ -18,6 +18,7 @@ class CheckoutRequestFactory extends Factory
             'requestable_id' => Asset::factory(),
             'requestable_type' => Asset::class,
             'needed_by_date' => null,
+            'award_date' => null,
             'quantity' => 1,
             'reusable_quantity' => 0,
             'procurement_shortfall' => 1,

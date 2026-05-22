@@ -61,6 +61,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'company_id' => $destinationCompany->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
+                'award_date' => '2026-06-10',
             ])
             ->assertRedirect();
 
@@ -74,6 +75,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame($disciplineA->id, $checkoutRequest->requested_discipline_id);
         $this->assertSame($destinationCompany->id, $checkoutRequest->company_id);
         $this->assertSame('2026-06-01', optional($checkoutRequest->needed_by_date)->format('Y-m-d'));
+        $this->assertSame('2026-06-10', optional($checkoutRequest->award_date)->format('Y-m-d'));
         $this->assertSame('pending', $checkoutRequest->status);
         $this->assertSame(2, $checkoutRequest->reusable_quantity);
         $this->assertSame(0, $checkoutRequest->due_back_before_needed_by_quantity);
@@ -934,6 +936,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'company_id' => $company->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-15',
+                'award_date' => '2026-06-30',
             ])
             ->assertRedirect();
 
@@ -949,6 +952,7 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->assertSame('2026-06-15', optional($existingRequest->fresh()->needed_by_date)->format('Y-m-d'));
+        $this->assertSame('2026-06-30', optional($existingRequest->fresh()->award_date)->format('Y-m-d'));
 
         $this->assertSame(
             1,
@@ -997,6 +1001,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'company_id' => $updatedCompany->id,
                 'project_id' => $updatedProject->id,
                 'needed_by_date' => '2026-07-01',
+                'award_date' => '2026-07-10',
             ])
             ->assertRedirect();
 
@@ -1006,6 +1011,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame($updatedProject->id, $request->project_id);
         $this->assertSame($updatedCompany->id, $request->company_id);
         $this->assertSame('2026-07-01', optional($request->needed_by_date)->format('Y-m-d'));
+        $this->assertSame('2026-07-10', optional($request->award_date)->format('Y-m-d'));
         $this->assertSame(1, $request->reusable_quantity);
         $this->assertSame(1, $request->procurement_shortfall);
         $this->assertSame(400.0, (float) $request->estimated_savings);
@@ -1932,6 +1938,15 @@ class ModelRequestWorkflowTest extends TestCase
         $project = Project::factory()->create();
         $discipline = Discipline::create(['name' => 'Bulk Checkout Scope', 'created_by' => $requester->id]);
         $company = Company::factory()->create();
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
@@ -1945,6 +1960,7 @@ class ModelRequestWorkflowTest extends TestCase
             'project_id' => $project->id,
             'quantity' => 2,
             'status' => CheckoutRequest::STATUS_PENDING,
+            'award_date' => '2026-07-15',
         ]);
 
         $request->coordinatorTargets()->create([
@@ -1959,10 +1975,13 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAs($coordinator)
             ->get(route('hardware.bulkcheckout.show', ['request_id' => $request->id]))
             ->assertOk()
-            ->assertSee('Request context')
-            ->assertSee($requester->present()->fullName)
-            ->assertSee($project->name)
-            ->assertSee($discipline->name);
+            ->assertDontSee('Request context')
+            ->assertSee($assetA->present()->fullName, false)
+            ->assertSee($assetB->present()->fullName, false)
+            ->assertSee($requester->present()->fullName, false)
+            ->assertSee('value="'.now()->format('Y-m-d').'"', false)
+            ->assertSee('value="2026-07-15"', false)
+            ->assertSee($reservedStatus->name, false);
     }
 
     public function test_candidate_rac_can_bulk_checkout_everything_from_request_review_flow()

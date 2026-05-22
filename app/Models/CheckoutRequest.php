@@ -31,6 +31,7 @@ class CheckoutRequest extends Model
         'company_id',
         'project_id',
         'needed_by_date',
+        'award_date',
         'quantity',
         'reusable_quantity',
         'due_back_before_needed_by_quantity',
@@ -44,6 +45,7 @@ class CheckoutRequest extends Model
 
     protected $casts = [
         'needed_by_date' => 'date',
+        'award_date' => 'date',
         'estimated_savings' => 'float',
         'reference_price_snapshot' => 'float',
     ];
@@ -178,6 +180,22 @@ class CheckoutRequest extends Model
     public function remainingAllocationQuantity(): int
     {
         return max((int) $this->quantity - $this->allocatedQuantity(), 0);
+    }
+
+    public function suggestedReusableAssetIds(): array
+    {
+        if ($this->requestable_type !== AssetModel::class || ! $this->requestable_id) {
+            return [];
+        }
+
+        return Asset::query()
+            ->RTD()
+            ->where('model_id', $this->requestable_id)
+            ->orderBy('assets.id')
+            ->limit(max($this->remainingAllocationQuantity(), 0))
+            ->pluck('assets.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     public function bookedAssetsQuery()

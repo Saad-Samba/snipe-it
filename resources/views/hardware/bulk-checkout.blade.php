@@ -30,24 +30,6 @@
             <input type="hidden" name="request_id" value="{{ $request_id }}">
           @endif
 
-            @if (isset($requestContext) && $requestContext)
-                <div class="box box-solid box-info">
-                    <div class="box-header with-border">
-                        <span class="box-title col-xs-12">Request context</span>
-                    </div>
-                    <div class="box-body">
-                        <p style="margin-bottom:8px;">
-                            You are fulfilling request #{{ $requestContext->id }} for
-                            <strong>{{ optional(optional($requestContext->user)->present())->fullName ?? 'Unknown user' }}</strong>.
-                        </p>
-                        <p style="margin-bottom:0;">
-                            Project: <strong>{{ optional($requestContext->project)->name ?: '-' }}</strong>,
-                            Discipline: <strong>{{ optional($requestContext->requestedDiscipline)->name ?: '-' }}</strong>
-                        </p>
-                    </div>
-                </div>
-            @endif
-
             @if ($removed_assets->isNotEmpty())
                 <div class="box box-solid box-warning">
                     <div class="box-header with-border">
@@ -76,7 +58,7 @@
            'asset_status_type' => 'RTD',
            'select_id' => 'assigned_assets_select',
            'asset_selector_div_id' => 'assets_to_checkout_div',
-           'asset_ids' => old('selected_assets')
+           'asset_ids' => $selected_asset_ids ?? []
          ])
 
 
@@ -89,7 +71,7 @@
                     <x-input.select
                             name="status_id"
                             :options="$statusLabel_list"
-                            :selected="old('status_id', $status_id ?? null)"
+                            :selected="old('status_id', $request_status_id ?? $status_id ?? null)"
                             style="width: 100%;"
                             aria-label="status_id"
                     />
@@ -115,8 +97,8 @@
                       {{ trans('admin/hardware/form.checkout_date') }}
                   </label>
                   <div class="col-md-8">
-                      <div class="input-group date col-md-5" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-date-end-date="0d" data-date-clear-btn="true">
-                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="checkout_at" id="checkout_at" value="{{ old('checkout_at') }}">
+                          <div class="input-group date col-md-5" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-date-end-date="0d" data-date-clear-btn="true">
+                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="checkout_at" id="checkout_at" value="{{ old('checkout_at', now()->format('Y-m-d')) }}">
                           <span class="input-group-addon"><x-icon type="calendar" /></span>
                       </div>
                       {!! $errors->first('checkout_at', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -130,7 +112,7 @@
                   </label>
                   <div class="col-md-8">
                       <div class="input-group date col-md-5" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-date-start-date="0d" data-date-clear-btn="true">
-                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expected_checkin" id="expected_checkin" value="{{ old('expected_checkin') }}" required>
+                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expected_checkin" id="expected_checkin" value="{{ old('expected_checkin', $request_award_date ?? null) }}" required>
                           <span class="input-group-addon"><x-icon type="calendar" /></span>
                       </div>
                       {!! $errors->first('expected_checkin', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}

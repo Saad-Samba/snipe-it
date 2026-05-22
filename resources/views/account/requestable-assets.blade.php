@@ -166,6 +166,7 @@
                                                             @endforeach
                                                         </select>
                                                         <input type="date" style="margin-right: 10px;" class="form-control" name="needed_by_date" value="{{ optional($activeRequest?->needed_by_date)->format('Y-m-d') }}" required>
+                                                        <input type="date" style="margin-right: 10px;" class="form-control" name="award_date" value="{{ optional($activeRequest?->award_date)->format('Y-m-d') }}" required>
                                                     @if ($activeRequest)
                                                         <input class="btn btn-danger btn-sm" type="submit" value="{{ trans('button.cancel') }}">
                                                     @else

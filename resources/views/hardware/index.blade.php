@@ -57,32 +57,6 @@
   <div class="col-md-12">
     <div class="box">
       <div class="box-body">
-          @if (isset($requestContext) && $requestContext && isset($requestReviewSummary))
-            <div class="alert alert-info" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
-              <div><strong>Project</strong><br>{{ $requestReviewSummary['project'] ?: '-' }}</div>
-              <div><strong>{{ trans('general.company') }}</strong><br>{{ $requestReviewSummary['company'] ?: '-' }}</div>
-              <div><strong>Discipline</strong><br>{{ $requestReviewSummary['discipline'] ?: '-' }}</div>
-              <div><strong>Needed By</strong><br>{{ $requestReviewSummary['needed_by_date'] ?: '-' }}</div>
-              <div><strong>Total Needed</strong><br>{{ $requestReviewSummary['total_needed'] }}</div>
-              <div><strong>Reusable Now</strong><br>{{ $requestReviewSummary['reusable_now'] }}</div>
-              <div><strong>Due Back</strong><br>{{ $requestReviewSummary['due_back_before_needed_by'] }}</div>
-              <div><strong>Shortfall</strong><br>{{ $requestReviewSummary['shortfall'] }}</div>
-              <div><strong>Reserved</strong><br>{{ $requestReviewSummary['reserved_count'] }}</div>
-              <div><strong>Reserved by Other Project</strong><br>{{ $requestReviewSummary['reserved_by_other_rfqs_count'] }}</div>
-              <div><strong>Allocated</strong><br>{{ $requestReviewSummary['allocated_count'] }}</div>
-              <div><strong>Remaining to Allocate</strong><br>{{ $requestReviewSummary['remaining_allocation_quantity'] }}</div>
-              <div><strong>Amount to Buy</strong><br>{{ \App\Helpers\Helper::formatCurrencyOutput($requestReviewSummary['amount_to_buy']) }}</div>
-            </div>
-            @if (session('request_checkout_summary'))
-              <div class="alert alert-success">
-                Checked out {{ session('request_checkout_summary.checked_out_count') }} asset(s) into this request context.
-                Remaining to allocate: {{ session('request_checkout_summary.remaining_allocation_quantity') }}.
-              </div>
-            @endif
-            <div class="alert alert-warning" style="margin-top:-6px;">
-              Select the matching assets below, then use <strong>{{ trans('general.bulk_checkout') }}</strong> to fulfill this request quickly.
-            </div>
-          @endif
           <div class="row">
             <div class="col-md-12">
                 @php

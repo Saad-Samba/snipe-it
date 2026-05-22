@@ -1776,6 +1776,10 @@
             + '            <label for="model-request-modal-needed-by-date">Needed By</label>'
             + '            <input type="date" name="needed_by_date" id="model-request-modal-needed-by-date" class="form-control" required>'
             + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-award-date">Award Date</label>'
+            + '            <input type="date" name="award_date" id="model-request-modal-award-date" class="form-control" required>'
+            + '          </div>'
             + '          <div id="model-request-modal-estimate" class="well well-sm" style="margin-bottom:0;">'
             + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Estimate</div>'
             + '            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">'
@@ -1842,6 +1846,12 @@
             + '              <div class="form-group">'
             + '                <label for="model-request-cart-needed-by-date">Needed By</label>'
             + '                <input type="date" name="needed_by_date" id="model-request-cart-needed-by-date" class="form-control" required>'
+            + '              </div>'
+            + '            </div>'
+            + '            <div class="col-md-6">'
+            + '              <div class="form-group">'
+            + '                <label for="model-request-cart-award-date">Award Date</label>'
+            + '                <input type="date" name="award_date" id="model-request-cart-award-date" class="form-control" required>'
             + '              </div>'
             + '            </div>'
             + '          </div>'
@@ -2054,6 +2064,7 @@
         $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
         $('#model-request-modal-project').val(String(options.projectId || ''));
         $('#model-request-modal-needed-by-date').val(options.neededByDate || '');
+        $('#model-request-modal-award-date').val(options.awardDate || '');
         $('#model-request-modal-submit').text(options.submitLabel);
         resetModelRequestEstimateState();
         $('#model-request-modal').modal('show');
@@ -2355,7 +2366,7 @@
             var modifyTitle = 'Modify request';
             var estimateUrl = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.model_id);
             actions.push(
-                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', companyId: \'' + (row.company_id || '') + '\', projectId: \'' + (row.project_id || '') + '\', requestedDisciplineId: \'' + (row.requested_discipline_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
+                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', companyId: \'' + (row.company_id || '') + '\', projectId: \'' + (row.project_id || '') + '\', requestedDisciplineId: \'' + (row.requested_discipline_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', awardDate: \'' + (row.award_date_value || '') + '\', title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
                 + '<i class="fas fa-pen" aria-hidden="true"></i>'
                 + '<span class="sr-only">' + modifyTitle + '</span>'
                 + '</button>'

@@ -761,17 +761,26 @@ class BulkAssetsController extends Controller
         $requestContext = $request->filled('request_id')
             ? $this->resolveAuthorizedRequestContext((int) $request->input('request_id'))
             : null;
+        $selectedAssetIds = collect(old('selected_assets'))
+            ->filter()
+            ->map(fn ($assetId) => (int) $assetId)
+            ->values()
+            ->all();
+
+        if (empty($selectedAssetIds) && $requestContext) {
+            $selectedAssetIds = $requestContext->suggestedReusableAssetIds();
+        }
 
         $alreadyAssigned = collect();
 
-        if (old('selected_assets') && is_array(old('selected_assets'))) {
-            $assets = Asset::findMany(old('selected_assets'));
+        if (! empty($selectedAssetIds)) {
+            $assets = Asset::findMany($selectedAssetIds);
 
             [$assignable, $alreadyAssigned] = $assets->partition(function (Asset $asset) {
                 return !$asset->assigned_to;
             });
 
-            session()->flashInput(['selected_assets' => $assignable->pluck('id')->values()->toArray()]);
+            $selectedAssetIds = $assignable->pluck('id')->map(fn ($assetId) => (int) $assetId)->values()->all();
         }
 
         $do_not_change = ['' => trans('general.do_not_change')];
@@ -780,11 +789,13 @@ class BulkAssetsController extends Controller
         return view('hardware/bulk-checkout', [
             'statusLabel_list' => $status_label_list,
             'removed_assets' => $alreadyAssigned,
-            'requestContext' => $requestContext,
+            'selected_asset_ids' => $selectedAssetIds,
             'request_id' => $requestContext?->id ?? $request->input('request_id'),
             'request_project_id' => $requestContext?->project_id ?? $request->input('project_id'),
             'request_assigned_user_id' => $requestContext?->user_id,
             'request_discipline_id' => $requestContext?->requested_discipline_id,
+            'request_status_id' => Setting::rfqReservedStatusId(),
+            'request_award_date' => optional($requestContext?->award_date)?->format('Y-m-d'),
         ]);
     }
 
@@ -923,11 +934,7 @@ class BulkAssetsController extends Controller
                     $requestContext->syncAllocationStatus(true);
 
                     return redirect()->to(session('back_url', route('hardware.index')))
-                        ->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids))
-                        ->with('request_checkout_summary', [
-                            'checked_out_count' => count($asset_ids),
-                            'remaining_allocation_quantity' => $requestContext->fresh()->remainingAllocationQuantity(),
-                        ]);
+                        ->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));
                 }
 
                 // Redirect to the new asset page
