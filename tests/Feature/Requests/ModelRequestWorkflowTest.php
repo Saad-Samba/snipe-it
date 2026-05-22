@@ -1865,6 +1865,260 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('Total Need Cost', false);
     }
 
+    public function test_rac_notification_renders_allocate_everything_and_review_request_buttons()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $coordinator = User::factory()->create(['first_name' => 'Mail', 'last_name' => 'RAC']);
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Mail Scope', 'created_by' => $requester->id]);
+        $company = Company::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $this->createEligibleAsset($model, $company->id, $discipline->id);
+
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-action' => 'create',
+                'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $company->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+            ])
+            ->assertRedirect();
+
+        $request = CheckoutRequest::query()
+            ->where('user_id', $requester->id)
+            ->where('requestable_id', $model->id)
+            ->firstOrFail();
+
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class, function ($notification) use ($coordinator, $request) {
+            $renderedMail = $notification->toMail($coordinator)->render();
+
+            return $notification->requestIds() === [$request->id]
+                && $notification->bulkAllocateUrlFor($coordinator) !== null
+                && str_contains($renderedMail, 'Allocate everything')
+                && str_contains($renderedMail, 'Review request');
+        });
+    }
+
+    public function test_candidate_rac_can_allocate_everything_from_request_review_page()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $coordinator = User::factory()->viewAssets()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Allocate Scope', 'created_by' => $requester->id]);
+        $company = Company::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $company->id,
+            'project_id' => $project->id,
+            'quantity' => 2,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ]);
+
+        $request->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+        ]);
+
+        $assetA = $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $assetB = $this->createEligibleAsset($model, $company->id, $discipline->id);
+
+        $this->actingAs($coordinator)
+            ->get(route('hardware.index', ['request_id' => $request->id]))
+            ->assertOk()
+            ->assertSee('Allocate everything');
+
+        $this->actingAs($coordinator)
+            ->post(route('requests.allocate-all', $request))
+            ->assertRedirect(route('hardware.index', ['request_id' => $request->id]));
+
+        $request->refresh();
+
+        $this->assertSame(CheckoutRequest::STATUS_FULLY_ALLOCATED, $request->status);
+        $this->assertSame(2, $request->allocatedAssets()->count());
+        $this->assertDatabaseHas('checkout_request_assets', [
+            'checkout_request_id' => $request->id,
+            'asset_id' => $assetA->id,
+            'allocated_by' => $coordinator->id,
+        ]);
+        $this->assertDatabaseHas('checkout_request_assets', [
+            'checkout_request_id' => $request->id,
+            'asset_id' => $assetB->id,
+            'allocated_by' => $coordinator->id,
+        ]);
+        $this->assertDatabaseHas('assets', [
+            'id' => $assetA->id,
+            'project_id' => $project->id,
+            'status_id' => $reservedStatus->id,
+        ]);
+        $this->assertDatabaseHas('assets', [
+            'id' => $assetB->id,
+            'project_id' => $project->id,
+            'status_id' => $reservedStatus->id,
+        ]);
+    }
+
+    public function test_request_review_page_hides_bulk_allocate_button_for_requester()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssets()->viewAssetModels()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Requester View', 'created_by' => $requester->id]);
+        $company = Company::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $company->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('hardware.index', ['request_id' => $request->id]))
+            ->assertOk()
+            ->assertDontSee('Allocate everything');
+    }
+
+    public function test_email_bulk_allocate_allocates_all_requests_in_the_notification_batch()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $coordinator = User::factory()->viewAssets()->create();
+        $project = Project::factory()->create();
+        $disciplineA = Discipline::create(['name' => 'Batch A', 'created_by' => $requester->id]);
+        $disciplineB = Discipline::create(['name' => 'Batch B', 'created_by' => $requester->id]);
+        $company = Company::factory()->create();
+        $modelA = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $modelB = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $requestA = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $modelA->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $disciplineA->id,
+            'company_id' => $company->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ]);
+        $requestB = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $modelB->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $disciplineB->id,
+            'company_id' => $company->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ]);
+
+        $requestA->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $disciplineA->id,
+        ]);
+        $requestB->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $disciplineB->id,
+        ]);
+
+        $assetA = $this->createEligibleAsset($modelA, $company->id, $disciplineA->id);
+        $assetB = $this->createEligibleAsset($modelB, $company->id, $disciplineB->id);
+
+        $notification = new RacScopedRequestSummaryNotification([
+            'requester' => $requester,
+            'submitted_at' => now()->toDateTimeString(),
+            'project_name' => $project->name,
+            'lines' => [
+                [
+                    'request_id' => $requestA->id,
+                    'model_name' => $modelA->name,
+                    'company_name' => $company->name,
+                    'requested_quantity' => 1,
+                    'reusable_quantity' => 1,
+                    'needed_by_date' => '2026-06-20',
+                    'model_show_url' => route('models.show', $modelA->id),
+                    'project_requests_url' => route('projects.show', ['project' => $project->id, 'tab' => 'requests']),
+                    'request_detail_url' => route('hardware.index', ['request_id' => $requestA->id]),
+                ],
+                [
+                    'request_id' => $requestB->id,
+                    'model_name' => $modelB->name,
+                    'company_name' => $company->name,
+                    'requested_quantity' => 1,
+                    'reusable_quantity' => 1,
+                    'needed_by_date' => '2026-06-20',
+                    'model_show_url' => route('models.show', $modelB->id),
+                    'project_requests_url' => route('projects.show', ['project' => $project->id, 'tab' => 'requests']),
+                    'request_detail_url' => route('hardware.index', ['request_id' => $requestB->id]),
+                ],
+            ],
+        ]);
+
+        $this->actingAs($coordinator)
+            ->get($notification->bulkAllocateUrlFor($coordinator))
+            ->assertRedirect(route('hardware.index', ['request_id' => $requestA->id]));
+
+        $this->assertDatabaseHas('checkout_request_assets', [
+            'checkout_request_id' => $requestA->id,
+            'asset_id' => $assetA->id,
+            'allocated_by' => $coordinator->id,
+        ]);
+        $this->assertDatabaseHas('checkout_request_assets', [
+            'checkout_request_id' => $requestB->id,
+            'asset_id' => $assetB->id,
+            'allocated_by' => $coordinator->id,
+        ]);
+    }
+
     private function createEligibleAsset(AssetModel $model, int $companyId, int $disciplineId): Asset
     {
         return Asset::factory()->create([

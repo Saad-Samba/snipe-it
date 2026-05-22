@@ -745,6 +745,7 @@ class ModelRequestsController extends Controller
             }
 
             $buckets[$coordinatorId]['lines'][] = [
+                'request_id' => (int) $checkoutRequest->id,
                 'model_name' => $checkoutRequest->requestedItem()?->name ?? $checkoutRequest->name(),
                 'project_name' => $project?->name ?: '-',
                 'company_name' => optional($checkoutRequest->company)->name ?: '-',

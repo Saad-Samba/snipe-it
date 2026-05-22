@@ -69,8 +69,20 @@
               <div><strong>Shortfall</strong><br>{{ $requestReviewSummary['shortfall'] }}</div>
               <div><strong>Reserved</strong><br>{{ $requestReviewSummary['reserved_count'] }}</div>
               <div><strong>Reserved by Other Project</strong><br>{{ $requestReviewSummary['reserved_by_other_rfqs_count'] }}</div>
+              <div><strong>Allocated</strong><br>{{ $requestReviewSummary['allocated_count'] }}</div>
+              <div><strong>Remaining to Allocate</strong><br>{{ $requestReviewSummary['remaining_allocation_quantity'] }}</div>
               <div><strong>Amount to Buy</strong><br>{{ \App\Helpers\Helper::formatCurrencyOutput($requestReviewSummary['amount_to_buy']) }}</div>
             </div>
+            @if (!empty($requestAllocateAllUrl))
+              <div style="margin:-6px 0 16px;">
+                <form method="POST" action="{{ $requestAllocateAllUrl }}">
+                  @csrf
+                  <button type="submit" class="btn btn-primary">
+                    Allocate everything
+                  </button>
+                </form>
+              </div>
+            @endif
           @endif
           <div class="row">
             <div class="col-md-12">

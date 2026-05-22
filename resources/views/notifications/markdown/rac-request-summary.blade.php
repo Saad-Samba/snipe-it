@@ -40,6 +40,18 @@
     </tbody>
 </table>
 
+@if (!empty($bulk_allocate_url))
+@component('mail::button', ['url' => $bulk_allocate_url])
+Allocate everything
+@endcomponent
+@endif
+
+@if (!empty($review_url))
+@component('mail::button', ['url' => $review_url])
+Review request
+@endcomponent
+@endif
+
 {{ trans('mail.best_regards') }}
 
 {{ $snipeSettings->site_name }}
