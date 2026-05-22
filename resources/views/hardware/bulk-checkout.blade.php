@@ -30,6 +30,24 @@
             <input type="hidden" name="request_id" value="{{ $request_id }}">
           @endif
 
+            @if (isset($requestContext) && $requestContext)
+                <div class="box box-solid box-info">
+                    <div class="box-header with-border">
+                        <span class="box-title col-xs-12">Request context</span>
+                    </div>
+                    <div class="box-body">
+                        <p style="margin-bottom:8px;">
+                            You are fulfilling request #{{ $requestContext->id }} for
+                            <strong>{{ optional(optional($requestContext->user)->present())->fullName ?? 'Unknown user' }}</strong>.
+                        </p>
+                        <p style="margin-bottom:0;">
+                            Project: <strong>{{ optional($requestContext->project)->name ?: '-' }}</strong>,
+                            Discipline: <strong>{{ optional($requestContext->requestedDiscipline)->name ?: '-' }}</strong>
+                        </p>
+                    </div>
+                </div>
+            @endif
+
             @if ($removed_assets->isNotEmpty())
                 <div class="box box-solid box-warning">
                     <div class="box-header with-border">
@@ -84,11 +102,12 @@
 
 
           @include ('partials.forms.checkout-selector', ['user_select' => 'true','asset_select' => 'true', 'location_select' => 'true'])
-          @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.user'), 'fieldname' => 'assigned_user', 'style' => session('checkout_to_type') == 'user' ? '' : 'display: none;'])
+          @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.user'), 'fieldname' => 'assigned_user', 'style' => session('checkout_to_type') == 'user' ? '' : 'display: none;', 'item' => (object) ['assigned_user' => old('assigned_user', $request_assigned_user_id ?? null)]])
             <!-- We have to pass unselect here so that we don't default to the asset that's being checked out. We want that asset to be pre-selected everywhere else. -->
           @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.asset'), 'asset_selector_div_id' => 'assigned_asset', 'fieldname' => 'assigned_asset', 'unselect' => 'true', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
           @include ('partials.forms.edit.location-select', ['translated_name' => trans('general.location'), 'fieldname' => 'assigned_location', 'style' => session('checkout_to_type') == 'location' ? '' : 'display: none;'])
           @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id', 'item' => (object) ['project_id' => old('project_id', $request_project_id ?? null)]])
+          @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id', 'item' => (object) ['discipline_id' => old('discipline_id', $request_discipline_id ?? null)]])
 
           <!-- Checkout/Checkin Date -->
               <div class="form-group {{ $errors->has('checkout_at') ? 'error' : '' }}">

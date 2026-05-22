@@ -20,7 +20,6 @@ use App\Http\Controllers\LabelsController;
 use App\Http\Controllers\UploadedFilesController;
 use App\Http\Controllers\ManufacturersController;
 use App\Http\Controllers\ModalController;
-use App\Http\Controllers\CheckoutRequestCoordinatorAllocationController;
 use App\Http\Controllers\ModelRequestsController;
 use App\Http\Controllers\NotesController;
 use App\Http\Controllers\ProfileController;
@@ -503,11 +502,6 @@ Route::group(['prefix' => 'requests', 'middleware' => ['auth']], function () {
     Route::post('{checkoutRequest}/cancel', [ModelRequestsController::class, 'cancelSubmittedRequest'])
         ->name('requests.cancel');
 
-    Route::post('{checkoutRequest}/allocate-all', [CheckoutRequestCoordinatorAllocationController::class, 'allocateAllForRequest'])
-        ->name('requests.allocate-all');
-
-    Route::get('coordinator/allocate-all', [CheckoutRequestCoordinatorAllocationController::class, 'allocateAllFromEmail'])
-        ->name('requests.coordinator.allocate-all');
 });
 
 Route::group(['middleware' => ['auth']], function () {

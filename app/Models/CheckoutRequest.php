@@ -337,6 +337,9 @@ class CheckoutRequest extends Model
         if (in_array($resolvedStatus, [
             self::STATUS_CANCELED,
             self::STATUS_FULFILLED,
+            self::STATUS_FULLY_ALLOCATED,
+            self::STATUS_PARTIALLY_ALLOCATED,
+            self::STATUS_NOT_ALLOCATED,
         ], true)) {
             return $resolvedStatus;
         }

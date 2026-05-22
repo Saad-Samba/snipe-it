@@ -73,16 +73,15 @@
               <div><strong>Remaining to Allocate</strong><br>{{ $requestReviewSummary['remaining_allocation_quantity'] }}</div>
               <div><strong>Amount to Buy</strong><br>{{ \App\Helpers\Helper::formatCurrencyOutput($requestReviewSummary['amount_to_buy']) }}</div>
             </div>
-            @if (!empty($requestAllocateAllUrl))
-              <div style="margin:-6px 0 16px;">
-                <form method="POST" action="{{ $requestAllocateAllUrl }}">
-                  @csrf
-                  <button type="submit" class="btn btn-primary">
-                    Allocate everything
-                  </button>
-                </form>
+            @if (session('request_checkout_summary'))
+              <div class="alert alert-success">
+                Checked out {{ session('request_checkout_summary.checked_out_count') }} asset(s) into this request context.
+                Remaining to allocate: {{ session('request_checkout_summary.remaining_allocation_quantity') }}.
               </div>
             @endif
+            <div class="alert alert-warning" style="margin-top:-6px;">
+              Select the matching assets below, then use <strong>{{ trans('general.bulk_checkout') }}</strong> to fulfill this request quickly.
+            </div>
           @endif
           <div class="row">
             <div class="col-md-12">

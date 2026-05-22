@@ -67,7 +67,6 @@ class AssetsController extends Controller
         $company = Company::find($request->input('company_id'));
         $requestContext = null;
         $requestReviewSummary = null;
-        $requestAllocateAllUrl = null;
 
         if ($request->filled('request_id')) {
             $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project', 'company', 'requestedDiscipline'])->find((int) $request->input('request_id'));
@@ -87,9 +86,6 @@ class AssetsController extends Controller
             );
             session(['back_url' => $request->fullUrl()]);
             $liveMetrics = $requestContext->liveRequestMetrics();
-            $requestAllocateAllUrl = $requestContext->canBeBulkAllocatedBy(auth()->user())
-                ? route('requests.allocate-all', $requestContext)
-                : null;
 
             $requestReviewSummary = [
                 'project' => optional($requestContext->project)->name,
@@ -111,8 +107,7 @@ class AssetsController extends Controller
         return view('hardware/index')
             ->with('company', $company)
             ->with('requestContext', $requestContext)
-            ->with('requestReviewSummary', $requestReviewSummary)
-            ->with('requestAllocateAllUrl', $requestAllocateAllUrl);
+            ->with('requestReviewSummary', $requestReviewSummary);
     }
 
     /**
