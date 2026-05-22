@@ -102,7 +102,6 @@ class ModelRequestsController extends Controller
         $companyId = isset($validated['company_id']) ? (int) $validated['company_id'] : null;
         $projectId = $validated['project_id'] ?? null;
         $neededByDate = $validated['needed_by_date'] ?? null;
-        $awardDate = $validated['award_date'] ?? null;
         $data['item_quantity'] = $quantity;
         $data['requested_by'] = $user->display_name;
         $data['item'] = $item;
@@ -169,7 +168,6 @@ class ModelRequestsController extends Controller
                 [
                     'project_id' => $projectId,
                     'needed_by_date' => $neededByDate,
-                    'award_date' => $awardDate,
                     'requested_discipline_id' => $requestedDisciplineId,
                     'company_id' => $companyId,
                 ],
@@ -217,7 +215,6 @@ class ModelRequestsController extends Controller
             'company_id' => ['required', 'integer', 'exists:companies,id'],
             'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
             'needed_by_date' => ['required', 'date'],
-            'award_date' => ['nullable', 'date'],
             'model_quantities' => ['required', 'array', 'min:1'],
             'model_quantities.*' => ['required', 'integer', 'min:1'],
         ]);
@@ -237,7 +234,6 @@ class ModelRequestsController extends Controller
                         'company_id' => (int) $validated['company_id'],
                         'project_id' => (int) $validated['project_id'],
                         'needed_by_date' => $validated['needed_by_date'],
-                        'award_date' => $validated['award_date'] ?? null,
                     ],
                     $this->estimateAssetModelRequest($item, (int) $quantity, $validated['needed_by_date'])
                 );
@@ -335,7 +331,6 @@ class ModelRequestsController extends Controller
 
         $projectId = isset($validated['project_id']) ? (int) $validated['project_id'] : null;
         $neededByDate = $validated['needed_by_date'] ?? null;
-        $awardDate = $validated['award_date'] ?? null;
         $cart = $this->getModelRequestCart($request);
         $lines = [];
         $totals = [
@@ -494,7 +489,6 @@ class ModelRequestsController extends Controller
         $requestedDisciplineId = isset($validated['requested_discipline_id']) ? (int) $validated['requested_discipline_id'] : 0;
         $companyId = isset($validated['company_id']) ? (int) $validated['company_id'] : 0;
         $neededByDate = $validated['needed_by_date'] ?? null;
-        $awardDate = $validated['award_date'] ?? null;
 
         $item = $checkoutRequest->requestedItem;
         abort_if(! $item instanceof AssetModel, 404);
@@ -512,7 +506,6 @@ class ModelRequestsController extends Controller
         $checkoutRequest->requested_discipline_id = $requestedDisciplineId;
         $checkoutRequest->company_id = $companyId;
         $checkoutRequest->needed_by_date = $neededByDate;
-        $checkoutRequest->award_date = $awardDate;
         $checkoutRequest->fill($this->estimateAssetModelRequest($item, $quantity, $neededByDate));
         $checkoutRequest->status = CheckoutRequest::STATUS_PENDING;
         $checkoutRequest->save();
@@ -605,7 +598,6 @@ class ModelRequestsController extends Controller
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
             'needed_by_date' => ['nullable', 'date'],
-            'award_date' => ['nullable', 'date'],
         ]);
     }
 

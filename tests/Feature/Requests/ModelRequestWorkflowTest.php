@@ -61,7 +61,6 @@ class ModelRequestWorkflowTest extends TestCase
                 'company_id' => $destinationCompany->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
-                'award_date' => '2026-06-10',
             ])
             ->assertRedirect();
 
@@ -75,7 +74,6 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame($disciplineA->id, $checkoutRequest->requested_discipline_id);
         $this->assertSame($destinationCompany->id, $checkoutRequest->company_id);
         $this->assertSame('2026-06-01', optional($checkoutRequest->needed_by_date)->format('Y-m-d'));
-        $this->assertSame('2026-06-10', optional($checkoutRequest->award_date)->format('Y-m-d'));
         $this->assertSame('pending', $checkoutRequest->status);
         $this->assertSame(2, $checkoutRequest->reusable_quantity);
         $this->assertSame(0, $checkoutRequest->due_back_before_needed_by_quantity);
@@ -936,7 +934,6 @@ class ModelRequestWorkflowTest extends TestCase
                 'company_id' => $company->id,
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-15',
-                'award_date' => '2026-06-30',
             ])
             ->assertRedirect();
 
@@ -952,7 +949,6 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->assertSame('2026-06-15', optional($existingRequest->fresh()->needed_by_date)->format('Y-m-d'));
-        $this->assertSame('2026-06-30', optional($existingRequest->fresh()->award_date)->format('Y-m-d'));
 
         $this->assertSame(
             1,
@@ -1001,7 +997,6 @@ class ModelRequestWorkflowTest extends TestCase
                 'company_id' => $updatedCompany->id,
                 'project_id' => $updatedProject->id,
                 'needed_by_date' => '2026-07-01',
-                'award_date' => '2026-07-10',
             ])
             ->assertRedirect();
 
@@ -1011,7 +1006,6 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame($updatedProject->id, $request->project_id);
         $this->assertSame($updatedCompany->id, $request->company_id);
         $this->assertSame('2026-07-01', optional($request->needed_by_date)->format('Y-m-d'));
-        $this->assertSame('2026-07-10', optional($request->award_date)->format('Y-m-d'));
         $this->assertSame(1, $request->reusable_quantity);
         $this->assertSame(1, $request->procurement_shortfall);
         $this->assertSame(400.0, (float) $request->estimated_savings);
@@ -1960,7 +1954,7 @@ class ModelRequestWorkflowTest extends TestCase
             'project_id' => $project->id,
             'quantity' => 2,
             'status' => CheckoutRequest::STATUS_PENDING,
-            'award_date' => '2026-07-15',
+            'needed_by_date' => '2026-07-15',
         ]);
 
         $request->coordinatorTargets()->create([

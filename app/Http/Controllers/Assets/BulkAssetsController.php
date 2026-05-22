@@ -795,7 +795,7 @@ class BulkAssetsController extends Controller
             'request_assigned_user_id' => $requestContext?->user_id,
             'request_discipline_id' => $requestContext?->requested_discipline_id,
             'request_status_id' => Setting::rfqReservedStatusId(),
-            'request_award_date' => optional($requestContext?->award_date)?->format('Y-m-d'),
+            'request_needed_by_date' => optional($requestContext?->needed_by_date)?->format('Y-m-d'),
         ]);
     }
 

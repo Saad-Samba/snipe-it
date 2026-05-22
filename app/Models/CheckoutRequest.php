@@ -31,7 +31,6 @@ class CheckoutRequest extends Model
         'company_id',
         'project_id',
         'needed_by_date',
-        'award_date',
         'quantity',
         'reusable_quantity',
         'due_back_before_needed_by_quantity',
@@ -45,7 +44,6 @@ class CheckoutRequest extends Model
 
     protected $casts = [
         'needed_by_date' => 'date',
-        'award_date' => 'date',
         'estimated_savings' => 'float',
         'reference_price_snapshot' => 'float',
     ];
