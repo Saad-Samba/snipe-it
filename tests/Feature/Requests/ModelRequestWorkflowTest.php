@@ -592,7 +592,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('status_id='.$reservedStatus->id, false);
     }
 
-    public function test_requested_assets_api_points_request_detail_url_to_unfiltered_request_review()
+    public function test_requested_assets_api_points_request_detail_url_to_reusable_now_request_review()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create();
@@ -614,7 +614,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('rows.0.request_detail_url', route('hardware.index', [
                 'request_id' => $checkoutRequest->id,
-                'model_id' => $model->id,
+                'request_bucket' => 'reusable_now',
             ]));
     }
 
@@ -1914,13 +1914,13 @@ class ModelRequestWorkflowTest extends TestCase
                 'needed_by_date' => '2026-06-20',
                 'model_show_url' => route('models.show', $model->id),
                 'project_requests_url' => route('projects.show', ['project' => $project->id, 'tab' => 'requests']),
-                'request_detail_url' => route('hardware.index', ['request_id' => $request->id]),
+                'request_detail_url' => route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']),
             ]],
         ]);
 
         $renderedMail = $notification->toMail($coordinator)->render();
 
-        $this->assertSame(route('hardware.index', ['request_id' => $request->id]), $notification->reviewUrl());
+        $this->assertSame(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']), $notification->reviewUrl());
         $this->assertStringNotContainsString('Allocate everything', $renderedMail);
         $this->assertStringContainsString('Review request', $renderedMail);
     }

@@ -68,7 +68,7 @@ class ModelRequestsController extends Controller
             ];
             $requestDetailQuery = [
                 'request_id' => $checkoutRequest->id,
-                'model_id' => $checkoutRequest->requestable_id,
+                'request_bucket' => 'reusable_now',
             ];
 
             $assets = [
