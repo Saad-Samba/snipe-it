@@ -33,7 +33,6 @@ use App\Http\Controllers\SuppliersController;
 use App\Http\Controllers\ViewAssetsController;
 use App\Livewire\Importer;
 use App\Models\ReportTemplate;
-use Illuminate\Routing\Middleware\ValidateSignature;
 use Illuminate\Support\Facades\Route;
 use Tabuna\Breadcrumbs\Trail;
 
@@ -508,7 +507,6 @@ Route::group(['prefix' => 'requests', 'middleware' => ['auth']], function () {
         ->name('requests.allocate-all');
 
     Route::get('coordinator/allocate-all', [CheckoutRequestCoordinatorAllocationController::class, 'allocateAllFromEmail'])
-        ->middleware(ValidateSignature::class)
         ->name('requests.coordinator.allocate-all');
 });
 

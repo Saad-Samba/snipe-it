@@ -31,7 +31,21 @@ class CheckoutRequestCoordinatorAllocationController extends Controller
             ->values();
 
         abort_if($requestIds->isEmpty(), 404);
-        abort_unless(auth()->id() === $coordinatorId, 403);
+
+        $ignoredQueryKeys = collect(array_keys($request->query()))
+            ->reject(fn (string $key) => in_array($key, ['coordinator', 'requests', 'expires', 'signature'], true))
+            ->values()
+            ->all();
+
+        if (! $request->hasValidSignatureWhileIgnoring($ignoredQueryKeys)) {
+            return redirect()->route('requests.index')
+                ->with('error', 'This allocation link is invalid or has expired.');
+        }
+
+        if ((int) auth()->id() !== $coordinatorId) {
+            return redirect()->route('requests.index')
+                ->with('error', 'This allocation link belongs to another coordinator account.');
+        }
 
         $checkoutRequests = CheckoutRequest::query()
             ->whereIn('id', $requestIds)

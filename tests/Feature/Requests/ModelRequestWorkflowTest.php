@@ -2119,6 +2119,75 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_email_bulk_allocate_accepts_extra_tracking_query_parameters()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $coordinator = User::factory()->viewAssets()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Tracked Link', 'created_by' => $requester->id]);
+        $company = Company::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $reservedStatus = Statuslabel::factory()->create([
+            'name' => 'Reserved for RFQ',
+            'deployable' => 1,
+            'default_label' => 0,
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $company->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ]);
+
+        $request->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+        ]);
+
+        $asset = $this->createEligibleAsset($model, $company->id, $discipline->id);
+
+        $notification = new RacScopedRequestSummaryNotification([
+            'requester' => $requester,
+            'submitted_at' => now()->toDateTimeString(),
+            'project_name' => $project->name,
+            'lines' => [[
+                'request_id' => $request->id,
+                'model_name' => $model->name,
+                'company_name' => $company->name,
+                'requested_quantity' => 1,
+                'reusable_quantity' => 1,
+                'needed_by_date' => '2026-06-20',
+                'model_show_url' => route('models.show', $model->id),
+                'project_requests_url' => route('projects.show', ['project' => $project->id, 'tab' => 'requests']),
+                'request_detail_url' => route('hardware.index', ['request_id' => $request->id]),
+            ]],
+        ]);
+
+        $trackedUrl = $notification->bulkAllocateUrlFor($coordinator).'&utm_source=test-client';
+
+        $this->actingAs($coordinator)
+            ->get($trackedUrl)
+            ->assertRedirect(route('hardware.index', ['request_id' => $request->id]));
+
+        $this->assertDatabaseHas('checkout_request_assets', [
+            'checkout_request_id' => $request->id,
+            'asset_id' => $asset->id,
+            'allocated_by' => $coordinator->id,
+        ]);
+    }
+
     private function createEligibleAsset(AssetModel $model, int $companyId, int $disciplineId): Asset
     {
         return Asset::factory()->create([
