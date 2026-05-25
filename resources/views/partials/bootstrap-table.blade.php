@@ -1220,16 +1220,6 @@
         };
     }
 
-    function centerMatchFormatter(value, row) {
-        if (row && row.is_closest_match) {
-            return '<span class="label label-success" data-tooltip="true" title="Reusable asset from the same center">Same center</span>';
-        }
-
-        return '';
-    }
-
-
-
     // This is a special formatter that will indicate whether a user is an admin or superadmin
     function usernameRoleLinkFormatter(value, row) {
 
@@ -1315,6 +1305,20 @@
                 return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a>' + obsoleteIndicator + '</nobr>';
             }
         };
+    }
+
+    function companiesCenterMatchObjFormatter(value, row) {
+        var formattedValue = genericColumnObjLinkFormatter('companies')(value, row);
+
+        if (!formattedValue) {
+            return formattedValue;
+        }
+
+        if (row && row.is_closest_match) {
+            formattedValue += ' <span class="label label-success" data-tooltip="true" title="Reusable asset from the same center">Same center</span>';
+        }
+
+        return formattedValue;
     }
 
 

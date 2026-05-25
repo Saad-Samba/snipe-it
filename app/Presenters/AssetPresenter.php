@@ -15,7 +15,7 @@ class AssetPresenter extends Presenter
      * Json Column Layout for bootstrap table
      * @return string
      */
-    public static function dataTableLayout(bool $includeCenterMatchColumn = false)
+    public static function dataTableLayout(bool $showCenterMatchInCompanyColumn = false)
     {
         $layout = [
             [
@@ -30,29 +30,14 @@ class AssetPresenter extends Presenter
                 'switchable' => true,
                 'title' => trans('general.id'),
                 'visible' => false,
-            ],
-        ];
-
-        if ($includeCenterMatchColumn) {
-            $layout[] = [
-                'field' => 'center_match',
-                'searchable' => false,
-                'sortable' => false,
-                'switchable' => false,
-                'title' => 'Center',
-                'visible' => true,
-                'formatter' => 'centerMatchFormatter',
-            ];
-        }
-
-        $layout = array_merge($layout, [[
+            ], [
                 'field' => 'company',
                 'searchable' => true,
                 'sortable' => true,
                 'switchable' => true,
                 'title' => trans('general.company'),
-                'visible' => false,
-                'formatter' => 'companiesLinkObjFormatter',
+                'visible' => $showCenterMatchInCompanyColumn,
+                'formatter' => $showCenterMatchInCompanyColumn ? 'companiesCenterMatchObjFormatter' : 'companiesLinkObjFormatter',
             ], [
                 'field' => 'project',
                 'searchable' => true,
@@ -348,7 +333,7 @@ class AssetPresenter extends Presenter
                 'formatter' => 'trueFalseFormatter',
 
             ],
-        ]);
+        ];
 
         // This looks complicated, but we have to confirm that the custom fields exist in custom fieldsets
         // *and* those fieldsets are associated with models, otherwise we'll trigger
