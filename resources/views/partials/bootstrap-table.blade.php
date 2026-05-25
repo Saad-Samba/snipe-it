@@ -1315,7 +1315,7 @@
         }
 
         if (row && row.is_closest_match) {
-            formattedValue += ' <span class="label label-success" data-tooltip="true" title="Reusable asset from the same center">Same center</span>';
+            return '<span style="white-space: nowrap;">' + formattedValue + ' <span class="label label-success" data-tooltip="true" title="Reusable asset from the same center">Same center</span></span>';
         }
 
         return formattedValue;
