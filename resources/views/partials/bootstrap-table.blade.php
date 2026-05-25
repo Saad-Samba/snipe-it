@@ -1,27 +1,5 @@
 @push('css')
     <link rel="stylesheet" href="{{ url(mix('css/dist/bootstrap-table.css')) }}">
-    <style nonce="{{ csrf_token() }}">
-        .asset-match-row > td {
-            background-color: #f3fbf6 !important;
-        }
-
-        .asset-match-row > td:first-child {
-            box-shadow: inset 4px 0 0 #17a768;
-        }
-
-        .asset-match-chip {
-            display: inline-block;
-            margin-left: 8px;
-            padding: 2px 8px;
-            border-radius: 999px;
-            background: #e6f7ee;
-            color: #147a50;
-            font-size: 11px;
-            font-weight: 700;
-            line-height: 1.4;
-            vertical-align: middle;
-        }
-    </style>
 @endpush
 
 @push('js')
@@ -1236,25 +1214,18 @@
                 var tag_icon = '';
             }
 
-            var relevanceBadge = '';
-            if (destination === 'hardware' && row && row.is_closest_match && this && this.field === 'name') {
-                relevanceBadge = ' <span class="asset-match-chip" data-tooltip="true" title="Reusable asset from the same center">Same center</span>';
-            }
-
             if (value) {
-                return tag_icon + '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '">' + value + '</a>' + relevanceBadge;
+                return tag_icon + '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '">' + value + '</a>';
             }
         };
     }
 
-    function reusableRequestMatchRowStyle(row) {
+    function centerMatchFormatter(value, row) {
         if (row && row.is_closest_match) {
-            return {
-                classes: 'asset-match-row'
-            };
+            return '<span class="label label-success" data-tooltip="true" title="Reusable asset from the same center">Same center</span>';
         }
 
-        return {};
+        return '';
     }
 
 

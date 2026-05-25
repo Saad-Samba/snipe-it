@@ -73,7 +73,7 @@
                 @include('partials.asset-bulk-actions', ['status' => Request::get('status')])
                    
               <table
-                data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout() }}"
+                data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout(Request::get('request_bucket') === 'reusable_now') }}"
                 data-cookie-id-table="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 data-id-table="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 data-side-pagination="server"
@@ -86,9 +86,6 @@
                 data-bulk-button-id="#bulkAssetEditButton"
                 data-bulk-form-id="#assetsBulkForm"
                 data-buttons="assetButtons"
-                @if (Request::get('request_bucket') === 'reusable_now')
-                data-row-style="reusableRequestMatchRowStyle"
-                @endif
                 id="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 class="table table-striped snipe-table"
                 data-url="{{ route('api.assets.index',
