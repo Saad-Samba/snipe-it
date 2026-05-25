@@ -28,6 +28,7 @@ class RacScopedRequestSummaryNotification extends Notification
             'submitted_at' => Helper::getFormattedDateObject($this->summary['submitted_at'], 'datetime', false),
             'project_name' => $this->summary['project_name'],
             'lines' => $this->summary['lines'],
+            'review_url' => $this->reviewUrl(),
         ])
             ->subject(trans('mail.rac_request_scope_match_subject', ['project' => $projectName]))
             ->withSymfonyMessage(function (Email $message) {
@@ -45,5 +46,12 @@ class RacScopedRequestSummaryNotification extends Notification
     public function projectName(): ?string
     {
         return $this->summary['project_name'] ?? null;
+    }
+
+    public function reviewUrl(): ?string
+    {
+        return $this->summary['lines'][0]['request_detail_url']
+            ?? $this->summary['lines'][0]['project_requests_url']
+            ?? null;
     }
 }

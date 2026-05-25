@@ -163,9 +163,37 @@ class CheckoutRequest extends Model
             && $this->resolvedStatus() !== self::STATUS_CANCELED;
     }
 
+    public function canBeBulkAllocatedBy(User $user): bool
+    {
+        return $this->requestable_type === AssetModel::class
+            && $this->canBeViewedBy($user)
+            && $this->remainingAllocationQuantity() > 0;
+    }
+
     public function allocatedQuantity(): int
     {
         return $this->allocatedAssets()->count();
+    }
+
+    public function remainingAllocationQuantity(): int
+    {
+        return max((int) $this->quantity - $this->allocatedQuantity(), 0);
+    }
+
+    public function suggestedReusableAssetIds(): array
+    {
+        if ($this->requestable_type !== AssetModel::class || ! $this->requestable_id) {
+            return [];
+        }
+
+        return Asset::query()
+            ->RTD()
+            ->where('model_id', $this->requestable_id)
+            ->orderBy('assets.id')
+            ->limit(max($this->remainingAllocationQuantity(), 0))
+            ->pluck('assets.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     public function bookedAssetsQuery()
@@ -325,6 +353,9 @@ class CheckoutRequest extends Model
         if (in_array($resolvedStatus, [
             self::STATUS_CANCELED,
             self::STATUS_FULFILLED,
+            self::STATUS_FULLY_ALLOCATED,
+            self::STATUS_PARTIALLY_ALLOCATED,
+            self::STATUS_NOT_ALLOCATED,
         ], true)) {
             return $resolvedStatus;
         }
@@ -427,10 +458,15 @@ class CheckoutRequest extends Model
             return;
         }
 
-        $this->status = $this->derivedAllocationStatus();
+        $derivedStatus = $this->derivedAllocationStatus();
+        $this->status = $derivedStatus;
 
-        if ($forceDerived && ! $this->fulfilled_at) {
+        if ($forceDerived && $derivedStatus === self::STATUS_FULLY_ALLOCATED && ! $this->fulfilled_at) {
             $this->fulfilled_at = now();
+        }
+
+        if ($derivedStatus !== self::STATUS_FULLY_ALLOCATED) {
+            $this->fulfilled_at = null;
         }
 
         $this->save();

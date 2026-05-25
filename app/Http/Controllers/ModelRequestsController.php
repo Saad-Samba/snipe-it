@@ -745,6 +745,7 @@ class ModelRequestsController extends Controller
             }
 
             $buckets[$coordinatorId]['lines'][] = [
+                'request_id' => (int) $checkoutRequest->id,
                 'model_name' => $checkoutRequest->requestedItem()?->name ?? $checkoutRequest->name(),
                 'project_name' => $project?->name ?: '-',
                 'company_name' => optional($checkoutRequest->company)->name ?: '-',
@@ -772,21 +773,10 @@ class ModelRequestsController extends Controller
 
     private function requestDetailUrlFor(CheckoutRequest $checkoutRequest): string
     {
-        $query = [
+        return route('hardware.index', [
             'request_id' => $checkoutRequest->id,
-            'model_id' => $checkoutRequest->requestable_id,
-            'project_id' => $checkoutRequest->project_id,
-            'discipline_id' => $checkoutRequest->requested_discipline_id,
-        ];
-
-        $reservedStatusId = Setting::rfqReservedStatusId();
-        if ($reservedStatusId) {
-            $query['status_id'] = $reservedStatusId;
-        } else {
-            $query['status'] = 'RTD';
-        }
-
-        return route('hardware.index', $query);
+            'request_bucket' => 'reusable_now',
+        ]);
     }
 
     private function buildModelRequestPreviewLine(AssetModel $model, Discipline $discipline, Company $company, int $quantity, ?int $projectId, ?string $neededByDate): array
