@@ -747,6 +747,43 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.id', $reservedOtherProjectAsset->id);
     }
 
+    public function test_reusable_now_bucket_prioritizes_same_company_assets_and_exposes_match_flag()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $matchingCompany = Company::factory()->create(['name' => 'Matching Center']);
+        $fallbackCompany = Company::factory()->create(['name' => 'Fallback Center']);
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Reusable Match', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $fallbackAsset = $this->createEligibleAsset($model, $fallbackCompany->id, $discipline->id);
+        $matchingAsset = $this->createEligibleAsset($model, $matchingCompany->id, $discipline->id);
+
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $matchingCompany->id,
+            'needed_by_date' => '2026-06-20',
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.assets.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reusable_now',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('rows.0.id', $matchingAsset->id)
+            ->assertJsonPath('rows.0.is_closest_match', true)
+            ->assertJsonPath('rows.1.id', $fallbackAsset->id)
+            ->assertJsonPath('rows.1.is_closest_match', false);
+    }
+
     public function test_request_bucket_is_forwarded_by_the_hardware_review_page_table()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
@@ -773,6 +810,38 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('request-'.$checkoutRequest->id.'-reserved-assetsListingTable', false)
             ->assertSee('data-search-text=""', false)
             ->assertSee('request_bucket=reserved', false);
+    }
+
+    public function test_reusable_now_request_review_page_shows_same_center_badge_for_matching_assets()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $matchingCompany = Company::factory()->create(['name' => 'Matching Center']);
+        $fallbackCompany = Company::factory()->create(['name' => 'Fallback Center']);
+        $discipline = Discipline::create(['name' => 'Review Match', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $matchingAsset = $this->createEligibleAsset($model, $matchingCompany->id, $discipline->id);
+        $this->createEligibleAsset($model, $fallbackCompany->id, $discipline->id);
+
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $matchingCompany->id,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reusable_now',
+            ]))
+            ->assertOk()
+            ->assertSee('Same center');
     }
 
     public function test_request_filtered_assets_api_keeps_showing_project_booked_assets_for_the_request()

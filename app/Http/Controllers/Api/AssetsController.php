@@ -432,6 +432,11 @@ class AssetsController extends Controller
             switch ($request->input('request_bucket')) {
                 case 'reusable_now':
                     $assets->RTD();
+                    if ($requestContext->company_id) {
+                        $assets->orderByRaw('CASE WHEN assets.company_id = ? THEN 0 ELSE 1 END ASC', [
+                            $requestContext->company_id,
+                        ]);
+                    }
                     break;
                 case 'due_back':
                     $assets->whereNotNull('assets.assigned_to')

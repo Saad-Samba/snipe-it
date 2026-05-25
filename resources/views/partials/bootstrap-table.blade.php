@@ -1214,8 +1214,13 @@
                 var tag_icon = '';
             }
 
+            var relevanceBadge = '';
+            if (destination === 'hardware' && row && row.is_closest_match) {
+                relevanceBadge = ' <span class="label label-success" data-tooltip="true" title="Reusable asset from the same center">Same center</span>';
+            }
+
             if (value) {
-                return tag_icon + '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '">' + value + '</a>';
+                return tag_icon + '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '">' + value + '</a>' + relevanceBadge;
             }
         };
     }
