@@ -86,6 +86,9 @@
                 data-bulk-button-id="#bulkAssetEditButton"
                 data-bulk-form-id="#assetsBulkForm"
                 data-buttons="assetButtons"
+                @if (Request::get('request_bucket') === 'reusable_now')
+                data-row-style="reusableRequestMatchRowStyle"
+                @endif
                 id="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 class="table table-striped snipe-table"
                 data-url="{{ route('api.assets.index',
