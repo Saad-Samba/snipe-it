@@ -1,0 +1,91 @@
+<mxfile host="app.diagrams.net" modified="2026-06-03T00:00:00.000Z" agent="Codex" version="26.0.0" type="device">
+  <diagram id="reuse-request-relevance" name="Reuse Request Relevance Workflow">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Reuse Request Relevance Workflow" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="420" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Current implementation + future enhancement direction for stakeholder review" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontColor=#6b7280;" vertex="1" parent="1">
+          <mxGeometry x="40" y="50" width="520" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="current" value="Current Implementation" style="swimlane;startSize=28;rounded=1;html=1;fillColor=#eff6ff;strokeColor=#60a5fa;fontColor=#1e3a8a;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="860" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="future" value="Future Improvement" style="swimlane;startSize=28;rounded=1;html=1;fillColor=#f9fafb;strokeColor=#9ca3af;fontColor=#374151;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="940" y="90" width="560" height="420" as="geometry"/>
+        </mxCell>
+        <mxCell id="req" value="Requester submits reuse request&#xa;with destination company/site" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#3b82f6;fontColor=#1e3a8a;" vertex="1" parent="current">
+          <mxGeometry x="30" y="60" width="170" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="assets" value="System loads reusable assets&#xa;for request bucket: reusable_now" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#60a5fa;fontColor=#1f2937;" vertex="1" parent="current">
+          <mxGeometry x="230" y="60" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="decision" value="Asset company/site&#xa;matches request company/site?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#f59e0b;fontColor=#92400e;" vertex="1" parent="current">
+          <mxGeometry x="450" y="55" width="180" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="same" value="Yes: prioritize asset&#xa;to the top of results" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#22c55e;fontColor=#166534;" vertex="1" parent="current">
+          <mxGeometry x="670" y="40" width="160" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="other" value="No: keep asset visible&#xa;as fallback option" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#9ca3af;fontColor=#374151;" vertex="1" parent="current">
+          <mxGeometry x="670" y="135" width="160" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ui" value="UI shows Company column by default&#xa;and adds 'Same center' tag inline&#xa;only for matching assets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#60a5fa;fontColor=#1f2937;" vertex="1" parent="current">
+          <mxGeometry x="335" y="220" width="220" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="outcome" value="Result: users immediately see&#xa;the most relevant same-site reusable assets&#xa;without hiding cross-site alternatives" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontColor=#1e3a8a;fontStyle=1;" vertex="1" parent="current">
+          <mxGeometry x="610" y="235" width="220" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="note1" value="Current rule is intentionally simple:&#xa;same company/site first, all others remain neutral fallback." style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;fontColor=#9a3412;" vertex="1" parent="current">
+          <mxGeometry x="40" y="235" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="future1" value="Potential next step: define an ordered list&#xa;of preferred sites for each requesting site" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9ca3af;fontColor=#374151;" vertex="1" parent="future">
+          <mxGeometry x="30" y="60" width="220" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="future2" value="Evaluate non-matching sites by ranking logic&#xa;(proximity, shipping cost, handling effort,&#xa;availability risk, business priority)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9ca3af;fontColor=#374151;" vertex="1" parent="future">
+          <mxGeometry x="290" y="60" width="230" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="future3" value="Decision needed: is 'best site'&#xa;defined by proximity only, or by total cost/value?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#f59e0b;fontColor=#92400e;" vertex="1" parent="future">
+          <mxGeometry x="190" y="190" width="180" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="future4" value="Possible future UI:&#xa;top-ranked site first, then second-best,&#xa;with rationale shown to reviewers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfeff;strokeColor=#06b6d4;fontColor=#155e75;" vertex="1" parent="future">
+          <mxGeometry x="175" y="320" width="210" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="futureNote" value="Today we only highlight same-site matches.&#xa;Future versions can rank all other sites once&#xa;the business rule for 'best' is agreed." style="shape=mxgraph.flowchart.document;whiteSpace=wrap;html=1;fillColor=#f9fafb;strokeColor=#6b7280;fontColor=#374151;" vertex="1" parent="future">
+          <mxGeometry x="30" y="300" width="120" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#3b82f6;strokeWidth=2;" edge="1" source="req" target="assets" parent="current">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#3b82f6;strokeWidth=2;" edge="1" source="assets" target="decision" parent="current">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#22c55e;strokeWidth=2;fontColor=#166534;" edge="1" source="decision" target="same" parent="current">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#9ca3af;strokeWidth=2;fontColor=#374151;" edge="1" source="decision" target="other" parent="current">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#3b82f6;strokeWidth=2;" edge="1" source="same" target="ui" parent="current">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#9ca3af;strokeWidth=2;" edge="1" source="other" target="ui" parent="current">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#2563eb;strokeWidth=2;" edge="1" source="ui" target="outcome" parent="current">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="f1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6b7280;strokeWidth=2;" edge="1" source="future1" target="future2" parent="future">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="f2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6b7280;strokeWidth=2;" edge="1" source="future2" target="future3" parent="future">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="f3" value="Agree rule" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#06b6d4;strokeWidth=2;fontColor=#155e75;" edge="1" source="future3" target="future4" parent="future">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
