@@ -14,6 +14,15 @@ class CheckoutRequestCoordinator extends Model
         'user_id',
         'company_id',
         'discipline_id',
+        'initial_notified_at',
+        'last_reminded_at',
+        'reminder_count',
+    ];
+
+    protected $casts = [
+        'initial_notified_at' => 'datetime',
+        'last_reminded_at' => 'datetime',
+        'reminder_count' => 'integer',
     ];
 
     public function checkoutRequest()

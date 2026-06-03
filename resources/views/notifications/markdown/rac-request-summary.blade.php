@@ -1,15 +1,19 @@
 @component('mail::message')
 # {{ trans('mail.hello') }},
 
-{{ trans('mail.rac_request_scope_match_intro') }}
+{{ trans($is_reminder ? 'mail.rac_request_scope_match_reminder_intro' : 'mail.rac_request_scope_match_intro') }}
 
 @if ($project_name)
 **{{ trans('general.project') }}:** {{ $project_name }}
 @endif
 
+@if ($requester)
 **Requestor:** {{ $requester->display_name }}
+@endif
 
 **{{ trans('general.requested') }}:** {{ $submitted_at }}
+
+{{ trans($is_reminder ? 'mail.rac_request_scope_match_reminder_action' : 'mail.rac_request_scope_match_action') }}
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; width:100%; margin-top:18px; margin-bottom:18px;">
     <thead>
@@ -42,7 +46,7 @@
 
 @if (!empty($review_url))
 @component('mail::button', ['url' => $review_url])
-Review request
+{{ $review_label }}
 @endcomponent
 @endif
 

@@ -12,6 +12,7 @@ use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
 use App\Models\Project;
@@ -768,6 +769,23 @@ class ModelRequestsController extends Controller
     {
         foreach ($buckets as $bucket) {
             $bucket['rac_user']->notify(new RacScopedRequestSummaryNotification($bucket));
+
+            $requestIds = collect($bucket['lines'] ?? [])
+                ->pluck('request_id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            if ($requestIds->isEmpty()) {
+                continue;
+            }
+
+            CheckoutRequestCoordinator::query()
+                ->where('user_id', $bucket['rac_user']->id)
+                ->whereIn('checkout_request_id', $requestIds)
+                ->whereNull('initial_notified_at')
+                ->update(['initial_notified_at' => now()]);
         }
     }
 
