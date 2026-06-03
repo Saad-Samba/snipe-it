@@ -95,6 +95,16 @@ class ModelRequestWorkflowTest extends TestCase
             'company_id' => $companyB->id,
             'discipline_id' => $disciplineB->id,
         ]);
+        $this->assertDatabaseMissing('checkout_request_coordinators', [
+            'checkout_request_id' => $checkoutRequest->id,
+            'user_id' => $coordinatorA->id,
+            'initial_notified_at' => null,
+        ]);
+        $this->assertDatabaseMissing('checkout_request_coordinators', [
+            'checkout_request_id' => $checkoutRequest->id,
+            'user_id' => $coordinatorB->id,
+            'initial_notified_at' => null,
+        ]);
 
         Notification::assertSentTo($coordinatorA, RacScopedRequestSummaryNotification::class, function ($notification) use ($project, $disciplineA) {
             return $notification->projectName() === $project->name
@@ -1988,10 +1998,13 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $renderedMail = $notification->toMail($coordinator)->render();
+        $mailMessage = $notification->toMail($coordinator);
 
         $this->assertSame(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']), $notification->reviewUrl());
         $this->assertStringNotContainsString('Allocate everything', $renderedMail);
-        $this->assertStringContainsString('Review request', $renderedMail);
+        $this->assertStringContainsString('Review request in Snipe-IT', $renderedMail);
+        $this->assertStringContainsString('Please open the request in Snipe-IT', $renderedMail);
+        $this->assertSame('Action required: reusable request for '.$project->name, $mailMessage->subject);
     }
 
     public function test_candidate_rac_bulk_checkout_form_prefills_request_context()
