@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Categories\Ui;
 
+use App\Models\Category;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -23,5 +24,17 @@ class IndexCategoriesTest extends TestCase
             ->assertSee('Available Models', false)
             ->assertSee('Available Assets', false)
             ->assertSee('My Categories', false);
+    }
+
+    public function testCategoryManagerCanOpenCategoryListWithoutGlobalCategoriesViewPermission()
+    {
+        $manager = User::factory()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->get(route('categories.index'))
+            ->assertOk();
     }
 }
