@@ -78,6 +78,16 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'minAmtFormatter',
                 'class' => 'text-right text-padding-number-cell',
             ],
+            [
+                'field' => 'reference_price',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => 'Reference Price',
+                'visible' => true,
+                'formatter' => 'referencePriceFormatter',
+                'class' => 'text-right text-padding-number-cell',
+            ],
 
             [
                 'field' => 'assets_count',
@@ -151,7 +161,7 @@ class AssetModelPresenter extends Presenter
                 'sortable' => true,
                 'visible' => false,
                 'title' => trans('admin/models/table.obsolete'),
-                'formatter' => 'trueFalseFormatter',
+                'formatter' => 'yesNoFormatter',
             ],
             [
                 'field' => 'fieldset',
@@ -211,7 +221,7 @@ class AssetModelPresenter extends Presenter
             'searchable' => false,
             'sortable' => false,
             'switchable' => false,
-            'title' => trans('button.request'),
+            'title' => 'Total Needed',
             'formatter' => 'modelRequestActionsFormatter',
             'printIgnore' => true,
         ];

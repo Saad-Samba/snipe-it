@@ -34,13 +34,18 @@ class AssetCheckoutRequest extends Request
                 'date',
             ],
             'expected_checkin' => [
-                'required',
+                'nullable',
                 'date'
             ],
             'project_id' => [
                 'nullable',
                 'integer',
                 'exists:projects,id,deleted_at,NULL',
+            ],
+            'discipline_id' => [
+                'nullable',
+                'integer',
+                'exists:disciplines,id,deleted_at,NULL',
             ],
             ];
 

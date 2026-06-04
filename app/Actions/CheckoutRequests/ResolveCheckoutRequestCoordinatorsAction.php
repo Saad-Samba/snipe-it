@@ -7,16 +7,16 @@ use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\License;
 use App\Models\RegionalAssetCoordinatorAssignment;
-use App\Notifications\RequestAssetNotification;
+use Illuminate\Support\Collection;
 
 class ResolveCheckoutRequestCoordinatorsAction
 {
-    public static function run(CheckoutRequest $checkoutRequest, array $notificationData = []): void
+    public static function run(CheckoutRequest $checkoutRequest): Collection
     {
         if (! in_array($checkoutRequest->requestable_type, [AssetModel::class, License::class], true)) {
             $checkoutRequest->coordinatorTargets()->delete();
 
-            return;
+            return collect();
         }
 
         if ($checkoutRequest->requestable_type === AssetModel::class) {
@@ -32,50 +32,76 @@ class ResolveCheckoutRequestCoordinatorsAction
                 ])
                 ->unique()
                 ->values();
+            $reusableCountsByScope = $eligibleAssetPairs
+                ->groupBy(fn (array $scope) => self::makeScopeKey((int) $scope['company_id'], (int) $scope['discipline_id']))
+                ->map(fn (Collection $scopes) => $scopes->count());
         } else {
-            $eligibleAssetPairs = License::query()
-                ->withCount('freeSeats as free_seats_count')
+            $license = License::query()
                 ->whereKey($checkoutRequest->requestable_id)
                 ->whereNotNull('company_id')
                 ->whereNotNull('discipline_id')
-                ->get()
-                ->filter(fn (License $license) => $license->isReusableForRequest())
-                ->map(fn (License $license) => [
-                    'company_id' => (int) $license->company_id,
-                    'discipline_id' => (int) $license->discipline_id,
-                ])
-                ->unique()
-                ->values();
+                ->where('reassignable', true)
+                ->first();
+
+            $eligibleAssetPairs = collect();
+            if ($license && $checkoutRequest->company_id && $checkoutRequest->requested_discipline_id) {
+                $eligibleAssetPairs = collect([[
+                    'company_id' => (int) $checkoutRequest->company_id,
+                    'discipline_id' => (int) $checkoutRequest->requested_discipline_id,
+                ]]);
+            }
+
+            $coverableQuantity = max(
+                (int) ($checkoutRequest->reusable_quantity ?? 0) + (int) ($checkoutRequest->due_back_before_needed_by_quantity ?? 0),
+                1
+            );
+            $reusableCountsByScope = $eligibleAssetPairs
+                ->groupBy(fn (array $scope) => self::makeScopeKey((int) $scope['company_id'], (int) $scope['discipline_id']))
+                ->map(fn () => $coverableQuantity);
         }
 
         $checkoutRequest->coordinatorTargets()->delete();
 
         if ($eligibleAssetPairs->isEmpty()) {
-            return;
+            return collect();
         }
 
         $assignments = RegionalAssetCoordinatorAssignment::query()
-            ->with('coordinator')
+            ->with(['coordinator', 'company', 'discipline'])
             ->get();
 
-        $eligibleAssignmentKeys = $eligibleAssetPairs
-            ->map(fn (array $pair) => $pair['company_id'].'-'.$pair['discipline_id'])
-            ->all();
-
-        $assignments = $assignments->filter(function (RegionalAssetCoordinatorAssignment $assignment) use ($eligibleAssignmentKeys) {
-            return in_array($assignment->company_id.'-'.$assignment->discipline_id, $eligibleAssignmentKeys, true);
+        $matchedAssignments = $assignments->filter(function (RegionalAssetCoordinatorAssignment $assignment) use ($reusableCountsByScope) {
+            return $reusableCountsByScope->has(self::makeScopeKey((int) $assignment->company_id, (int) $assignment->discipline_id));
         });
 
-        foreach ($assignments as $assignment) {
+        foreach ($matchedAssignments as $assignment) {
             $checkoutRequest->coordinatorTargets()->create([
                 'user_id' => $assignment->user_id,
                 'company_id' => $assignment->company_id,
                 'discipline_id' => $assignment->discipline_id,
             ]);
-
-            if (!empty($notificationData) && $assignment->coordinator) {
-                $assignment->coordinator->notify(new RequestAssetNotification($notificationData));
-            }
         }
+
+        return $matchedAssignments
+            ->filter(fn (RegionalAssetCoordinatorAssignment $assignment) => $assignment->coordinator)
+            ->groupBy('user_id')
+            ->map(function (Collection $userAssignments, int|string $userId) use ($reusableCountsByScope) {
+                /** @var RegionalAssetCoordinatorAssignment $firstAssignment */
+                $firstAssignment = $userAssignments->first();
+
+                return [
+                    'user_id' => (int) $userId,
+                    'coordinator' => $firstAssignment->coordinator,
+                    'reusable_quantity' => $userAssignments->sum(
+                        fn (RegionalAssetCoordinatorAssignment $assignment) => (int) ($reusableCountsByScope[self::makeScopeKey((int) $assignment->company_id, (int) $assignment->discipline_id)] ?? 0)
+                    ),
+                ];
+            })
+            ->values();
+    }
+
+    private static function makeScopeKey(int $companyId, int $disciplineId): string
+    {
+        return $companyId.'-'.$disciplineId;
     }
 }

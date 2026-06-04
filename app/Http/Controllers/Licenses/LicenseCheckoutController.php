@@ -96,6 +96,9 @@ class LicenseCheckoutController extends Controller
         $licenseSeat = $this->findLicenseSeatToCheckout($license, $seatId);
         $licenseSeat->created_by = auth()->id();
         $licenseSeat->notes = $request->input('notes');
+        $licenseSeat->expected_release_date = $request->filled('expected_release_date')
+            ? $request->input('expected_release_date')
+            : null;
 
         if ($request->filled('asset_id')) {
             session()->put(['checkout_to_type' => 'asset']);

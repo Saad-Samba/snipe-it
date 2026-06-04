@@ -14,7 +14,15 @@ class StoreAssetModelRequest extends ImageUploadRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('create', new AssetModel);
+        $model = $this->route('model');
+
+        if ($model && ! $model instanceof AssetModel) {
+            $model = AssetModel::find($model);
+        }
+
+        return $model
+            ? Gate::allows('update', $model)
+            : Gate::allows('create', AssetModel::class);
     }
 
     public function prepareForValidation(): void
@@ -42,6 +50,30 @@ class StoreAssetModelRequest extends ImageUploadRequest
             ['category_type' => 'in:asset'],
             parent::rules(),
         );
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if (! $this->filled('category_id')) {
+                return;
+            }
+
+            $user = $this->user();
+
+            if (! $user || $user->isSuperUser() || $user->isAdmin()) {
+                return;
+            }
+
+            $isManagedCategory = Category::whereKey($this->integer('category_id'))
+                ->where('category_type', 'asset')
+                ->where('manager_id', $user->id)
+                ->exists();
+
+            if (! $isManagedCategory) {
+                $validator->errors()->add('category_id', 'Selected category is not managed by you.');
+            }
+        });
     }
 
     public function messages(): array

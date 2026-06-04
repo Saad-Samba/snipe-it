@@ -54,7 +54,20 @@
                             @include ('partials.forms.edit.manufacturer-select', ['translated_name' => trans('general.manufacturer'), 'fieldname' => 'manufacturer_id'])
 
                             <!-- category -->
-                            @include ('partials.forms.edit.category-select', ['translated_name' => trans('admin/categories/general.category_name'), 'fieldname' => 'category_id', 'required' => 'true', 'category_type' => 'asset'])
+                            <div id="category_id" class="form-group{{ $errors->has('category_id') ? ' has-error' : '' }}">
+                                <label for="category_id" class="col-md-3 control-label">{{ trans('admin/categories/general.category_name') }}</label>
+                                <div class="col-md-7">
+                                    <select class="select2" name="category_id" id="category_id" style="width: 100%" aria-label="category_id">
+                                        <option value="NC" @selected(old('category_id', 'NC') === 'NC')>No Change</option>
+                                        @foreach ($availableCategories as $category)
+                                            <option value="{{ $category->id }}" @selected((string) old('category_id') === (string) $category->id)>
+                                                {{ $category->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    {!! $errors->first('category_id', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
+                                </div>
+                            </div>
 
                             <!-- custom fields -->
                             <div class="form-group {{ $errors->has('fieldset_id') ? ' has-error' : '' }}">
@@ -91,6 +104,15 @@
                             </div>
 
                             @include ('partials.forms.edit.minimum_quantity')
+
+                            <div class="form-group {{ $errors->has('reference_price') ? ' has-error' : '' }}">
+                                <label for="reference_price" class="col-md-3 control-label">Reference Price</label>
+                                <div class="col-md-7">
+                                    <input class="form-control" type="number" name="reference_price" id="reference_price" min="0.00" max="99999999999999999.99" step="0.01" value="{{ old('reference_price') }}" />
+                                    {!! $errors->first('reference_price', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
+                                </div>
+                            </div>
+
                             <!-- require serial boolean -->
                             <div class="form-group">
                                 <label for="require_serial" class="col-md-3 control-label">

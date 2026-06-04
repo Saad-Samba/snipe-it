@@ -35,10 +35,10 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
 
         Route::get('requests',
             [
-                Api\ProfileController::class, 
-                'requestedAssets'
+                Api\ModelRequestsController::class,
+                'index'
             ]
-        )->name('api.assets.requested');
+        )->name('api.requests.index');
 
         Route::get('eulas',
             [

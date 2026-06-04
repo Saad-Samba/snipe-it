@@ -77,6 +77,10 @@
                     'columns',
                     'btnAdd',
                     'btnShowDeleted',
+                    'btnFilterObsoleteModels',
+                    'btnFilterCurrentModels',
+                    'btnShowAssignedOnly',
+                    'btnShowUnassignedOnly',
                     'btnShowAdmins',
                     'btnShowExpiring',
                     'btnShowInactive',
@@ -122,11 +126,21 @@
                 paginationVAlign: 'both',
                 queryParams: function (params) {
                     var newParams = {};
+                    var bootstrapTableInstance = $(table).data('bootstrap.table');
+                    var advancedFilters = (bootstrapTableInstance && bootstrapTableInstance.filterColumnsPartial) || {};
+
                     for (var i in params) {
                         if (!keyBlocked(i)) { // only send the field if it's not in blockedFields
                             newParams[i] = params[i];
                         }
                     }
+
+                    for (var filterKey in advancedFilters) {
+                        if (advancedFilters[filterKey] !== undefined && advancedFilters[filterKey] !== null && advancedFilters[filterKey] !== '') {
+                            newParams[filterKey] = advancedFilters[filterKey];
+                        }
+                    }
+
                     return newParams;
                 },
                 formatLoadingMessage: function () {
@@ -198,7 +212,12 @@
                             tableButton.tooltip({container: 'body', title: title});
 
                             // This handles the case where we want a different color button than the default
-                            if ((override_class) && ((override_class.indexOf('btn-info') >= 0)) || (override_class.indexOf('btn-danger') >= 0)) {
+                            if ((override_class) && (
+                                (override_class.indexOf('btn-info') >= 0)
+                                || (override_class.indexOf('btn-danger') >= 0)
+                                || (override_class.indexOf('btn-warning') >= 0)
+                                || (override_class.indexOf('btn-success') >= 0)
+                            )) {
                                 tableButton.removeClass('btn-primary');
                             }
                         }
@@ -315,6 +334,73 @@
     }); // End Groups table buttons
     @endcan
 
+    function obsoleteOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'obsolete';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-triangle-exclamation',
+            event() {
+                window.location.href = isActive ? routes.all : routes.obsolete;
+            },
+            attributes: {
+                title: isActive ? labels.obsolete : labels.all,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-warning' : '',
+            }
+        };
+    }
+
+    function activeOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'active';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-circle-check',
+            event() {
+                window.location.href = isActive ? routes.all : routes.active;
+            },
+            attributes: {
+                title: isActive ? labels.active : labels.inactive,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-success' : '',
+            }
+        };
+    }
+
+    function assignedOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'assigned';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-user-check',
+            event() {
+                window.location.href = isActive ? routes.all : routes.assigned;
+            },
+            attributes: {
+                title: isActive ? labels.assigned : labels.all,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-info' : '',
+            }
+        };
+    }
+
+    function unassignedOnlyButtonConfig(currentState, routes, labels) {
+        var isActive = currentState === 'unassigned';
+
+        return {
+            text: '',
+            icon: 'fa-solid fa-box-open',
+            event() {
+                window.location.href = isActive ? routes.all : routes.unassigned;
+            },
+            attributes: {
+                title: isActive ? labels.unassigned : labels.inactive,
+                'data-tooltip': 'true',
+                class: isActive ? 'btn-success' : '',
+            }
+        };
+    }
 
     // Asset table buttons
     window.assetButtons = () => ({
@@ -360,11 +446,56 @@
             }
         },
 
+        @php
+            $assetQuery = request()->query();
+            $isStatusLabelPage = request()->routeIs('statuslabels.show') && request()->route('statuslabel');
+            $isDeployableStatusPage = request()->routeIs('statuslabels.show')
+                && request()->route('statuslabel')
+                && request()->route('statuslabel')->deployable == 1
+                && request()->route('statuslabel')->pending == 0
+                && request()->route('statuslabel')->archived == 0;
+            if ($isStatusLabelPage) {
+                $assetQuery['status_id'] = request()->route('statuslabel')->id;
+            }
+            $assetFilter = $assetQuery['model_obsolete'] ?? null;
+            $assetObsoleteBaseQuery = $assetQuery;
+            unset($assetObsoleteBaseQuery['model_obsolete']);
+            $assetObsoleteAllUrl = route('hardware.index', $assetObsoleteBaseQuery);
+            $assetObsoleteUrl = route('hardware.index', array_merge($assetObsoleteBaseQuery, ['model_obsolete' => 1]));
+            $assetActiveUrl = route('hardware.index', array_merge($assetObsoleteBaseQuery, ['model_obsolete' => 0]));
+            $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
+
+            $assignmentFilter = request()->query('assignment');
+            $assetAssignmentBaseQuery = $assetQuery;
+            unset($assetAssignmentBaseQuery['assignment']);
+            $assetAssignmentAllUrl = route('hardware.index', $assetAssignmentBaseQuery);
+            $assetAssignmentState = $assignmentFilter === 'assigned' ? 'assigned' : ($assignmentFilter === 'unassigned' ? 'unassigned' : 'all');
+            if ($isDeployableStatusPage) {
+                $statusLabelRouteParams = ['statuslabel' => request()->route('statuslabel')->id];
+                $assetObsoleteAllUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetObsoleteBaseQuery));
+                $assetObsoleteUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetObsoleteBaseQuery, ['model_obsolete' => 1]));
+                $assetActiveUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetObsoleteBaseQuery, ['model_obsolete' => 0]));
+                $assetAssignmentAllUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetAssignmentBaseQuery));
+                $assetAssignedUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetAssignmentBaseQuery, ['assignment' => 'assigned']));
+                $assetUnassignedUrl = route('statuslabels.show', array_merge($statusLabelRouteParams, $assetAssignmentBaseQuery, ['assignment' => 'unassigned']));
+            } elseif ($isStatusLabelPage) {
+                $assetObsoleteAllUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id]);
+                $assetObsoleteUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'model_obsolete' => 1]);
+                $assetActiveUrl = route('statuslabels.show', ['statuslabel' => request()->route('statuslabel')->id, 'model_obsolete' => 0]);
+                $assetState = $assetFilter === '1' ? 'obsolete' : ($assetFilter === '0' ? 'active' : 'all');
+            }
+
+            $assetDeletedBaseQuery = $assetQuery;
+            unset($assetDeletedBaseQuery['status']);
+            $assetDeletedToggleUrl = request()->input('status') == 'Deleted'
+                ? route('hardware.index', $assetDeletedBaseQuery)
+                : route('hardware.index', array_merge($assetDeletedBaseQuery, ['status' => 'Deleted']));
+        @endphp
         btnShowDeleted: {
             text: '{{ (request()->input('status') == "Deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
             event () {
-                window.location.href = '{{ (request()->input('status') == "Deleted") ? route('hardware.index') : route('hardware.index', ['status' => 'Deleted']) }}';
+                window.location.href = {!! \Illuminate\Support\Js::from($assetDeletedToggleUrl) !!};
             },
             attributes: {
                 class: '{{ (request()->input('status') == "Deleted") ? ' btn-danger' : '' }}',
@@ -372,6 +503,70 @@
 
             }
         },
+        btnFilterObsoleteModels: obsoleteOnlyButtonConfig(
+            '{{ $assetState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetObsoleteAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($assetObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($assetActiveUrl) !!}
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+        btnFilterCurrentModels: activeOnlyButtonConfig(
+            '{{ $assetState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetObsoleteAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($assetObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($assetActiveUrl) !!}
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+        @if ($isDeployableStatusPage || ! $isStatusLabelPage)
+        btnShowAssignedOnly: assignedOnlyButtonConfig(
+            '{{ $assetAssignmentState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetAssignmentAllUrl) !!},
+                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'assigned']))) !!},
+                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'unassigned']))) !!}
+            },
+            {
+                all: '{{ trans('general.filter_all_to_assigned') }}',
+                assigned: '{{ trans('general.filter_assigned_to_all') }}',
+                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
+                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
+            }
+        ),
+        btnShowUnassignedOnly: unassignedOnlyButtonConfig(
+            '{{ $assetAssignmentState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($assetAssignmentAllUrl) !!},
+                assigned: {!! \Illuminate\Support\Js::from($assetAssignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'assigned']))) !!},
+                unassigned: {!! \Illuminate\Support\Js::from($assetUnassignedUrl ?? route('hardware.index', array_merge($assetAssignmentBaseQuery, ['assignment' => 'unassigned']))) !!}
+            },
+            {
+                all: '{{ trans('general.filter_all_to_assigned') }}',
+                assigned: '{{ trans('general.filter_assigned_to_all') }}',
+                unassigned: '{{ trans('general.filter_unassigned_to_all') }}',
+                inactive: '{{ trans('general.filter_all_to_unassigned') }}'
+            }
+        ),
+        @endif
     });
 
     @can('create', \App\Models\Location::class)
@@ -715,9 +910,9 @@
         return buttons;
     };
 
-    @can('create', \App\Models\AssetModel::class)
     // Custom Field table buttons
     window.modelButtons = () => ({
+        @can('create', \App\Models\AssetModel::class)
         btnAdd: {
             text: '{{ trans('general.create') }}',
             icon: 'fa fa-plus',
@@ -732,11 +927,27 @@
                 @endif
             }
         },
+        @endcan
+        @php
+            $modelQuery = request()->query();
+            $modelFilter = $modelQuery['obsolete'] ?? null;
+            $modelBaseQuery = $modelQuery;
+            unset($modelBaseQuery['obsolete']);
+            $modelAllUrl = route('models.index', $modelBaseQuery);
+            $modelObsoleteUrl = route('models.index', array_merge($modelBaseQuery, ['obsolete' => 1]));
+            $modelActiveUrl = route('models.index', array_merge($modelBaseQuery, ['obsolete' => 0]));
+            $modelState = $modelFilter === '1' ? 'obsolete' : ($modelFilter === '0' ? 'active' : 'all');
+            $modelDeletedBaseQuery = $modelQuery;
+            unset($modelDeletedBaseQuery['status']);
+            $modelDeletedToggleUrl = request()->input('status') == 'deleted'
+                ? route('models.index', $modelDeletedBaseQuery)
+                : route('models.index', array_merge($modelDeletedBaseQuery, ['status' => 'deleted']));
+        @endphp
         btnShowDeleted: {
             text: '{{ (request()->input('status') == "deleted") ? trans('general.list_all') : trans('general.deleted') }}',
             icon: 'fa-solid fa-trash',
             event () {
-                window.location.href = '{{ (request()->input('status') == "deleted") ? route('models.index') : route('models.index', ['status' => 'deleted']) }}';
+                window.location.href = {!! \Illuminate\Support\Js::from($modelDeletedToggleUrl) !!};
             },
             attributes: {
                 class: '{{ (request()->input('status') == "deleted") ? ' btn-danger' : '' }}',
@@ -744,8 +955,41 @@
 
             }
         },
+        btnFilterObsoleteModels: obsoleteOnlyButtonConfig(
+            '{{ $modelState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($modelAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($modelObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($modelActiveUrl) !!}
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
+        btnFilterCurrentModels: activeOnlyButtonConfig(
+            '{{ $modelState }}',
+            {
+                all: {!! \Illuminate\Support\Js::from($modelAllUrl) !!},
+                obsolete: {!! \Illuminate\Support\Js::from($modelObsoleteUrl) !!},
+                active: {!! \Illuminate\Support\Js::from($modelActiveUrl) !!}
+            },
+            {
+                all: '{{ trans('admin/models/general.filter_all_to_obsolete') }}',
+                obsolete: '{{ trans('admin/models/general.filter_obsolete_to_active') }}',
+                active: '{{ trans('admin/models/general.filter_active_to_all') }}',
+                inactive: '{{ trans('admin/models/general.filter_all_to_active') }}',
+                optionAll: '{{ trans('admin/models/general.filter_all_option') }}',
+                optionObsolete: '{{ trans('admin/models/general.filter_obsolete_option') }}',
+                optionActive: '{{ trans('admin/models/general.filter_active_option') }}'
+            }
+        ),
     });
-    @endcan
 
     @can('create', \App\Models\Statuslabel::class)
     // Status label table buttons
@@ -890,6 +1134,10 @@
 
     });
 
+    $('.snipe-table').on('click mousedown touchstart focus', '.model-request-inline-control', function (event) {
+        event.stopPropagation();
+    });
+
     // Initialize sort-order for bulk actions (label-generation) for snipe-tables
     $('.snipe-table').each(function (i, table) {
         table_cookie_segment = $(table).data('cookie-id-table');
@@ -972,8 +1220,6 @@
         };
     }
 
-
-
     // This is a special formatter that will indicate whether a user is an admin or superadmin
     function usernameRoleLinkFormatter(value, row) {
 
@@ -1050,9 +1296,29 @@
                     var tag_icon = '';
                 }
 
-                return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a></span>';
+                var obsoleteIndicator = '';
+
+                if ((destination === 'models') && (value.obsolete === true || value.obsolete === 1 || value.obsolete === '1')) {
+                    obsoleteIndicator = ' <span class="label label-warning" data-tooltip="true" title="{{ trans('admin/models/general.obsolete_asset_tooltip') }}">{{ trans('admin/models/general.obsolete_indicator') }}</span>';
+                }
+
+                return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a>' + obsoleteIndicator + '</nobr>';
             }
         };
+    }
+
+    function companiesCenterMatchObjFormatter(value, row) {
+        var formattedValue = genericColumnObjLinkFormatter('companies')(value, row);
+
+        if (!formattedValue) {
+            return formattedValue;
+        }
+
+        if (row && row.is_closest_match) {
+            return '<span style="white-space: nowrap;">' + formattedValue + ' <span class="label label-success" data-tooltip="true" title="Reusable asset from the same center">Same center</span></span>';
+        }
+
+        return formattedValue;
     }
 
 
@@ -1350,102 +1616,726 @@
 
     }
 
-    function modelRequestActionsFormatter(value, row) {
-        var requestUrl = '{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.id);
-        var requestsUrl = '{{ route('account.requested') }}?model_id=' + row.id;
-        var requestedQuantity = row.requested_quantity || 1;
-        var requestedProjectId = row.requested_project_id || '';
-        var quantityLabel = '{{ trans('general.qty') }}';
-        var actionBarId = 'model-request-actions-' + row.id;
-        var editStateId = 'model-request-edit-' + row.id;
-        var requestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name'])->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values());
-        var buildProjectOptions = function(selectedProjectId) {
-            var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
+    var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
+    var modelRequestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name']));
+    var modelRequestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name']));
+    var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
+    var createProjectForRequestsUrl = '{{ route('account.request-projects.store') }}';
+    var modelRequestCartAddUrl = '{{ route('account.request-cart.items.add') }}';
+    var modelRequestCartPreviewUrl = '{{ route('account.request-cart.preview') }}';
+    var modelRequestCartRemoveUrl = '{{ route('account.request-cart.items.remove') }}';
+    var modelRequestCartClearUrl = '{{ route('account.request-cart.clear') }}';
+    var modelRequestCartSubmitUrl = '{{ route('account.request-cart.submit') }}';
+    var modelRequestCartToastTimer = null;
 
-            requestProjects.forEach(function(project) {
-                var selected = String(project.id) === String(selectedProjectId) ? ' selected' : '';
-                options.push('<option value=\"' + project.id + '\"' + selected + '>' + project.name + '</option>');
+    function buildModelRequestProjectOptions(selectedProjectId) {
+        var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
+
+        modelRequestProjects.forEach(function(project) {
+            var selected = String(project.id) === String(selectedProjectId) ? ' selected' : '';
+            options.push('<option value=\"' + project.id + '\"' + selected + '>' + project.name + '</option>');
+        });
+
+        return options.join('');
+    }
+
+    function buildModelRequestDisciplineOptions(selectedDisciplineId) {
+        var options = ['<option value=\"\">{{ trans('general.select_discipline') }}</option>'];
+
+        modelRequestDisciplines.forEach(function(discipline) {
+            var selected = String(discipline.id) === String(selectedDisciplineId) ? ' selected' : '';
+            options.push('<option value=\"' + discipline.id + '\"' + selected + '>' + discipline.name + '</option>');
+        });
+
+        return options.join('');
+    }
+
+    function buildModelRequestCompanyOptions(selectedCompanyId) {
+        var options = ['<option value=\"\">{{ trans('general.select_company') }}</option>'];
+
+        modelRequestCompanies.forEach(function(company) {
+            var selected = String(company.id) === String(selectedCompanyId) ? ' selected' : '';
+            options.push('<option value=\"' + company.id + '\"' + selected + '>' + company.name + '</option>');
+        });
+
+        return options.join('');
+    }
+
+    function formatEstimateCurrency(value) {
+        var number = Number(value || 0);
+
+        return number.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function referencePriceFormatter(value, row) {
+        if (row && row.reference_price_formatted) {
+            return row.reference_price_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function requestReferencePriceFormatter(value, row) {
+        if (row && row.reference_price_snapshot_formatted) {
+            return row.reference_price_snapshot_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function ensureModelRequestCartToast() {
+        if (document.getElementById('model-request-cart-toast')) {
+            return;
+        }
+
+        var toastHtml = ''
+            + '<div id="model-request-cart-toast" style="display:none;position:fixed;right:20px;bottom:20px;z-index:1060;max-width:320px;background:#222d32;color:#fff;padding:12px 16px;border-radius:6px;box-shadow:0 8px 18px rgba(0,0,0,0.2);font-size:13px;">'
+            + '  <div id="model-request-cart-toast-message"></div>'
+            + '</div>';
+
+        $('body').append(toastHtml);
+    }
+
+    function showModelRequestCartToast(message) {
+        ensureModelRequestCartToast();
+
+        $('#model-request-cart-toast-message').text(message);
+        $('#model-request-cart-toast').stop(true, true).fadeIn(150);
+
+        if (modelRequestCartToastTimer) {
+            window.clearTimeout(modelRequestCartToastTimer);
+        }
+
+        modelRequestCartToastTimer = window.setTimeout(function () {
+            $('#model-request-cart-toast').fadeOut(250);
+        }, 2200);
+    }
+
+    function attachRequestTableHeaderTooltips() {
+        $('.snipe-table[data-request-mode="requester"]').each(function () {
+            $(this).find('thead th[data-request-tooltip]').each(function () {
+                var $header = $(this);
+                var $headerInner = $header.find('.th-inner').first();
+
+                if ($header.find('.request-column-tooltip').length) {
+                    return;
+                }
+
+                var tooltipText = $header.attr('data-request-tooltip');
+                var iconHtml = ' <a href="#" class="request-column-tooltip" data-tooltip="true" title="' + escapeHtml(tooltipText) + '" onclick="return false;"><i class="fas fa-info-circle" aria-hidden="true"></i></a>';
+
+                if ($headerInner.length) {
+                    $headerInner.append(iconHtml);
+                } else {
+                    $header.append(iconHtml);
+                }
             });
 
-            return options.join('');
-        };
+            $('[data-tooltip="true"]').tooltip();
+        });
+    }
 
-        if ((row.available_actions) && (row.available_actions.update_request === true)) {
-            return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:170px;">'
-                + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.2;">'
-                + '<span class="label label-info" style="font-size:11px;">{{ trans('general.requested') }}</span>'
-                + '<span style="font-size:12px;color:#4d4d4d;">' + quantityLabel + ': <strong>' + requestedQuantity + '</strong></span>'
-                + '</div>'
-                + '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:0;flex-wrap:wrap;font-size:12px;">'
-                + '<a href="' + requestsUrl + '" style="margin-right:8px;">View requests</a>'
-                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;margin-right:8px;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'flex\'; document.getElementById(\'' + actionBarId + '\').style.display = \'none\';" data-tooltip="true" title="{{ trans('general.update') }}">Edit</button>'
-                + '<form action="' + requestUrl + '" method="POST" style="margin:0;">'
-                + '@csrf'
-                + '<input type="hidden" name="request-action" value="cancel">'
-                + '<button class="btn btn-link btn-sm text-danger" style="padding:0;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">{{ trans('button.cancel') }}</button>'
-                + '</form>'
-                + '</div>'
-                + '<form id="' + editStateId + '" action="' + requestUrl + '" method="POST" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;margin:0;">'
-                + '@csrf'
-                + '<input type="hidden" name="request-action" value="update">'
-                + '<select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions(requestedProjectId) + '</select>'
-                + '<input type="number" min="1" max="' + row.remaining + '" name="request-quantity" value="' + requestedQuantity + '" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}">'
-                + '<button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.update') }}">{{ trans('general.update') }}</button>'
-                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'none\'; document.getElementById(\'' + actionBarId + '\').style.display = \'flex\';">{{ trans('button.cancel') }}</button>'
-                + '</form>'
+    function ensureModelRequestModal() {
+        if (document.getElementById('model-request-modal')) {
+            return;
+        }
+
+        var modalHtml = ''
+            + '<div class="modal fade" id="model-request-modal" tabindex="-1" role="dialog" aria-hidden="true">'
+            + '  <div class="modal-dialog" role="document">'
+            + '    <div class="modal-content">'
+            + '      <form id="model-request-modal-form" method="POST">'
+            + '        @csrf'
+            + '        <div class="modal-header">'
+            + '          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+            + '          <h4 class="modal-title" id="model-request-modal-title">Modify request</h4>'
+            + '        </div>'
+            + '        <div class="modal-body">'
+            + '          <input type="hidden" name="request-action" id="model-request-modal-action" value="update">'
+            + '          <div class="alert alert-danger" id="model-request-modal-error" style="display:none;"></div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-quantity">Quantity</label>'
+            + '            <input type="number" name="request-quantity" id="model-request-modal-quantity" class="form-control" min="1" required>'
+            + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-discipline">Discipline</label>'
+            + '            <select name="requested_discipline_id" id="model-request-modal-discipline" class="form-control" required>' + buildModelRequestDisciplineOptions('') + '</select>'
+            + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-company">{{ trans('general.company') }}</label>'
+            + '            <select name="company_id" id="model-request-modal-company" class="form-control" required>' + buildModelRequestCompanyOptions('') + '</select>'
+            + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-project">{{ trans('general.project') }}</label>'
+            + '            <div class="input-group">'
+            + '              <select name="project_id" id="model-request-modal-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
+            + '              <span class="input-group-btn">'
+            + '                <button type="button" class="btn btn-default" id="model-request-modal-create-project" data-tooltip="true" title="Create project" ' + (canCreateProjectsForRequests ? '' : 'disabled') + '><i class="fas fa-plus" aria-hidden="true"></i></button>'
+            + '              </span>'
+            + '            </div>'
+            + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-needed-by-date">Needed By</label>'
+            + '            <input type="date" name="needed_by_date" id="model-request-modal-needed-by-date" class="form-control" required>'
+            + '          </div>'
+            + '          <div id="model-request-modal-estimate" class="well well-sm" style="margin-bottom:0;">'
+            + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Estimate</div>'
+            + '            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">'
+            + '              <span>Total Needed</span><span id="model-request-modal-estimate-requested">0</span>'
+            + '              <span>Reusable Now</span><span id="model-request-modal-estimate-reusable">0</span>'
+            + '              <span>Due Back Before Needed By</span><span id="model-request-modal-estimate-due-back">0</span>'
+            + '              <span>Shortfall</span><span id="model-request-modal-estimate-shortfall">0</span>'
+            + '              <span>Estimated Savings</span><span id="model-request-modal-estimate-savings">0.00</span>'
+            + '            </div>'
+            + '          </div>'
+            + '        </div>'
+            + '        <div class="modal-footer">'
+            + '          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>'
+            + '          <button type="submit" class="btn btn-primary" id="model-request-modal-submit">Update</button>'
+            + '        </div>'
+            + '      </form>'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+
+        $('body').append(modalHtml);
+
+        $('#model-request-modal-project, #model-request-modal-needed-by-date, #model-request-modal-quantity, #model-request-modal-company').on('change keyup', function () {
+            updateModelRequestEstimateSummary();
+        });
+
+        $('#model-request-modal-create-project').on('click', function () {
+            createProjectFromRequestModal('#model-request-modal-project', '#model-request-modal-error');
+        });
+    }
+
+    function ensureModelRequestCartModal() {
+        if (document.getElementById('model-request-cart-modal')) {
+            return;
+        }
+
+        var modalHtml = ''
+            + '<div class="modal fade" id="model-request-cart-modal" tabindex="-1" role="dialog" aria-hidden="true">'
+            + '  <div class="modal-dialog modal-lg" role="document">'
+            + '    <div class="modal-content">'
+            + '      <form id="model-request-cart-modal-form" method="POST" action="' + modelRequestCartSubmitUrl + '">'
+            + '        @csrf'
+            + '        <div class="modal-header">'
+            + '          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+            + '          <h4 class="modal-title">Request Cart</h4>'
+            + '        </div>'
+            + '        <div class="modal-body">'
+            + '          <div class="alert alert-danger" id="model-request-cart-modal-error" style="display:none;"></div>'
+            + '          <div class="row">'
+            + '            <div class="col-md-6">'
+            + '              <div class="form-group">'
+            + '                <label for="model-request-cart-project">{{ trans('general.project') }}</label>'
+            + '                <div class="input-group">'
+            + '                  <select name="project_id" id="model-request-cart-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
+            + '                  <span class="input-group-btn">'
+            + '                    <button type="button" class="btn btn-default" id="model-request-cart-create-project" data-tooltip="true" title="Create project" ' + (canCreateProjectsForRequests ? '' : 'disabled') + '><i class="fas fa-plus" aria-hidden="true"></i></button>'
+            + '                  </span>'
+            + '                </div>'
+            + '              </div>'
+            + '            </div>'
+            + '          </div>'
+            + '          <div class="row">'
+            + '            <div class="col-md-6">'
+            + '              <div class="form-group">'
+            + '                <label for="model-request-cart-needed-by-date">Needed By</label>'
+            + '                <input type="date" name="needed_by_date" id="model-request-cart-needed-by-date" class="form-control" required>'
+            + '              </div>'
+            + '            </div>'
+            + '          </div>'
+            + '          <div class="table-responsive">'
+            + '            <table class="table table-striped table-condensed" style="margin-bottom:12px;">'
+            + '              <thead>'
+            + '                <tr>'
+            + '                  <th>Model</th>'
+            + '                  <th>Discipline</th>'
+            + '                  <th>{{ trans('general.company') }}</th>'
+            + '                  <th>Quantity</th>'
+            + '                  <th>Reusable Now</th>'
+            + '                  <th>Due Back</th>'
+            + '                  <th>Reserved by Other Project</th>'
+            + '                  <th>Shortfall</th>'
+            + '                  <th>Estimated Savings</th>'
+            + '                  <th>Amount to Buy</th>'
+            + '                  <th></th>'
+            + '                </tr>'
+            + '              </thead>'
+            + '              <tbody id="model-request-cart-lines"></tbody>'
+            + '            </table>'
+            + '          </div>'
+            + '          <div class="well well-sm" style="margin-bottom:0;">'
+            + '            <div style="font-weight:600;margin-bottom:8px;">Cart Totals</div>'
+            + '            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">'
+            + '              <span>Total Needed</span><span id="model-request-cart-total-requested">0</span>'
+            + '              <span>Reusable Now</span><span id="model-request-cart-total-reusable">0</span>'
+            + '              <span>Due Back</span><span id="model-request-cart-total-due-back">0</span>'
+            + '              <span>Reserved by Other Project</span><span id="model-request-cart-total-reserved-other">0</span>'
+            + '              <span>Shortfall</span><span id="model-request-cart-total-shortfall">0</span>'
+            + '              <span>Estimated Savings</span><span id="model-request-cart-total-savings">0.00</span>'
+            + '              <span>Amount to Buy</span><span id="model-request-cart-total-buy">0.00</span>'
+            + '            </div>'
+            + '          </div>'
+            + '        </div>'
+            + '        <div class="modal-footer">'
+            + '          <button type="button" class="btn btn-danger pull-left" id="model-request-cart-clear">Clear Cart</button>'
+            + '          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>'
+            + '          <button type="submit" class="btn btn-primary" id="model-request-cart-submit">{{ trans('button.request') }}</button>'
+            + '        </div>'
+            + '      </form>'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+
+        $('body').append(modalHtml);
+
+        $('#model-request-cart-project, #model-request-cart-needed-by-date').on('change keyup', function () {
+            refreshModelRequestCartPreview();
+        });
+
+        $('#model-request-cart-create-project').on('click', function () {
+            createProjectFromRequestModal('#model-request-cart-project', '#model-request-cart-modal-error');
+        });
+
+        $('#model-request-cart-clear').on('click', function () {
+            $.post(modelRequestCartClearUrl, {_token: '{{ csrf_token() }}'}).done(function (response) {
+                updateModelRequestCartCount(response.cart_count || 0);
+                refreshModelRequestCartPreview();
+            });
+        });
+    }
+
+    function updateModelRequestCartCount(count) {
+        $('#modelRequestCartCount').text(count);
+    }
+
+    $('#modelRequestCartButton').on('click', function () {
+        openModelRequestCartModal();
+    });
+
+    function getInlineModelBookingQuantity(modelId) {
+        var value = $('#model-booking-quantity-' + modelId).val();
+        var quantity = parseInt(value, 10);
+
+        return Number.isFinite(quantity) ? quantity : 0;
+    }
+
+    function getInlineModelDisciplineId(modelId) {
+        var value = $('#model-booking-discipline-' + modelId).val();
+        var disciplineId = parseInt(value, 10);
+
+        return Number.isFinite(disciplineId) ? disciplineId : 0;
+    }
+
+    function getInlineModelCompanyId(modelId) {
+        var value = $('#model-booking-company-' + modelId).val();
+        var companyId = parseInt(value, 10);
+
+        return Number.isFinite(companyId) ? companyId : 0;
+    }
+
+    function buildInlineBookingInput(modelId, quantity) {
+        return '<input type="number" min="1" id="model-booking-quantity-' + modelId + '" value="' + quantity + '" class="form-control input-sm model-request-inline-control" style="width:70px;height:30px;padding:4px 6px;display:inline-block;">';
+    }
+
+    function buildInlineDisciplineSelect(modelId, selectedDisciplineId) {
+        return '<select id="model-booking-discipline-' + modelId + '" class="form-control input-sm model-request-inline-control" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
+            + buildModelRequestDisciplineOptions(selectedDisciplineId || '')
+            + '</select>';
+    }
+
+    function buildInlineCompanySelect(modelId, selectedCompanyId) {
+        return '<select id="model-booking-company-' + modelId + '" class="form-control input-sm model-request-inline-control" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
+            + buildModelRequestCompanyOptions(selectedCompanyId || '')
+            + '</select>';
+    }
+
+    function addLinesToRequestCart(lines, openCartOnSuccess) {
+        return $.ajax({
+            url: modelRequestCartAddUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                _token: '{{ csrf_token() }}',
+                lines: lines
+            }
+        }).done(function (response) {
+            updateModelRequestCartCount(response.cart_count || 0);
+            showModelRequestCartToast(lines.length > 1 ? 'Items added to cart.' : 'Item added to cart.');
+
+            if (openCartOnSuccess) {
+                openModelRequestCartModal();
+            }
+        }).fail(function (xhr) {
+            var message = 'Unable to add items to the request cart.';
+
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                    message = xhr.responseJSON.errors[firstKey][0];
+                }
+            }
+
+            window.alert(message);
+        });
+    }
+
+    $('#modelsBulkForm').off('submit.model-booking').on('submit.model-booking', function (event) {
+        var bulkAction = $(this).find('select[name="bulk_actions"]').val();
+
+        if (bulkAction !== 'request') {
+            return true;
+        }
+
+        event.preventDefault();
+
+        var $table = $('#asssetModelsTable');
+        var rows = $table.bootstrapTable('getSelections');
+
+        if (!rows.length) {
+            window.alert('Select at least one model.');
+            return false;
+        }
+
+        var lines = [];
+
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+
+            if (!row.available_actions || row.available_actions.request !== true) {
+                window.alert('Only requestable models can be added to the cart.');
+                return false;
+            }
+
+            var quantity = getInlineModelBookingQuantity(row.id);
+            var disciplineId = getInlineModelDisciplineId(row.id);
+            var companyId = getInlineModelCompanyId(row.id);
+
+            if (!quantity) {
+                window.alert('Enter a total needed quantity for each selected model.');
+                return false;
+            }
+
+            if (!disciplineId) {
+                window.alert('Select a discipline for each selected model.');
+                return false;
+            }
+
+            if (!companyId) {
+                window.alert('Select a company for each selected model.');
+                return false;
+            }
+
+            lines.push({
+                model_id: row.id,
+                quantity: quantity,
+                discipline_id: disciplineId,
+                company_id: companyId
+            });
+        }
+
+        addLinesToRequestCart(lines, true);
+        return false;
+    });
+
+    function openModelRequestModal(options) {
+        ensureModelRequestModal();
+
+        $('#model-request-modal-form').attr('action', options.requestUrl);
+        $('#model-request-modal-form').data('estimate-url', options.estimateUrl);
+        $('#model-request-modal-title').text(options.title);
+        $('#model-request-modal-action').val(options.action || 'update');
+        $('#model-request-modal-quantity').val(options.quantity || '');
+        $('#model-request-modal-discipline').html(buildModelRequestDisciplineOptions(options.requestedDisciplineId || ''));
+        $('#model-request-modal-discipline').val(String(options.requestedDisciplineId || ''));
+        $('#model-request-modal-company').html(buildModelRequestCompanyOptions(options.companyId || ''));
+        $('#model-request-modal-company').val(String(options.companyId || ''));
+        $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
+        $('#model-request-modal-project').val(String(options.projectId || ''));
+        $('#model-request-modal-needed-by-date').val(options.neededByDate || '');
+        $('#model-request-modal-submit').text(options.submitLabel);
+        resetModelRequestEstimateState();
+        $('#model-request-modal').modal('show');
+        updateModelRequestEstimateSummary();
+    }
+
+    function resetModelRequestEstimateState() {
+        $('#model-request-modal-error').hide().text('');
+        $('#model-request-modal-estimate-requested').text('0');
+        $('#model-request-modal-estimate-reusable').text('0');
+        $('#model-request-modal-estimate-due-back').text('0');
+        $('#model-request-modal-estimate-shortfall').text('0');
+        $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(0));
+        $('#model-request-modal-submit').prop('disabled', false);
+    }
+
+    function estimateModelRequestModal() {
+        var estimateUrl = $('#model-request-modal-form').data('estimate-url');
+        var quantity = $('#model-request-modal-quantity').val();
+        var companyId = $('#model-request-modal-company').val();
+        var projectId = $('#model-request-modal-project').val();
+        var neededByDate = $('#model-request-modal-needed-by-date').val();
+        var action = $('#model-request-modal-action').val();
+
+        $.ajax({
+            url: estimateUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                _token: '{{ csrf_token() }}',
+                'request-action': action,
+                'request-quantity': quantity,
+                company_id: companyId,
+                project_id: projectId,
+                needed_by_date: neededByDate
+            }
+        }).done(function (response) {
+            $('#model-request-modal-estimate-requested').text(response.requested_quantity);
+            $('#model-request-modal-estimate-reusable').text(response.reusable_now);
+            $('#model-request-modal-estimate-due-back').text(response.due_back_before_needed_by_quantity);
+            $('#model-request-modal-estimate-shortfall').text(response.procurement_shortfall);
+            $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(response.estimated_savings));
+        }).fail(function (xhr) {
+            var message = 'Unable to estimate this request.';
+
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var firstKey = Object.keys(xhr.responseJSON.errors)[0];
+
+                if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                    message = xhr.responseJSON.errors[firstKey][0];
+                }
+            }
+
+            $('#model-request-modal-error').text(message).show();
+        });
+    }
+
+    function updateModelRequestEstimateSummary() {
+        var companyId = $('#model-request-modal-company').val();
+        var projectId = $('#model-request-modal-project').val();
+        var neededByDate = $('#model-request-modal-needed-by-date').val();
+        var quantity = $('#model-request-modal-quantity').val();
+
+        resetModelRequestEstimateState();
+
+        if (!companyId || !projectId || !neededByDate || !quantity) {
+            return;
+        }
+
+        $('#model-request-modal-estimate-requested').text(quantity);
+        estimateModelRequestModal();
+    }
+
+    function renderModelRequestCartLines(lines, metadataReady) {
+        var rows = [];
+
+        if (!lines.length) {
+            rows.push('<tr><td colspan="11" class="text-muted">Your request cart is empty.</td></tr>');
+        }
+
+        lines.forEach(function (line) {
+            rows.push(
+                '<tr>'
+                + '<td>' + escapeHtml(line.model_name) + '</td>'
+                + '<td>' + escapeHtml(line.discipline_name) + '</td>'
+                + '<td>' + escapeHtml(line.company_name) + '</td>'
+                + '<td>' + line.quantity + '</td>'
+                + '<td>' + (metadataReady ? line.reusable_quantity : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.due_back_before_needed_by_quantity : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.reserved_by_other_rfqs_count : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.procurement_shortfall : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.estimated_savings_formatted : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.amount_to_buy_formatted : '&mdash;') + '</td>'
+                + '<td><button type="button" class="btn btn-danger btn-xs" onclick="removeLineFromModelRequestCart(' + line.model_id + ', ' + line.discipline_id + ', ' + line.company_id + ')"><i class="fas fa-times" aria-hidden="true"></i></button></td>'
+                + '</tr>'
+            );
+        });
+
+        $('#model-request-cart-lines').html(rows.join(''));
+    }
+
+    function escapeHtml(value) {
+        return $('<div>').text(value || '').html();
+    }
+
+    function renderModelRequestCartTotals(totals, formattedTotals, metadataReady) {
+        $('#model-request-cart-total-requested').text(totals.quantity || 0);
+        $('#model-request-cart-total-reusable').html(metadataReady ? (totals.reusable_quantity || 0) : '&mdash;');
+        $('#model-request-cart-total-due-back').html(metadataReady ? (totals.due_back_before_needed_by_quantity || 0) : '&mdash;');
+        $('#model-request-cart-total-reserved-other').html(metadataReady ? (totals.reserved_by_other_rfqs_count || 0) : '&mdash;');
+        $('#model-request-cart-total-shortfall').html(metadataReady ? (totals.procurement_shortfall || 0) : '&mdash;');
+        $('#model-request-cart-total-savings').html(metadataReady ? formattedTotals.estimated_savings : '&mdash;');
+        $('#model-request-cart-total-buy').html(metadataReady ? formattedTotals.amount_to_buy : '&mdash;');
+    }
+
+    function refreshModelRequestCartPreview() {
+        var projectId = $('#model-request-cart-project').val();
+        var neededByDate = $('#model-request-cart-needed-by-date').val();
+        var metadataReady = Boolean(projectId && neededByDate);
+
+        $.ajax({
+            url: modelRequestCartPreviewUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                _token: '{{ csrf_token() }}',
+                project_id: projectId,
+                needed_by_date: neededByDate
+            }
+        }).done(function (response) {
+            $('#model-request-cart-modal-error').hide().text('');
+            updateModelRequestCartCount(response.cart_count || 0);
+            renderModelRequestCartLines(response.lines || [], metadataReady);
+            renderModelRequestCartTotals(response.totals || {}, response.totals_formatted || {}, metadataReady);
+            $('#model-request-cart-submit').prop('disabled', !response.cart_count);
+        }).fail(function (xhr) {
+            var message = 'Unable to load the request cart.';
+
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                    message = xhr.responseJSON.errors[firstKey][0];
+                }
+            }
+
+            $('#model-request-cart-modal-error').text(message).show();
+        });
+    }
+
+    function openModelRequestCartModal() {
+        ensureModelRequestCartModal();
+        $('#model-request-cart-modal').modal('show');
+        refreshModelRequestCartPreview();
+    }
+
+    function removeLineFromModelRequestCart(modelId, disciplineId, companyId) {
+        $.post(modelRequestCartRemoveUrl, {
+            _token: '{{ csrf_token() }}',
+            model_id: modelId,
+            discipline_id: disciplineId,
+            company_id: companyId
+        }).done(function (response) {
+            updateModelRequestCartCount(response.cart_count || 0);
+            refreshModelRequestCartPreview();
+        });
+    }
+
+    function createProjectFromRequestModal(targetSelect, errorTarget) {
+        if (!canCreateProjectsForRequests) {
+            return;
+        }
+
+        var projectName = window.prompt('Project name');
+
+        if (!projectName) {
+            return;
+        }
+
+        $.ajax({
+            url: createProjectForRequestsUrl,
+            method: 'POST',
+            dataType: 'json',
+            headers: {
+                Accept: 'application/json'
+            },
+            data: {
+                _token: '{{ csrf_token() }}',
+                name: projectName
+            }
+        }).done(function (response) {
+            if (!response || response.status !== 'success' || !response.payload) {
+                var inlineError = 'Unable to create the project.';
+
+                if (response && response.messages) {
+                    if (typeof response.messages === 'string') {
+                        inlineError = response.messages;
+                    } else if (Array.isArray(response.messages) && response.messages[0]) {
+                        inlineError = response.messages[0];
+                    } else {
+                        var inlineErrorKey = Object.keys(response.messages)[0];
+                        if (inlineErrorKey && response.messages[inlineErrorKey] && response.messages[inlineErrorKey][0]) {
+                            inlineError = response.messages[inlineErrorKey][0];
+                        }
+                    }
+                }
+
+                $(errorTarget).text(inlineError).show();
+                return;
+            }
+
+            modelRequestProjects.push({
+                id: response.payload.id,
+                name: response.payload.name
+            });
+            modelRequestProjects.sort(function (a, b) {
+                return a.name.localeCompare(b.name);
+            });
+
+            $(targetSelect).html(buildModelRequestProjectOptions(response.payload.id));
+            $(targetSelect).val(String(response.payload.id)).trigger('change');
+        }).fail(function (xhr) {
+            var message = 'Unable to create the project.';
+
+            if (xhr.responseJSON && xhr.responseJSON.messages) {
+                if (typeof xhr.responseJSON.messages === 'string') {
+                    message = xhr.responseJSON.messages;
+                } else if (Array.isArray(xhr.responseJSON.messages) && xhr.responseJSON.messages[0]) {
+                    message = xhr.responseJSON.messages[0];
+                } else {
+                    var messageKey = Object.keys(xhr.responseJSON.messages)[0];
+                    if (messageKey && xhr.responseJSON.messages[messageKey] && xhr.responseJSON.messages[messageKey][0]) {
+                        message = xhr.responseJSON.messages[messageKey][0];
+                    }
+                }
+            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var errorKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (errorKey && xhr.responseJSON.errors[errorKey] && xhr.responseJSON.errors[errorKey][0]) {
+                    message = xhr.responseJSON.errors[errorKey][0];
+                }
+            }
+
+            $(errorTarget).text(message).show();
+        });
+    }
+
+    function modelRequestActionsFormatter(value, row) {
+        var requestedQuantity = 1;
+
+        if ((row.available_actions) && (row.available_actions.request === true)) {
+            return '<div style="display:flex;align-items:center;gap:6px;min-width:104px;">'
+                + buildInlineBookingInput(row.id, requestedQuantity)
+                + buildInlineDisciplineSelect(row.id, '')
+                + buildInlineCompanySelect(row.id, '')
+                + '<button type="button" class="btn btn-primary btn-sm model-request-inline-control" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="Add to cart" onclick="var quantity = getInlineModelBookingQuantity(' + row.id + '); var disciplineId = getInlineModelDisciplineId(' + row.id + '); var companyId = getInlineModelCompanyId(' + row.id + '); if (!quantity) { window.alert(\'Enter a total needed quantity first.\'); return; } if (!disciplineId) { window.alert(\'Select a discipline first.\'); return; } if (!companyId) { window.alert(\'Select a company first.\'); return; } addLinesToRequestCart([{ model_id: ' + row.id + ', quantity: quantity, discipline_id: disciplineId, company_id: companyId }], false);"><i class=\"fas fa-cart-plus\" aria-hidden=\"true\"></i><span class=\"sr-only\">Add to cart</span></button>'
                 + '</div>';
-        } else if ((row.available_actions) && (row.available_actions.request === true)) {
-            return '<form action="' + requestUrl + '" method="POST" style="display:flex;align-items:center;gap:6px;min-width:260px;flex-wrap:wrap;">@csrf<input type="hidden" name="request-action" value="create"><select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions('') + '</select><input type="number" min="1" max="' + row.remaining + '" name="request-quantity" value="1" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}"><button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}">{{ trans('button.request') }}</button></form>';
         }
 
         return '';
     }
 
     function licenseRequestActionsFormatter(value, row) {
-        var requestUrl = '{{ route('account/request-item', ['itemType' => 'license', 'itemId' => '__LICENSE_ID__']) }}'.replace('__LICENSE_ID__', row.id);
-        var requestsUrl = '{{ route('account.requested') }}?license_id=' + row.id;
-        var requestedQuantity = row.requested_quantity || 1;
-        var requestedProjectId = row.requested_project_id || '';
-        var actionBarId = 'license-request-actions-' + row.id;
-        var editStateId = 'license-request-edit-' + row.id;
-        var requestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name'])->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values());
-        var buildProjectOptions = function(selectedProjectId) {
-            var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
-
-            requestProjects.forEach(function(project) {
-                var selected = String(project.id) === String(selectedProjectId) ? ' selected' : '';
-                options.push('<option value=\"' + project.id + '\"' + selected + '>' + project.name + '</option>');
-            });
-
-            return options.join('');
-        };
-
         if ((row.available_actions) && (row.available_actions.update_request === true)) {
-            return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:170px;">'
-                + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.2;">'
+            return '<div style="display:flex;flex-direction:column;gap:4px;min-width:160px;">'
                 + '<span class="label label-info" style="font-size:11px;">{{ trans('general.requested') }}</span>'
-                + '<span style="font-size:12px;color:#4d4d4d;">{{ trans('general.qty') }}: <strong>' + requestedQuantity + '</strong></span>'
-                + '</div>'
-                + '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:0;flex-wrap:wrap;font-size:12px;">'
-                + '<a href="' + requestsUrl + '" style="margin-right:8px;">View requests</a>'
-                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;margin-right:8px;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'flex\'; document.getElementById(\'' + actionBarId + '\').style.display = \'none\';" data-tooltip="true" title="{{ trans('general.update') }}">Edit</button>'
-                + '<form action="' + requestUrl + '" method="POST" style="margin:0;">'
-                + '@csrf'
-                + '<input type="hidden" name="request-action" value="cancel">'
-                + '<button class="btn btn-link btn-sm text-danger" style="padding:0;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">{{ trans('button.cancel') }}</button>'
-                + '</form>'
-                + '</div>'
-                + '<form id="' + editStateId + '" action="' + requestUrl + '" method="POST" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;margin:0;">'
-                + '@csrf'
-                + '<input type="hidden" name="request-action" value="update">'
-                + '<select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions(requestedProjectId) + '</select>'
-                + '<input type="number" min="1" max="' + row.free_seats_count + '" name="request-quantity" value="' + requestedQuantity + '" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}">'
-                + '<button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.update') }}">{{ trans('general.update') }}</button>'
-                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'none\'; document.getElementById(\'' + actionBarId + '\').style.display = \'flex\';">{{ trans('button.cancel') }}</button>'
-                + '</form>'
+                + '<a href="{{ route('requests.index') }}?license_id=' + row.id + '">View request</a>'
+                + '<a href="{{ route('requestable-assets') }}#licenses">Open request form</a>'
                 + '</div>';
         } else if ((row.available_actions) && (row.available_actions.request === true)) {
-            return '<form action="' + requestUrl + '" method="POST" style="display:flex;align-items:center;gap:6px;min-width:260px;flex-wrap:wrap;">@csrf<input type="hidden" name="request-action" value="create"><select name="project_id" class="form-control input-sm" style="min-width:150px;">' + buildProjectOptions('') + '</select><input type="number" min="1" max="' + row.free_seats_count + '" name="request-quantity" value="1" class="form-control input-sm" style="width:72px;" aria-label="{{ trans('general.qty') }}"><button class="btn btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}">{{ trans('button.request') }}</button></form>';
+            return '<a class="btn btn-primary btn-sm" href="{{ route('requestable-assets') }}#licenses">{{ trans('button.request') }}</a>';
         }
 
         return '';
@@ -1479,12 +2369,37 @@
             return '';
         }
 
-        var actionTitle = 'View request';
-
-        return '<a href="' + row.request_detail_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="' + actionTitle + '">'
+        var actions = [];
+        var viewTitle = 'View request';
+        actions.push(
+            '<a href="' + row.request_detail_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="' + viewTitle + '">'
             + '<i class="fas fa-eye" aria-hidden="true"></i>'
-            + '<span class="sr-only">' + actionTitle + '</span>'
-            + '</a>';
+            + '<span class="sr-only">' + viewTitle + '</span>'
+            + '</a>'
+        );
+
+        if (row.request_update_url && row.model_id) {
+            var modifyTitle = 'Modify request';
+            var estimateUrl = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.model_id);
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', companyId: \'' + (row.company_id || '') + '\', projectId: \'' + (row.project_id || '') + '\', requestedDisciplineId: \'' + (row.requested_discipline_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
+                + '<i class="fas fa-pen" aria-hidden="true"></i>'
+                + '<span class="sr-only">' + modifyTitle + '</span>'
+                + '</button>'
+            );
+        }
+
+        if (row.request_cancel_url) {
+            var cancelTitle = 'Cancel request';
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-danger" data-tooltip="true" title="' + cancelTitle + '" onclick="cancelSubmittedRequestRow(\'' + row.request_cancel_url + '\');">'
+                + '<i class="fas fa-times" aria-hidden="true"></i>'
+                + '<span class="sr-only">' + cancelTitle + '</span>'
+                + '</button>'
+            );
+        }
+
+        return '<div style="display:flex;gap:6px;align-items:center;">' + actions.join('') + '</div>';
     }
 
     function requestDetailLinkFormatter(value, row) {
@@ -1505,6 +2420,103 @@
         }
 
         return value;
+    }
+
+    function requestProjectLinkFormatter(value, row) {
+        if (row && row.project_requests_url && value) {
+            return '<a href="' + row.project_requests_url + '">' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestAvailabilityLinkFormatter(value, row, urlField) {
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        if (row && row[urlField]) {
+            return '<a href="' + row[urlField] + '">' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestReusableNowFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'reusable_now_url');
+    }
+
+    function requestDueBackFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'due_back_url');
+    }
+
+    function requestReservedFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'reserved_assets_url');
+    }
+
+    function requestReservedByOtherProjectFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'reserved_by_other_project_url');
+    }
+
+    function requestSavingsFormatter(value, row) {
+        if (row && row.estimated_savings_formatted) {
+            return row.estimated_savings_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function requestTotalNeedCostFormatter(value, row) {
+        if (row && row.total_need_cost_formatted) {
+            return row.total_need_cost_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function requestAmountToBuyFormatter(value, row) {
+        if (row && row.amount_to_buy_formatted) {
+            return row.amount_to_buy_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    $(function () {
+        attachRequestTableHeaderTooltips();
+        $('.snipe-table').on('post-header.bs.table load-success.bs.table', attachRequestTableHeaderTooltips);
+    });
+
+    function cancelSubmittedRequestRow(url) {
+        if (!window.confirm('Cancel this request?')) {
+            return;
+        }
+
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.style.display = 'none';
+
+        var token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = '{{ csrf_token() }}';
+        form.appendChild(token);
+
+        document.body.appendChild(form);
+        form.submit();
     }
 
 
@@ -1740,6 +2752,14 @@
         } else {
             return '<x-icon type="x" class="text-danger" /><span class="sr-only">{{ trans('general.false') }}</span>';
         }
+    }
+
+    function yesNoFormatter(value) {
+        if ((value) && ((value == 'true') || (value == '1'))) {
+            return '{{ trans('general.yes') }}';
+        }
+
+        return '{{ trans('general.no') }}';
     }
 
     function dateDisplayFormatter(value) {

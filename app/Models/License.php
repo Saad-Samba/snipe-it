@@ -200,6 +200,61 @@ class License extends Depreciable
         return $this->belongsTo(Discipline::class, 'discipline_id');
     }
 
+    public function availableReusableSeats()
+    {
+        return $this->licenseSeats()
+            ->whereNull('assigned_to')
+            ->whereNull('asset_id')
+            ->where('unreassignable_seat', false);
+    }
+
+    public function expectedReleaseSeatsByDate(?string $neededByDate = null)
+    {
+        $query = $this->licenseSeats()
+            ->where(function ($query) {
+                $query->whereNotNull('assigned_to')
+                    ->orWhereNotNull('asset_id');
+            })
+            ->whereNotNull('expected_release_date')
+            ->where('unreassignable_seat', false);
+
+        if ($neededByDate) {
+            $query->whereDate('expected_release_date', '<=', $neededByDate);
+        }
+
+        return $query;
+    }
+
+    public function potentiallyCoverableSeatsByDate(?string $neededByDate = null)
+    {
+        return $this->licenseSeats()->whereIn('license_seats.id', function ($query) use ($neededByDate) {
+            $query->select('id')
+                ->from('license_seats')
+                ->where('license_id', $this->id)
+                ->where('unreassignable_seat', false)
+                ->where(function ($query) use ($neededByDate) {
+                    $query->where(function ($query) {
+                        $query->whereNull('assigned_to')
+                            ->whereNull('asset_id');
+                    })->orWhere(function ($query) use ($neededByDate) {
+                        $query->where(function ($query) {
+                            $query->whereNotNull('assigned_to')
+                                ->orWhereNotNull('asset_id');
+                        })->whereNotNull('expected_release_date');
+
+                        if ($neededByDate) {
+                            $query->whereDate('expected_release_date', '<=', $neededByDate);
+                        }
+                    });
+                });
+        });
+    }
+
+    public function expectedReleaseSeatCount(?string $neededByDate = null): int
+    {
+        return $this->expectedReleaseSeatsByDate($neededByDate)->count();
+    }
+
 
     public function prepareLimitChangeRule($parameters, $field)
     {
@@ -769,7 +824,8 @@ class License extends Depreciable
     {
         return ! $this->isInactive()
             && (bool) $this->reassignable
-            && $this->reusableFreeSeatsCount() > 0;
+            && $this->company_id
+            && $this->discipline_id;
     }
 
     public function scopeActiveLicenses($query)

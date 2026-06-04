@@ -77,7 +77,6 @@ class CategoriesController extends Controller
                 'reusableAssets as reusable_assets_count'
             );
 
-
         $filter = [];
 
         if ($request->filled('filter')) {
@@ -203,8 +202,8 @@ class CategoriesController extends Controller
      */
     public function show($id) : array
     {
-        $this->authorize('view', Category::class);
         $category = Category::with('fieldset')->withCount('assets as assets_count', 'accessories as accessories_count', 'consumables as consumables_count', 'components as components_count', 'licenses as licenses_count')->findOrFail($id);
+        $this->authorize('view', $category);
         return (new CategoriesTransformer)->transformCategory($category);
 
     }
@@ -221,8 +220,8 @@ class CategoriesController extends Controller
      */
     public function update(ImageUploadRequest $request, $id) : JsonResponse
     {
-        $this->authorize('update', Category::class);
         $category = Category::findOrFail($id);
+        $this->authorize('update', $category);
 
         // Don't allow the user to change the category_type once it's been created
         if (($request->filled('category_type')) && ($category->category_type != $request->input('category_type'))) {
@@ -250,7 +249,7 @@ class CategoriesController extends Controller
      */
     public function destroy(Category $category): JsonResponse
     {
-        $this->authorize('delete', Category::class);
+        $this->authorize('delete', $category);
         try {
             DestroyCategoryAction::run(category: $category);
         } catch (ItemStillHasChildren $e) {

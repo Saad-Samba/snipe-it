@@ -28,6 +28,7 @@ class LicenseCheckoutRequest extends FormRequest
             'notes'   => 'string|nullable',
             'asset_id'  => 'required_without:assigned_to',
             'request_id' => 'nullable|integer|exists:checkout_requests,id',
+            'expected_release_date' => 'nullable|date',
         ];
     }
 }

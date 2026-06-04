@@ -19,39 +19,30 @@
                                 Showing requests for item:
                                 <strong>{{ $filteredItem->name }}</strong>
                             </span>
-                            <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+                            <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">View all submitted requests</a>
                         </div>
                     @endif
-
-                    <table
-
-                            data-cookie-id-table="userRequests"
-                            data-id-table="userRequests"
-                            data-side-pagination="server"
-                            data-sort-order="desc"
-                            data-request-mode="{{ $requestMode ?? 'requester' }}"
-                            id="userRequests"
-                            class="table table-striped snipe-table"
-                            data-url="{{ $dataUrl ?? route('api.assets.requested') }}"
-                            data-export-options='{
-                  "fileName": "my-requested-assets-{{ date('Y-m-d') }}",
-                  "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
-                }'>
-                        <thead>
-                        <tr>
-                            <th data-field="request_id" data-sortable="true" data-visible="true" data-switchable="false" data-formatter="requestDetailLinkFormatter">ID</th>
-                            <th data-field="image" data-sortable="true" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
-                            <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Item</th>
-                            <th data-field="qty" data-sortable="true">{{ trans('general.qty') }}</th>
-                            <th data-field="project" data-sortable="true">{{ trans('general.project') }}</th>
-                            <th data-field="booked_count" data-sortable="true">Booked</th>
-                            <th data-field="status" data-sortable="true" data-formatter="requestStatusFormatter">Status</th>
-                            <th data-field="request_date" data-sortable="true" data-formatter="dateDisplayFormatter"> {{ trans('general.requested_date') }}</th>
-                            <th data-field="updated_at" data-sortable="true" data-formatter="dateDisplayFormatter">Updated</th>
-                            <th data-field="actions" data-switchable="false" data-searchable="false" data-sortable="false" data-visible="true" data-formatter="requestWorkflowActionsFormatter">{{ trans('table.actions') }}</th>
-                        </tr>
-                        </thead>
-                    </table>
+                    @if (!empty($filteredProject))
+                        <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                            <span>
+                                Showing requests for project:
+                                <strong>{{ $filteredProject->name }}</strong>
+                            </span>
+                            <span style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <a href="{{ route('projects.show', ['project' => $filteredProject->id, 'tab' => 'requests']) }}" class="btn btn-default btn-sm">Open project requests</a>
+                                <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+                            </span>
+                        </div>
+                    @endif
+                    @if (!empty($filteredProject) && !empty($projectSummary))
+                        @include('account.partials.request-project-summary', ['summary' => $projectSummary])
+                    @endif
+                    @include('account.partials.submitted-requests-table', [
+                        'tableId' => 'userRequests',
+                        'requestMode' => $requestMode ?? 'requester',
+                        'dataUrl' => $dataUrl ?? route('api.requests.index'),
+                        'exportFileName' => 'my-requested-assets-'.date('Y-m-d'),
+                    ])
 
                 </div> <!-- .box-body -->
             </div> <!-- .box-default -->
@@ -61,4 +52,54 @@
 @stop
 @section('moar_scripts')
     @include ('partials.bootstrap-table')
+    <script nonce="{{ csrf_token() }}">
+        $(function () {
+            var $table = $('#userRequests');
+
+            function getActiveAdvancedFilters() {
+                var bootstrapTableInstance = $table.data('bootstrap.table');
+                var filters = (bootstrapTableInstance && bootstrapTableInstance.filterColumnsPartial) || {};
+                var activeFilters = {};
+
+                Object.keys(filters).forEach(function (key) {
+                    if (filters[key] !== undefined && filters[key] !== null && String(filters[key]).trim() !== '') {
+                        activeFilters[key] = String(filters[key]).trim();
+                    }
+                });
+
+                return activeFilters;
+            }
+
+            function getAdvancedSearchButton() {
+                var $toolbar = $table.closest('.bootstrap-table').find('.fixed-table-toolbar');
+                return $toolbar.find('.fa-search-plus').closest('button');
+            }
+
+            function renderAdvancedSearchState() {
+                var activeFilters = getActiveAdvancedFilters();
+                var keys = Object.keys(activeFilters);
+                var $button = getAdvancedSearchButton();
+
+                if (!$button.length) {
+                    return;
+                }
+
+                $button.toggleClass('btn-warning', keys.length > 0);
+                $button.toggleClass('btn-primary', keys.length === 0);
+
+                if (keys.length > 0) {
+                    $button.attr('title', 'Advanced search active');
+                } else {
+                    $button.attr('title', 'Advanced search');
+                }
+
+                if ($button.data('bs.tooltip')) {
+                    $button.tooltip('fixTitle');
+                }
+            }
+
+            $table.on('load-success.bs.table column-advanced-search.bs.table post-header.bs.table', renderAdvancedSearchState);
+            renderAdvancedSearchState();
+        });
+    </script>
 @stop

@@ -29,6 +29,8 @@ class LicensesTransformer
             && $requestingUser->hasAccess('licenses.request')
             && $license->deleted_at == '';
         $canRequestLicenses = $canManageLicenseRequests && $license->isReusableForRequest();
+        $expectedReleaseCount = $license->expectedReleaseSeatCount();
+        $potentiallyCoverableCount = $license->reusableFreeSeatsCount() + $expectedReleaseCount;
 
         $array = [
             'id' => (int) $license->id,
@@ -59,6 +61,8 @@ class LicensesTransformer
             'notes' => Helper::parseEscapedMarkedownInline($license->notes),
             'seats' => (int) $license->seats,
             'free_seats_count' => $license->reusableFreeSeatsCount(),
+            'expected_release_count' => $expectedReleaseCount,
+            'potentially_coverable_count' => $potentiallyCoverableCount,
             'remaining' => (int) $license->free_seats_count,
             'min_amt' => ($license->min_amt) ? (int) ($license->min_amt) : null,
             'license_name' =>  ($license->license_name) ? e($license->license_name) : null,
@@ -86,6 +90,14 @@ class LicensesTransformer
             'disabled' => $license->isInactive(),
             'requested_quantity' => $activeRequest ? (int) $activeRequest->quantity : null,
             'requested_project_id' => $activeRequest ? (int) $activeRequest->project_id : null,
+            'requested_discipline_id' => $activeRequest ? (int) $activeRequest->requested_discipline_id : null,
+            'requested_company_id' => $activeRequest ? (int) $activeRequest->company_id : null,
+            'requested_needed_by_date' => $activeRequest && $activeRequest->needed_by_date
+                ? $activeRequest->needed_by_date->format('Y-m-d')
+                : null,
+            'requested_for_type' => $activeRequest ? $activeRequest->requested_for_type : null,
+            'requested_for_display' => $activeRequest ? e((string) $activeRequest->requested_for_display) : null,
+            'user_can_request_reuse' => $canRequestLicenses,
         ];
 
         $permissions_array['available_actions'] = [

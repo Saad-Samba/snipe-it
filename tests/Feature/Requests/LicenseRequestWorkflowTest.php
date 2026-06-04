@@ -7,23 +7,71 @@ use App\Models\CheckoutRequest;
 use App\Models\Company;
 use App\Models\Discipline;
 use App\Models\License;
+use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\User;
-use App\Notifications\RequestAssetNotification;
+use App\Notifications\RacScopedRequestSummaryNotification;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class LicenseRequestWorkflowTest extends TestCase
 {
-    public function test_license_request_persists_quantity_and_notifies_candidate_racs()
+    public function test_license_request_estimate_counts_available_and_expected_release_seats(): void
+    {
+        $requester = User::factory()->requestLicenses()->viewLicenses()->create();
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Digital Engineering', 'created_by' => $requester->id]);
+        $project = Project::factory()->create();
+        $license = License::factory()->create([
+            'category_id' => Category::factory()->forLicenses()->create()->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'reassignable' => true,
+            'purchase_cost' => 125.50,
+            'seats' => 3,
+        ])->fresh();
+
+        $futureUser = User::factory()->create();
+        $laterUser = User::factory()->create();
+        $seats = $license->licenseSeats()->orderBy('id')->get();
+        $seats[1]->forceFill([
+            'assigned_to' => $futureUser->id,
+            'expected_release_date' => '2026-06-10',
+        ])->save();
+        $seats[2]->forceFill([
+            'assigned_to' => $laterUser->id,
+            'expected_release_date' => '2026-07-10',
+        ])->save();
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-estimate', ['itemType' => 'license', 'itemId' => $license->id]), [
+                'request-quantity' => 3,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $company->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-15',
+                'requested_for_type' => 'user',
+                'requested_for_display' => 'Future assignee',
+            ])
+            ->assertOk()
+            ->assertJsonPath('requested_quantity', 3)
+            ->assertJsonPath('reusable_now', 1)
+            ->assertJsonPath('reusable_quantity', 1)
+            ->assertJsonPath('expected_release_before_needed_by_quantity', 1)
+            ->assertJsonPath('potentially_coverable_quantity', 2)
+            ->assertJsonPath('procurement_shortfall', 1)
+            ->assertJsonPath('reference_price_snapshot', 125.5);
+    }
+
+    public function test_license_request_persists_scope_assignee_and_notifies_candidate_racs(): void
     {
         Notification::fake();
 
-        $requester = User::factory()->requestLicenses()->create();
+        $requester = User::factory()->requestLicenses()->viewLicenses()->create();
         $discipline = Discipline::create(['name' => 'Software', 'created_by' => $requester->id]);
         $coordinator = User::factory()->create(['first_name' => 'License', 'last_name' => 'RAC']);
         $company = Company::factory()->create(['name' => 'Casablanca Site']);
-        $project = \App\Models\Project::factory()->create();
+        $project = Project::factory()->create();
         $license = License::factory()->create([
             'category_id' => Category::factory()->forLicenses()->create()->id,
             'company_id' => $company->id,
@@ -32,6 +80,7 @@ class LicenseRequestWorkflowTest extends TestCase
             'reassignable' => true,
             'expiration_date' => null,
             'termination_date' => null,
+            'purchase_cost' => 499.99,
             'seats' => 3,
         ])->fresh();
 
@@ -45,7 +94,12 @@ class LicenseRequestWorkflowTest extends TestCase
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'license', 'itemId' => $license->id]), [
                 'request-quantity' => 2,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $company->id,
                 'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+                'requested_for_type' => 'user',
+                'requested_for_display' => 'Jane Analyst',
             ])
             ->assertRedirect();
 
@@ -57,6 +111,9 @@ class LicenseRequestWorkflowTest extends TestCase
 
         $this->assertSame(2, $checkoutRequest->quantity);
         $this->assertSame(CheckoutRequest::STATUS_PENDING, $checkoutRequest->status);
+        $this->assertSame('user', $checkoutRequest->requested_for_type);
+        $this->assertSame('Jane Analyst', $checkoutRequest->requested_for_display);
+        $this->assertSame('2026-06-20', optional($checkoutRequest->needed_by_date)->format('Y-m-d'));
 
         $this->assertDatabaseHas('checkout_request_coordinators', [
             'checkout_request_id' => $checkoutRequest->id,
@@ -65,15 +122,15 @@ class LicenseRequestWorkflowTest extends TestCase
             'discipline_id' => $discipline->id,
         ]);
 
-        Notification::assertSentTo($coordinator, RequestAssetNotification::class);
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class);
     }
 
-    public function test_license_request_requires_permission()
+    public function test_license_request_requires_permission(): void
     {
         $requester = User::factory()->create();
         $discipline = Discipline::create(['name' => 'Validation', 'created_by' => 1]);
         $company = Company::factory()->create();
-        $project = \App\Models\Project::factory()->create();
+        $project = Project::factory()->create();
         $license = License::factory()->create([
             'category_id' => Category::factory()->forLicenses()->create()->id,
             'company_id' => $company->id,
@@ -85,7 +142,12 @@ class LicenseRequestWorkflowTest extends TestCase
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'license', 'itemId' => $license->id]), [
                 'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $company->id,
                 'project_id' => $project->id,
+                'needed_by_date' => '2026-06-20',
+                'requested_for_type' => 'asset',
+                'requested_for_display' => 'LT-2401',
             ])
             ->assertForbidden();
 
@@ -96,13 +158,18 @@ class LicenseRequestWorkflowTest extends TestCase
         ]);
     }
 
-    public function test_requested_assets_api_returns_license_request_metadata()
+    public function test_requested_requests_api_returns_license_request_metadata(): void
     {
-        $requester = User::factory()->create();
-        $project = \App\Models\Project::factory()->create(['name' => 'License Tracking Project']);
+        $requester = User::factory()->requestLicenses()->viewLicenses()->create();
+        $company = Company::factory()->create(['name' => 'Rabat Office']);
+        $discipline = Discipline::create(['name' => 'BIM', 'created_by' => $requester->id]);
+        $project = Project::factory()->create(['name' => 'License Tracking Project']);
         $license = License::factory()->create([
             'category_id' => Category::factory()->forLicenses()->create()->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
             'name' => 'Autodesk Seat Pool',
+            'purchase_cost' => 700,
             'reassignable' => true,
             'seats' => 4,
         ]);
@@ -113,71 +180,54 @@ class LicenseRequestWorkflowTest extends TestCase
             'requestable_type' => License::class,
             'quantity' => 2,
             'project_id' => $project->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
+            'requested_for_type' => 'asset',
+            'requested_for_display' => 'WS-44',
+            'needed_by_date' => '2026-07-15',
+            'reusable_quantity' => 1,
+            'due_back_before_needed_by_quantity' => 1,
+            'procurement_shortfall' => 0,
+            'reference_price_snapshot' => 700,
         ]);
 
+        $license->licenseSeats()->orderBy('id')->firstOrFail()->forceFill([
+            'assigned_to' => User::factory()->create()->id,
+            'expected_release_date' => '2026-07-01',
+        ])->save();
+
         $this->actingAsForApi($requester)
-            ->getJson(route('api.assets.requested', ['license_id' => $license->id]))
+            ->getJson(route('api.requests.index', ['license_id' => $license->id]))
             ->assertOk()
             ->assertJsonPath('total', 1)
             ->assertJsonPath('rows.0.request_id', $checkoutRequest->id)
             ->assertJsonPath('rows.0.name', 'Autodesk Seat Pool')
             ->assertJsonPath('rows.0.project', 'License Tracking Project')
-            ->assertJsonPath('rows.0.booked_count', 0);
+            ->assertJsonPath('rows.0.company', 'Rabat Office')
+            ->assertJsonPath('rows.0.requested_discipline', 'BIM')
+            ->assertJsonPath('rows.0.requested_for_type', 'asset')
+            ->assertJsonPath('rows.0.requested_for_display', 'WS-44')
+            ->assertJsonPath('rows.0.expected_release_before_needed_by_quantity', 1);
     }
 
-    public function test_license_checkout_links_seat_allocation_back_to_request()
+    public function test_license_seats_api_returns_expected_release_date(): void
     {
-        $requester = User::factory()->create();
-        $coordinator = User::factory()->checkoutLicenses()->create();
-        $discipline = Discipline::create(['name' => 'Digital', 'created_by' => $requester->id]);
-        $company = Company::factory()->create();
-        $project = \App\Models\Project::factory()->create();
+        $viewer = User::factory()->superuser()->create();
         $license = License::factory()->create([
             'category_id' => Category::factory()->forLicenses()->create()->id,
-            'company_id' => $company->id,
-            'discipline_id' => $discipline->id,
             'reassignable' => true,
-            'seats' => 2,
-        ]);
+            'seats' => 1,
+        ])->fresh();
 
-        $checkoutRequest = CheckoutRequest::factory()->forLicense()->create([
-            'user_id' => $requester->id,
-            'requestable_id' => $license->id,
-            'requestable_type' => License::class,
-            'quantity' => 1,
-            'project_id' => $project->id,
-        ]);
+        $seat = $license->licenseSeats()->firstOrFail();
+        $seat->forceFill([
+            'assigned_to' => User::factory()->create()->id,
+            'expected_release_date' => '2026-07-01',
+        ])->save();
 
-        RegionalAssetCoordinatorAssignment::create([
-            'user_id' => $coordinator->id,
-            'company_id' => $company->id,
-            'discipline_id' => $discipline->id,
-            'created_by' => $requester->id,
-        ]);
-
-        $checkoutRequest->coordinatorTargets()->create([
-            'user_id' => $coordinator->id,
-            'company_id' => $company->id,
-            'discipline_id' => $discipline->id,
-        ]);
-
-        $assignee = User::factory()->create();
-
-        $this->actingAs($coordinator)
-            ->post("/licenses/{$license->id}/checkout", [
-                'assigned_to' => $assignee->id,
-                'request_id' => $checkoutRequest->id,
-                'notes' => 'Allocated from request',
-            ])
-            ->assertRedirect();
-
-        $checkoutRequest->refresh();
-
-        $this->assertDatabaseHas('checkout_request_license_seats', [
-            'checkout_request_id' => $checkoutRequest->id,
-            'allocated_by' => $coordinator->id,
-        ]);
-        $this->assertSame(CheckoutRequest::STATUS_FULLY_ALLOCATED, $checkoutRequest->status);
-        $this->assertNotNull($checkoutRequest->fulfilled_at);
+        $this->actingAsForApi($viewer)
+            ->getJson(route('api.licenses.seats.index', ['license' => $license->id, 'status' => 'assigned']))
+            ->assertOk()
+            ->assertJsonPath('rows.0.expected_release_date_value', '2026-07-01');
     }
 }

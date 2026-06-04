@@ -28,6 +28,18 @@ class AssetModelImporter extends ItemImporter
         $this->createAssetModelIfNotExists($row);
     }
 
+    protected function setBooleanFieldIfPresent(array $row, string $field): void
+    {
+        $csvKey = $this->lookupCustomKey($field);
+
+        if (! array_key_exists($csvKey, $row)) {
+            unset($this->item[$field]);
+            return;
+        }
+
+        $this->item[$field] = (int) ($this->fetchHumanBoolean($this->findCsvMatch($row, $field)) == 1);
+    }
+
     /**
      * Create a model if a duplicate does not exist.
      * @todo Investigate how this should interact with Importer::createModelIfNotExists
@@ -86,8 +98,8 @@ class AssetModelImporter extends ItemImporter
         $this->item['notes'] = trim($this->findCsvMatch($row, 'notes'));
         $this->item['fieldset'] = trim($this->findCsvMatch($row, 'fieldset'));
         $this->item['depreciation'] = trim($this->findCsvMatch($row, 'depreciation'));
-        $this->item['obsolete'] = (int) ($this->fetchHumanBoolean($this->findCsvMatch($row, 'obsolete')) == 1);
-        $this->item['require_serial'] = (int) ($this->fetchHumanBoolean($this->findCsvMatch($row, 'require_serial')) == 1);
+        $this->setBooleanFieldIfPresent($row, 'obsolete');
+        $this->setBooleanFieldIfPresent($row, 'require_serial');
 
         if (!empty($this->item['category'])) {
             if ($category = $this->createOrFetchCategory($this->item['category'])) {

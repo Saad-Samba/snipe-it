@@ -7,17 +7,15 @@ use Tests\TestCase;
 
 class IndexAssetModelsTest extends TestCase
 {
-    public function testPermissionRequiredToViewAssetModelList()
+    public function test_models_index_shows_reference_price_column_by_default()
     {
-        $this->actingAs(User::factory()->create())
-            ->get(route('models.index'))
-            ->assertForbidden();
-    }
+        $user = User::factory()->viewAssetModels()->create();
 
-    public function testUserCanListAssetModels()
-    {
-        $this->actingAs(User::factory()->superuser()->create())
+        $this->actingAs($user)
             ->get(route('models.index'))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('&quot;field&quot;:&quot;reference_price&quot;', false)
+            ->assertSee('&quot;title&quot;:&quot;Reference Price&quot;', false)
+            ->assertSee('&quot;visible&quot;:true', false);
     }
 }

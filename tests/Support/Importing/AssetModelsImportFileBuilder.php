@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
  *  category?: string,
  *  model_number?: string,
  *  obsolete?: int,
+ *  require_serial?: int,
  * }
  *
  * @extends FileBuilder<Row>
@@ -36,6 +37,7 @@ class AssetModelsImportFileBuilder extends FileBuilder
             'min_amt'        => 'Min Amount',
             'notes'          => 'Notes',
             'obsolete'       => 'Obsolete',
+            'require_serial' => 'Require Serial',
 
         ];
     }
@@ -53,6 +55,7 @@ class AssetModelsImportFileBuilder extends FileBuilder
             'model_number'    => $faker->creditCardNumber(),
             'notes'           => 'Created by demo seeder',
             'obsolete'        => 0,
+            'require_serial'  => 0,
         ];
     }
 }

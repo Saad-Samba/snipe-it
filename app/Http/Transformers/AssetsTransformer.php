@@ -6,7 +6,9 @@ use App\Helpers\Helper;
 use App\Models\Accessory;
 use App\Models\AccessoryCheckout;
 use App\Models\Asset;
+use App\Models\CheckoutRequest;
 use App\Models\Setting;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Collection;
 use Carbon\Carbon;
@@ -14,20 +16,23 @@ use Illuminate\Support\Facades\Storage;
 
 class AssetsTransformer
 {
-    public function transformAssets(Collection $assets, $total)
+    public function transformAssets(Collection $assets, $total, ?Request $request = null)
     {
+        $requestContext = $this->resolveRequestContext($request);
         $array = [];
         foreach ($assets as $asset) {
-            $array[] = self::transformAsset($asset);
+            $array[] = $this->transformAsset($asset, $requestContext);
         }
 
         return (new DatatablesTransformer)->transformDatatables($array, $total);
     }
 
-    public function transformAsset(Asset $asset)
+    public function transformAsset(Asset $asset, $requestContext = null)
     {
         // This uses the getSettings() method so we're pulling from the cache versus querying the settings on single asset
         $setting = Setting::getSettings();
+        $resolvedRequestContext = $requestContext instanceof CheckoutRequest ? $requestContext : null;
+        $isClosestMatch = $this->isClosestReusableRequestMatch($asset, $resolvedRequestContext);
 
         $array = [
             'id' => (int) $asset->id,
@@ -37,6 +42,7 @@ class AssetsTransformer
             'model' => ($asset->model) ? [
                 'id' => (int) $asset->model->id,
                 'name'=> e($asset->model->name),
+                'obsolete' => (bool) $asset->model->obsolete,
             ] : null,
             'byod' => ($asset->byod ? true : false),
             'requestable' => ($asset->requestable ? true : false),
@@ -124,6 +130,7 @@ class AssetsTransformer
             'requests_counter' => (int) $asset->requests_counter,
             'user_can_checkout' => (bool) $asset->availableForCheckout(),
             'book_value' => Helper::formatCurrencyOutput($asset->getDepreciatedValue()),
+            'is_closest_match' => $isClosestMatch,
         ];
 
 
@@ -207,6 +214,24 @@ class AssetsTransformer
         $array += $permissions_array;
 
         return $array;
+    }
+
+    private function resolveRequestContext(?Request $request): ?CheckoutRequest
+    {
+        if (! $request || ! $request->filled('request_id') || $request->input('request_bucket') !== 'reusable_now') {
+            return null;
+        }
+
+        return CheckoutRequest::withoutGlobalScopes()->find($request->integer('request_id'));
+    }
+
+    private function isClosestReusableRequestMatch(Asset $asset, ?CheckoutRequest $requestContext): bool
+    {
+        if (! $requestContext || ! $requestContext->company_id) {
+            return false;
+        }
+
+        return (int) $asset->company_id === (int) $requestContext->company_id;
     }
 
     public function transformAssetsDatatable($assets)

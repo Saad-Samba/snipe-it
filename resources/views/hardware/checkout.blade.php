@@ -110,6 +110,7 @@
                         @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.select_asset'), 'fieldname' => 'assigned_asset', 'company_id' => $asset->company_id, 'unselect' => 'true', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
                         @include ('partials.forms.edit.location-select', ['translated_name' => trans('general.location'), 'fieldname' => 'assigned_location', 'style' => session('checkout_to_type') == 'location' ? '' : 'display: none;'])
                         @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id', 'item' => (object) ['project_id' => old('project_id', $requestContext->project_id ?? $asset->project_id)]])
+                        @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id', 'item' => (object) ['discipline_id' => old('discipline_id', $requestContext->requested_discipline_id ?? $asset->discipline_id)]])
 
 
 

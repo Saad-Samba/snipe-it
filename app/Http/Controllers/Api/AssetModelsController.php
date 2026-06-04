@@ -40,6 +40,7 @@ class AssetModelsController extends Controller
                 'name',
                 'model_number',
                 'min_amt',
+                'reference_price',
                 'eol',
                 'notes',
                 'obsolete',
@@ -62,12 +63,13 @@ class AssetModelsController extends Controller
                 'category',
             ];
 
-        $assetmodels = AssetModel::select([
+        $selectedColumns = [
             'models.id',
             'models.image',
             'models.name',
             'models.model_number',
             'models.min_amt',
+            'models.reference_price',
             'models.eol',
             'models.created_by',
             'models.notes',
@@ -79,13 +81,17 @@ class AssetModelsController extends Controller
             'models.fieldset_id',
             'models.deleted_at',
             'models.updated_at',
-            'models.require_serial'
-         ])
+            'models.require_serial',
+        ];
+
+        $assetmodels = AssetModel::select($selectedColumns)
             ->with('category.fieldset.fields.defaultValues', 'depreciation', 'manufacturer', 'fieldset.fields.defaultValues', 'adminuser')
             ->withCount('assets as assets_count')
             ->withCount('availableAssets as remaining')
             ->withCount('assignedAssets as assets_assigned_count')
             ->withCount('archivedAssets as assets_archived_count');
+
+        $assetmodels->managedBy(auth()->user());
 
         $filter = [];
 
@@ -127,6 +133,10 @@ class AssetModelsController extends Controller
 
         if ($request->boolean('available_models')) {
             $assetmodels = $assetmodels->whereHas('availableAssets');
+        }
+
+        if ($request->filled('obsolete')) {
+            $assetmodels = $assetmodels->where('models.obsolete', '=', filter_var($request->input('obsolete'), FILTER_VALIDATE_BOOLEAN));
         }
 
         if ($request->filled('depreciation_id')) {
@@ -200,8 +210,8 @@ class AssetModelsController extends Controller
      */
     public function show($id) :  array
     {
-        $this->authorize('view', AssetModel::class);
         $assetmodel = AssetModel::withCount('assets as assets_count')->findOrFail($id);
+        $this->authorize('view', $assetmodel);
 
         return (new AssetModelsTransformer)->transformAssetModel($assetmodel);
     }
@@ -215,7 +225,8 @@ class AssetModelsController extends Controller
      */
     public function assets($id) : array
     {
-        $this->authorize('view', AssetModel::class);
+        $assetmodel = AssetModel::findOrFail($id);
+        $this->authorize('view', $assetmodel);
         $assets = Asset::where('model_id', '=', $id)->get();
 
         return (new AssetsTransformer)->transformAssets($assets, $assets->count());
@@ -233,8 +244,8 @@ class AssetModelsController extends Controller
      */
     public function update(StoreAssetModelRequest $request, $id) : JsonResponse
     {
-        $this->authorize('update', AssetModel::class);
         $assetmodel = AssetModel::findOrFail($id);
+        $this->authorize('update', $assetmodel);
         $assetmodel->fill($request->all());
         $assetmodel = $request->handleImages($assetmodel);
 
@@ -267,7 +278,6 @@ class AssetModelsController extends Controller
      */
     public function destroy($id) : JsonResponse
     {
-        $this->authorize('delete', AssetModel::class);
         $assetmodel = AssetModel::findOrFail($id);
         $this->authorize('delete', $assetmodel);
 
@@ -306,7 +316,8 @@ class AssetModelsController extends Controller
             'models.model_number',
             'models.manufacturer_id',
             'models.category_id',
-        ])->with('manufacturer', 'category');
+        ])->with('manufacturer', 'category')
+            ->managedBy(auth()->user());
 
         $settings = \App\Models\Setting::getSettings();
 

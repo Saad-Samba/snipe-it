@@ -11,10 +11,12 @@ use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\Company;
 use App\Models\Group;
+use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\WelcomeNotification;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -138,6 +140,7 @@ class UsersController extends Controller
 
 
         if ($user->save()) {
+            $this->syncRacAssignment($user, $request);
 
             if (($user->activated == '1') && ($user->email != '') && ($request->input('send_welcome') == '1')) {
 
@@ -190,7 +193,7 @@ class UsersController extends Controller
 
         $this->authorize('update', User::class);
         session()->put('back_url', url()->previous());
-        $user = User::with(['assets', 'assets.model', 'consumables', 'accessories', 'licenses', 'userloc'])->withTrashed()->find($user->id);
+        $user = User::with(['assets', 'assets.model', 'consumables', 'accessories', 'licenses', 'userloc', 'racAssignment'])->withTrashed()->find($user->id);
 
         if ($user) {
 
@@ -237,7 +240,7 @@ class UsersController extends Controller
         $permissions = $request->input('permissions', []);
         app('request')->request->set('permissions', $permissions);
 
-        $user->load(['assets', 'assets.model', 'consumables', 'accessories', 'licenses', 'userloc'])->withTrashed();
+        $user->load(['assets', 'assets.model', 'consumables', 'accessories', 'licenses', 'userloc', 'racAssignment'])->withTrashed();
 
         $this->authorize('update', $user);
 
@@ -328,11 +331,48 @@ class UsersController extends Controller
         session()->put(['redirect_option' => $request->get('redirect_option')]);
 
         if ($user->save()) {
+            $this->syncRacAssignment($user, $request);
             // Redirect to the user page
             return Helper::getRedirectOption($request, $user->id, 'Users')
                 ->with('success', trans('admin/users/message.success.update'));
         }
         return redirect()->back()->withInput()->withErrors($user->getErrors());
+    }
+
+    protected function syncRacAssignment(User $user, Request $request): void
+    {
+        $existingAssignment = $user->racAssignment()->first();
+
+        if (! $request->boolean('rac_enabled')) {
+            if ($existingAssignment) {
+                $existingAssignment->delete();
+            }
+
+            return;
+        }
+
+        $disciplineId = (int) $request->input('rac_discipline_id');
+
+        $conflictingAssignment = RegionalAssetCoordinatorAssignment::query()
+            ->where('company_id', $user->company_id)
+            ->where('discipline_id', $disciplineId)
+            ->where('user_id', '!=', $user->id)
+            ->first();
+
+        if ($conflictingAssignment) {
+            throw ValidationException::withMessages([
+                'rac_discipline_id' => 'A RAC is already assigned to this company and discipline.',
+            ]);
+        }
+
+        RegionalAssetCoordinatorAssignment::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'company_id' => $user->company_id,
+                'discipline_id' => $disciplineId,
+                'created_by' => $existingAssignment?->created_by ?? auth()->id(),
+            ]
+        );
     }
 
     /**

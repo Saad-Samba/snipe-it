@@ -275,10 +275,18 @@ class AssetsController extends Controller
                     $assets->where(function ($query) use ($requestContext) {
                         $query->whereNull('assets.assigned_to');
 
-                        if ($requestContext && $requestContext->project_id) {
-                            $query->orWhere(function ($projectQuery) use ($requestContext) {
-                                $projectQuery->where('assets.project_id', $requestContext->project_id)
-                                    ->whereNotNull('assets.assigned_to');
+                        if ($requestContext) {
+                            $query->orWhere(function ($assignedQuery) use ($requestContext) {
+                                $assignedQuery->whereNotNull('assets.assigned_to')
+                                    ->where(function ($eligibleAssignedQuery) use ($requestContext) {
+                                        if ($requestContext->project_id) {
+                                            $eligibleAssignedQuery->where('assets.project_id', $requestContext->project_id);
+                                        }
+
+                                        if ($requestContext->needed_by_date) {
+                                            $eligibleAssignedQuery->orWhereDate('assets.expected_checkin', '<=', $requestContext->needed_by_date);
+                                        }
+                                    });
                             });
                         }
                     });
@@ -354,7 +362,21 @@ class AssetsController extends Controller
         if ($request->input('requestable') == 'true') {
             $assets->where('assets.requestable', '=', '1');
         }
-        
+
+        if ($request->filled('model_obsolete')) {
+            $assets->whereHas('model', function ($query) use ($request) {
+                $query->where('obsolete', '=', filter_var($request->input('model_obsolete'), FILTER_VALIDATE_BOOLEAN));
+            });
+        }
+
+        if ($request->filled('assignment')) {
+            if ($request->input('assignment') === 'assigned') {
+                $assets->whereNotNull('assets.assigned_to');
+            } elseif ($request->input('assignment') === 'unassigned') {
+                $assets->whereNull('assets.assigned_to');
+            }
+        }
+
         if ($request->filled('model_id')) {
             // If model_id is already an array, just use it as-is
             if (is_array($request->input('model_id'))) {
@@ -400,6 +422,51 @@ class AssetsController extends Controller
 
         if ($request->filled('discipline_id')) {
             $assets->where('assets.discipline_id', '=', $request->input('discipline_id'));
+        }
+
+        if ($requestContext && $request->filled('request_bucket') && $requestContext->requestable_type === AssetModel::class) {
+            $reservedStatusId = Setting::rfqReservedStatusId();
+
+            $assets->where('assets.model_id', '=', $requestContext->requestable_id);
+
+            switch ($request->input('request_bucket')) {
+                case 'reusable_now':
+                    $assets->RTD();
+                    if ($requestContext->company_id) {
+                        $assets->orderByRaw('CASE WHEN assets.company_id = ? THEN 0 ELSE 1 END ASC', [
+                            $requestContext->company_id,
+                        ]);
+                    }
+                    break;
+                case 'due_back':
+                    $assets->whereNotNull('assets.assigned_to')
+                        ->whereNotNull('assets.expected_checkin')
+                        ->when(
+                            $requestContext->needed_by_date,
+                            fn ($query) => $query->whereDate('assets.expected_checkin', '<=', $requestContext->needed_by_date)
+                        )
+                        ->when(
+                            $reservedStatusId,
+                            fn ($query) => $query->where('assets.status_id', '!=', $reservedStatusId)
+                        )
+                        ->NotArchived();
+                    break;
+                case 'reserved':
+                    $assets->where('assets.project_id', '=', $requestContext->project_id)
+                        ->when(
+                            $reservedStatusId,
+                            fn ($query) => $query->where('assets.status_id', '=', $reservedStatusId)
+                        );
+                    break;
+                case 'reserved_other_project':
+                    $assets->whereNotNull('assets.project_id')
+                        ->where('assets.project_id', '!=', $requestContext->project_id)
+                        ->when(
+                            $reservedStatusId,
+                            fn ($query) => $query->where('assets.status_id', '=', $reservedStatusId)
+                        );
+                    break;
+            }
         }
 
         if ($request->filled('company_id')) {

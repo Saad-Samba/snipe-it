@@ -5,9 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Transformers\ProfileTransformer;
-use App\Models\AssetModel;
-use App\Models\CheckoutRequest;
-use App\Models\License;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
@@ -15,7 +12,6 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Passport\TokenRepository;
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Support\Facades\Gate;
-use App\Models\CustomField;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -43,120 +39,6 @@ class ProfileController extends Controller
         $this->tokenRepository = $tokenRepository;
     }
 
-    /**
-     * Display a listing of requested assets.
-     *
-     * @author [A. Gianotto] [<snipe@snipe.net>]
-     * @since [v4.3.0]
-     */
-    public function requestedAssets(Request $request) :  array
-    {
-        $checkoutRequests = CheckoutRequest::query()
-            ->with([
-                'requestedItem',
-                'project',
-                'user',
-            ]);
-
-        $checkoutRequests->where('user_id', auth()->id())
-            ->whereNull('canceled_at');
-
-        if ($request->filled('model_id')) {
-            $checkoutRequests
-                ->where('requestable_type', \App\Models\AssetModel::class)
-                ->where('requestable_id', (int) $request->input('model_id'));
-        }
-
-        if ($request->filled('license_id')) {
-            $checkoutRequests
-                ->where('requestable_type', License::class)
-                ->where('requestable_id', (int) $request->input('license_id'));
-        }
-
-        $checkoutRequests = $checkoutRequests->get();
-
-        $results = array();
-        $show_field = array();
-        $showable_fields = array();
-        $results['total'] = $checkoutRequests->count();
-
-        $all_custom_fields = CustomField::all(); //used as a 'cache' of custom fields throughout this page load
-        foreach ($all_custom_fields as $field) {
-            if (($field->field_encrypted=='0') && ($field->show_in_requestable_list=='1')) {
-                $showable_fields[] = $field->db_column_name();
-            }
-        }
-
-        foreach ($checkoutRequests as $checkoutRequest) {
-
-            // Make sure the asset and request still exist
-            if ($checkoutRequest && $checkoutRequest->itemRequested()) {
-                $bookedCount = $checkoutRequest->bookedQuantity();
-                $statusValue = $bookedCount >= $checkoutRequest->quantity
-                    ? CheckoutRequest::STATUS_FULLY_ALLOCATED
-                    : ($bookedCount > 0 ? CheckoutRequest::STATUS_PARTIALLY_ALLOCATED : CheckoutRequest::STATUS_PENDING);
-                $isAssetModelRequest = $checkoutRequest->requestable_type === AssetModel::class;
-                $isLicenseRequest = $checkoutRequest->requestable_type === License::class;
-                $itemShowUrl = $isAssetModelRequest
-                    ? route('models.show', $checkoutRequest->requestable_id)
-                    : ($isLicenseRequest ? route('licenses.show', $checkoutRequest->requestable_id) : null);
-                $itemRequestsUrl = $isAssetModelRequest
-                    ? route('account.requested', ['model_id' => $checkoutRequest->requestable_id])
-                    : ($isLicenseRequest ? route('account.requested', ['license_id' => $checkoutRequest->requestable_id]) : null);
-                $requestDetailUrl = $isAssetModelRequest
-                    ? route('hardware.index', [
-                        'request_id' => $checkoutRequest->id,
-                        'status' => 'RTD',
-                        'model_id' => $checkoutRequest->requestable_id,
-                    ])
-                    : ($isLicenseRequest ? route('licenses.index', [
-                        'request_id' => $checkoutRequest->id,
-                        'license_id' => $checkoutRequest->requestable_id,
-                    ]) : null);
-                $itemImageUrl = method_exists($checkoutRequest->itemRequested()->present(), 'getImageUrl')
-                    ? e($checkoutRequest->itemRequested()->present()->getImageUrl())
-                    : null;
-
-                $assets = [
-                    'request_id' => (int) $checkoutRequest->id,
-                    'image' => $itemImageUrl,
-                    'name' => e($checkoutRequest->name()),
-                    'model_id' => $isAssetModelRequest ? (int) $checkoutRequest->requestable_id : null,
-                    'license_id' => $isLicenseRequest ? (int) $checkoutRequest->requestable_id : null,
-                    'type' => e($checkoutRequest->itemType()),
-                    'qty' => (int) $checkoutRequest->quantity,
-                    'project' => e(optional($checkoutRequest->project)->name),
-                    'booked_count' => $bookedCount,
-                    'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),
-                    'status_value' => e($statusValue),
-                    'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,
-                    'requested_by' => ($checkoutRequest->requestingUser()) ? e($checkoutRequest->requestingUser()->display_name) : null,
-                    'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin, 'datetime'),
-                    'request_date' => Helper::getFormattedDateObject($checkoutRequest->created_at, 'datetime'),
-                    'updated_at' => Helper::getFormattedDateObject($checkoutRequest->updated_at, 'datetime'),
-                    'model_show_url' => $itemShowUrl,
-                    'item_show_url' => $itemShowUrl,
-                    'model_requests_url' => $itemRequestsUrl,
-                    'item_requests_url' => $itemRequestsUrl,
-                    'request_detail_url' => $requestDetailUrl,
-                ];
-
-                foreach ($showable_fields as $showable_field_name) {
-                    $show_field['custom_fields.'.$showable_field_name] =  $checkoutRequest->itemRequested()->{$showable_field_name};
-                }
-
-                // Merge the plain asset data and the custom fields data
-                $results['rows'][] = array_merge($assets, $show_field);
-            }
-
-
-        }
-
-        return $results;
-    }
-
-
-    /**
      * Delete an API token
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]

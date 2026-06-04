@@ -50,6 +50,10 @@ class AssetModelsTransformer
             'image' => ($assetmodel->image != '') ? Storage::disk('public')->url('models/'.e($assetmodel->image)) : null,
             'model_number' => ($assetmodel->model_number ? e($assetmodel->model_number): null),
             'min_amt'   => ($assetmodel->min_amt) ? (int) $assetmodel->min_amt : null,
+            'reference_price' => $assetmodel->reference_price,
+            'reference_price_formatted' => $assetmodel->reference_price !== null
+                ? Helper::formatCurrencyOutput($assetmodel->reference_price)
+                : null,
 
             'depreciation' => ($assetmodel->depreciation) ? [
                 'id' => (int) $assetmodel->depreciation->id,
@@ -84,10 +88,10 @@ class AssetModelsTransformer
         ];
 
         $permissions_array['available_actions'] = [
-            'update' => (Gate::allows('update', AssetModel::class) && ($assetmodel->deleted_at == '')),
-            'delete' => $assetmodel->isDeletable(),
+            'update' => (Gate::allows('update', $assetmodel) && ($assetmodel->deleted_at == '')),
+            'delete' => (Gate::allows('delete', $assetmodel) && $assetmodel->isDeletable()),
             'clone' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at == '')),
-            'restore' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at != '')),
+            'restore' => (Gate::allows('update', $assetmodel) && ($assetmodel->deleted_at != '')),
         ];
 
         $requestingUser = Auth::user();
@@ -95,14 +99,20 @@ class AssetModelsTransformer
             && $requestingUser->hasAccess('models.request')
             && $assetmodel->deleted_at == '';
 
-        $activeRequest = $requestingUser ? $assetmodel->isRequestedBy($requestingUser) : null;
-        $hasActiveRequest = (bool) $activeRequest;
-
-        $permissions_array['available_actions']['request'] = $canRequestModels && !$hasActiveRequest && ((int) $assetmodel->remaining > 0);
-        $permissions_array['available_actions']['cancel_request'] = $canRequestModels && $hasActiveRequest;
-        $permissions_array['available_actions']['update_request'] = $canRequestModels && $hasActiveRequest;
+        $activeRequests = $requestingUser
+            ? $assetmodel->requests->where('canceled_at', null)->where('user_id', $requestingUser->id)
+            : collect();
+        $activeRequest = $activeRequests->count() === 1 ? $activeRequests->first() : null;
+        $permissions_array['available_actions']['request'] = $canRequestModels;
+        $permissions_array['available_actions']['cancel_request'] = false;
+        $permissions_array['available_actions']['update_request'] = false;
         $array['requested_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
+        $array['requested_company_id'] = $activeRequest ? (int) $activeRequest->company_id : null;
         $array['requested_project_id'] = $activeRequest ? (int) $activeRequest->project_id : null;
+        $array['requested_total_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
+        $array['requested_needed_by_date'] = $activeRequest && $activeRequest->needed_by_date
+            ? $activeRequest->needed_by_date->format('Y-m-d')
+            : null;
 
         $array += $permissions_array;
 

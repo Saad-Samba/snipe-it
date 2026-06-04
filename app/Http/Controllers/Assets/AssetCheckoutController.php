@@ -110,6 +110,10 @@ class AssetCheckoutController extends Controller
                 $asset->project_id = $request->integer('project_id');
             }
 
+            if ($request->filled('discipline_id')) {
+                $asset->discipline_id = $request->integer('discipline_id');
+            }
+
             $asset->financialChangeEffectiveAt = $checkout_at;
 
 
@@ -156,6 +160,6 @@ class AssetCheckoutController extends Controller
 
     protected function resolveRequestContext(int $requestId): ?CheckoutRequest
     {
-        return CheckoutRequest::with(['project'])->find($requestId);
+        return CheckoutRequest::with(['project', 'requestedDiscipline'])->find($requestId);
     }
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature\AssetModels\Api;
 
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\Category;
 use App\Models\User;
 use Tests\Concerns\TestsPermissionsRequirement;
 use Tests\TestCase;
@@ -23,9 +24,17 @@ class DeleteAssetModelsTest extends TestCase implements TestsPermissionsRequirem
 
     public function testCannotDeleteAssetModelThatStillHasAssociatedAssets()
     {
-        $assetModel = Asset::factory()->create()->model;
+        $afm = User::factory()->deleteAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $assetModel = Asset::factory()->create([
+            'model_id' => AssetModel::factory()->create([
+                'category_id' => $managedCategory->id,
+            ])->id,
+        ])->model;
 
-        $this->actingAsForApi(User::factory()->deleteAssetModels()->create())
+        $this->actingAsForApi($afm)
             ->deleteJson(route('api.models.destroy', $assetModel))
             ->assertStatusMessageIs('error');
 
@@ -34,12 +43,33 @@ class DeleteAssetModelsTest extends TestCase implements TestsPermissionsRequirem
 
     public function testCanDeleteAssetModel()
     {
-        $assetModel = AssetModel::factory()->create();
+        $afm = User::factory()->deleteAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $assetModel = AssetModel::factory()->create([
+            'category_id' => $managedCategory->id,
+        ]);
 
-        $this->actingAsForApi(User::factory()->deleteAssetModels()->create())
+        $this->actingAsForApi($afm)
             ->deleteJson(route('api.models.destroy', $assetModel))
             ->assertStatusMessageIs('success');
 
         $this->assertSoftDeleted($assetModel);
+    }
+
+    public function testAfmCannotDeleteAssetModelOutsideManagedCategory()
+    {
+        $afm = User::factory()->deleteAssetModels()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $assetModel = AssetModel::factory()->create();
+
+        $this->actingAsForApi($afm)
+            ->deleteJson(route('api.models.destroy', $assetModel))
+            ->assertForbidden();
+
+        $this->assertNotSoftDeleted($assetModel);
     }
 }

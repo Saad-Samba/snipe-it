@@ -84,6 +84,21 @@
                     @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.select_asset'), 'fieldname' => 'asset_id', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
 
                     <!-- Note -->
+                    <div class="form-group {{ $errors->has('expected_release_date') ? 'error' : '' }}">
+                        <label for="expected_release_date" class="col-md-3 control-label">Expected Release Date</label>
+                        <div class="col-md-4">
+                            <input
+                                class="form-control"
+                                id="expected_release_date"
+                                name="expected_release_date"
+                                type="date"
+                                value="{{ old('expected_release_date') }}">
+                            <p class="help-block">Informational only. Use this when the assigned seat is expected to be released on a known date.</p>
+                            {!! $errors->first('expected_release_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+                        </div>
+                    </div>
+
+                    <!-- Note -->
                     <div class="form-group {{ $errors->has('notes') ? 'error' : '' }}">
                         <label for="note" class="col-md-3 control-label">{{ trans('general.checkout_note') }}</label>
                         <div class="col-md-8">

@@ -68,10 +68,10 @@ class AssetsController extends Controller
         $requestContext = null;
 
         if ($request->filled('request_id')) {
-            $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project'])->find((int) $request->input('request_id'));
+            $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project', 'company', 'requestedDiscipline'])->find((int) $request->input('request_id'));
 
             if (! $requestContext) {
-                $requestContext = CheckoutRequestCoordinator::with(['checkoutRequest.requestedItem', 'checkoutRequest.user', 'checkoutRequest.project'])
+                $requestContext = CheckoutRequestCoordinator::with(['checkoutRequest.requestedItem', 'checkoutRequest.user', 'checkoutRequest.project', 'checkoutRequest.company', 'checkoutRequest.requestedDiscipline'])
                     ->find((int) $request->input('request_id'))
                     ?->checkoutRequest;
             }

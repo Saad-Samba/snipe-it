@@ -16,7 +16,7 @@
     <div class="col-md-12">
 
 
-        @if (($assets->count() < 1) && ($models->count() < 1))
+        @if (($assets->count() < 1) && ($models->count() < 1) && ($licenses->count() < 1))
 
             <div class="col-md-12">
                 <div class="alert alert-info fade in">
@@ -41,6 +41,13 @@
                     <a href="#models" data-toggle="tab" title="{{ trans('general.asset_models') }}">{{ trans('general.asset_models') }}
                         <span class="badge badge-secondary"> {{ $models->count()}}</span>
                     </a>                   
+                </li>
+                @endif
+                @if ($licenses->count() > 0)
+                <li>
+                    <a href="#licenses" data-toggle="tab" title="{{ trans('general.licenses') }}">{{ trans('general.licenses') }}
+                        <span class="badge badge-secondary"> {{ $licenses->count()}}</span>
+                    </a>
                 </li>
                 @endif
             </ul>
@@ -93,7 +100,7 @@
                 @endif
 
                 @if ($models->count() > 0)
-                <div class="tab-pane fade in {{ ($assets->count() == 0) ? 'active' : '' }}" id="models">
+                <div class="tab-pane fade in {{ ($assets->count() == 0 && $licenses->count() == 0) ? 'active' : '' }}" id="models">
                     <div class="row">
                         <div class="col-md-12">
                                 <table
@@ -137,16 +144,46 @@
                                                 <td>{{$requestableModel->assets->where('requestable', '1')->count()}}</td>
 
                                                 <td>
+                                                    @php($activeRequests = $requestableModel->requests->where('canceled_at', null)->where('user_id', Auth::id()))
+                                                    @php($activeRequest = $activeRequests->count() === 1 ? $activeRequests->first() : null)
+                                                    @php($hasMultipleActiveRequests = $activeRequests->count() > 1)
                                                     <form action="{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $requestableModel->id])}}" method="POST" accept-charset="utf-8">
                                                         {{ csrf_field() }}
+                                                        @if ($activeRequest)
+                                                            <input type="hidden" name="request-action" value="cancel">
+                                                        @endif
                                                     <div class="form-inline">
-                                                        <input type="text" style="width: 70px; margin-right: 10px;" class="form-control" name="request-quantity" value="" placeholder="{{ trans('general.qty') }}">
-                                                    @if ($requestableModel->isRequestedBy(Auth::user()))
+                                                        <input type="text" style="width: 70px; margin-right: 10px;" class="form-control" name="request-quantity" value="{{ $activeRequest?->quantity }}" placeholder="{{ trans('general.qty') }}">
+                                                        <select name="requested_discipline_id" class="form-control" style="margin-right: 10px; max-width: 180px;" required>
+                                                            <option value="">{{ trans('general.select_discipline') }}</option>
+                                                            @foreach(\App\Models\Discipline::orderBy('name')->get(['id', 'name']) as $discipline)
+                                                                <option value="{{ $discipline->id }}" @selected((int) $activeRequest?->requested_discipline_id === (int) $discipline->id)>{{ $discipline->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <select name="company_id" class="form-control" style="margin-right: 10px; max-width: 180px;" required>
+                                                            <option value="">{{ trans('general.select_company') }}</option>
+                                                            @foreach(\App\Models\Company::orderBy('name')->get(['id', 'name']) as $company)
+                                                                <option value="{{ $company->id }}" @selected((int) $activeRequest?->company_id === (int) $company->id)>{{ $company->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <select name="project_id" class="form-control" style="margin-right: 10px; max-width: 180px;" required>
+                                                            <option value="">{{ trans('general.select_project') }}</option>
+                                                            @foreach(\App\Models\Project::orderBy('name')->get(['id', 'name']) as $project)
+                                                                <option value="{{ $project->id }}" @selected((int) $activeRequest?->project_id === (int) $project->id)>{{ $project->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <input type="date" style="margin-right: 10px;" class="form-control" name="needed_by_date" value="{{ optional($activeRequest?->needed_by_date)->format('Y-m-d') }}" required>
+                                                    @if ($activeRequest)
                                                         <input class="btn btn-danger btn-sm" type="submit" value="{{ trans('button.cancel') }}">
                                                     @else
                                                         <input class="btn btn-primary btn-sm" type="submit" value="{{ trans('button.request') }}">
                                                     @endif
                                                     </div>
+                                                    @if ($hasMultipleActiveRequests)
+                                                        <p class="help-block" style="margin-top: 8px;">
+                                                            Manage existing requests from <a href="{{ route('requests.index', ['model_id' => $requestableModel->id]) }}">Submitted Requests</a>.
+                                                        </p>
+                                                    @endif
                                                     </form>
                                                 </td>
                                         </tr>
@@ -155,6 +192,96 @@
                                 </tbody>
                             </table>
 
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                @if ($licenses->count() > 0)
+                <div class="tab-pane fade in {{ ($assets->count() == 0 && $models->count() == 0) ? 'active' : '' }}" id="licenses">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <table class="table table-striped snipe-table">
+                                <thead>
+                                    <tr role="row">
+                                        <th>{{ trans('general.name') }}</th>
+                                        <th>{{ trans('general.company') }}</th>
+                                        <th>{{ trans('general.discipline') }}</th>
+                                        <th class="text-right">{{ trans('admin/accessories/general.total') }}</th>
+                                        <th class="text-right">Available Now</th>
+                                        <th class="text-right">Expected Release</th>
+                                        <th>{{ trans('table.actions') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($licenses as $requestableLicense)
+                                        @php($activeRequests = $requestableLicense->requests->where('canceled_at', null)->where('user_id', Auth::id()))
+                                        @php($activeRequest = $activeRequests->count() === 1 ? $activeRequests->first() : null)
+                                        @php($hasMultipleActiveRequests = $activeRequests->count() > 1)
+                                        <tr>
+                                            <td>
+                                                @can('view', \App\Models\License::class)
+                                                    <a href="{{ route('licenses.show', ['license' => $requestableLicense->id]) }}">{{ $requestableLicense->name }}</a>
+                                                @else
+                                                    {{ $requestableLicense->name }}
+                                                @endcan
+                                            </td>
+                                            <td>{{ optional($requestableLicense->company)->name ?: '-' }}</td>
+                                            <td>{{ optional($requestableLicense->discipline)->name ?: '-' }}</td>
+                                            <td class="text-right">{{ $requestableLicense->seats }}</td>
+                                            <td class="text-right">{{ $requestableLicense->reusableFreeSeatsCount() }}</td>
+                                            <td class="text-right">{{ $requestableLicense->expectedReleaseSeatCount() }}</td>
+                                            <td>
+                                                <form action="{{ route('account/request-item', ['itemType' => 'license', 'itemId' => $requestableLicense->id])}}" method="POST" accept-charset="utf-8">
+                                                    {{ csrf_field() }}
+                                                    <div class="form-inline" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                                                        <input type="number" min="1" class="form-control" style="width:80px;" name="request-quantity" value="{{ $activeRequest?->quantity }}" placeholder="{{ trans('general.qty') }}" required>
+                                                        <select name="requested_for_type" class="form-control" style="max-width:120px;" required>
+                                                            <option value="">Assignee Type</option>
+                                                            <option value="user" @selected($activeRequest?->requested_for_type === 'user')>User</option>
+                                                            <option value="asset" @selected($activeRequest?->requested_for_type === 'asset')>Asset</option>
+                                                        </select>
+                                                        <input type="text" class="form-control" style="min-width:180px;" name="requested_for_display" value="{{ $activeRequest?->requested_for_display }}" placeholder="Assignee name or asset tag" required>
+                                                        <select name="requested_discipline_id" class="form-control" style="max-width:180px;" required>
+                                                            <option value="">{{ trans('general.select_discipline') }}</option>
+                                                            @foreach(\App\Models\Discipline::orderBy('name')->get(['id', 'name']) as $discipline)
+                                                                <option value="{{ $discipline->id }}" @selected((int) $activeRequest?->requested_discipline_id === (int) $discipline->id || (int) $requestableLicense->discipline_id === (int) $discipline->id)>{{ $discipline->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <select name="company_id" class="form-control" style="max-width:180px;" required>
+                                                            <option value="">{{ trans('general.select_company') }}</option>
+                                                            @foreach(\App\Models\Company::orderBy('name')->get(['id', 'name']) as $company)
+                                                                <option value="{{ $company->id }}" @selected((int) $activeRequest?->company_id === (int) $company->id || (int) $requestableLicense->company_id === (int) $company->id)>{{ $company->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <select name="project_id" class="form-control" style="max-width:180px;" required>
+                                                            <option value="">{{ trans('general.select_project') }}</option>
+                                                            @foreach(\App\Models\Project::orderBy('name')->get(['id', 'name']) as $project)
+                                                                <option value="{{ $project->id }}" @selected((int) $activeRequest?->project_id === (int) $project->id)>{{ $project->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <input type="date" class="form-control" name="needed_by_date" value="{{ optional($activeRequest?->needed_by_date)->format('Y-m-d') }}" required>
+                                                        @if ($activeRequest)
+                                                            <button class="btn btn-primary btn-sm" type="submit" name="request-action" value="update">{{ trans('general.update') }}</button>
+                                                            <button class="btn btn-danger btn-sm" type="submit" name="request-action" value="cancel">{{ trans('button.cancel') }}</button>
+                                                        @else
+                                                            <button class="btn btn-primary btn-sm" type="submit" name="request-action" value="create">{{ trans('button.request') }}</button>
+                                                        @endif
+                                                    </div>
+                                                    <p class="help-block" style="margin-top:8px;">
+                                                        Expected release counts are informational only and do not reserve seats.
+                                                    </p>
+                                                    @if ($hasMultipleActiveRequests)
+                                                        <p class="help-block" style="margin-top: 8px;">
+                                                            Manage existing requests from <a href="{{ route('requests.index', ['license_id' => $requestableLicense->id]) }}">Submitted Requests</a>.
+                                                        </p>
+                                                    @endif
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

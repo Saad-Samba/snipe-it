@@ -9,6 +9,7 @@ use App\Models\Traits\Requestable;
 use App\Models\Traits\Searchable;
 use App\Presenters\AssetModelPresenter;
 use App\Presenters\Presentable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Gate;
@@ -43,6 +44,7 @@ class AssetModel extends SnipeModel
     protected $presenter = AssetModelPresenter::class;
     protected $casts = [
         'obsolete' => 'boolean',
+        'reference_price' => 'float',
     ];
 
     // Declare the rules for the model validation
@@ -56,6 +58,7 @@ class AssetModel extends SnipeModel
         'manufacturer_id'   => 'integer|exists:manufacturers,id|nullable',
         'eol'               => 'integer:min:0|max:240|nullable',
         'obsolete'          => 'boolean',
+        'reference_price'   => 'numeric|nullable|gte:0|max:99999999999999999.99',
     ];
 
 
@@ -77,6 +80,7 @@ class AssetModel extends SnipeModel
         'name',
         'notes',
         'obsolete',
+        'reference_price',
         'require_serial'
     ];
 
@@ -132,6 +136,18 @@ class AssetModel extends SnipeModel
     public function availableAssets()
     {
         return $this->hasMany(\App\Models\Asset::class, 'model_id')->RTD();
+    }
+
+    public function dueBackAssetsByDate(?string $neededByDate)
+    {
+        $reservedStatusId = Setting::rfqReservedStatusId();
+
+        return $this->hasMany(\App\Models\Asset::class, 'model_id')
+            ->whereNotNull('assigned_to')
+            ->whereNotNull('expected_checkin')
+            ->when($neededByDate, fn ($query) => $query->whereDate('expected_checkin', '<=', $neededByDate))
+            ->when($reservedStatusId, fn ($query) => $query->where('status_id', '!=', $reservedStatusId))
+            ->NotArchived();
     }
 
     public function assignedAssets()
@@ -353,6 +369,32 @@ class AssetModel extends SnipeModel
     public function scopeInCategory($query, array $categoryIdListing)
     {
         return $query->whereIn('category_id', $categoryIdListing);
+    }
+
+    public function scopeManagedBy(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->whereHas('category', function (Builder $categoryQuery) use ($user) {
+            $categoryQuery
+                ->where('categories.category_type', 'asset')
+                ->where('categories.manager_id', $user->id);
+        });
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return true;
+        }
+
+        $managerId = $this->relationLoaded('category')
+            ? $this->category?->manager_id
+            : $this->category()->value('manager_id');
+
+        return (int) $managerId === (int) $user->id;
     }
 
     public function scopeRequestableModels($query)

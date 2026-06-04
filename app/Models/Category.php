@@ -6,6 +6,7 @@ use App\Http\Traits\TwoColumnUniqueUndeletedTrait;
 use App\Models\Traits\Searchable;
 use App\Presenters\Presentable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Gate;
 use Watson\Validating\ValidatingTrait;
@@ -220,6 +221,24 @@ class Category extends SnipeModel
     public function manager()
     {
         return $this->belongsTo(\App\Models\User::class, 'manager_id')->withTrashed();
+    }
+
+    public function scopeManagedBy(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->where('manager_id', $user->id);
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return true;
+        }
+
+        return (int) $this->manager_id === (int) $user->id;
     }
 
     /**

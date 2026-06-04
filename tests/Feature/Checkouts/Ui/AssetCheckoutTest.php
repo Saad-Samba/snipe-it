@@ -7,6 +7,7 @@ use App\Events\CheckoutableCheckedOut;
 use App\Models\Accessory;
 use App\Models\Asset;
 use App\Models\Company;
+use App\Models\Discipline;
 use App\Models\LicenseSeat;
 use App\Models\Location;
 use App\Models\Statuslabel;
@@ -224,6 +225,26 @@ class AssetCheckoutTest extends TestCase
             return true;
         });
         $this->assertHasTheseActionLogs($asset, ['create'/*, 'checkout'*/]); //TODO - only getting one?
+    }
+
+    public function testAssetCheckoutPersistsDiscipline()
+    {
+        $asset = Asset::factory()->create();
+        $admin = User::factory()->checkoutAssets()->create();
+        $discipline = Discipline::create([
+            'name' => 'Checkout Discipline',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('hardware.checkout.store', $asset), [
+                'checkout_to_type' => 'user',
+                'assigned_user' => User::factory()->create()->id,
+                'discipline_id' => $discipline->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
+            ]);
+
+        $this->assertSame($discipline->id, $asset->fresh()->discipline_id);
     }
 
     public function testLicenseSeatsAreAssignedToUserUponCheckout()

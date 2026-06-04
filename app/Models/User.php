@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\Access\Authorizable;
 use Illuminate\Notifications\Notifiable;
@@ -194,10 +195,12 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
     protected static function booted(): void
     {
         static::forceDeleted(function (User $user) {
+            $user->racAssignment()->forceDelete();
             CheckoutRequest::where(['user_id' => $user->id])->forceDelete();
         });
 
         static::softDeleted(function (User $user) {
+            $user->racAssignment()->delete();
             CheckoutRequest::where(['user_id' => $user->id])->delete();
         });
     }
@@ -223,6 +226,11 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
         }
 
         return false;
+    }
+
+    public function racAssignment(): HasOne
+    {
+        return $this->hasOne(RegionalAssetCoordinatorAssignment::class, 'user_id');
     }
 
     public function hasIndividualPermissions()

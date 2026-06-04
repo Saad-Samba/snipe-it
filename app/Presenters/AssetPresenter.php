@@ -15,7 +15,7 @@ class AssetPresenter extends Presenter
      * Json Column Layout for bootstrap table
      * @return string
      */
-    public static function dataTableLayout()
+    public static function dataTableLayout(bool $showCenterMatchInCompanyColumn = false)
     {
         $layout = [
             [
@@ -36,8 +36,8 @@ class AssetPresenter extends Presenter
                 'sortable' => true,
                 'switchable' => true,
                 'title' => trans('general.company'),
-                'visible' => false,
-                'formatter' => 'companiesLinkObjFormatter',
+                'visible' => $showCenterMatchInCompanyColumn,
+                'formatter' => $showCenterMatchInCompanyColumn ? 'companiesCenterMatchObjFormatter' : 'companiesLinkObjFormatter',
             ], [
                 'field' => 'project',
                 'searchable' => true,
