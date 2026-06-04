@@ -68,10 +68,10 @@ class AssetsController extends Controller
         $requestContext = null;
 
         if ($request->filled('request_id')) {
-            $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project', 'company', 'requestedDiscipline'])->find((int) $request->input('request_id'));
+            $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project', 'company', 'requestedDiscipline', 'coordinatorTargets'])->find((int) $request->input('request_id'));
 
             if (! $requestContext) {
-                $requestContext = CheckoutRequestCoordinator::with(['checkoutRequest.requestedItem', 'checkoutRequest.user', 'checkoutRequest.project', 'checkoutRequest.company', 'checkoutRequest.requestedDiscipline'])
+                $requestContext = CheckoutRequestCoordinator::with(['checkoutRequest.requestedItem', 'checkoutRequest.user', 'checkoutRequest.project', 'checkoutRequest.company', 'checkoutRequest.requestedDiscipline', 'checkoutRequest.coordinatorTargets'])
                     ->find((int) $request->input('request_id'))
                     ?->checkoutRequest;
             }
@@ -89,6 +89,33 @@ class AssetsController extends Controller
         return view('hardware/index')
             ->with('company', $company)
             ->with('requestContext', $requestContext);
+    }
+
+    public function markCoordinatorResolution(Request $request, CheckoutRequest $checkoutRequest): RedirectResponse
+    {
+        $resolutionStatus = $request->validate([
+            'resolution_status' => ['required', 'in:'.CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK],
+            'request_bucket' => ['nullable', 'string'],
+        ])['resolution_status'];
+
+        abort_unless(
+            auth()->user()->isSuperUser()
+            || $checkoutRequest->candidateCoordinators()->where('users.id', auth()->id())->exists(),
+            403
+        );
+
+        $coordinatorTarget = $checkoutRequest->coordinatorTargets()
+            ->where('user_id', auth()->id())
+            ->firstOrFail();
+
+        if ($resolutionStatus === CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK) {
+            $coordinatorTarget->markCompletedNoStock();
+        }
+
+        return redirect()->route('hardware.index', array_filter([
+            'request_id' => $checkoutRequest->id,
+            'request_bucket' => $request->input('request_bucket'),
+        ]))->with('success', 'Request review recorded. Reminder emails will stop unless more allocation work starts later.');
     }
 
     /**

@@ -154,7 +154,8 @@ class CheckoutRequest extends Model
     public function canBeProcessedBy(User $user): bool
     {
         return $this->canBeViewedBy($user)
-            && !in_array($this->resolvedStatus(), [self::STATUS_CANCELED, self::STATUS_FULLY_ALLOCATED, self::STATUS_PARTIALLY_ALLOCATED, self::STATUS_NOT_ALLOCATED], true);
+            && !in_array($this->resolvedStatus(), [self::STATUS_CANCELED, self::STATUS_FULLY_ALLOCATED, self::STATUS_NOT_ALLOCATED, self::STATUS_REJECTED, self::STATUS_FULFILLED], true)
+            && $this->remainingAllocationQuantity() > 0;
     }
 
     public function canBeViewedBy(User $user): bool
