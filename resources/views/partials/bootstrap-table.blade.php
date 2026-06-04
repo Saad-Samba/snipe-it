@@ -2328,14 +2328,86 @@
     }
 
     function licenseRequestActionsFormatter(value, row) {
+        var requestUrl = '{{ route('account/request-item', ['itemType' => 'license', 'itemId' => '__LICENSE_ID__']) }}'.replace('__LICENSE_ID__', row.id);
+        var requestsUrl = '{{ route('requests.index') }}?license_id=' + row.id;
+        var requestedQuantity = row.requested_quantity || 1;
+        var requestedProjectId = row.requested_project_id || '';
+        var requestedDisciplineId = row.requested_discipline_id || ((row.discipline && row.discipline.id) ? row.discipline.id : '');
+        var requestedCompanyId = row.requested_company_id || ((row.company && row.company.id) ? row.company.id : '');
+        var requestedNeededByDate = row.requested_needed_by_date || '';
+        var requestedForType = row.requested_for_type || 'user';
+        var requestedForDisplay = row.requested_for_display || '';
+        var actionBarId = 'license-request-actions-' + row.id;
+        var editStateId = 'license-request-edit-' + row.id;
+        var requestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name'])->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values());
+        var requestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name'])->map(fn ($discipline) => ['id' => $discipline->id, 'name' => $discipline->name])->values());
+        var requestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name'])->map(fn ($company) => ['id' => $company->id, 'name' => $company->name])->values());
+
+        var buildOptions = function (items, selectedValue, placeholder) {
+            var options = ['<option value=\"\">' + placeholder + '</option>'];
+
+            items.forEach(function (item) {
+                var selected = String(item.id) === String(selectedValue) ? ' selected' : '';
+                options.push('<option value=\"' + item.id + '\"' + selected + '>' + item.name + '</option>');
+            });
+
+            return options.join('');
+        };
+
+        var escapeHtml = function (value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        };
+
+        var buildLicenseRequestForm = function (actionValue, selectedProjectId, selectedDisciplineId, selectedCompanyId, selectedNeededByDate, selectedForType, selectedForDisplay, selectedQuantity, buttonLabel, buttonClass) {
+            return '<form action=\"' + requestUrl + '\" method=\"POST\" style=\"display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:780px;\">'
+                + '@csrf'
+                + '<input type=\"hidden\" name=\"request-action\" value=\"' + actionValue + '\">'
+                + '<input type=\"number\" min=\"1\" name=\"request-quantity\" value=\"' + selectedQuantity + '\" class=\"form-control input-sm\" style=\"width:72px;\" aria-label=\"{{ trans('general.qty') }}\" required>'
+                + '<select name=\"requested_for_type\" class=\"form-control input-sm\" style=\"width:110px;\" required>'
+                + '<option value=\"\">Assignee Type</option>'
+                + '<option value=\"user\"' + (String(selectedForType) === 'user' ? ' selected' : '') + '>User</option>'
+                + '<option value=\"asset\"' + (String(selectedForType) === 'asset' ? ' selected' : '') + '>Asset</option>'
+                + '</select>'
+                + '<input type=\"text\" name=\"requested_for_display\" value=\"' + escapeHtml(selectedForDisplay) + '\" class=\"form-control input-sm\" style=\"min-width:160px;\" placeholder=\"Assignee name or asset tag\" required>'
+                + '<select name=\"requested_discipline_id\" class=\"form-control input-sm\" style=\"min-width:150px;\" required>' + buildOptions(requestDisciplines, selectedDisciplineId, '{{ trans('general.select_discipline') }}') + '</select>'
+                + '<select name=\"company_id\" class=\"form-control input-sm\" style=\"min-width:150px;\" required>' + buildOptions(requestCompanies, selectedCompanyId, '{{ trans('general.select_company') }}') + '</select>'
+                + '<select name=\"project_id\" class=\"form-control input-sm\" style=\"min-width:150px;\" required>' + buildOptions(requestProjects, selectedProjectId, '{{ trans('general.select_project') }}') + '</select>'
+                + '<input type=\"date\" name=\"needed_by_date\" value=\"' + selectedNeededByDate + '\" class=\"form-control input-sm\" style=\"width:145px;\" required>'
+                + '<button class=\"btn ' + buttonClass + ' btn-sm\">' + buttonLabel + '</button>'
+                + '</form>';
+        };
+
         if ((row.available_actions) && (row.available_actions.update_request === true)) {
-            return '<div style="display:flex;flex-direction:column;gap:4px;min-width:160px;">'
+            return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:220px;">'
+                + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;line-height:1.2;">'
                 + '<span class="label label-info" style="font-size:11px;">{{ trans('general.requested') }}</span>'
-                + '<a href="{{ route('requests.index') }}?license_id=' + row.id + '">View request</a>'
-                + '<a href="{{ route('requestable-assets') }}#licenses">Open request form</a>'
+                + '<span style="font-size:12px;color:#4d4d4d;">{{ trans('general.qty') }}: <strong>' + requestedQuantity + '</strong></span>'
+                + '</div>'
+                + '<div id="' + actionBarId + '" style="display:flex;align-items:center;gap:0;flex-wrap:wrap;font-size:12px;">'
+                + '<a href="' + requestsUrl + '" style="margin-right:8px;">View request</a>'
+                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;margin-right:8px;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'flex\'; document.getElementById(\'' + actionBarId + '\').style.display = \'none\';" data-tooltip="true" title="{{ trans('general.update') }}">Edit</button>'
+                + '<form action="' + requestUrl + '" method="POST" style="margin:0;">'
+                + '@csrf'
+                + '<input type="hidden" name="request-action" value="cancel">'
+                + '<button class="btn btn-link btn-sm text-danger" style="padding:0;" data-tooltip="true" title="{{ trans('admin/hardware/message.requests.cancel') }}">{{ trans('button.cancel') }}</button>'
+                + '</form>'
+                + '</div>'
+                + '<div id="' + editStateId + '" style="display:none;flex-direction:column;gap:6px;">'
+                + buildLicenseRequestForm('update', requestedProjectId, requestedDisciplineId, requestedCompanyId, requestedNeededByDate, requestedForType, requestedForDisplay, requestedQuantity, '{{ trans('general.update') }}', 'btn-primary')
+                + '<button type="button" class="btn btn-link btn-sm" style="padding:0;align-self:flex-start;" onclick="document.getElementById(\'' + editStateId + '\').style.display = \'none\'; document.getElementById(\'' + actionBarId + '\').style.display = \'flex\';">{{ trans('button.cancel') }}</button>'
+                + '</div>'
+                + '<div style="font-size:11px;color:#6b7280;">Expected release is informational only.</div>'
                 + '</div>';
         } else if ((row.available_actions) && (row.available_actions.request === true)) {
-            return '<a class="btn btn-primary btn-sm" href="{{ route('requestable-assets') }}#licenses">{{ trans('button.request') }}</a>';
+            return '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;">'
+                + buildLicenseRequestForm('create', '', requestedDisciplineId, requestedCompanyId, '', 'user', '', 1, '{{ trans('button.request') }}', 'btn-primary')
+                + '<div style="font-size:11px;color:#6b7280;">Expected release is informational only.</div>'
+                + '</div>';
         }
 
         return '';
