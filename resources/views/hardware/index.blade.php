@@ -51,12 +51,43 @@
 {{-- Page content --}}
 @section('content')
 
-
+@php
+    $coordinatorTarget = null;
+    if (isset($requestContext) && $requestContext && auth()->check()) {
+        $coordinatorTarget = $requestContext->coordinatorTargets->firstWhere('user_id', auth()->id());
+    }
+@endphp
 
 <div class="row">
   <div class="col-md-12">
     <div class="box">
       <div class="box-body">
+          @if ($coordinatorTarget)
+            <div class="alert alert-info">
+                <strong>Coordinator review</strong>
+                <p style="margin:8px 0 12px;">
+                    @if ($coordinatorTarget->resolvedStatus() === \App\Models\CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK)
+                        You marked this request as having no more reusable stock available in your scope. Reminder emails are paused unless you later allocate more assets.
+                    @elseif ($coordinatorTarget->resolvedStatus() === \App\Models\CheckoutRequestCoordinator::RESOLUTION_IN_PROGRESS)
+                        You have already started allocating assets for this request. Reminders will keep coming until the remaining quantity is handled or you mark that no more reusable stock is available.
+                    @elseif ($coordinatorTarget->resolvedStatus() === \App\Models\CheckoutRequestCoordinator::RESOLUTION_COMPLETED)
+                        This request is fully covered from your allocation work. No further reminder emails will be sent.
+                    @else
+                        Opening this request does not stop reminders by itself. Reminders stop only after the remaining quantity is handled or you mark that no more reusable stock is available.
+                    @endif
+                </p>
+
+                @if ($requestContext->remainingAllocationQuantity() > 0 && $coordinatorTarget->resolvedStatus() !== \App\Models\CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK)
+                    <form method="POST" action="{{ route('hardware.requests.coordinator-resolution', $requestContext) }}" style="display:inline-block;">
+                        @csrf
+                        <input type="hidden" name="resolution_status" value="{{ \App\Models\CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK }}">
+                        <input type="hidden" name="request_bucket" value="{{ request()->input('request_bucket', 'reusable_now') }}">
+                        <button type="submit" class="btn btn-default">Mark no more reusable stock available</button>
+                    </form>
+                @endif
+            </div>
+          @endif
+
           <div class="row">
             <div class="col-md-12">
                 @php
