@@ -73,7 +73,6 @@ class ModelRequestsController extends Controller
         if ($itemType === 'asset_model') {
             $item = AssetModel::findOrFail($itemId);
             $this->ensureModelRequestAuthorized($item, auth()->user());
-            $this->ensureModelRequestDisciplineProvided(isset($validated['requested_discipline_id']) ? (int) $validated['requested_discipline_id'] : null);
 
             return response()->json(
                 $this->estimateAssetModelRequest(
