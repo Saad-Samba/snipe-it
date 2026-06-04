@@ -20,25 +20,28 @@ class IndexCategoriesTest extends TestCase
             ->assertForbidden();
     }
 
-    public function testCategoryManagerCanViewOnlyManagedCategoriesWithoutGlobalCategoriesViewPermission()
+    public function testCategoryManagerCanViewAllCategoriesWithoutGlobalCategoriesViewPermission()
     {
         $manager = User::factory()->create();
         $managedCategory = Category::factory()->forAssets()->create([
             'name' => 'Managed Category',
             'manager_id' => $manager->id,
         ]);
-        Category::factory()->forAssets()->create([
+        $unmanagedCategory = Category::factory()->forAssets()->create([
             'name' => 'Unmanaged Category',
         ]);
 
         $this->actingAsForApi($manager)
             ->getJson(route('api.categories.index'))
             ->assertOk()
-            ->assertJson(fn (AssertableJson $json) => $json
-                ->where('total', 1)
-                ->where('rows.0.id', $managedCategory->id)
-                ->missing('rows.1')
-                ->etc());
+            ->assertJsonFragment([
+                'id' => $managedCategory->id,
+                'name' => 'Managed Category',
+            ])
+            ->assertJsonFragment([
+                'id' => $unmanagedCategory->id,
+                'name' => 'Unmanaged Category',
+            ]);
     }
 
     public function testExplicitCategoriesViewDenyBlocksManagerFallbackAccess()

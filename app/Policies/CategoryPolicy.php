@@ -30,7 +30,7 @@ class CategoryPolicy extends SnipePermissionsPolicy
         return match ($this->permissionState($user, 'view')) {
             'allow' => true,
             'deny' => false,
-            default => $item->isManagedBy($user),
+            default => Category::managedBy($user)->exists(),
         };
     }
 

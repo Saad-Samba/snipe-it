@@ -26,7 +26,6 @@ class CategoriesController extends Controller
     public function index(Request $request) : array
     {
         $this->authorize('view', Category::class);
-        $requestingUser = $request->user();
         $allowed_columns = [
             'id',
             'name',
@@ -77,11 +76,6 @@ class CategoriesController extends Controller
                 'availableModels as available_models_count',
                 'reusableAssets as reusable_assets_count'
             );
-
-        if (! $requestingUser->isSuperUser() && ! $requestingUser->isAdmin() && ! $requestingUser->hasAccess('categories.view')) {
-            $categories->managedBy($requestingUser);
-        }
-
 
         $filter = [];
 

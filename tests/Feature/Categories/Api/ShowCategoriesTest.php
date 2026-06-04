@@ -23,13 +23,19 @@ class ShowCategoriesTest extends TestCase
             ]);
     }
 
-    public function testManagerCannotViewUnmanagedCategoryWithoutGlobalCategoriesViewPermission()
+    public function testManagerCanViewUnmanagedCategoryWithoutGlobalCategoriesViewPermission()
     {
         $manager = User::factory()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $manager->id,
+        ]);
         $category = Category::factory()->forAssets()->create();
 
         $this->actingAsForApi($manager)
             ->getJson(route('api.categories.show', $category))
-            ->assertForbidden();
+            ->assertOk()
+            ->assertJson([
+                'id' => $category->id,
+            ]);
     }
 }
