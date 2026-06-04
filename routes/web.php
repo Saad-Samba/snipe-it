@@ -421,17 +421,32 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
     Route::post('request-cart/items', [ModelRequestsController::class, 'addRequestCartItems'])
         ->name('account.request-cart.items.add');
 
+    Route::post('request-cart/licenses/items', [ModelRequestsController::class, 'addLicenseRequestCartItems'])
+        ->name('account.request-cart.licenses.items.add');
+
     Route::post('request-cart/items/remove', [ModelRequestsController::class, 'removeRequestCartItem'])
         ->name('account.request-cart.items.remove');
+
+    Route::post('request-cart/licenses/items/remove', [ModelRequestsController::class, 'removeLicenseRequestCartItem'])
+        ->name('account.request-cart.licenses.items.remove');
 
     Route::post('request-cart/clear', [ModelRequestsController::class, 'clearRequestCart'])
         ->name('account.request-cart.clear');
 
+    Route::post('request-cart/licenses/clear', [ModelRequestsController::class, 'clearLicenseRequestCart'])
+        ->name('account.request-cart.licenses.clear');
+
     Route::post('request-cart/preview', [ModelRequestsController::class, 'previewRequestCart'])
         ->name('account.request-cart.preview');
 
+    Route::post('request-cart/licenses/preview', [ModelRequestsController::class, 'previewLicenseRequestCart'])
+        ->name('account.request-cart.licenses.preview');
+
     Route::post('request-cart/submit', [ModelRequestsController::class, 'submitRequestCart'])
         ->name('account.request-cart.submit');
+
+    Route::post('request-cart/licenses/submit', [ModelRequestsController::class, 'submitLicenseRequestCart'])
+        ->name('account.request-cart.licenses.submit');
 
     Route::post('request-items-bulk', [ModelRequestsController::class, 'bulkRequestItems'])
         ->name('account.request-items-bulk');

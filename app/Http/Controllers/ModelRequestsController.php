@@ -35,6 +35,7 @@ use Illuminate\Validation\ValidationException;
 class ModelRequestsController extends Controller
 {
     private const MODEL_REQUEST_CART_SESSION_KEY = 'model_request_cart';
+    private const LICENSE_REQUEST_CART_SESSION_KEY = 'license_request_cart';
 
     public function getRequestableIndex(): View
     {
@@ -348,6 +349,49 @@ class ModelRequestsController extends Controller
         return response()->json(['status' => 'success', 'cart_count' => count($cart)]);
     }
 
+    public function addLicenseRequestCartItems(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'lines' => ['required', 'array', 'min:1'],
+            'lines.*.license_id' => ['required', 'integer', 'exists:licenses,id,deleted_at,NULL'],
+            'lines.*.quantity' => ['required', 'integer', 'min:1'],
+            'lines.*.discipline_id' => ['required', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
+            'lines.*.company_id' => ['required', 'integer', 'exists:companies,id'],
+            'lines.*.requested_for_type' => ['required', 'string', 'in:user,asset'],
+            'lines.*.requested_for_display' => ['required', 'string', 'max:255'],
+        ]);
+
+        $user = auth()->user();
+        if (! $user || ! $user->hasAccess('licenses.request')) {
+            throw new AuthorizationException('You are not authorized to request licenses.');
+        }
+
+        $cart = $this->getLicenseRequestCart($request);
+        foreach ($validated['lines'] as $line) {
+            $license = License::findOrFail((int) $line['license_id']);
+            $this->ensureLicenseRequestAuthorized($license, $user);
+            $disciplineId = (int) $line['discipline_id'];
+            $companyId = (int) $line['company_id'];
+            $requestedForType = (string) $line['requested_for_type'];
+            $requestedForDisplay = trim((string) $line['requested_for_display']);
+            $this->ensureLicenseAssigneeProvided($requestedForType, $requestedForDisplay);
+
+            $key = $this->makeLicenseRequestCartKey((int) $line['license_id'], $disciplineId, $companyId, $requestedForType, $requestedForDisplay);
+            $cart[$key] = [
+                'license_id' => (int) $line['license_id'],
+                'quantity' => (int) $line['quantity'],
+                'discipline_id' => $disciplineId,
+                'company_id' => $companyId,
+                'requested_for_type' => $requestedForType,
+                'requested_for_display' => $requestedForDisplay,
+            ];
+        }
+
+        $this->putLicenseRequestCart($request, $cart);
+
+        return response()->json(['status' => 'success', 'cart_count' => count($cart)]);
+    }
+
     public function removeRequestCartItem(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -363,9 +407,39 @@ class ModelRequestsController extends Controller
         return response()->json(['status' => 'success', 'cart_count' => count($cart)]);
     }
 
+    public function removeLicenseRequestCartItem(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'license_id' => ['required', 'integer'],
+            'discipline_id' => ['required', 'integer'],
+            'company_id' => ['required', 'integer'],
+            'requested_for_type' => ['required', 'string', 'in:user,asset'],
+            'requested_for_display' => ['required', 'string', 'max:255'],
+        ]);
+
+        $cart = $this->getLicenseRequestCart($request);
+        unset($cart[$this->makeLicenseRequestCartKey(
+            (int) $validated['license_id'],
+            (int) $validated['discipline_id'],
+            (int) $validated['company_id'],
+            (string) $validated['requested_for_type'],
+            (string) $validated['requested_for_display']
+        )]);
+        $this->putLicenseRequestCart($request, $cart);
+
+        return response()->json(['status' => 'success', 'cart_count' => count($cart)]);
+    }
+
     public function clearRequestCart(Request $request): JsonResponse
     {
         $request->session()->forget(self::MODEL_REQUEST_CART_SESSION_KEY);
+
+        return response()->json(['status' => 'success', 'cart_count' => 0]);
+    }
+
+    public function clearLicenseRequestCart(Request $request): JsonResponse
+    {
+        $request->session()->forget(self::LICENSE_REQUEST_CART_SESSION_KEY);
 
         return response()->json(['status' => 'success', 'cart_count' => 0]);
     }
@@ -418,6 +492,72 @@ class ModelRequestsController extends Controller
             $totals['due_back_before_needed_by_quantity'] += $previewLine['due_back_before_needed_by_quantity'];
             $totals['reserved_count'] += $previewLine['reserved_count'];
             $totals['reserved_by_other_rfqs_count'] += $previewLine['reserved_by_other_rfqs_count'];
+            $totals['procurement_shortfall'] += $previewLine['procurement_shortfall'];
+            $totals['estimated_savings'] += $previewLine['estimated_savings'];
+            $totals['amount_to_buy'] += $previewLine['amount_to_buy'];
+        }
+
+        $totals['estimated_savings'] = round($totals['estimated_savings'], 2);
+        $totals['amount_to_buy'] = round($totals['amount_to_buy'], 2);
+
+        return response()->json([
+            'status' => 'success',
+            'cart_count' => count($cart),
+            'lines' => $lines,
+            'totals' => $totals,
+            'totals_formatted' => [
+                'estimated_savings' => \App\Helpers\Helper::formatCurrencyOutput($totals['estimated_savings']),
+                'amount_to_buy' => \App\Helpers\Helper::formatCurrencyOutput($totals['amount_to_buy']),
+            ],
+        ]);
+    }
+
+    public function previewLicenseRequestCart(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
+            'needed_by_date' => ['nullable', 'date'],
+        ]);
+
+        $user = auth()->user();
+        if (! $user || ! $user->hasAccess('licenses.request')) {
+            throw new AuthorizationException('You are not authorized to request licenses.');
+        }
+
+        $projectId = isset($validated['project_id']) ? (int) $validated['project_id'] : null;
+        $neededByDate = $validated['needed_by_date'] ?? null;
+        $cart = $this->getLicenseRequestCart($request);
+        $lines = [];
+        $totals = [
+            'quantity' => 0,
+            'reusable_quantity' => 0,
+            'expected_release_before_needed_by_quantity' => 0,
+            'procurement_shortfall' => 0,
+            'estimated_savings' => 0.0,
+            'amount_to_buy' => 0.0,
+        ];
+
+        foreach ($cart as $line) {
+            $license = License::findOrFail((int) $line['license_id']);
+            $this->ensureLicenseRequestAuthorized($license, $user);
+            $discipline = Discipline::findOrFail((int) $line['discipline_id']);
+            $company = Company::findOrFail((int) $line['company_id']);
+
+            $previewLine = $this->buildLicenseRequestPreviewLine(
+                $license,
+                $discipline,
+                $company,
+                (string) $line['requested_for_type'],
+                (string) $line['requested_for_display'],
+                (int) $line['quantity'],
+                $projectId,
+                $neededByDate
+            );
+
+            $lines[] = $previewLine;
+            $totals['quantity'] += $previewLine['quantity'];
+            $totals['reusable_quantity'] += $previewLine['reusable_quantity'];
+            $totals['expected_release_before_needed_by_quantity'] += $previewLine['expected_release_before_needed_by_quantity'];
             $totals['procurement_shortfall'] += $previewLine['procurement_shortfall'];
             $totals['estimated_savings'] += $previewLine['estimated_savings'];
             $totals['amount_to_buy'] += $previewLine['amount_to_buy'];
@@ -505,10 +645,82 @@ class ModelRequestsController extends Controller
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
 
+    public function submitLicenseRequestCart(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
+            'needed_by_date' => ['required', 'date'],
+        ]);
+
+        $user = auth()->user();
+        if (! $user || ! $user->hasAccess('licenses.request')) {
+            throw new AuthorizationException('You are not authorized to request licenses.');
+        }
+
+        $cart = $this->getLicenseRequestCart($request);
+        if (empty($cart)) {
+            throw ValidationException::withMessages([
+                'cart' => 'Add at least one license to the request cart.',
+            ]);
+        }
+
+        $project = Project::find((int) $validated['project_id']);
+        $submittedAt = now()->toDateTimeString();
+        $coordinatorNotificationBuckets = [];
+
+        DB::transaction(function () use ($cart, $validated, $user, $project, $submittedAt, &$coordinatorNotificationBuckets) {
+            foreach ($cart as $line) {
+                $item = License::findOrFail((int) $line['license_id']);
+                $disciplineId = (int) $line['discipline_id'];
+                $companyId = (int) $line['company_id'];
+                $quantity = (int) $line['quantity'];
+                $requestedForType = (string) $line['requested_for_type'];
+                $requestedForDisplay = (string) $line['requested_for_display'];
+
+                $this->ensureLicenseRequestAuthorized($item, $user);
+                $this->ensureModelRequestDisciplineProvided($disciplineId);
+                $this->ensureModelRequestCompanyProvided($companyId);
+                $this->ensureLicenseAssigneeProvided($requestedForType, $requestedForDisplay);
+
+                $requestAttributes = array_merge(
+                    [
+                        'company_id' => $companyId,
+                        'project_id' => (int) $validated['project_id'],
+                        'needed_by_date' => $validated['needed_by_date'],
+                        'requested_discipline_id' => $disciplineId,
+                        'requested_for_type' => $requestedForType,
+                        'requested_for_display' => $requestedForDisplay,
+                    ],
+                    $this->estimateLicenseRequest($item, $quantity, $validated['needed_by_date'])
+                );
+
+                $existingRequest = $this->findActiveLicenseProjectRequest($item, $user, (int) $validated['project_id'], $disciplineId, $companyId);
+                $checkoutRequest = $existingRequest
+                    ? $this->updateExistingProjectRequest($existingRequest, $quantity, $requestAttributes)
+                    : $item->request($quantity, $requestAttributes);
+
+                $coordinatorMatches = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+                $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
+                    $coordinatorNotificationBuckets,
+                    $checkoutRequest,
+                    $user,
+                    $project,
+                    $submittedAt,
+                    $coordinatorMatches
+                );
+            }
+        });
+
+        $request->session()->forget(self::LICENSE_REQUEST_CART_SESSION_KEY);
+        $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);
+
+        return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
+    }
+
     public function storeRequestProject(Request $request): JsonResponse
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAccess('models.request')) {
+        if (! $user || (! $user->hasAccess('models.request') && ! $user->hasAccess('licenses.request'))) {
             throw new AuthorizationException('You are not authorized to create request projects.');
         }
 
@@ -792,9 +1004,26 @@ class ModelRequestsController extends Controller
         return $normalizedCart;
     }
 
+    private function getLicenseRequestCart(Request $request): array
+    {
+        $cart = $request->session()->get(self::LICENSE_REQUEST_CART_SESSION_KEY, []);
+        $normalizedCart = $this->normalizeLicenseRequestCart(is_array($cart) ? $cart : []);
+
+        if ($normalizedCart !== $cart) {
+            $request->session()->put(self::LICENSE_REQUEST_CART_SESSION_KEY, $normalizedCart);
+        }
+
+        return $normalizedCart;
+    }
+
     private function putModelRequestCart(Request $request, array $cart): void
     {
         $request->session()->put(self::MODEL_REQUEST_CART_SESSION_KEY, $this->normalizeModelRequestCart($cart));
+    }
+
+    private function putLicenseRequestCart(Request $request, array $cart): void
+    {
+        $request->session()->put(self::LICENSE_REQUEST_CART_SESSION_KEY, $this->normalizeLicenseRequestCart($cart));
     }
 
     private function normalizeModelRequestCart(array $cart): array
@@ -826,9 +1055,47 @@ class ModelRequestsController extends Controller
         return $normalizedCart;
     }
 
+    private function normalizeLicenseRequestCart(array $cart): array
+    {
+        $normalizedCart = [];
+
+        foreach ($cart as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            $licenseId = (int) ($line['license_id'] ?? 0);
+            $quantity = (int) ($line['quantity'] ?? 0);
+            $disciplineId = (int) ($line['discipline_id'] ?? 0);
+            $companyId = (int) ($line['company_id'] ?? 0);
+            $requestedForType = (string) ($line['requested_for_type'] ?? '');
+            $requestedForDisplay = trim((string) ($line['requested_for_display'] ?? ''));
+
+            if ($licenseId < 1 || $quantity < 1 || $disciplineId < 1 || $companyId < 1 || ! in_array($requestedForType, ['user', 'asset'], true) || $requestedForDisplay === '') {
+                continue;
+            }
+
+            $normalizedCart[$this->makeLicenseRequestCartKey($licenseId, $disciplineId, $companyId, $requestedForType, $requestedForDisplay)] = [
+                'license_id' => $licenseId,
+                'quantity' => $quantity,
+                'discipline_id' => $disciplineId,
+                'company_id' => $companyId,
+                'requested_for_type' => $requestedForType,
+                'requested_for_display' => $requestedForDisplay,
+            ];
+        }
+
+        return $normalizedCart;
+    }
+
     private function makeModelRequestCartKey(int $modelId, int $disciplineId, int $companyId): string
     {
         return $modelId.':'.$disciplineId.':'.$companyId;
+    }
+
+    private function makeLicenseRequestCartKey(int $licenseId, int $disciplineId, int $companyId, string $requestedForType, string $requestedForDisplay): string
+    {
+        return $licenseId.':'.$disciplineId.':'.$companyId.':'.$requestedForType.':'.mb_strtolower(trim($requestedForDisplay));
     }
 
     private function addCoordinatorSummaryLine(array $buckets, CheckoutRequest $checkoutRequest, User $requester, ?Project $project, string $submittedAt, $coordinatorMatches): array
@@ -865,7 +1132,10 @@ class ModelRequestsController extends Controller
                     ? route('licenses.show', $checkoutRequest->requestable_id)
                     : route('models.show', $checkoutRequest->requestable_id),
                 'project_requests_url' => $checkoutRequest->project_id
-                    ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
+                    ? route('projects.show', [
+                        'project' => $checkoutRequest->project_id,
+                        'tab' => $checkoutRequest->requestable_type === License::class ? 'license-requests' : 'requests',
+                    ])
                     : route('requests.index'),
                 'request_detail_url' => $this->requestDetailUrlFor($checkoutRequest),
             ];
@@ -956,6 +1226,41 @@ class ModelRequestsController extends Controller
             'estimated_savings_formatted' => \App\Helpers\Helper::formatCurrencyOutput((float) ($estimate['estimated_savings'] ?? 0)),
             'amount_to_buy' => $amountToBuy,
             'amount_to_buy_formatted' => \App\Helpers\Helper::formatCurrencyOutput($amountToBuy),
+        ];
+    }
+
+    private function buildLicenseRequestPreviewLine(License $license, Discipline $discipline, Company $company, string $requestedForType, string $requestedForDisplay, int $quantity, ?int $projectId, ?string $neededByDate): array
+    {
+        $estimate = $neededByDate
+            ? $this->estimateLicenseRequest($license, $quantity, $neededByDate)
+            : [
+                'reusable_quantity' => 0,
+                'expected_release_before_needed_by_quantity' => 0,
+                'procurement_shortfall' => 0,
+                'estimated_savings' => 0,
+                'reference_price_snapshot' => $license->purchase_cost !== null ? (float) $license->purchase_cost : null,
+            ];
+
+        $amountToBuy = round(((float) ($estimate['procurement_shortfall'] ?? 0)) * ((float) ($estimate['reference_price_snapshot'] ?? 0)), 2);
+
+        return [
+            'license_id' => (int) $license->id,
+            'license_name' => $license->name,
+            'discipline_id' => (int) $discipline->id,
+            'discipline_name' => $discipline->name,
+            'company_id' => (int) $company->id,
+            'company_name' => $company->name,
+            'requested_for_type' => $requestedForType,
+            'requested_for_display' => $requestedForDisplay,
+            'quantity' => $quantity,
+            'reusable_quantity' => (int) ($estimate['reusable_quantity'] ?? 0),
+            'expected_release_before_needed_by_quantity' => (int) ($estimate['expected_release_before_needed_by_quantity'] ?? 0),
+            'procurement_shortfall' => (int) ($estimate['procurement_shortfall'] ?? 0),
+            'estimated_savings' => round((float) ($estimate['estimated_savings'] ?? 0), 2),
+            'estimated_savings_formatted' => \App\Helpers\Helper::formatCurrencyOutput((float) ($estimate['estimated_savings'] ?? 0)),
+            'amount_to_buy' => $amountToBuy,
+            'amount_to_buy_formatted' => \App\Helpers\Helper::formatCurrencyOutput($amountToBuy),
+            'project_id' => $projectId,
         ];
     }
 

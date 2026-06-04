@@ -48,15 +48,15 @@ class ProjectsController extends Controller
     public function show(Project $project) : View
     {
         $activeTab = request()->query('tab', 'assets');
-        $isRequestsTab = $activeTab === 'requests';
+        $isRequestsTab = in_array($activeTab, ['requests', 'license-requests'], true);
         $isRequesterProjectReview = ! auth()->user()->isSuperUser()
-            && auth()->user()->hasAccess('models.request')
+            && (auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request'))
             && $isRequestsTab;
         $requestSummary = null;
 
         if ($isRequesterProjectReview) {
             $requestSummary = $this->authorizeProjectRequestsAccess($project);
-        } elseif (! auth()->user()->isSuperUser() && auth()->user()->hasAccess('models.request')) {
+        } elseif (! auth()->user()->isSuperUser() && (auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request'))) {
             abort(403);
         } else {
             $this->authorize('view', $project);
@@ -64,13 +64,13 @@ class ProjectsController extends Controller
 
         $project->loadCount(['assets', 'licenses']);
 
-        if (auth()->user()->hasAccess('models.request') && ! $requestSummary) {
+        if ((auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request')) && ! $requestSummary) {
             $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
         }
 
         return view('projects/view', [
             'project' => $project,
-            'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests'], true) ? $activeTab : 'assets',
+            'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests', 'license-requests'], true) ? $activeTab : 'assets',
             'requestSummary' => $requestSummary,
             'showFullProjectTabs' => auth()->user()->isSuperUser(),
         ]);
@@ -111,7 +111,7 @@ class ProjectsController extends Controller
 
     private function authorizeProjectRequestsAccess(Project $project): ?array
     {
-        abort_unless(auth()->user()->hasAccess('models.request'), 403, 'You are not authorized to view submitted requests.');
+        abort_unless(auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request'), 403, 'You are not authorized to view submitted requests.');
 
         if (auth()->user()->isSuperUser()) {
             $this->authorize('view', $project);

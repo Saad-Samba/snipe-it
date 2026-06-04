@@ -1031,6 +1031,20 @@
         },
         @endcan
 
+        @if (auth()->check() && auth()->user()->hasAccess('licenses.request'))
+        btnRequestCart: {
+            text: 'License Cart <span class="badge license-request-cart-count">{{ count(session('license_request_cart', [])) }}</span>',
+            icon: 'fas fa-shopping-cart',
+            event () {
+                openLicenseRequestCartModal();
+            },
+            attributes: {
+                class: 'btn-default',
+                title: 'Open license request cart',
+            }
+        },
+        @endif
+
         btnExport: {
             text: '{{ trans('general.export_all_to_csv') }}',
             icon: 'fa-solid fa-file-csv',
@@ -1619,7 +1633,7 @@
     var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
     var modelRequestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name']));
     var modelRequestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name']));
-    var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
+    var canCreateProjectsForRequests = @json(auth()->check() && (auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request')));
     var createProjectForRequestsUrl = '{{ route('account.request-projects.store') }}';
     var modelRequestCartAddUrl = '{{ route('account.request-cart.items.add') }}';
     var modelRequestCartPreviewUrl = '{{ route('account.request-cart.preview') }}';
@@ -1627,6 +1641,12 @@
     var modelRequestCartClearUrl = '{{ route('account.request-cart.clear') }}';
     var modelRequestCartSubmitUrl = '{{ route('account.request-cart.submit') }}';
     var modelRequestCartToastTimer = null;
+    var licenseRequestCartAddUrl = '{{ route('account.request-cart.licenses.items.add') }}';
+    var licenseRequestCartPreviewUrl = '{{ route('account.request-cart.licenses.preview') }}';
+    var licenseRequestCartRemoveUrl = '{{ route('account.request-cart.licenses.items.remove') }}';
+    var licenseRequestCartClearUrl = '{{ route('account.request-cart.licenses.clear') }}';
+    var licenseRequestCartSubmitUrl = '{{ route('account.request-cart.licenses.submit') }}';
+    var licenseRequestCartToastTimer = null;
 
     function buildModelRequestProjectOptions(selectedProjectId) {
         var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
@@ -2222,6 +2242,356 @@
         refreshModelRequestCartPreview();
     }
 
+    function ensureLicenseRequestCartToast() {
+        if (document.getElementById('license-request-cart-toast')) {
+            return;
+        }
+
+        var toastHtml = ''
+            + '<div id="license-request-cart-toast" style="display:none;position:fixed;right:20px;bottom:20px;z-index:1060;max-width:320px;background:#222d32;color:#fff;padding:12px 16px;border-radius:6px;box-shadow:0 8px 18px rgba(0,0,0,0.2);font-size:13px;">'
+            + '  <div id="license-request-cart-toast-message"></div>'
+            + '</div>';
+
+        $('body').append(toastHtml);
+    }
+
+    function showLicenseRequestCartToast(message) {
+        ensureLicenseRequestCartToast();
+
+        $('#license-request-cart-toast-message').text(message);
+        $('#license-request-cart-toast').stop(true, true).fadeIn(150);
+
+        if (licenseRequestCartToastTimer) {
+            window.clearTimeout(licenseRequestCartToastTimer);
+        }
+
+        licenseRequestCartToastTimer = window.setTimeout(function () {
+            $('#license-request-cart-toast').fadeOut(250);
+        }, 2200);
+    }
+
+    function ensureLicenseRequestCartModal() {
+        if (document.getElementById('license-request-cart-modal')) {
+            return;
+        }
+
+        var modalHtml = ''
+            + '<div class="modal fade" id="license-request-cart-modal" tabindex="-1" role="dialog" aria-hidden="true">'
+            + '  <div class="modal-dialog modal-lg" role="document">'
+            + '    <div class="modal-content">'
+            + '      <form id="license-request-cart-modal-form" method="POST" action="' + licenseRequestCartSubmitUrl + '">'
+            + '        @csrf'
+            + '        <div class="modal-header">'
+            + '          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+            + '          <h4 class="modal-title">License Request Cart</h4>'
+            + '        </div>'
+            + '        <div class="modal-body">'
+            + '          <div class="alert alert-danger" id="license-request-cart-modal-error" style="display:none;"></div>'
+            + '          <div class="row">'
+            + '            <div class="col-md-6">'
+            + '              <div class="form-group">'
+            + '                <label for="license-request-cart-project">{{ trans('general.project') }}</label>'
+            + '                <div class="input-group">'
+            + '                  <select name="project_id" id="license-request-cart-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
+            + '                  <span class="input-group-btn">'
+            + '                    <button type="button" class="btn btn-default" id="license-request-cart-create-project" data-tooltip="true" title="Create project" ' + (canCreateProjectsForRequests ? '' : 'disabled') + '><i class="fas fa-plus" aria-hidden="true"></i></button>'
+            + '                  </span>'
+            + '                </div>'
+            + '              </div>'
+            + '            </div>'
+            + '            <div class="col-md-6">'
+            + '              <div class="form-group">'
+            + '                <label for="license-request-cart-needed-by-date">Needed By</label>'
+            + '                <input type="date" name="needed_by_date" id="license-request-cart-needed-by-date" class="form-control" required>'
+            + '              </div>'
+            + '            </div>'
+            + '          </div>'
+            + '          <div class="table-responsive">'
+            + '            <table class="table table-striped table-condensed" style="margin-bottom:12px;">'
+            + '              <thead>'
+            + '                <tr>'
+            + '                  <th>License</th>'
+            + '                  <th>Assignee Type</th>'
+            + '                  <th>Assignee</th>'
+            + '                  <th>Discipline</th>'
+            + '                  <th>{{ trans('general.company') }}</th>'
+            + '                  <th>Quantity</th>'
+            + '                  <th>Reusable Now</th>'
+            + '                  <th>Expected Release</th>'
+            + '                  <th>Shortfall</th>'
+            + '                  <th>Estimated Savings</th>'
+            + '                  <th>Amount to Buy</th>'
+            + '                  <th></th>'
+            + '                </tr>'
+            + '              </thead>'
+            + '              <tbody id="license-request-cart-lines"></tbody>'
+            + '            </table>'
+            + '          </div>'
+            + '          <div class="well well-sm" style="margin-bottom:0;">'
+            + '            <div style="font-weight:600;margin-bottom:8px;">Cart Totals</div>'
+            + '            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">'
+            + '              <span>Total Needed</span><span id="license-request-cart-total-requested">0</span>'
+            + '              <span>Reusable Now</span><span id="license-request-cart-total-reusable">0</span>'
+            + '              <span>Expected Release</span><span id="license-request-cart-total-expected-release">0</span>'
+            + '              <span>Shortfall</span><span id="license-request-cart-total-shortfall">0</span>'
+            + '              <span>Estimated Savings</span><span id="license-request-cart-total-savings">0.00</span>'
+            + '              <span>Amount to Buy</span><span id="license-request-cart-total-buy">0.00</span>'
+            + '            </div>'
+            + '          </div>'
+            + '        </div>'
+            + '        <div class="modal-footer">'
+            + '          <button type="button" class="btn btn-danger pull-left" id="license-request-cart-clear">Clear Cart</button>'
+            + '          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>'
+            + '          <button type="submit" class="btn btn-primary" id="license-request-cart-submit">{{ trans('button.request') }}</button>'
+            + '        </div>'
+            + '      </form>'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+
+        $('body').append(modalHtml);
+
+        $('#license-request-cart-project, #license-request-cart-needed-by-date').on('change keyup', function () {
+            refreshLicenseRequestCartPreview();
+        });
+
+        $('#license-request-cart-create-project').on('click', function () {
+            createProjectFromRequestModal('#license-request-cart-project', '#license-request-cart-modal-error');
+        });
+
+        $('#license-request-cart-clear').on('click', function () {
+            $.post(licenseRequestCartClearUrl, {_token: '{{ csrf_token() }}'}).done(function (response) {
+                updateLicenseRequestCartCount(response.cart_count || 0);
+                refreshLicenseRequestCartPreview();
+            });
+        });
+    }
+
+    function updateLicenseRequestCartCount(count) {
+        $('.license-request-cart-count').text(count);
+    }
+
+    function getInlineLicenseBookingQuantity(licenseId) {
+        var value = $('#license-booking-quantity-' + licenseId).val();
+        var quantity = parseInt(value, 10);
+
+        return Number.isFinite(quantity) ? quantity : 0;
+    }
+
+    function getInlineLicenseDisciplineId(licenseId) {
+        var value = $('#license-booking-discipline-' + licenseId).val();
+        var disciplineId = parseInt(value, 10);
+
+        return Number.isFinite(disciplineId) ? disciplineId : 0;
+    }
+
+    function getInlineLicenseCompanyId(licenseId) {
+        var value = $('#license-booking-company-' + licenseId).val();
+        var companyId = parseInt(value, 10);
+
+        return Number.isFinite(companyId) ? companyId : 0;
+    }
+
+    function getInlineLicenseAssigneeType(licenseId) {
+        return $('#license-booking-assignee-type-' + licenseId).val() || '';
+    }
+
+    function getInlineLicenseAssigneeDisplay(licenseId) {
+        return ($('#license-booking-assignee-display-' + licenseId).val() || '').trim();
+    }
+
+    function buildInlineLicenseBookingInput(licenseId, quantity) {
+        return '<input type="number" min="1" id="license-booking-quantity-' + licenseId + '" value="' + quantity + '" class="form-control input-sm" style="width:70px;height:30px;padding:4px 6px;display:inline-block;">';
+    }
+
+    function buildInlineLicenseDisciplineSelect(licenseId, selectedDisciplineId) {
+        return '<select id="license-booking-discipline-' + licenseId + '" class="form-control input-sm" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
+            + buildModelRequestDisciplineOptions(selectedDisciplineId || '')
+            + '</select>';
+    }
+
+    function buildInlineLicenseCompanySelect(licenseId, selectedCompanyId) {
+        return '<select id="license-booking-company-' + licenseId + '" class="form-control input-sm" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
+            + buildModelRequestCompanyOptions(selectedCompanyId || '')
+            + '</select>';
+    }
+
+    function buildInlineLicenseAssigneeTypeSelect(licenseId, selectedType) {
+        return '<select id="license-booking-assignee-type-' + licenseId + '" class="form-control input-sm" style="width:110px;height:30px;padding:4px 6px;display:inline-block;">'
+            + '<option value="">Assignee Type</option>'
+            + '<option value="user"' + (String(selectedType || '') === 'user' ? ' selected' : '') + '>User</option>'
+            + '<option value="asset"' + (String(selectedType || '') === 'asset' ? ' selected' : '') + '>Asset</option>'
+            + '</select>';
+    }
+
+    function buildInlineLicenseAssigneeInput(licenseId, value) {
+        return '<input type="text" id="license-booking-assignee-display-' + licenseId + '" value="' + escapeHtml(value || '') + '" class="form-control input-sm" style="width:170px;height:30px;padding:4px 6px;display:inline-block;" placeholder="Assignee name or asset tag">';
+    }
+
+    function addLinesToLicenseRequestCart(lines, openCartOnSuccess) {
+        return $.ajax({
+            url: licenseRequestCartAddUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                _token: '{{ csrf_token() }}',
+                lines: lines
+            }
+        }).done(function (response) {
+            updateLicenseRequestCartCount(response.cart_count || 0);
+            showLicenseRequestCartToast(lines.length > 1 ? 'Licenses added to cart.' : 'License added to cart.');
+
+            if (openCartOnSuccess) {
+                openLicenseRequestCartModal();
+            }
+        }).fail(function (xhr) {
+            var message = 'Unable to add licenses to the request cart.';
+
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                    message = xhr.responseJSON.errors[firstKey][0];
+                }
+            }
+
+            window.alert(message);
+        });
+    }
+
+    function addInlineLicenseRowToCart(licenseId) {
+        var quantity = getInlineLicenseBookingQuantity(licenseId);
+        var disciplineId = getInlineLicenseDisciplineId(licenseId);
+        var companyId = getInlineLicenseCompanyId(licenseId);
+        var assigneeType = getInlineLicenseAssigneeType(licenseId);
+        var assigneeDisplay = getInlineLicenseAssigneeDisplay(licenseId);
+
+        if (!quantity) {
+            window.alert('Enter a total needed quantity first.');
+            return;
+        }
+
+        if (!assigneeType) {
+            window.alert('Select an assignee type first.');
+            return;
+        }
+
+        if (!assigneeDisplay) {
+            window.alert('Enter the assignee first.');
+            return;
+        }
+
+        if (!disciplineId) {
+            window.alert('Select a discipline first.');
+            return;
+        }
+
+        if (!companyId) {
+            window.alert('Select a company first.');
+            return;
+        }
+
+        addLinesToLicenseRequestCart([{
+            license_id: licenseId,
+            quantity: quantity,
+            discipline_id: disciplineId,
+            company_id: companyId,
+            requested_for_type: assigneeType,
+            requested_for_display: assigneeDisplay
+        }], false);
+    }
+
+    function renderLicenseRequestCartLines(lines, metadataReady) {
+        var rows = [];
+
+        if (!lines.length) {
+            rows.push('<tr><td colspan="12" class="text-muted">Your license request cart is empty.</td></tr>');
+        }
+
+        lines.forEach(function (line) {
+            rows.push(
+                '<tr>'
+                + '<td>' + escapeHtml(line.license_name) + '</td>'
+                + '<td>' + escapeHtml(line.requested_for_type) + '</td>'
+                + '<td>' + escapeHtml(line.requested_for_display) + '</td>'
+                + '<td>' + escapeHtml(line.discipline_name) + '</td>'
+                + '<td>' + escapeHtml(line.company_name) + '</td>'
+                + '<td>' + line.quantity + '</td>'
+                + '<td>' + (metadataReady ? line.reusable_quantity : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.expected_release_before_needed_by_quantity : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.procurement_shortfall : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.estimated_savings_formatted : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.amount_to_buy_formatted : '&mdash;') + '</td>'
+                + '<td><button type="button" class="btn btn-danger btn-xs" onclick="removeLineFromLicenseRequestCart(' + line.license_id + ', ' + line.discipline_id + ', ' + line.company_id + ', \'' + encodeURIComponent(line.requested_for_type) + '\', \'' + encodeURIComponent(line.requested_for_display) + '\')"><i class="fas fa-times" aria-hidden="true"></i></button></td>'
+                + '</tr>'
+            );
+        });
+
+        $('#license-request-cart-lines').html(rows.join(''));
+    }
+
+    function renderLicenseRequestCartTotals(totals, formattedTotals, metadataReady) {
+        $('#license-request-cart-total-requested').text(totals.quantity || 0);
+        $('#license-request-cart-total-reusable').html(metadataReady ? (totals.reusable_quantity || 0) : '&mdash;');
+        $('#license-request-cart-total-expected-release').html(metadataReady ? (totals.expected_release_before_needed_by_quantity || 0) : '&mdash;');
+        $('#license-request-cart-total-shortfall').html(metadataReady ? (totals.procurement_shortfall || 0) : '&mdash;');
+        $('#license-request-cart-total-savings').html(metadataReady ? formattedTotals.estimated_savings : '&mdash;');
+        $('#license-request-cart-total-buy').html(metadataReady ? formattedTotals.amount_to_buy : '&mdash;');
+    }
+
+    function refreshLicenseRequestCartPreview() {
+        var projectId = $('#license-request-cart-project').val();
+        var neededByDate = $('#license-request-cart-needed-by-date').val();
+        var metadataReady = Boolean(projectId && neededByDate);
+
+        $.ajax({
+            url: licenseRequestCartPreviewUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                _token: '{{ csrf_token() }}',
+                project_id: projectId,
+                needed_by_date: neededByDate
+            }
+        }).done(function (response) {
+            $('#license-request-cart-modal-error').hide().text('');
+            updateLicenseRequestCartCount(response.cart_count || 0);
+            renderLicenseRequestCartLines(response.lines || [], metadataReady);
+            renderLicenseRequestCartTotals(response.totals || {}, response.totals_formatted || {}, metadataReady);
+            $('#license-request-cart-submit').prop('disabled', !response.cart_count);
+        }).fail(function (xhr) {
+            var message = 'Unable to load the request cart.';
+
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                    message = xhr.responseJSON.errors[firstKey][0];
+                }
+            }
+
+            $('#license-request-cart-modal-error').text(message).show();
+        });
+    }
+
+    function openLicenseRequestCartModal() {
+        ensureLicenseRequestCartModal();
+        $('#license-request-cart-modal').modal('show');
+        refreshLicenseRequestCartPreview();
+    }
+
+    function removeLineFromLicenseRequestCart(licenseId, disciplineId, companyId, requestedForType, requestedForDisplay) {
+        $.post(licenseRequestCartRemoveUrl, {
+            _token: '{{ csrf_token() }}',
+            license_id: licenseId,
+            discipline_id: disciplineId,
+            company_id: companyId,
+            requested_for_type: decodeURIComponent(requestedForType),
+            requested_for_display: decodeURIComponent(requestedForDisplay)
+        }).done(function (response) {
+            updateLicenseRequestCartCount(response.cart_count || 0);
+            refreshLicenseRequestCartPreview();
+        });
+    }
+
     function removeLineFromModelRequestCart(modelId, disciplineId, companyId) {
         $.post(modelRequestCartRemoveUrl, {
             _token: '{{ csrf_token() }}',
@@ -2339,30 +2709,6 @@
         var requestedForDisplay = row.requested_for_display || '';
         var actionBarId = 'license-request-actions-' + row.id;
         var editStateId = 'license-request-edit-' + row.id;
-        var requestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name'])->map(fn ($project) => ['id' => $project->id, 'name' => $project->name])->values());
-        var requestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name'])->map(fn ($discipline) => ['id' => $discipline->id, 'name' => $discipline->name])->values());
-        var requestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name'])->map(fn ($company) => ['id' => $company->id, 'name' => $company->name])->values());
-
-        var buildOptions = function (items, selectedValue, placeholder) {
-            var options = ['<option value=\"\">' + placeholder + '</option>'];
-
-            items.forEach(function (item) {
-                var selected = String(item.id) === String(selectedValue) ? ' selected' : '';
-                options.push('<option value=\"' + item.id + '\"' + selected + '>' + item.name + '</option>');
-            });
-
-            return options.join('');
-        };
-
-        var escapeHtml = function (value) {
-            return String(value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/\"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        };
-
         var buildLicenseRequestForm = function (actionValue, selectedProjectId, selectedDisciplineId, selectedCompanyId, selectedNeededByDate, selectedForType, selectedForDisplay, selectedQuantity, buttonLabel, buttonClass) {
             return '<form action=\"' + requestUrl + '\" method=\"POST\" style=\"display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:780px;\">'
                 + '@csrf'
@@ -2374,9 +2720,9 @@
                 + '<option value=\"asset\"' + (String(selectedForType) === 'asset' ? ' selected' : '') + '>Asset</option>'
                 + '</select>'
                 + '<input type=\"text\" name=\"requested_for_display\" value=\"' + escapeHtml(selectedForDisplay) + '\" class=\"form-control input-sm\" style=\"min-width:160px;\" placeholder=\"Assignee name or asset tag\" required>'
-                + '<select name=\"requested_discipline_id\" class=\"form-control input-sm\" style=\"min-width:150px;\" required>' + buildOptions(requestDisciplines, selectedDisciplineId, '{{ trans('general.select_discipline') }}') + '</select>'
-                + '<select name=\"company_id\" class=\"form-control input-sm\" style=\"min-width:150px;\" required>' + buildOptions(requestCompanies, selectedCompanyId, '{{ trans('general.select_company') }}') + '</select>'
-                + '<select name=\"project_id\" class=\"form-control input-sm\" style=\"min-width:150px;\" required>' + buildOptions(requestProjects, selectedProjectId, '{{ trans('general.select_project') }}') + '</select>'
+                + '<select name=\"requested_discipline_id\" class=\"form-control input-sm\" style=\"min-width:150px;\" required>' + buildModelRequestDisciplineOptions(selectedDisciplineId) + '</select>'
+                + '<select name=\"company_id\" class=\"form-control input-sm\" style=\"min-width:150px;\" required>' + buildModelRequestCompanyOptions(selectedCompanyId) + '</select>'
+                + '<select name=\"project_id\" class=\"form-control input-sm\" style=\"min-width:150px;\" required>' + buildModelRequestProjectOptions(selectedProjectId) + '</select>'
                 + '<input type=\"date\" name=\"needed_by_date\" value=\"' + selectedNeededByDate + '\" class=\"form-control input-sm\" style=\"width:145px;\" required>'
                 + '<button class=\"btn ' + buttonClass + ' btn-sm\">' + buttonLabel + '</button>'
                 + '</form>';
@@ -2404,9 +2750,16 @@
                 + '<div style="font-size:11px;color:#6b7280;">Expected release is informational only.</div>'
                 + '</div>';
         } else if ((row.available_actions) && (row.available_actions.request === true)) {
-            return '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;">'
-                + buildLicenseRequestForm('create', '', requestedDisciplineId, requestedCompanyId, '', 'user', '', 1, '{{ trans('button.request') }}', 'btn-primary')
-                + '<div style="font-size:11px;color:#6b7280;">Expected release is informational only.</div>'
+            return '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;min-width:430px;">'
+                + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+                + buildInlineLicenseBookingInput(row.id, requestedQuantity)
+                + buildInlineLicenseAssigneeTypeSelect(row.id, requestedForType)
+                + buildInlineLicenseAssigneeInput(row.id, requestedForDisplay)
+                + buildInlineLicenseDisciplineSelect(row.id, requestedDisciplineId)
+                + buildInlineLicenseCompanySelect(row.id, requestedCompanyId)
+                + '<button type="button" class="btn btn-primary btn-sm" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="Add to cart" onclick="addInlineLicenseRowToCart(' + row.id + ');"><i class=\"fas fa-cart-plus\" aria-hidden=\"true\"></i><span class=\"sr-only\">Add to cart</span></button>'
+                + '</div>'
+                + '<div style="font-size:11px;color:#6b7280;">Add the license to cart first, then choose project and needed-by date in the cart. Expected release is informational only.</div>'
                 + '</div>';
         }
 

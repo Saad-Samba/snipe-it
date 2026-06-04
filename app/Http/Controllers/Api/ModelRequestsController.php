@@ -44,6 +44,16 @@ class ModelRequestsController extends Controller
             $checkoutRequests->where('project_id', (int) $request->input('project_id'));
         }
 
+        if ($request->filled('requestable_type')) {
+            $requestableType = trim((string) $request->input('requestable_type'));
+
+            if ($requestableType === 'license') {
+                $checkoutRequests->where('requestable_type', License::class);
+            } elseif ($requestableType === 'asset_model') {
+                $checkoutRequests->where('requestable_type', AssetModel::class);
+            }
+        }
+
         if ($request->filled('project')) {
             $projectSearch = trim((string) $request->input('project'));
             $checkoutRequests->whereHas('project', function ($query) use ($projectSearch) {
@@ -131,7 +141,10 @@ class ModelRequestsController extends Controller
                     ? route('requests.index', ['model_id' => $checkoutRequest->requestable_id])
                     : ($isLicenseRequest ? route('requests.index', ['license_id' => $checkoutRequest->requestable_id]) : null),
                 'project_requests_url' => $checkoutRequest->project_id
-                    ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
+                    ? route('projects.show', [
+                        'project' => $checkoutRequest->project_id,
+                        'tab' => $isLicenseRequest ? 'license-requests' : 'requests',
+                    ])
                     : null,
                 'request_detail_url' => $requestDetailUrl,
                 'reusable_now_url' => $isLicenseRequest

@@ -45,7 +45,7 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->hasAccess('models.request'))
+                    @if (auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request'))
                         <li class="{{ ($activeTab ?? 'assets') === 'requests' ? 'active' : '' }}">
                             <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">
                                 <span class="hidden-lg hidden-md">
@@ -54,6 +54,17 @@
                                 <span class="hidden-xs hidden-sm">
                                     Requests
                                     {!! (!empty($requestSummary) && $requestSummary['requests_count'] > 0) ? '<span class="badge badge-secondary">'.number_format($requestSummary['requests_count']).'</span>' : '' !!}
+                                </span>
+                            </a>
+                        </li>
+
+                        <li class="{{ ($activeTab ?? 'assets') === 'license-requests' ? 'active' : '' }}">
+                            <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'license-requests']) }}">
+                                <span class="hidden-lg hidden-md">
+                                    <i class="fas fa-key" aria-hidden="true"></i>
+                                </span>
+                                <span class="hidden-xs hidden-sm">
+                                    License Requests
                                 </span>
                             </a>
                         </li>
@@ -107,7 +118,7 @@
                         </div>
                     @endif
 
-                    @if (auth()->user()->hasAccess('models.request'))
+                    @if (auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request'))
                         <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
                             @if (!empty($requestSummary))
                                 @include('account.partials.request-project-summary', ['summary' => $requestSummary])
@@ -119,6 +130,17 @@
                                     'requestMode' => 'requester',
                                     'dataUrl' => route('api.requests.index', ['project_id' => $project->id]),
                                     'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
+                                ])
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'license-requests' ? 'in active' : '' }}" id="license_requests_tab">
+                            <div class="table-responsive">
+                                @include('account.partials.submitted-requests-table', [
+                                    'tableId' => 'projectLicenseRequestsTable',
+                                    'requestMode' => 'requester',
+                                    'dataUrl' => route('api.requests.index', ['project_id' => $project->id, 'requestable_type' => 'license']),
+                                    'exportFileName' => 'project-'.str_slug($project->name).'-license-requests-'.date('Y-m-d'),
                                 ])
                             </div>
                         </div>

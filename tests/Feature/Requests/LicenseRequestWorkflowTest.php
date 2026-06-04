@@ -210,6 +210,119 @@ class LicenseRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.expected_release_before_needed_by_quantity', 1);
     }
 
+    public function test_license_request_cart_submit_creates_project_scoped_requests(): void
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestLicenses()->viewLicenses()->create();
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'License Cart', 'created_by' => $requester->id]);
+        $project = Project::factory()->create();
+        $coordinator = User::factory()->create();
+        $license = License::factory()->create([
+            'category_id' => Category::factory()->forLicenses()->create()->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'reassignable' => true,
+            'purchase_cost' => 200,
+            'seats' => 2,
+        ])->fresh();
+
+        $license->licenseSeats()->orderBy('id')->skip(1)->firstOrFail()->forceFill([
+            'assigned_to' => User::factory()->create()->id,
+            'expected_release_date' => '2026-06-10',
+        ])->save();
+
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-cart.licenses.items.add'), [
+                'lines' => [[
+                    'license_id' => $license->id,
+                    'quantity' => 2,
+                    'discipline_id' => $discipline->id,
+                    'company_id' => $company->id,
+                    'requested_for_type' => 'user',
+                    'requested_for_display' => 'Amina Planner',
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('cart_count', 1);
+
+        $this->actingAs($requester)
+            ->post(route('account.request-cart.licenses.submit'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-15',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('checkout_requests', [
+            'user_id' => $requester->id,
+            'requestable_id' => $license->id,
+            'requestable_type' => License::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $company->id,
+            'requested_for_type' => 'user',
+            'requested_for_display' => 'Amina Planner',
+            'quantity' => 2,
+            'reusable_quantity' => 1,
+            'due_back_before_needed_by_quantity' => 1,
+            'potentially_coverable_quantity' => 2,
+            'procurement_shortfall' => 0,
+        ]);
+
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class);
+    }
+
+    public function test_requested_requests_api_can_be_filtered_to_project_license_requests(): void
+    {
+        $requester = User::factory()->requestLicenses()->viewLicenses()->create();
+        $project = Project::factory()->create();
+        $otherProject = Project::factory()->create();
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Project Filter', 'created_by' => $requester->id]);
+        $license = License::factory()->create([
+            'category_id' => Category::factory()->forLicenses()->create()->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'reassignable' => true,
+            'seats' => 1,
+        ]);
+        $modelRequest = CheckoutRequest::factory()->create([
+            'user_id' => $requester->id,
+            'project_id' => $project->id,
+        ]);
+        $projectLicenseRequest = CheckoutRequest::factory()->forLicense()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $license->id,
+            'requestable_type' => License::class,
+            'project_id' => $project->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
+        ]);
+        CheckoutRequest::factory()->forLicense()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $license->id,
+            'requestable_type' => License::class,
+            'project_id' => $otherProject->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.requests.index', ['project_id' => $project->id, 'requestable_type' => 'license']))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.request_id', $projectLicenseRequest->id)
+            ->assertJsonMissing(['request_id' => $modelRequest->id]);
+    }
+
     public function test_license_seats_api_returns_expected_release_date(): void
     {
         $viewer = User::factory()->superuser()->create();
