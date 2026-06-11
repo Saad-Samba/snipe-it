@@ -24,7 +24,7 @@
                           on project <strong>{{ $requestContext->project->name }}</strong>
                       @endif
                   </span>
-                  <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+                  <a href="{{ route('assets.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
               </div>
           @elseif (!empty($filteredLicense))
               <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
@@ -32,7 +32,7 @@
                       Showing requests for license:
                       <strong>{{ $filteredLicense->name }}</strong>
                   </span>
-                  <a href="{{ route('account.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+                  <a href="{{ route('assets.requested') }}" class="btn btn-default btn-sm">View all submitted requests</a>
               </div>
           @endif
 

@@ -39,7 +39,8 @@ class ProfileController extends Controller
         $this->tokenRepository = $tokenRepository;
     }
 
-     * Delete an API token
+    /**
+     * Create an API token
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]
      * @since [v6.0.5]
