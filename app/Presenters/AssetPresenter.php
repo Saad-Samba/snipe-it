@@ -33,6 +33,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'company',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetObjectNameFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,
@@ -44,6 +46,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'project',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetObjectNameFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,
@@ -55,6 +59,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'discipline',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetObjectNameFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,
@@ -99,6 +105,8 @@ class AssetPresenter extends Presenter
             ],  [
                 'field' => 'model',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetObjectNameFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,
@@ -116,6 +124,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'category',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetObjectNameFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,
@@ -126,6 +136,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'status_label',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetStatusFilterValueCollector',
                 'filterLabelCollector' => 'assetStatusFilterLabelCollector',
                 'searchable' => true,
@@ -137,6 +149,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'assigned_to',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetAssignedToFilterValueCollector',
                 'filterLabelCollector' => 'assetAssignedToFilterLabelCollector',
                 'searchable' => true,
@@ -148,6 +162,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'owner',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetUserFilterValueCollector',
                 'filterLabelCollector' => 'assetUserFilterLabelCollector',
                 'searchable' => true,
@@ -166,6 +182,8 @@ class AssetPresenter extends Presenter
             ],[
                 'field' => 'jobtitle',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetAssignedToJobTitleFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,
@@ -176,6 +194,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'location',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetObjectNameFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,
@@ -186,6 +206,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'rtd_location',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetObjectNameFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,
@@ -196,6 +218,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'manufacturer',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetObjectNameFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,
@@ -206,6 +230,8 @@ class AssetPresenter extends Presenter
             ], [
                 'field' => 'supplier',
                 'filterControl' => 'select',
+                'filterControlMultipleSelect' => true,
+                'filterControlMultipleSelectOptions' => ['size' => 6],
                 'filterDataCollector' => 'assetObjectNameFilterValueCollector',
                 'searchable' => true,
                 'searchFormatter' => true,

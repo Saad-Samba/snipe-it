@@ -81,4 +81,17 @@ class AssetIndexTest extends TestCase
             ->assertDontSee('Unused Model', false)
             ->assertDontSee('data-filter-control-current-page-only', false);
     }
+
+    public function testAssetIndexMarksCategoricalFiltersAsMultiSelect()
+    {
+        $columns = collect(json_decode(\App\Presenters\AssetPresenter::dataTableLayout(), true))
+            ->keyBy('field');
+
+        $this->assertTrue($columns->get('status_label')['filterControlMultipleSelect']);
+        $this->assertTrue($columns->get('model')['filterControlMultipleSelect']);
+        $this->assertTrue($columns->get('category')['filterControlMultipleSelect']);
+        $this->assertSame(6, $columns->get('status_label')['filterControlMultipleSelectOptions']['size']);
+        $this->assertSame(6, $columns->get('model')['filterControlMultipleSelectOptions']['size']);
+        $this->assertSame(6, $columns->get('category')['filterControlMultipleSelectOptions']['size']);
+    }
 }

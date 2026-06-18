@@ -1906,86 +1906,121 @@ class Asset extends Depreciable
         return $query->where(
             function ($query) use ($filter) {
                 foreach ($filter as $key => $search_val) {
+                    $multiValueSearch = static::normalizeBootstrapTableFilterValues($search_val);
+                    $hasMultiValueSearch = count($multiValueSearch) > 1;
+                    $singleSearchValue = $hasMultiValueSearch ? null : ($multiValueSearch[0] ?? $search_val);
 
                     $fieldname = str_replace('custom_fields.', '', $key);
 
                     if ($fieldname == 'asset_tag') {
-                        $query->where('assets.asset_tag', 'LIKE', '%'.$search_val.'%');
+                        $query->where('assets.asset_tag', 'LIKE', '%'.$singleSearchValue.'%');
                     }
 
                     if ($fieldname == 'name') {
-                        $query->where('assets.name', 'LIKE', '%'.$search_val.'%');
+                        $query->where('assets.name', 'LIKE', '%'.$singleSearchValue.'%');
                     }
 
 
                     if ($fieldname =='serial') {
-                        $query->where('assets.serial', 'LIKE', '%'.$search_val.'%');
+                        $query->where('assets.serial', 'LIKE', '%'.$singleSearchValue.'%');
                     }
 
                     if ($fieldname == 'purchase_date') {
-                        $query->where('assets.purchase_date', 'LIKE', '%'.$search_val.'%');
+                        $query->where('assets.purchase_date', 'LIKE', '%'.$singleSearchValue.'%');
                     }
 
                     if ($fieldname == 'purchase_cost') {
-                        $query->where('assets.purchase_cost', 'LIKE', '%'.$search_val.'%');
+                        $query->where('assets.purchase_cost', 'LIKE', '%'.$singleSearchValue.'%');
                     }
 
                     if ($fieldname == 'notes') {
-                        $query->where('assets.notes', 'LIKE', '%'.$search_val.'%');
+                        $query->where('assets.notes', 'LIKE', '%'.$singleSearchValue.'%');
                     }
 
                     if ($fieldname == 'order_number') {
-                        $query->where('assets.order_number', 'LIKE', '%'.$search_val.'%');
+                        $query->where('assets.order_number', 'LIKE', '%'.$singleSearchValue.'%');
                     }
 
                     if ($fieldname == 'status_label') {
                         $query->whereHas(
-                            'assetstatus', function ($query) use ($search_val) {
-                                $query->where('status_labels.name', 'LIKE', '%'.$search_val.'%');
+                            'assetstatus', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                                if ($hasMultiValueSearch) {
+                                    $query->whereIn('status_labels.name', $multiValueSearch);
+                                    return;
+                                }
+
+                                $query->where('status_labels.name', 'LIKE', '%'.$singleSearchValue.'%');
                             }
                         );
                     }
 
                     if ($fieldname == 'location') {
                         $query->whereHas(
-                            'location', function ($query) use ($search_val) {
-                                $query->where('locations.name', 'LIKE', '%'.$search_val.'%');
+                            'location', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                                if ($hasMultiValueSearch) {
+                                    $query->whereIn('locations.name', $multiValueSearch);
+                                    return;
+                                }
+
+                                $query->where('locations.name', 'LIKE', '%'.$singleSearchValue.'%');
                             }
                         );
                     }
 
                     if ($fieldname == 'rtd_location') {
                         $query->whereHas(
-                            'defaultLoc', function ($query) use ($search_val) {
-                                $query->where('locations.name', 'LIKE', '%'.$search_val.'%');
+                            'defaultLoc', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                                if ($hasMultiValueSearch) {
+                                    $query->whereIn('locations.name', $multiValueSearch);
+                                    return;
+                                }
+
+                                $query->where('locations.name', 'LIKE', '%'.$singleSearchValue.'%');
                             }
                         );
                     }
 
                     if ($fieldname == 'assigned_to') {
-                        $query->where(function ($query) use ($search_val) {
+                        $query->where(function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
                             $query->whereHasMorph(
-                                'assignedTo', [User::class], function ($query) use ($search_val) {
+                                'assignedTo', [User::class], function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
                                     $query->where(
-                                        function ($query) use ($search_val) {
-                                            $query->where('users.first_name', 'LIKE', '%'.$search_val.'%')
-                                                ->orWhere('users.last_name', 'LIKE', '%'.$search_val.'%')
-                                                ->orWhere('users.username', 'LIKE', '%'.$search_val.'%');
+                                        function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                                            if ($hasMultiValueSearch) {
+                                                $query->whereIn('users.username', $multiValueSearch)
+                                                    ->orWhereIn(DB::raw("TRIM(CONCAT(COALESCE(users.first_name, ''), ' ', COALESCE(users.last_name, '')))"), $multiValueSearch);
+                                                return;
+                                            }
+
+                                            $query->where('users.first_name', 'LIKE', '%'.$singleSearchValue.'%')
+                                                ->orWhere('users.last_name', 'LIKE', '%'.$singleSearchValue.'%')
+                                                ->orWhere('users.username', 'LIKE', '%'.$singleSearchValue.'%');
                                         }
                                     );
                                 }
                             )->orWhereHasMorph(
-                                'assignedTo', [Location::class], function ($query) use ($search_val) {
-                                    $query->where('locations.name', 'LIKE', '%'.$search_val.'%');
+                                'assignedTo', [Location::class], function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                                    if ($hasMultiValueSearch) {
+                                        $query->whereIn('locations.name', $multiValueSearch);
+                                        return;
+                                    }
+
+                                    $query->where('locations.name', 'LIKE', '%'.$singleSearchValue.'%');
                                 }
                             )->orWhereHasMorph(
-                                'assignedTo', [Asset::class], function ($query) use ($search_val) {
+                                'assignedTo', [Asset::class], function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
                                     $query->where(
-                                        function ($query) use ($search_val) {
+                                        function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
                                             // Don't use the asset table prefix here because it will pull from the original asset,
                                             // not the subselect we're doing here to get the assigned asset
-                                            $query->where('name', 'LIKE', '%'.$search_val.'%')
-                                                ->orWhere('asset_tag', 'LIKE', '%'.$search_val.'%');
+                                            if ($hasMultiValueSearch) {
+                                                $query->whereIn('name', $multiValueSearch)
+                                                    ->orWhereIn('asset_tag', $multiValueSearch);
+                                                return;
+                                            }
+
+                                            $query->where('name', 'LIKE', '%'.$singleSearchValue.'%')
+                                                ->orWhere('asset_tag', 'LIKE', '%'.$singleSearchValue.'%');
                                         }
                                     );
                                 }
@@ -1996,13 +2031,20 @@ class Asset extends Depreciable
                     if ($fieldname == 'owner') {
                         $query->whereHas(
                             'owner',
-                            function ($query) use ($search_val) {
+                            function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
                                 $query->where(
-                                    function ($query) use ($search_val) {
-                                        $query->where('users.first_name', 'LIKE', '%'.$search_val.'%')
-                                            ->orWhere('users.last_name', 'LIKE', '%'.$search_val.'%')
-                                            ->orWhere('users.username', 'LIKE', '%'.$search_val.'%')
-                                            ->orWhere('users.employee_num', 'LIKE', '%'.$search_val.'%');
+                                    function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                                        if ($hasMultiValueSearch) {
+                                            $query->whereIn('users.username', $multiValueSearch)
+                                                ->orWhereIn(DB::raw("TRIM(CONCAT(COALESCE(users.first_name, ''), ' ', COALESCE(users.last_name, '')))"), $multiValueSearch)
+                                                ->orWhereIn('users.employee_num', $multiValueSearch);
+                                            return;
+                                        }
+
+                                        $query->where('users.first_name', 'LIKE', '%'.$singleSearchValue.'%')
+                                            ->orWhere('users.last_name', 'LIKE', '%'.$singleSearchValue.'%')
+                                            ->orWhere('users.username', 'LIKE', '%'.$singleSearchValue.'%')
+                                            ->orWhere('users.employee_num', 'LIKE', '%'.$singleSearchValue.'%');
                                     }
                                 );
                             }
@@ -2012,12 +2054,17 @@ class Asset extends Depreciable
 
                     if ($fieldname == 'manufacturer') {
                         $query->whereHas(
-                            'model', function ($query) use ($search_val) {
+                            'model', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
                                 $query->whereHas(
-                                    'manufacturer', function ($query) use ($search_val) {
+                                    'manufacturer', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
                                         $query->where(
-                                            function ($query) use ($search_val) {
-                                                $query->where('manufacturers.name', 'LIKE', '%'.$search_val.'%');
+                                            function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                                                if ($hasMultiValueSearch) {
+                                                    $query->whereIn('manufacturers.name', $multiValueSearch);
+                                                    return;
+                                                }
+
+                                                $query->where('manufacturers.name', 'LIKE', '%'.$singleSearchValue.'%');
                                             }
                                         );
                                     }
@@ -2028,14 +2075,19 @@ class Asset extends Depreciable
 
                     if ($fieldname == 'category') {
                         $query->whereHas(
-                            'model', function ($query) use ($search_val) {
+                            'model', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
                                 $query->whereHas(
-                                    'category', function ($query) use ($search_val) {
+                                    'category', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
                                         $query->where(
-                                            function ($query) use ($search_val) {
-                                                $query->where('categories.name', 'LIKE', '%'.$search_val.'%')
-                                                    ->orWhere('models.name', 'LIKE', '%'.$search_val.'%')
-                                                    ->orWhere('models.model_number', 'LIKE', '%'.$search_val.'%');
+                                            function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                                                if ($hasMultiValueSearch) {
+                                                    $query->whereIn('categories.name', $multiValueSearch);
+                                                    return;
+                                                }
+
+                                                $query->where('categories.name', 'LIKE', '%'.$singleSearchValue.'%')
+                                                    ->orWhere('models.name', 'LIKE', '%'.$singleSearchValue.'%')
+                                                    ->orWhere('models.model_number', 'LIKE', '%'.$singleSearchValue.'%');
                                             }
                                         );
                                     }
@@ -2046,8 +2098,12 @@ class Asset extends Depreciable
 
                     if ($fieldname == 'model') {
                         $query->whereHas(
-                            'model', function ($query) use ($search_val) {
-                            $query->where('models.name', 'LIKE', '%'.$search_val.'%');
+                            'model', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                            if ($hasMultiValueSearch) {
+                                $query->whereIn('models.name', $multiValueSearch);
+                                return;
+                            }
+                            $query->where('models.name', 'LIKE', '%'.$singleSearchValue.'%');
                         }
                         );
                     }
@@ -2055,8 +2111,8 @@ class Asset extends Depreciable
 
                     if ($fieldname == 'model_number') {
                         $query->whereHas(
-                            'model', function ($query) use ($search_val) {
-                            $query->where('models.model_number', 'LIKE', '%'.$search_val.'%');
+                            'model', function ($query) use ($singleSearchValue) {
+                            $query->where('models.model_number', 'LIKE', '%'.$singleSearchValue.'%');
                         }
                         );
                     }
@@ -2064,45 +2120,57 @@ class Asset extends Depreciable
 
                     if ($fieldname == 'company') {
                         $query->whereHas(
-                            'company', function ($query) use ($search_val) {
-                            $query->where('companies.name', 'LIKE', '%'.$search_val.'%');
+                            'company', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                            if ($hasMultiValueSearch) {
+                                $query->whereIn('companies.name', $multiValueSearch);
+                                return;
+                            }
+                            $query->where('companies.name', 'LIKE', '%'.$singleSearchValue.'%');
                         }
                         );
                     }
 
                     if ($fieldname == 'supplier') {
                         $query->whereHas(
-                            'supplier', function ($query) use ($search_val) {
-                            $query->where('suppliers.name', 'LIKE', '%'.$search_val.'%');
+                            'supplier', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                            if ($hasMultiValueSearch) {
+                                $query->whereIn('suppliers.name', $multiValueSearch);
+                                return;
+                            }
+                            $query->where('suppliers.name', 'LIKE', '%'.$singleSearchValue.'%');
                         }
                         );
                     }
                     
                     if ($fieldname == 'status_label') {
                         $query->whereHas(
-                            'assetstatus', function ($query) use ($search_val) {
-                            $query->where('status_labels.name', 'LIKE', '%'.$search_val.'%');
+                            'assetstatus', function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                            if ($hasMultiValueSearch) {
+                                $query->whereIn('status_labels.name', $multiValueSearch);
+                                return;
+                            }
+                            $query->where('status_labels.name', 'LIKE', '%'.$singleSearchValue.'%');
                         }
                         );
                     }
 
                     if ($fieldname == 'jobtitle') {
-                        $query->where(function ($query) use ($search_val) {
-                            if (is_array($search_val)) {
+                        $query->where(function ($query) use ($multiValueSearch, $singleSearchValue, $hasMultiValueSearch) {
+                            if ($hasMultiValueSearch) {
                                 $query->whereHasMorph(
                                     'assignedTo',
                                     [User::class],
-                                    function ($query) use ($search_val) {
-                                        $query->whereIn('users.jobtitle', $search_val);
+                                    function ($query) use ($multiValueSearch) {
+                                        $query->whereIn('users.jobtitle', $multiValueSearch);
                                     }
                                 );
                             } else {
                                 $query->whereHasMorph(
                                     'assignedTo',
                                     [User::class],
-                                    function ($query) use ($search_val) {
-                                        $query->where(function ($query) use ($search_val) {
-                                            $query->where('users.jobtitle', 'LIKE', '%' . $search_val . '%');
+                                    function ($query) use ($singleSearchValue) {
+                                        $query->where(function ($query) use ($singleSearchValue) {
+                                            $query->where('users.jobtitle', 'LIKE', '%' . $singleSearchValue . '%');
                                         });
                                     }
                                 );
@@ -2136,7 +2204,7 @@ class Asset extends Depreciable
                     if (($fieldname!='category') && ($fieldname!='model_number') && ($fieldname!='rtd_location') && ($fieldname!='location') && ($fieldname!='supplier')
                         && ($fieldname!='status_label') && ($fieldname!='assigned_to') && ($fieldname!='model')  && ($fieldname!='jobtitle') && ($fieldname!='company') && ($fieldname!='manufacturer')
                     ) {
-                        $query->where('assets.'.$fieldname, 'LIKE', '%' . $search_val . '%');
+                        $query->where('assets.'.$fieldname, 'LIKE', '%' . $singleSearchValue . '%');
                     }
 
 
@@ -2391,7 +2459,23 @@ class Asset extends Depreciable
                 );
             }
         );
+    }
 
+    protected static function normalizeBootstrapTableFilterValues($searchVal): array
+    {
+        if (is_array($searchVal)) {
+            return array_values(array_filter(array_map(function ($value) {
+                return trim((string) $value);
+            }, $searchVal), function ($value) {
+                return $value !== '';
+            }));
+        }
+
+        return array_values(array_filter(array_map(function ($value) {
+            return trim($value);
+        }, explode(',', (string) $searchVal)), function ($value) {
+            return $value !== '';
+        }));
     }
 
 

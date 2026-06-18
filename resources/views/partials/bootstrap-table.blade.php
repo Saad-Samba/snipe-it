@@ -11,6 +11,81 @@
 <script src="{{ url(mix('js/dist/bootstrap-table-en-US.min.js')) }}"></script>
 
 <script nonce="{{ csrf_token() }}">
+    (function bootstrapTableMultiSelectPatch() {
+        if (!$.fn.bootstrapTable || !$.fn.bootstrapTable.Constructor || $.fn.bootstrapTable.Constructor.prototype._snipeMultiSelectPatched) {
+            return;
+        }
+
+        var BootstrapTable = $.fn.bootstrapTable.Constructor;
+        var originalOnColumnSearch = BootstrapTable.prototype.onColumnSearch;
+
+        BootstrapTable.prototype.onColumnSearch = function (_ref) {
+            var currentTarget = _ref.currentTarget;
+            var keyCode = _ref.keyCode;
+            var $currentTarget = $(currentTarget);
+            var field = $currentTarget.closest('[data-field]').data('field');
+            var column = this.columns[this.fieldsColumnsIndex[field]];
+            var delimiter = this.options.filterControlMultipleSearchDelimiter || ',';
+
+            if (!column || !column.filterControlMultipleSelect || !$currentTarget.is('select[multiple]')) {
+                return originalOnColumnSearch.call(this, _ref);
+            }
+
+            if (isKeyAllowed(keyCode)) {
+                return;
+            }
+
+            cacheValues(this);
+
+            if (!this.options.cookie) {
+                this.options.pageNumber = 1;
+            } else {
+                this._filterControlValuesLoaded = true;
+            }
+
+            if ($.fn.bootstrapTable.utils.isEmptyObject(this.filterColumnsPartial)) {
+                this.filterColumnsPartial = {};
+            }
+
+            var controls = this.options.searchOnEnterKey ? getSearchControls(this).toArray() : [currentTarget];
+            var that = this;
+
+            controls.forEach(function (element) {
+                var $element = $(element);
+                var elementValue = $element.val();
+                var text = '';
+
+                if (Array.isArray(elementValue)) {
+                    text = elementValue
+                        .map(function (value) {
+                            return value ? String(value).trim() : '';
+                        })
+                        .filter(function (value) {
+                            return value !== '';
+                        })
+                        .join(delimiter);
+                } else {
+                    text = elementValue ? String(elementValue).trim() : '';
+                }
+
+                var elementField = $element.closest('[data-field]').data('field');
+                that.trigger('column-search', elementField, text);
+
+                if (text) {
+                    that.filterColumnsPartial[elementField] = text;
+                } else {
+                    delete that.filterColumnsPartial[elementField];
+                }
+            });
+
+            this.onSearch({
+                currentTarget: currentTarget
+            }, false);
+        };
+
+        BootstrapTable.prototype._snipeMultiSelectPatched = true;
+    })();
+
     function getNestedBootstrapTableValue(source, path) {
         if (!source || !path) {
             return null;
@@ -178,6 +253,61 @@
         return options;
     }
 
+    function getFilterControlSelectedValues($select) {
+        var selectedValue = $select.val();
+
+        if (Array.isArray(selectedValue)) {
+            return selectedValue.filter(function (value) {
+                return value !== null && value !== undefined && String(value).trim() !== '';
+            }).map(function (value) {
+                return String(value).trim();
+            });
+        }
+
+        if (selectedValue === null || selectedValue === undefined || String(selectedValue).trim() === '') {
+            return [];
+        }
+
+        return [String(selectedValue).trim()];
+    }
+
+    function setFilterControlSelectedValues($select, selectedValues) {
+        if ($select.prop('multiple')) {
+            $select.val(selectedValues);
+            return;
+        }
+
+        $select.val(selectedValues.length > 0 ? selectedValues[0] : '');
+    }
+
+    function enhanceMultiSelectFilterControls($table) {
+        var tableOptions = $table.bootstrapTable('getOptions');
+
+        $table.closest('.bootstrap-table').find('thead select[class*="bootstrap-table-filter-control-"]').each(function () {
+            var $select = $(this);
+            var field = $select.closest('[data-field]').data('field');
+            var column = getBootstrapTableColumnDefinition(tableOptions, field);
+
+            if (!column || !column.filterControlMultipleSelect) {
+                return;
+            }
+
+            var selectedValues = getFilterControlSelectedValues($select);
+            var size = 6;
+
+            if (column.filterControlMultipleSelectOptions && column.filterControlMultipleSelectOptions.size) {
+                size = parseInt(column.filterControlMultipleSelectOptions.size, 10) || size;
+            }
+
+            $select.prop('multiple', true)
+                .attr('multiple', 'multiple')
+                .attr('size', size)
+                .addClass('bootstrap-table-filter-control-multiple');
+
+            setFilterControlSelectedValues($select, selectedValues);
+        });
+    }
+
     function syncLoadedRowFilterControlOptions($table, rowsOverride) {
         if ($table.data('filter-control-current-page-only') !== true && $table.data('filter-control-cascade') !== true) {
             return;
@@ -197,13 +327,15 @@
                 return;
             }
 
-            var selectedValue = $select.val();
+            var selectedValues = getFilterControlSelectedValues($select);
             var placeholderText = $select.find('option').first().text() || ' ';
             var optionMap = collectCurrentPageFilterOptions(rows, column);
 
-            if (selectedValue && !optionMap[selectedValue]) {
-                optionMap[selectedValue] = selectedValue;
-            }
+            selectedValues.forEach(function (selectedValue) {
+                if (!optionMap[selectedValue]) {
+                    optionMap[selectedValue] = selectedValue;
+                }
+            });
 
             var sortedValues = Object.keys(optionMap).sort(function (left, right) {
                 return optionMap[left].localeCompare(optionMap[right]);
@@ -212,12 +344,10 @@
             $select.empty().append(new Option(placeholderText, ''));
 
             sortedValues.forEach(function (value) {
-                $select.append(new Option(optionMap[value], value, false, value === selectedValue));
+                $select.append(new Option(optionMap[value], value, false, selectedValues.indexOf(value) !== -1));
             });
 
-            if (selectedValue) {
-                $select.val(selectedValue);
-            }
+            setFilterControlSelectedValues($select, selectedValues);
         });
     }
 
@@ -235,31 +365,32 @@
                 return;
             }
 
-            var selectedValue = $select.val();
+            var selectedValues = getFilterControlSelectedValues($select);
             var placeholderText = $select.find('option').first().text() || ' ';
             var sortedValues = Object.keys(optionMap).sort(function (left, right) {
                 return String(optionMap[left]).localeCompare(String(optionMap[right]));
             });
 
-            if (selectedValue && !optionMap[selectedValue]) {
-                optionMap[selectedValue] = selectedValue;
-                sortedValues.push(selectedValue);
-                sortedValues = sortedValues.filter(function (value, index, values) {
-                    return values.indexOf(value) === index;
-                }).sort(function (left, right) {
-                    return String(optionMap[left]).localeCompare(String(optionMap[right]));
-                });
-            }
+            selectedValues.forEach(function (selectedValue) {
+                if (!optionMap[selectedValue]) {
+                    optionMap[selectedValue] = selectedValue;
+                    sortedValues.push(selectedValue);
+                }
+            });
+
+            sortedValues = sortedValues.filter(function (value, index, values) {
+                return values.indexOf(value) === index;
+            }).sort(function (left, right) {
+                return String(optionMap[left]).localeCompare(String(optionMap[right]));
+            });
 
             $select.empty().append(new Option(placeholderText, ''));
 
             sortedValues.forEach(function (value) {
-                $select.append(new Option(optionMap[value], value, false, value === selectedValue));
+                $select.append(new Option(optionMap[value], value, false, selectedValues.indexOf(value) !== -1));
             });
 
-            if (selectedValue) {
-                $select.val(selectedValue);
-            }
+            setFilterControlSelectedValues($select, selectedValues);
         });
     }
 
@@ -351,6 +482,8 @@
                 cookieExpire: '2y',
                 cookieStorage: '{{ config('session.bs_table_storage') }}',
                 filterControl: data_with_default('filter-control', false),
+                filterControlMultipleSearch: true,
+                filterControlMultipleSearchDelimiter: ',',
                 iconsPrefix: 'fa',
                 maintainSelected: data_with_default('maintain-selected', true),
                 minimumCountColumns: data_with_default('minimum-count-columns', 2),
@@ -475,10 +608,13 @@
 
             });
 
+            enhanceMultiSelectFilterControls($(this));
+
             if ($(this).data('filter-control-current-page-only') === true || $(this).data('filter-control-cascade') === true || $(this).data('filter-control-server-cascade') === true) {
                 $(this)
                     .off('.loadedRowFilterControl')
                     .on('post-header.bs.table.loadedRowFilterControl', function () {
+                        enhanceMultiSelectFilterControls($(this));
                         syncLoadedRowFilterControlOptions($(this));
                     })
                     .on('load-success.bs.table.loadedRowFilterControl', function (event, data) {
@@ -491,8 +627,18 @@
                         }
 
                         $(this).data('loaded-row-filter-source', rows);
+                        enhanceMultiSelectFilterControls($(this));
                         syncLoadedRowFilterControlOptions($(this), rows);
                         syncServerFilterControlOptions($(this), data && data.filter_options ? data.filter_options : null);
+                    });
+            } else {
+                $(this)
+                    .off('.multiSelectFilterControl')
+                    .on('post-header.bs.table.multiSelectFilterControl', function () {
+                        enhanceMultiSelectFilterControls($(this));
+                    })
+                    .on('load-success.bs.table.multiSelectFilterControl', function () {
+                        enhanceMultiSelectFilterControls($(this));
                     });
             }
 

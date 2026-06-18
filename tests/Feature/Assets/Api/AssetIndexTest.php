@@ -84,6 +84,54 @@ class AssetIndexTest extends TestCase
                 ->etc());
     }
 
+    public function testAssetApiIndexCanFilterByMultipleSelectValuesWithinOneColumn()
+    {
+        $pendingStatus = Statuslabel::factory()->create([
+            'name' => 'Pending QA',
+            'deployable' => 0,
+            'pending' => 1,
+            'archived' => 0,
+        ]);
+
+        $readyStatus = Statuslabel::factory()->readyToDeploy()->create([
+            'name' => 'Ready QA',
+        ]);
+
+        $otherStatus = Statuslabel::factory()->readyToDeploy()->create([
+            'name' => 'Archived QA',
+        ]);
+
+        $pendingAsset = Asset::factory()->create([
+            'name' => 'Pending asset',
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        $readyAsset = Asset::factory()->create([
+            'name' => 'Ready asset',
+            'status_id' => $readyStatus->id,
+        ]);
+
+        $excludedAsset = Asset::factory()->create([
+            'name' => 'Excluded asset',
+            'status_id' => $otherStatus->id,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.assets.index', [
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+                'filter' => json_encode([
+                    'status_label' => 'Pending QA,Ready QA',
+                ]),
+            ]))
+            ->assertOk()
+            ->assertResponseContainsInRows($pendingAsset, 'name')
+            ->assertResponseContainsInRows($readyAsset, 'name')
+            ->assertResponseDoesNotContainInRows($excludedAsset, 'name');
+    }
+
     public function testAssetApiIndexReturnsModelObsoleteFlagAndCanFilterByIt()
     {
         $obsoleteAsset = Asset::factory()->create([
