@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use League\Csv\Reader;
 use Illuminate\Http\Response;
@@ -64,8 +65,242 @@ class AssetsController extends Controller
     {
         $this->authorize('index', Asset::class);
         $company = Company::find($request->input('company_id'));
+        $assetTableFilterData = $this->buildAssetTableFilterData($request);
+        $assetTableColumns = collect(json_decode(\App\Presenters\AssetPresenter::dataTableLayout(), true))
+            ->map(function (array $column) use ($assetTableFilterData) {
+                $field = $column['field'] ?? null;
 
-        return view('hardware/index')->with('company', $company);
+                if ($field && isset($assetTableFilterData[$field])) {
+                    $column['filterData'] = 'json:'.json_encode($assetTableFilterData[$field]);
+                }
+
+                return $column;
+            })
+            ->all();
+
+        return view('hardware/index')
+            ->with('company', $company)
+            ->with('assetTableColumns', json_encode($assetTableColumns));
+    }
+
+    private function buildAssetTableFilterData(Request $request): array
+    {
+        $assets = $this->buildAssetTableFilterAssetCollection($request);
+
+        return [
+            'company' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->company)->name),
+            'project' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->project)->name),
+            'discipline' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->discipline)->name),
+            'model' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->model)->name),
+            'category' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional(optional($asset->model)->category)->name),
+            'status_label' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->assetstatus)->name),
+            'assigned_to' => $this->collectAssetTableFilterOptions(
+                $assets,
+                fn (Asset $asset) => $this->assignedToFilterValue($asset),
+                fn (Asset $asset) => $this->assignedToFilterLabel($asset)
+            ),
+            'owner' => $this->collectAssetTableFilterOptions(
+                $assets,
+                fn (Asset $asset) => $this->ownerFilterValue($asset),
+                fn (Asset $asset) => $this->ownerFilterLabel($asset)
+            ),
+            'jobtitle' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => $this->assignedToJobTitleFilterValue($asset)),
+            'location' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->location)->name),
+            'rtd_location' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->defaultLoc)->name),
+            'manufacturer' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional(optional($asset->model)->manufacturer)->name),
+            'supplier' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->supplier)->name),
+        ];
+    }
+
+    private function buildAssetTableFilterAssetCollection(Request $request): Collection
+    {
+        $settings = Setting::getSettings();
+        $assets = Asset::query()
+            ->with([
+                'assetstatus',
+                'assignedTo',
+                'company',
+                'defaultLoc',
+                'discipline',
+                'location',
+                'model',
+                'model.category',
+                'model.manufacturer',
+                'owner',
+                'project',
+                'supplier',
+            ]);
+
+        switch ($request->input('status')) {
+            case 'Deleted':
+                $assets->onlyTrashed();
+                break;
+            case 'Pending':
+                $assets->whereHas('assetstatus', function ($query) {
+                    $query->where('deployable', '=', 0)
+                        ->where('pending', '=', 1)
+                        ->where('archived', '=', 0);
+                });
+                break;
+            case 'RTD':
+                $assets->whereNull('assets.assigned_to')
+                    ->whereHas('assetstatus', function ($query) {
+                        $query->where('deployable', '=', 1)
+                            ->where('pending', '=', 0)
+                            ->where('archived', '=', 0);
+                    });
+                break;
+            case 'Undeployable':
+                $assets->Undeployable();
+                break;
+            case 'Archived':
+                $assets->whereHas('assetstatus', function ($query) {
+                    $query->where('archived', '=', 1);
+                });
+                break;
+            case 'Requestable':
+                $assets->where('assets.requestable', '=', 1)
+                    ->whereHas('assetstatus', function ($query) {
+                        $query->where('deployable', '=', 1)
+                            ->where('pending', '=', 0)
+                            ->where('archived', '=', 0);
+                    });
+                break;
+            case 'Deployed':
+                $assets->whereNotNull('assets.assigned_to');
+                break;
+            case 'byod':
+                $assets->where('assets.byod', '=', 1);
+                break;
+            default:
+                if ((! $request->filled('status_id')) && ($settings->show_archived_in_list != '1')) {
+                    $assets->whereHas('assetstatus', function ($query) {
+                        $query->where('archived', '=', 0);
+                    });
+                }
+                break;
+        }
+
+        if ($request->filled('status_id')) {
+            $assets->where('assets.status_id', '=', $request->input('status_id'));
+        }
+
+        if ($request->filled('assignment')) {
+            if ($request->input('assignment') === 'assigned') {
+                $assets->whereNotNull('assets.assigned_to');
+            } elseif ($request->input('assignment') === 'unassigned') {
+                $assets->whereNull('assets.assigned_to');
+            }
+        }
+
+        if ($request->filled('model_obsolete')) {
+            $assets->whereHas('model', function ($query) use ($request) {
+                $query->where('obsolete', '=', filter_var($request->input('model_obsolete'), FILTER_VALIDATE_BOOLEAN));
+            });
+        }
+
+        if ($request->filled('order_number')) {
+            $assets->where('assets.order_number', '=', strval($request->input('order_number')));
+        }
+
+        if ($request->filled('company_id')) {
+            $assets->where('assets.company_id', '=', $request->input('company_id'));
+        }
+
+        return $assets->get();
+    }
+
+    private function collectAssetTableFilterOptions(Collection $assets, callable $valueResolver, ?callable $labelResolver = null): array
+    {
+        $options = [];
+
+        foreach ($assets as $asset) {
+            $value = trim((string) $valueResolver($asset));
+
+            if ($value === '') {
+                continue;
+            }
+
+            $label = $labelResolver ? trim((string) $labelResolver($asset)) : $value;
+            $options[$value] = $label !== '' ? $label : $value;
+        }
+
+        asort($options, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $options;
+    }
+
+    private function assignedToFilterValue(Asset $asset): string
+    {
+        $assigned = $asset->assignedTo;
+
+        if ($assigned instanceof User) {
+            return (string) ($assigned->username ?: $assigned->getFullNameAttribute());
+        }
+
+        if ($assigned instanceof Location) {
+            return (string) ($assigned->name ?: '');
+        }
+
+        if ($assigned instanceof Asset) {
+            return (string) ($assigned->name ?: $assigned->asset_tag ?: '');
+        }
+
+        return '';
+    }
+
+    private function assignedToFilterLabel(Asset $asset): string
+    {
+        $assigned = $asset->assignedTo;
+
+        if ($assigned instanceof User) {
+            $name = trim((string) $assigned->getFullNameAttribute());
+
+            if ($name !== '' && $assigned->username) {
+                return $name.' ('.$assigned->username.')';
+            }
+
+            return $name !== '' ? $name : (string) $assigned->username;
+        }
+
+        if ($assigned instanceof Location) {
+            return (string) ($assigned->name ?: '');
+        }
+
+        if ($assigned instanceof Asset) {
+            return (string) ($assigned->name ?: $assigned->asset_tag ?: '');
+        }
+
+        return '';
+    }
+
+    private function ownerFilterValue(Asset $asset): string
+    {
+        if (! $asset->owner) {
+            return '';
+        }
+
+        return (string) ($asset->owner->username ?: $asset->owner->getFullNameAttribute());
+    }
+
+    private function ownerFilterLabel(Asset $asset): string
+    {
+        if (! $asset->owner) {
+            return '';
+        }
+
+        $name = trim((string) $asset->owner->getFullNameAttribute());
+
+        if ($name !== '' && $asset->owner->username) {
+            return $name.' ('.$asset->owner->username.')';
+        }
+
+        return $name !== '' ? $name : (string) $asset->owner->username;
+    }
+
+    private function assignedToJobTitleFilterValue(Asset $asset): string
+    {
+        return $asset->assignedTo instanceof User ? (string) ($asset->assignedTo->jobtitle ?: '') : '';
     }
 
     /**

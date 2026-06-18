@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\Route;
 use App\View\Label;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Collection;
 
 
 /**
@@ -494,6 +495,9 @@ class AssetsController extends Controller
         $offset = ($request->input('offset') > $assets->count()) ? $assets->count() : app('api_offset_value');
         $limit = app('api_limit_value');
 
+        $filteredAssetsForFilters = (clone $assets)->get();
+        $filterOptions = $this->buildAssetTableFilterOptions($filteredAssetsForFilters);
+
         $total = $assets->count();
         $assets = $assets->skip($offset)->take($limit)->get();
 
@@ -507,7 +511,133 @@ class AssetsController extends Controller
             }]);
         }
 
-        return (new $transformer)->transformAssets($assets, $total, $request);
+        $response = (new $transformer)->transformAssets($assets, $total, $request);
+
+        if (is_array($response)) {
+            $response['filter_options'] = $filterOptions;
+        }
+
+        return $response;
+    }
+
+    private function buildAssetTableFilterOptions(Collection $assets): array
+    {
+        return [
+            'company' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->company)->name),
+            'project' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->project)->name),
+            'discipline' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->discipline)->name),
+            'model' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->model)->name),
+            'category' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional(optional($asset->model)->category)->name),
+            'status_label' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->assetstatus)->name),
+            'assigned_to' => $this->collectAssetTableFilterOptions(
+                $assets,
+                fn (Asset $asset) => $this->assignedToFilterValue($asset),
+                fn (Asset $asset) => $this->assignedToFilterLabel($asset)
+            ),
+            'owner' => $this->collectAssetTableFilterOptions(
+                $assets,
+                fn (Asset $asset) => $this->ownerFilterValue($asset),
+                fn (Asset $asset) => $this->ownerFilterLabel($asset)
+            ),
+            'jobtitle' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => $this->assignedToJobTitleFilterValue($asset)),
+            'location' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->location)->name),
+            'rtd_location' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->defaultLoc)->name),
+            'manufacturer' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional(optional($asset->model)->manufacturer)->name),
+            'supplier' => $this->collectAssetTableFilterOptions($assets, fn (Asset $asset) => optional($asset->supplier)->name),
+        ];
+    }
+
+    private function collectAssetTableFilterOptions(Collection $assets, callable $valueResolver, ?callable $labelResolver = null): array
+    {
+        $options = [];
+
+        foreach ($assets as $asset) {
+            $value = trim((string) $valueResolver($asset));
+
+            if ($value === '') {
+                continue;
+            }
+
+            $label = $labelResolver ? trim((string) $labelResolver($asset)) : $value;
+            $options[$value] = $label !== '' ? $label : $value;
+        }
+
+        asort($options, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $options;
+    }
+
+    private function assignedToFilterValue(Asset $asset): string
+    {
+        $assigned = $asset->assignedTo;
+
+        if ($assigned instanceof User) {
+            return (string) ($assigned->username ?: $assigned->getFullNameAttribute());
+        }
+
+        if ($assigned instanceof Location) {
+            return (string) ($assigned->name ?: '');
+        }
+
+        if ($assigned instanceof Asset) {
+            return (string) ($assigned->name ?: $assigned->asset_tag ?: '');
+        }
+
+        return '';
+    }
+
+    private function assignedToFilterLabel(Asset $asset): string
+    {
+        $assigned = $asset->assignedTo;
+
+        if ($assigned instanceof User) {
+            $name = trim((string) $assigned->getFullNameAttribute());
+
+            if ($name !== '' && $assigned->username) {
+                return $name.' ('.$assigned->username.')';
+            }
+
+            return $name !== '' ? $name : (string) $assigned->username;
+        }
+
+        if ($assigned instanceof Location) {
+            return (string) ($assigned->name ?: '');
+        }
+
+        if ($assigned instanceof Asset) {
+            return (string) ($assigned->name ?: $assigned->asset_tag ?: '');
+        }
+
+        return '';
+    }
+
+    private function ownerFilterValue(Asset $asset): string
+    {
+        if (! $asset->owner) {
+            return '';
+        }
+
+        return (string) ($asset->owner->username ?: $asset->owner->getFullNameAttribute());
+    }
+
+    private function ownerFilterLabel(Asset $asset): string
+    {
+        if (! $asset->owner) {
+            return '';
+        }
+
+        $name = trim((string) $asset->owner->getFullNameAttribute());
+
+        if ($name !== '' && $asset->owner->username) {
+            return $name.' ('.$asset->owner->username.')';
+        }
+
+        return $name !== '' ? $name : (string) $asset->owner->username;
+    }
+
+    private function assignedToJobTitleFilterValue(Asset $asset): string
+    {
+        return $asset->assignedTo instanceof User ? (string) ($asset->assignedTo->jobtitle ?: '') : '';
     }
 
 

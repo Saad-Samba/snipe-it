@@ -3,6 +3,9 @@
 namespace Tests\Feature\Assets\Api;
 
 use App\Models\Asset;
+use App\Models\AssetModel;
+use App\Models\Location;
+use App\Models\Statuslabel;
 use App\Models\Company;
 use App\Models\User;
 use Carbon\Carbon;
@@ -29,6 +32,56 @@ class AssetIndexTest extends TestCase
                 'rows',
             ])
             ->assertJson(fn(AssertableJson $json) => $json->has('rows', 3)->etc());
+    }
+
+    public function testAssetApiIndexReturnsServerBackedFilterOptionsFromFilteredDataset()
+    {
+        $pendingStatus = Statuslabel::factory()->create([
+            'name' => 'Pending QA',
+            'deployable' => 0,
+            'pending' => 1,
+            'archived' => 0,
+        ]);
+
+        $readyStatus = Statuslabel::factory()->readyToDeploy()->create([
+            'name' => 'Ready QA',
+        ]);
+
+        $pendingModel = AssetModel::factory()->create(['name' => 'Pending Model']);
+        $readyModel = AssetModel::factory()->create(['name' => 'Ready Model']);
+        $pendingCompany = Company::factory()->create(['name' => 'Pending Company']);
+        $readyCompany = Company::factory()->create(['name' => 'Ready Company']);
+        $pendingLocation = Location::factory()->create(['name' => 'Pending Location']);
+
+        Asset::factory()->create([
+            'status_id' => $pendingStatus->id,
+            'model_id' => $pendingModel->id,
+            'company_id' => $pendingCompany->id,
+            'location_id' => $pendingLocation->id,
+        ]);
+
+        Asset::factory()->create([
+            'status_id' => $readyStatus->id,
+            'model_id' => $readyModel->id,
+            'company_id' => $readyCompany->id,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.assets.index', [
+                'status' => 'Pending',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('filter_options.model.Pending Model', 'Pending Model')
+                ->where('filter_options.company.Pending Company', 'Pending Company')
+                ->where('filter_options.location.Pending Location', 'Pending Location')
+                ->missing('filter_options.model.Ready Model')
+                ->missing('filter_options.company.Ready Company')
+                ->etc());
     }
 
     public function testAssetApiIndexReturnsModelObsoleteFlagAndCanFilterByIt()
@@ -307,5 +360,85 @@ class AssetIndexTest extends TestCase
             ->assertOk()
             ->assertResponseContainsInRows($assignedOnlyAsset, 'asset_tag')
             ->assertResponseDoesNotContainInRows($ownedOnlyAsset, 'asset_tag');
+    }
+
+    public function testAssetApiIndexCanStackAssignedToAndCompanyFilterControls()
+    {
+        $companyA = Company::factory()->create(['name' => 'Filter Control Company A']);
+        $companyB = Company::factory()->create(['name' => 'Filter Control Company B']);
+
+        $assignee = User::factory()->create([
+            'first_name' => 'Morgan',
+            'last_name' => 'Filter',
+            'username' => 'morgan.filter',
+        ]);
+
+        $matchingAsset = Asset::factory()->for($companyA)->create([
+            'name' => 'Assigned asset in company A',
+            'assigned_to' => $assignee->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $wrongCompanyAsset = Asset::factory()->for($companyB)->create([
+            'name' => 'Assigned asset in company B',
+            'assigned_to' => $assignee->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $wrongAssigneeAsset = Asset::factory()->for($companyA)->create([
+            'name' => 'Unrelated assignee asset',
+            'assigned_to' => User::factory()->create([
+                'first_name' => 'Other',
+                'last_name' => 'Person',
+                'username' => 'other.person',
+            ])->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.assets.index', [
+                'filter' => json_encode([
+                    'assigned_to' => $assignee->getFullNameAttribute(),
+                    'company' => $companyA->name,
+                ]),
+            ]))
+            ->assertOk()
+            ->assertResponseContainsInRows($matchingAsset, 'name')
+            ->assertResponseDoesNotContainInRows($wrongCompanyAsset, 'name')
+            ->assertResponseDoesNotContainInRows($wrongAssigneeAsset, 'name');
+    }
+
+    public function testAssetQueryFiltersAssignedReadyToDeployAssetsByRawStatusLabelName()
+    {
+        $readyToDeployStatus = \App\Models\Statuslabel::factory()->readyToDeploy()->create([
+            'name' => 'Ready to Deploy',
+        ]);
+        $otherStatus = \App\Models\Statuslabel::factory()->pending()->create([
+            'name' => 'Pending Deployment',
+        ]);
+        $assignee = User::factory()->create();
+
+        $matchingAsset = Asset::factory()->create([
+            'name' => 'Assigned RTD asset',
+            'status_id' => $readyToDeployStatus->id,
+            'assigned_to' => $assignee->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $wrongStatusAsset = Asset::factory()->create([
+            'name' => 'Assigned pending asset',
+            'status_id' => $otherStatus->id,
+            'assigned_to' => $assignee->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $matchingIds = Asset::query()
+            ->byFilter([
+                'status_label' => $readyToDeployStatus->name,
+            ])
+            ->pluck('assets.id');
+
+        $this->assertTrue($matchingIds->contains($matchingAsset->id));
+        $this->assertFalse($matchingIds->contains($wrongStatusAsset->id));
     }
 }

@@ -1963,32 +1963,34 @@ class Asset extends Depreciable
                     }
 
                     if ($fieldname == 'assigned_to') {
-                        $query->whereHasMorph(
-                            'assignedTo', [User::class], function ($query) use ($search_val) {
-                                $query->where(
-                                    function ($query) use ($search_val) {
-                                        $query->where('users.first_name', 'LIKE', '%'.$search_val.'%')
-                                            ->orWhere('users.last_name', 'LIKE', '%'.$search_val.'%')
-                                            ->orWhere('users.username', 'LIKE', '%'.$search_val.'%');
-                                    }
-                                );
-                            }
-                        )->orWhereHasMorph(
-                            'assignedTo', [Location::class], function ($query) use ($search_val) {
-                                $query->where('locations.name', 'LIKE', '%'.$search_val.'%');
-                            }
-                        )->orWhereHasMorph(
-                            'assignedTo', [Asset::class], function ($query) use ($search_val) {
-                            $query->where(
-                                function ($query) use ($search_val) {
-                                    // Don't use the asset table prefix here because it will pull from the original asset,
-                                    // not the subselect we're doing here to get the assigned asset
-                                    $query->where('name', 'LIKE', '%'.$search_val.'%')
-                                        ->orWhere('asset_tag', 'LIKE', '%'.$search_val.'%');
+                        $query->where(function ($query) use ($search_val) {
+                            $query->whereHasMorph(
+                                'assignedTo', [User::class], function ($query) use ($search_val) {
+                                    $query->where(
+                                        function ($query) use ($search_val) {
+                                            $query->where('users.first_name', 'LIKE', '%'.$search_val.'%')
+                                                ->orWhere('users.last_name', 'LIKE', '%'.$search_val.'%')
+                                                ->orWhere('users.username', 'LIKE', '%'.$search_val.'%');
+                                        }
+                                    );
+                                }
+                            )->orWhereHasMorph(
+                                'assignedTo', [Location::class], function ($query) use ($search_val) {
+                                    $query->where('locations.name', 'LIKE', '%'.$search_val.'%');
+                                }
+                            )->orWhereHasMorph(
+                                'assignedTo', [Asset::class], function ($query) use ($search_val) {
+                                    $query->where(
+                                        function ($query) use ($search_val) {
+                                            // Don't use the asset table prefix here because it will pull from the original asset,
+                                            // not the subselect we're doing here to get the assigned asset
+                                            $query->where('name', 'LIKE', '%'.$search_val.'%')
+                                                ->orWhere('asset_tag', 'LIKE', '%'.$search_val.'%');
+                                        }
+                                    );
                                 }
                             );
-                        }
-                        );
+                        });
                     }
 
                     if ($fieldname == 'owner') {

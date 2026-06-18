@@ -11,6 +11,258 @@
 <script src="{{ url(mix('js/dist/bootstrap-table-en-US.min.js')) }}"></script>
 
 <script nonce="{{ csrf_token() }}">
+    function getNestedBootstrapTableValue(source, path) {
+        if (!source || !path) {
+            return null;
+        }
+
+        return path.split('.').reduce(function (value, segment) {
+            if (value === null || value === undefined) {
+                return null;
+            }
+
+            return value[segment];
+        }, source);
+    }
+
+    function assetObjectNameFilterValueCollector(fieldValue) {
+        if (fieldValue && typeof fieldValue === 'object' && fieldValue.name) {
+            return fieldValue.name;
+        }
+
+        return fieldValue || '';
+    }
+
+    function assetStatusFilterValueCollector(fieldValue) {
+        if (fieldValue && typeof fieldValue === 'object' && fieldValue.name) {
+            return fieldValue.name;
+        }
+
+        return '';
+    }
+
+    function assetStatusFilterLabelCollector(fieldValue) {
+        if (fieldValue && typeof fieldValue === 'object' && fieldValue.name) {
+            if (fieldValue.status_meta === 'deployed') {
+                return fieldValue.name + ' ({{ trans('general.deployed') }})';
+            }
+
+            return fieldValue.name;
+        }
+
+        return '';
+    }
+
+    function assetAssignedToFilterValueCollector(fieldValue) {
+        if (fieldValue && typeof fieldValue === 'object' && fieldValue.name) {
+            if (fieldValue.username) {
+                return fieldValue.username;
+            }
+
+            return fieldValue.name;
+        }
+
+        return '';
+    }
+
+    function assetAssignedToFilterLabelCollector(fieldValue) {
+        if (fieldValue && typeof fieldValue === 'object' && fieldValue.name) {
+            if (fieldValue.username) {
+                return fieldValue.name + ' (' + fieldValue.username + ')';
+            }
+
+            return fieldValue.name;
+        }
+
+        return '';
+    }
+
+    function assetUserFilterValueCollector(fieldValue) {
+        if (fieldValue && typeof fieldValue === 'object') {
+            if (fieldValue.username) {
+                return fieldValue.username;
+            }
+
+            if (fieldValue.name) {
+                return fieldValue.name;
+            }
+        }
+
+        return '';
+    }
+
+    function assetUserFilterLabelCollector(fieldValue) {
+        if (fieldValue && typeof fieldValue === 'object' && fieldValue.name) {
+            if (fieldValue.username) {
+                return fieldValue.name + ' (' + fieldValue.username + ')';
+            }
+
+            return fieldValue.name;
+        }
+
+        return '';
+    }
+
+    function assetAssignedToJobTitleFilterValueCollector(fieldValue, row) {
+        return getNestedBootstrapTableValue(row, 'assigned_to.jobtitle') || '';
+    }
+
+    function getBootstrapTableColumnDefinition(tableOptions, field) {
+        if (!tableOptions || !Array.isArray(tableOptions.columns)) {
+            return null;
+        }
+
+        for (var i = 0; i < tableOptions.columns.length; i++) {
+            var columnGroup = tableOptions.columns[i];
+
+            if (!Array.isArray(columnGroup)) {
+                continue;
+            }
+
+            for (var j = 0; j < columnGroup.length; j++) {
+                if (columnGroup[j].field === field) {
+                    return columnGroup[j];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function resolveCurrentPageFilterCollector(collectorName) {
+        if (typeof collectorName === 'function') {
+            return collectorName;
+        }
+
+        if (typeof collectorName === 'string') {
+            return window[collectorName];
+        }
+
+        return null;
+    }
+
+    function collectCurrentPageFilterOptions(rows, column) {
+        var options = {};
+        var valueCollector = resolveCurrentPageFilterCollector(column.filterDataCollector);
+        var labelCollector = resolveCurrentPageFilterCollector(column.filterLabelCollector);
+
+        rows.forEach(function (row, index) {
+            var rawValue = getNestedBootstrapTableValue(row, column.field);
+            var optionValue = rawValue;
+            var optionLabel = rawValue;
+
+            if (typeof valueCollector === 'function') {
+                optionValue = valueCollector(rawValue, row, rawValue, index);
+            } else if (rawValue && typeof rawValue === 'object' && rawValue.name) {
+                optionValue = rawValue.name;
+            }
+
+            if (typeof labelCollector === 'function') {
+                optionLabel = labelCollector(rawValue, row, optionValue, index);
+            } else if (rawValue && typeof rawValue === 'object' && rawValue.name) {
+                optionLabel = rawValue.name;
+            }
+
+            if (optionValue === null || optionValue === undefined || String(optionValue).trim() === '') {
+                return;
+            }
+
+            optionValue = String(optionValue).trim();
+            optionLabel = optionLabel === null || optionLabel === undefined || String(optionLabel).trim() === ''
+                ? optionValue
+                : String(optionLabel).trim();
+
+            options[optionValue] = optionLabel;
+        });
+
+        return options;
+    }
+
+    function syncLoadedRowFilterControlOptions($table, rowsOverride) {
+        if ($table.data('filter-control-current-page-only') !== true && $table.data('filter-control-cascade') !== true) {
+            return;
+        }
+
+        var tableOptions = $table.bootstrapTable('getOptions');
+        var rows = Array.isArray(rowsOverride)
+            ? rowsOverride
+            : ($table.data('loaded-row-filter-source') || tableOptions.data || []);
+
+        $table.closest('.bootstrap-table').find('thead select[class*="bootstrap-table-filter-control-"]').each(function () {
+            var $select = $(this);
+            var field = $select.closest('[data-field]').data('field');
+            var column = getBootstrapTableColumnDefinition(tableOptions, field);
+
+            if (!column || String(column.filterControl || '').toLowerCase() !== 'select') {
+                return;
+            }
+
+            var selectedValue = $select.val();
+            var placeholderText = $select.find('option').first().text() || ' ';
+            var optionMap = collectCurrentPageFilterOptions(rows, column);
+
+            if (selectedValue && !optionMap[selectedValue]) {
+                optionMap[selectedValue] = selectedValue;
+            }
+
+            var sortedValues = Object.keys(optionMap).sort(function (left, right) {
+                return optionMap[left].localeCompare(optionMap[right]);
+            });
+
+            $select.empty().append(new Option(placeholderText, ''));
+
+            sortedValues.forEach(function (value) {
+                $select.append(new Option(optionMap[value], value, false, value === selectedValue));
+            });
+
+            if (selectedValue) {
+                $select.val(selectedValue);
+            }
+        });
+    }
+
+    function syncServerFilterControlOptions($table, filterOptions) {
+        if ($table.data('filter-control-server-cascade') !== true || !filterOptions || typeof filterOptions !== 'object') {
+            return;
+        }
+
+        $table.closest('.bootstrap-table').find('thead select[class*="bootstrap-table-filter-control-"]').each(function () {
+            var $select = $(this);
+            var field = $select.closest('[data-field]').data('field');
+            var optionMap = filterOptions[field];
+
+            if (!optionMap || typeof optionMap !== 'object') {
+                return;
+            }
+
+            var selectedValue = $select.val();
+            var placeholderText = $select.find('option').first().text() || ' ';
+            var sortedValues = Object.keys(optionMap).sort(function (left, right) {
+                return String(optionMap[left]).localeCompare(String(optionMap[right]));
+            });
+
+            if (selectedValue && !optionMap[selectedValue]) {
+                optionMap[selectedValue] = selectedValue;
+                sortedValues.push(selectedValue);
+                sortedValues = sortedValues.filter(function (value, index, values) {
+                    return values.indexOf(value) === index;
+                }).sort(function (left, right) {
+                    return String(optionMap[left]).localeCompare(String(optionMap[right]));
+                });
+            }
+
+            $select.empty().append(new Option(placeholderText, ''));
+
+            sortedValues.forEach(function (value) {
+                $select.append(new Option(optionMap[value], value, false, value === selectedValue));
+            });
+
+            if (selectedValue) {
+                $select.val(selectedValue);
+            }
+        });
+    }
+
     $(function () {
 
 
@@ -59,9 +311,11 @@
                 return default_value;
             }
 
+            var column_data = data_with_default('columns', []);
 
 
             $(this).bootstrapTable({
+                columns: column_data,
 
                 ajaxOptions: {
                     headers: {
@@ -96,6 +350,7 @@
                 cookie: true,
                 cookieExpire: '2y',
                 cookieStorage: '{{ config('session.bs_table_storage') }}',
+                filterControl: data_with_default('filter-control', false),
                 iconsPrefix: 'fa',
                 maintainSelected: data_with_default('maintain-selected', true),
                 minimumCountColumns: data_with_default('minimum-count-columns', 2),
@@ -116,7 +371,7 @@
                 showSearchClearButton: data_with_default('show-search-clear-button', true),
                 sortName: data_with_default('sort-name', 'created_at'),
                 sortOrder: data_with_default('sort-order', 'desc'),
-                stickyHeader: true,
+                stickyHeader: data_with_default('sticky-header', true),
                 stickyHeaderOffsetLeft: parseInt($('body').css('padding-left'), 10),
                 stickyHeaderOffsetRight: parseInt($('body').css('padding-right'), 10),
                 trimOnSearch: false,
@@ -219,6 +474,27 @@
                 }
 
             });
+
+            if ($(this).data('filter-control-current-page-only') === true || $(this).data('filter-control-cascade') === true || $(this).data('filter-control-server-cascade') === true) {
+                $(this)
+                    .off('.loadedRowFilterControl')
+                    .on('post-header.bs.table.loadedRowFilterControl', function () {
+                        syncLoadedRowFilterControlOptions($(this));
+                    })
+                    .on('load-success.bs.table.loadedRowFilterControl', function (event, data) {
+                        var rows = [];
+
+                        if (Array.isArray(data)) {
+                            rows = data;
+                        } else if (data && Array.isArray(data.rows)) {
+                            rows = data.rows;
+                        }
+
+                        $(this).data('loaded-row-filter-source', rows);
+                        syncLoadedRowFilterControlOptions($(this), rows);
+                        syncServerFilterControlOptions($(this), data && data.filter_options ? data.filter_options : null);
+                    });
+            }
 
         });
     });

@@ -113,6 +113,7 @@ mix
   .combine(
     [
       "./node_modules/bootstrap-table/dist/bootstrap-table.css",
+      "./node_modules/bootstrap-table/dist/extensions/filter-control/bootstrap-table-filter-control.css",
       "./node_modules/bootstrap-table/dist/extensions/sticky-header/bootstrap-table-sticky-header.css",
      "./resources/assets/css/dragtable.css",
     ],
@@ -128,6 +129,7 @@ mix
         [
             "./resources/assets/js/dragtable.js",
             './node_modules/bootstrap-table/dist/bootstrap-table.js',
+            './node_modules/bootstrap-table/dist/extensions/filter-control/bootstrap-table-filter-control.js',
             './node_modules/bootstrap-table/dist/extensions/mobile/bootstrap-table-mobile.js',
             './node_modules/bootstrap-table/dist/extensions/export/bootstrap-table-export.js',
             './node_modules/bootstrap-table/dist/extensions/cookie/bootstrap-table-cookie.js',

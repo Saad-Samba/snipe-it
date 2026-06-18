@@ -60,7 +60,6 @@
                 @include('partials.asset-bulk-actions', ['status' => Request::get('status')])
                    
               <table
-                data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout() }}"
                 data-cookie-id-table="{{ request()->has('status') ? e(request()->input('status')) : ''  }}assetsListingTable"
                 data-id-table="{{ request()->has('status') ? e(request()->input('status')) : ''  }}assetsListingTable"
                 data-side-pagination="server"
@@ -68,6 +67,9 @@
                 data-sort-order="asc"
                 data-sort-name="name"
                 data-search-text="{{ session()->get('search') }}"
+                data-filter-control="true"
+                data-filter-control-server-cascade="true"
+                data-columns="{{ $assetTableColumns ?? \App\Presenters\AssetPresenter::dataTableLayout() }}"
                 data-show-columns-search="true"
                 data-toolbar="#assetsBulkEditToolbar"
                 data-bulk-button-id="#bulkAssetEditButton"
