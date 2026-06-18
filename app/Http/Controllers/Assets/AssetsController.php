@@ -65,7 +65,16 @@ class AssetsController extends Controller
         $this->authorize('index', Asset::class);
         $company = Company::find($request->input('company_id'));
 
-        return view('hardware/index')->with('company', $company);
+        if (! $request->session()->has('ag_grid_assets_api_token')) {
+            $request->session()->put(
+                'ag_grid_assets_api_token',
+                auth()->user()->createToken('AG Grid Assets Spike')->accessToken
+            );
+        }
+
+        return view('hardware/index')
+            ->with('company', $company)
+            ->with('agGridApiToken', $request->session()->get('ag_grid_assets_api_token'));
     }
 
     /**

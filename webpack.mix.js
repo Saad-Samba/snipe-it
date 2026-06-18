@@ -60,6 +60,14 @@ mix
     .copy( './node_modules/bootstrap-table/dist/locale/bootstrap-table-en-US.min.js', 'public/js/dist' )
 
 /**
+ * Copy AG Grid Community assets for the assets index spike
+ */
+mix
+    .copy('./node_modules/ag-grid-community/dist/ag-grid-community.min.js', 'public/js/dist')
+    .copy('./node_modules/ag-grid-community/styles/ag-grid.css', 'public/css/dist')
+    .copy('./node_modules/ag-grid-community/styles/ag-theme-alpine.css', 'public/css/dist')
+
+/**
  * Copy Chart.js file (it's big, and used in only one place)
  */
 mix

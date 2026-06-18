@@ -58,35 +58,18 @@
             <div class="col-md-12">
 
                 @include('partials.asset-bulk-actions', ['status' => Request::get('status')])
-                   
-              <table
-                data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout() }}"
-                data-cookie-id-table="{{ request()->has('status') ? e(request()->input('status')) : ''  }}assetsListingTable"
-                data-id-table="{{ request()->has('status') ? e(request()->input('status')) : ''  }}assetsListingTable"
-                data-side-pagination="server"
-                data-show-footer="true"
-                data-sort-order="asc"
-                data-sort-name="name"
-                data-search-text="{{ session()->get('search') }}"
-                data-show-columns-search="true"
-                data-toolbar="#assetsBulkEditToolbar"
-                data-bulk-button-id="#bulkAssetEditButton"
-                data-bulk-form-id="#assetsBulkForm"
-                data-buttons="assetButtons"
-                id="{{ request()->has('status') ? e(request()->input('status')) : ''  }}assetsListingTable"
-                class="table table-striped snipe-table"
-                data-url="{{ route('api.assets.index',
-                    array('status' => e(Request::get('status')),
-                    'assignment'=>e(Request::get('assignment')),
-                    'model_obsolete'=>e(Request::get('model_obsolete')),
-                    'order_number'=>e(strval(Request::get('order_number'))),
-                    'company_id'=>e(Request::get('company_id')),
-                    'status_id'=>e(Request::get('status_id')))) }}"
-                data-export-options='{
-                "fileName": "export{{ (Request::has('status')) ? '-'.str_slug(Request::get('status')) : '' }}-assets-{{ date('Y-m-d') }}",
-                "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
-                }'>
-              </table>
+
+                @include('partials.assets-ag-grid', [
+                    'apiUrl' => route('api.assets.index', [
+                        'status' => e(Request::get('status')),
+                        'assignment' => e(Request::get('assignment')),
+                        'model_obsolete' => e(Request::get('model_obsolete')),
+                        'order_number' => e(strval(Request::get('order_number'))),
+                        'company_id' => e(Request::get('company_id')),
+                        'status_id' => e(Request::get('status_id')),
+                    ]),
+                    'apiToken' => $agGridApiToken ?? null,
+                ])
 
             </div><!-- /.col -->
           </div><!-- /.row -->
@@ -98,6 +81,6 @@
 @stop
 
 @section('moar_scripts')
-@include('partials.bootstrap-table')
+
 
 @stop
