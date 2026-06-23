@@ -76,3 +76,34 @@ php artisan test --group=ldap
 php artisan test --exclude-group=ldap
 ```
 This can be helpful if a set of tests are failing because you don't have an extension, like LDAP, installed.
+
+## Parallel Docker Worktrees
+
+When working on multiple local branches at once, prefer a dedicated git worktree and a dedicated Docker Compose project per worktree.
+
+From the worktree root, start a branch-local stack with:
+
+```shell
+sh scripts/dev-worktree-up.sh
+```
+
+The helper will:
+
+- derive a Compose project name from the worktree directory
+- generate a local `.env.worktree` file if one does not already exist
+- choose non-conflicting host ports for the app, database, and MailHog
+- start the stack with those values
+
+To stop the same worktree-local stack later:
+
+```shell
+sh scripts/dev-worktree-down.sh
+```
+
+If you also want to remove named volumes, pass Docker Compose flags through:
+
+```shell
+sh scripts/dev-worktree-down.sh -v
+```
+
+This workflow avoids collisions between branch-local containers, networks, volumes, cookies, and host ports while keeping a single reusable `dev.docker-compose.yml`.

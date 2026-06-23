@@ -1,6 +1,7 @@
 .couscous
 .DS_Store
 .env
+.env.worktree
 .env.testing
 phpstan.neon
 .idea

@@ -52,6 +52,7 @@ class CreateLicenseTest extends TestCase
                 'name' => 'Test Valid License',
                 'seats' => '10',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
+                'expiration_date' => now()->addYear()->format('Y-m-d'),
             ]);
         $response->assertStatus(302);
         $license = License::where('name', 'Test Valid License')->sole();
@@ -62,6 +63,39 @@ class CreateLicenseTest extends TestCase
         $this->assertEquals($license->licenseseats()->count(), 10);
         //test log entries? Sure.
 
+    }
+
+    public function testPerpetualLicenseCanBeCreatedWithoutExpirationDate()
+    {
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('licenses.create'))
+            ->post(route('licenses.store'), [
+                'name' => 'Test Perpetual License',
+                'seats' => '10',
+                'category_id' => Category::factory()->forLicenses()->create()->id,
+                'perpetual' => '1',
+            ]);
+
+        $response->assertStatus(302);
+        $license = License::where('name', 'Test Perpetual License')->sole();
+        $this->assertTrue($license->perpetual);
+        $this->assertNull($license->expiration_date);
+    }
+
+    public function testNonPerpetualLicenseWithoutExpirationDateFailsValidation()
+    {
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('licenses.create'))
+            ->post(route('licenses.store'), [
+                'name' => 'Test Missing Expiration License',
+                'seats' => '10',
+                'category_id' => Category::factory()->forLicenses()->create()->id,
+            ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('licenses.create'));
+        $response->assertInvalid(['expiration_date']);
+        $this->assertFalse(License::where('name', 'Test Missing Expiration License')->exists());
     }
 
     public function testTooManySeatsLicenseCreate()

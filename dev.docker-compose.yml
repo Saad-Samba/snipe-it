@@ -7,7 +7,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.alpine
-    container_name: snipeit
     develop:
       watch:
         # Sync source for live reload without a heavy bind mount
@@ -25,7 +24,7 @@ services:
       # Persist app data (uploads, keys, backups)
       - snipeit-data:/var/lib/snipeit
     ports:
-      - "8000:80"
+      - "${APP_PORT:-8000}:80"
     depends_on:
       redis:
         # The default needs to be stated.
@@ -35,6 +34,10 @@ services:
         restart: true
     env_file:
       - .env.dev.docker
+    environment:
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      COOKIE_NAME: ${COOKIE_NAME:-snipeit_session}
+      CACHE_PREFIX: ${CACHE_PREFIX:-snipeit}
 
   mariadb:
     image: mariadb:11.4.7
@@ -43,7 +46,7 @@ services:
     env_file:
       - .env.dev.docker
     ports:
-      - "3306:3306"
+      - "${DB_PORT:-3306}:3306"
     healthcheck:
       # https://mariadb.com/kb/en/using-healthcheck-sh/#compose-file-example
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
@@ -58,7 +61,7 @@ services:
     image: mailhog/mailhog:v1.0.1
     ports:
       # - 1025:1025
-      - "8025:8025"
+      - "${MAILHOG_PORT:-8025}:8025"
 
 volumes:
   db: {}
