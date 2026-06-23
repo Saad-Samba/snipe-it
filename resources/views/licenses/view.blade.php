@@ -242,6 +242,17 @@
                   @endif
 
 
+                  <div class="row">
+                    <div class="col-md-3">
+                      <strong>
+                        {{ trans('admin/licenses/form.perpetual') }}
+                      </strong>
+                    </div>
+                    <div class="col-md-9">
+                      {!! $license->perpetual ? '<i class="fas fa-check fa-fw text-success" aria-hidden="true"></i> '.trans('general.yes') : '<i class="fas fa-times fa-fw text-danger" aria-hidden="true"></i> '.trans('general.no') !!}
+                    </div>
+                  </div>
+
                   @if (isset($license->expiration_date))
                     <div class="row">
                       <div class="col-md-3">

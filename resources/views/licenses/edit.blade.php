@@ -83,16 +83,50 @@
 @include ('partials.forms.edit.purchase_cost')
 @include ('partials.forms.edit.datepicker', ['translated_name' => trans('general.purchase_date'),'fieldname' => 'purchase_date'])
 
+<!-- Perpetual -->
+<div class="form-group {{ $errors->has('perpetual') ? ' has-error' : '' }}">
+    <div class="col-md-3 control-label">
+        <strong>{{ trans('admin/licenses/form.perpetual') }}</strong>
+    </div>
+    <div class="col-md-9">
+        <div class="col-md-4" style="padding-left:0px;">
+            <label class="form-control">
+                <input type="checkbox" name="perpetual" id="perpetual" value="1" aria-label="perpetual" @checked(old('perpetual', $item->perpetual))>
+                {{ trans('general.yes') }}
+            </label>
+        </div>
+        <div class="col-md-7" style="margin-left: -15px; padding-top: 8px;">
+            <a href="#" data-tooltip="true" title="{{ trans('admin/licenses/form.perpetual_help') }}">
+                <x-icon type="info-circle" />
+                <span class="sr-only">{{ trans('admin/licenses/form.perpetual_help') }}</span>
+            </a>
+        </div>
+        <div class="col-md-12">
+            {!! $errors->first('perpetual', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
+    </div>
+</div>
+
 <!-- Expiration Date -->
 <div class="form-group {{ $errors->has('expiration_date') ? ' has-error' : '' }}">
     <label for="expiration_date" class="col-md-3 control-label">{{ trans('admin/licenses/form.expiration') }}</label>
 
-    <div class="input-group col-md-4">
-        <div class="input-group date" data-provide="datepicker" data-date-format="yyyy-mm-dd"  data-autoclose="true" data-date-clear-btn="true">
-            <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expiration_date" id="expiration_date" value="{{ old('expiration_date', ($item->expiration_date) ? $item->expiration_date->format('Y-m-d') : '') }}" maxlength="10">
-            <span class="input-group-addon"><x-icon type="calendar" /></span>
+    <div class="col-md-9">
+        <div class="col-md-4" id="expiration_date_wrapper" style="padding-left:0px;">
+            <div class="input-group date" id="expiration_date_picker" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
+                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expiration_date" id="expiration_date" value="{{ old('expiration_date', ($item->expiration_date) ? $item->expiration_date->format('Y-m-d') : '') }}" maxlength="10" @required(! old('perpetual', $item->perpetual))>
+                <span class="input-group-addon"><x-icon type="calendar" /></span>
+            </div>
         </div>
-        {!! $errors->first('expiration_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        <div class="col-md-7" style="margin-left: -15px; padding-top: 8px;">
+            <a href="#" data-tooltip="true" title="{{ trans('admin/licenses/form.expiration_help') }}">
+                <x-icon type="info-circle" />
+                <span class="sr-only">{{ trans('admin/licenses/form.expiration_help') }}</span>
+            </a>
+        </div>
+        <div class="col-md-12">
+            {!! $errors->first('expiration_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
     </div>
 
 </div>
@@ -101,12 +135,22 @@
 <div class="form-group {{ $errors->has('termination_date') ? ' has-error' : '' }}">
     <label for="termination_date" class="col-md-3 control-label">{{ trans('admin/licenses/form.termination_date') }}</label>
 
-    <div class="input-group col-md-4">
-        <div class="input-group date" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
-            <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="termination_date" id="termination_date" value="{{ old('termination_date', ($item->termination_date) ? $item->termination_date->format('Y-m-d') : '') }}" maxlength="10">
-            <span class="input-group-addon"><x-icon type="calendar" /></span>
+    <div class="col-md-9">
+        <div class="col-md-4" style="padding-left:0px;">
+            <div class="input-group date" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
+                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="termination_date" id="termination_date" value="{{ old('termination_date', ($item->termination_date) ? $item->termination_date->format('Y-m-d') : '') }}" maxlength="10">
+                <span class="input-group-addon"><x-icon type="calendar" /></span>
+            </div>
         </div>
-        {!! $errors->first('termination_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        <div class="col-md-7" style="margin-left: -15px; padding-top: 8px;">
+            <a href="#" data-tooltip="true" title="{{ trans('admin/licenses/form.termination_date_help') }}">
+                <x-icon type="info-circle" />
+                <span class="sr-only">{{ trans('admin/licenses/form.termination_date_help') }}</span>
+            </a>
+        </div>
+        <div class="col-md-12">
+            {!! $errors->first('termination_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
     </div>
 </div>
 
@@ -135,4 +179,35 @@
 
 @include ('partials.forms.edit.notes')
 
+@stop
+
+
+@section('moar_scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var perpetualCheckbox = document.getElementById('perpetual');
+        var expirationInput = document.getElementById('expiration_date');
+        var expirationPicker = document.getElementById('expiration_date_picker');
+        var expirationWrapper = document.getElementById('expiration_date_wrapper');
+
+        if (!perpetualCheckbox || !expirationInput || !expirationPicker || !expirationWrapper) {
+            return;
+        }
+
+        function syncPerpetualState() {
+            var isPerpetual = perpetualCheckbox.checked;
+            expirationInput.disabled = isPerpetual;
+            expirationInput.required = !isPerpetual;
+            expirationPicker.classList.toggle('text-muted', isPerpetual);
+            expirationPicker.style.opacity = isPerpetual ? '0.65' : '1';
+
+            if (isPerpetual) {
+                expirationInput.value = '';
+            }
+        }
+
+        perpetualCheckbox.addEventListener('change', syncPerpetualState);
+        syncPerpetualState();
+    });
+</script>
 @stop
