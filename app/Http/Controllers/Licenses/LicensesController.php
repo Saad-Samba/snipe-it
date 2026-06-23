@@ -83,6 +83,7 @@ class LicensesController extends Controller
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $license->depreciation_id   = $request->input('depreciation_id');
+        $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
@@ -166,6 +167,7 @@ class LicensesController extends Controller
 
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->depreciation_id   = $request->input('depreciation_id');
+        $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
