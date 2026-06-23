@@ -94,19 +94,3 @@ sh scripts/dev-worktree-down.sh -v
 ```
 
 This workflow avoids collisions between branch-local containers, networks, volumes, cookies, and host ports while keeping a single reusable `dev.docker-compose.yml`.
-
-## License Expiration Investigation Environment
-
-For the license expiration policy review, there is also a dedicated isolated environment script that brings up its own Compose project and seeds a deterministic dataset for comparing licenses with and without expiration dates:
-
-```shell
-sh scripts/license-expiration-investigation-up.sh
-```
-
-It prints the app URL, database port, MailHog URL, and the seeded QA login credentials when it finishes.
-
-To stop that environment later:
-
-```shell
-sh scripts/license-expiration-investigation-down.sh
-```
