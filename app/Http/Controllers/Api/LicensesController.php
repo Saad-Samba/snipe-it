@@ -57,6 +57,10 @@ class LicensesController extends Controller
             $licenses->where('licenses.serial', '=', $request->input('product_key'));
         }
 
+        if ($request->filled('serial_number')) {
+            $licenses->where('licenses.serial_number', '=', $request->input('serial_number'));
+        }
+
         if ($request->filled('order_number')) {
             $licenses->where('order_number', '=', $request->input('order_number'));
         }
@@ -155,6 +159,7 @@ class LicensesController extends Controller
                         'notes',
                         'purchase_date',
                         'serial',
+                        'serial_number',
                         'company',
                         'category',
                         'discipline',

@@ -35,4 +35,14 @@ class LicenseViewTest extends TestCase
                 '2021-01-01'
             ], false);
     }
+
+    public function testLicenseSerialNumberIsVisible()
+    {
+        $license = License::factory()->create(['serial_number' => 'LIC-SN-VIEW-001']);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('licenses.show', $license))
+            ->assertOk()
+            ->assertSee('LIC-SN-VIEW-001', false);
+    }
 }

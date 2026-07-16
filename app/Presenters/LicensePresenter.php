@@ -59,6 +59,12 @@ class LicensePresenter extends Presenter
                 'title' => trans('admin/licenses/form.license_key'),
                 'formatter' => 'licenseKeyFormatter',
             ], [
+                'field' => 'serial_number',
+                'searchable' => true,
+                'sortable' => true,
+                'visible' => false,
+                'title' => trans('general.serial_number'),
+            ], [
                 'field' => 'expiration_date',
                 'searchable' => true,
                 'sortable' => true,

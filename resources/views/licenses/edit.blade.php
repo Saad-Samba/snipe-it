@@ -41,6 +41,14 @@
     </div>
 @endcan
 
+<div class="form-group {{ $errors->has('serial_number') ? ' has-error' : '' }}">
+    <label for="serial_number" class="col-md-3 control-label">{{ trans('general.serial_number') }}</label>
+    <div class="col-md-7">
+        <input class="form-control" type="text" name="serial_number" id="serial_number" value="{{ old('serial_number', $item->serial_number) }}" maxlength="191" />
+        {!! $errors->first('serial_number', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+    </div>
+</div>
+
 @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id'])
 @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id'])
 @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id'])
