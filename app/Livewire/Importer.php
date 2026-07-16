@@ -305,7 +305,8 @@ class Importer extends Component
             'purchase_order' => trans('admin/licenses/form.purchase_order'),
             'reassignable' => trans('admin/licenses/form.reassignable'),
             'seats' => trans('admin/licenses/form.seats'),
-            'serial' => trans('general.license_serial'),
+            'serial' => trans('admin/licenses/form.license_key'),
+            'serial_number' => trans('general.serial_number'),
             'supplier' => trans('general.supplier'),
             'termination_date' => trans('admin/licenses/form.termination_date'),
             'username' => trans('general.importer.checked_out_to_username'),
@@ -537,11 +538,15 @@ class Importer extends Component
 
             'serial' =>
                 [
+                    'product key',
+                    'license key',
+                    'key',
+                ],
+            'serial_number' =>
+                [
                     'serial number',
                     'serial no.',
                     'serial no',
-                    'product key',
-                    'key',
                 ],
             'require_serial' =>
                 [

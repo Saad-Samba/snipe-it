@@ -304,6 +304,7 @@ class LicensesController extends Controller
         $license = clone $license_to_clone;
         $license->id = null;
         $license->serial = null;
+        $license->serial_number = null;
 
         // Show the page
         return view('licenses/edit')
@@ -345,6 +346,7 @@ class LicensesController extends Controller
                         strtolower(trans('general.id')),
                         trans('general.company'),
                         trans('general.name'),
+                        trans('admin/licenses/form.license_key'),
                         trans('general.serial_number'),
                         trans('general.purchase_date'),
                         trans('general.purchase_cost'),
@@ -379,6 +381,7 @@ class LicensesController extends Controller
                             $license->company ? $license->company->name: '',
                             $license->name,
                             $license->serial,
+                            $license->serial_number,
                             $license->purchase_date,
                             $license->purchase_cost,
                             $license->order_number,

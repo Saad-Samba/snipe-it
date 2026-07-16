@@ -34,17 +34,30 @@ class LicenseImporter extends ItemImporter
     public function createLicenseIfNotExists(array $row)
     {
         $editingLicense = false;
-        $license = License::where('serial', $this->item['serial'])->where('name', $this->item['name'])
-                    ->first();
+        $licenseQuery = License::where('name', $this->item['name']);
+
+        if ($this->item['serial'] !== '') {
+            $licenseQuery->where('serial', $this->item['serial']);
+        }
+
+        if ($this->item['serial_number'] !== '') {
+            $licenseQuery->where('serial_number', $this->item['serial_number']);
+        }
+
+        if (($this->item['serial'] === '') && ($this->item['serial_number'] === '')) {
+            $licenseQuery
+                ->where(function ($query) {
+                    $query->whereNull('serial')->orWhere('serial', '');
+                })
+                ->where(function ($query) {
+                    $query->whereNull('serial_number')->orWhere('serial_number', '');
+                });
+        }
+
+        $license = $licenseQuery->first();
         if ($license) {
             if (! $this->updating) {
-
-                if($this->item['serial'] != "") {
-                    $this->log('A matching License ' . $this->item['name'] . ' with serial ' . $this->item['serial'] . ' already exists');
-                }
-                else {
-                    $this->log('A matching License ' . $this->item['name'] . ' with no serial number already exists');
-                }
+                $this->log($this->describeMatchingLicense());
 
                 return;
             }
@@ -120,5 +133,24 @@ class LicenseImporter extends ItemImporter
             return;
         }
         $this->logError($license, 'License "'.$this->item['name'].'"');
+    }
+
+    private function describeMatchingLicense(): string
+    {
+        $details = [];
+
+        if ($this->item['serial'] !== '') {
+            $details[] = 'product key ' . $this->item['serial'];
+        }
+
+        if ($this->item['serial_number'] !== '') {
+            $details[] = 'serial number ' . $this->item['serial_number'];
+        }
+
+        if ($details === []) {
+            $details[] = 'no product key or serial number';
+        }
+
+        return 'A matching License ' . $this->item['name'] . ' with ' . implode(' and ', $details) . ' already exists';
     }
 }
