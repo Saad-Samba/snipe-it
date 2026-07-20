@@ -26,6 +26,7 @@ class LicenseReportTest extends TestCase implements TestsPermissionsRequirement
             'name' => 'Adobe CC',
             'serial' => 'PK-ABC-123',
             'serial_number' => 'SN-XYZ-789',
+            'software_version' => '2026.4',
             'seats' => 5,
             'depreciation_id' => Depreciation::factory()->create()->id,
         ]);
@@ -41,13 +42,15 @@ class LicenseReportTest extends TestCase implements TestsPermissionsRequirement
 
         $this->assertContains(trans('admin/licenses/form.license_key'), $headers);
         $this->assertContains(trans('general.serial_number'), $headers);
+        $this->assertContains(trans('admin/licenses/form.software_version'), $headers);
 
         $matchingRow = collect($records)
             ->skip(1)
             ->first(fn (array $row) => $row[0] === $license->name);
 
         $this->assertNotNull($matchingRow);
-        $this->assertSame('PK-ABC-123', $matchingRow[1]);
-        $this->assertSame('SN-XYZ-789', $matchingRow[2]);
+        $this->assertSame('2026.4', $matchingRow[1]);
+        $this->assertSame('PK-ABC-123', $matchingRow[2]);
+        $this->assertSame('SN-XYZ-789', $matchingRow[3]);
     }
 }

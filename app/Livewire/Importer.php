@@ -307,6 +307,7 @@ class Importer extends Component
             'seats' => trans('admin/licenses/form.seats'),
             'serial' => trans('admin/licenses/form.license_key'),
             'serial_number' => trans('general.serial_number'),
+            'software_version' => trans('admin/licenses/form.software_version'),
             'supplier' => trans('general.supplier'),
             'termination_date' => trans('admin/licenses/form.termination_date'),
             'username' => trans('general.importer.checked_out_to_username'),
@@ -536,17 +537,25 @@ class Importer extends Component
                     'cellphone',
                 ],
 
-            'serial' =>
-                [
-                    'product key',
-                    'license key',
-                    'key',
-                ],
             'serial_number' =>
                 [
                     'serial number',
                     'serial no.',
                     'serial no',
+                ],
+            'serial' =>
+                [
+                    'serial number',
+                    'serial no.',
+                    'serial no',
+                    'product key',
+                    'license key',
+                    'key',
+                ],
+            'software_version' =>
+                [
+                    'software version',
+                    'version',
                 ],
             'require_serial' =>
                 [

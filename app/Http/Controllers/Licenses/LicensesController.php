@@ -90,6 +90,7 @@ class LicensesController extends Controller
         $license->maintained        = $request->input('maintained', 0);
         $license->manufacturer_id   = $request->input('manufacturer_id');
         $license->name              = $request->input('name');
+        $license->software_version  = $request->input('software_version');
         $license->notes             = $request->input('notes');
         $license->order_number      = $request->input('order_number');
         $license->purchase_cost     = $request->input('purchase_cost');
@@ -174,6 +175,7 @@ class LicensesController extends Controller
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained',0);
         $license->name              = $request->input('name');
+        $license->software_version  = $request->input('software_version');
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $license->notes             = $request->input('notes');

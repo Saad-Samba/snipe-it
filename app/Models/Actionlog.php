@@ -80,7 +80,7 @@ class Actionlog extends SnipeModel
         'assets.location'           => ['name'],
         'assets.defaultLoc'         => ['name'],
         'assets.model.manufacturer' => ['name', 'notes'],
-        'licenses'    => ['name', 'serial', 'serial_number', 'notes', 'order_number', 'license_email', 'license_name', 'purchase_order', 'purchase_date'],
+        'licenses'    => ['name', 'software_version', 'serial', 'serial_number', 'notes', 'order_number', 'license_email', 'license_name', 'purchase_order', 'purchase_date'],
         'licenses.category'     => ['name', 'notes'],
         'licenses.supplier'     => ['name'],
         'consumables'    => ['name', 'notes', 'order_number', 'model_number', 'item_no', 'purchase_date'],

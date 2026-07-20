@@ -78,6 +78,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertEquals($row['licenseName'], $newLicense->name);
         $this->assertEquals($row['productKey'], $newLicense->serial);
         $this->assertEquals($row['serialNumber'], $newLicense->serial_number);
+        $this->assertEquals($row['softwareVersion'], $newLicense->software_version);
         $this->assertEquals($row['purchaseDate'], $newLicense->purchase_date->toDateString());
         $this->assertEquals($row['purchaseCost'], $newLicense->purchase_cost);
         $this->assertEquals($row['orderNumber'], $newLicense->order_number);
@@ -261,6 +262,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertEquals($row['licenseName'], $updatedLicense->name);
         $this->assertEquals($row['productKey'], $updatedLicense->serial);
         $this->assertEquals($row['serialNumber'], $updatedLicense->serial_number);
+        $this->assertEquals($row['softwareVersion'], $updatedLicense->software_version);
         $this->assertEquals($row['purchaseDate'], $updatedLicense->purchase_date->toDateString());
         $this->assertEquals($row['purchaseCost'], $updatedLicense->purchase_cost);
         $this->assertEquals($row['orderNumber'], $updatedLicense->order_number);
@@ -279,6 +281,77 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertEquals($license->termination_date, $updatedLicense->termination_date);
         $this->assertEquals($license->deprecate, $updatedLicense->deprecate);
         $this->assertEquals($license->min_amt, $updatedLicense->min_amt);
+    }
+
+    #[Test]
+    public function updateLicenseSerialNumberByMatchingProductKey(): void
+    {
+        $license = License::factory()->create([
+            'serial' => 'PK-STABLE',
+            'serial_number' => 'SN-OLD',
+        ]);
+        $importFileBuilder = ImportFileBuilder::new([
+            'licenseName' => $license->name,
+            'productKey' => $license->serial,
+            'serialNumber' => 'SN-NEW',
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id, 'import-update' => true])->assertOk();
+
+        $this->assertSame(1, License::where('name', $license->name)->count());
+        $this->assertSame('SN-NEW', $license->fresh()->serial_number);
+    }
+
+    #[Test]
+    public function updateLicenseProductKeyByMatchingSerialNumber(): void
+    {
+        $license = License::factory()->create([
+            'serial' => 'PK-OLD',
+            'serial_number' => 'SN-STABLE',
+        ]);
+        $importFileBuilder = ImportFileBuilder::new([
+            'licenseName' => $license->name,
+            'productKey' => 'PK-NEW',
+            'serialNumber' => $license->serial_number,
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id, 'import-update' => true])->assertOk();
+
+        $this->assertSame(1, License::where('name', $license->name)->count());
+        $this->assertSame('PK-NEW', $license->fresh()->serial);
+    }
+
+    #[Test]
+    public function ambiguousLicenseIdentifiersSkipTheImportRow(): void
+    {
+        $licenseName = 'Ambiguous License';
+        $productKeyMatch = License::factory()->create([
+            'name' => $licenseName,
+            'serial' => 'PK-MATCH',
+            'serial_number' => 'SN-OTHER',
+        ]);
+        $serialNumberMatch = License::factory()->create([
+            'name' => $licenseName,
+            'serial' => 'PK-OTHER',
+            'serial_number' => 'SN-MATCH',
+        ]);
+        $importFileBuilder = ImportFileBuilder::new([
+            'licenseName' => $licenseName,
+            'productKey' => $productKeyMatch->serial,
+            'serialNumber' => $serialNumberMatch->serial_number,
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id, 'import-update' => true])->assertOk();
+
+        $this->assertSame(2, License::where('name', $licenseName)->count());
+        $this->assertSame('SN-OTHER', $productKeyMatch->fresh()->serial_number);
+        $this->assertSame('PK-OTHER', $serialNumberMatch->fresh()->serial);
     }
 
     #[Test]

@@ -11,6 +11,16 @@ class LicenseImporter extends ItemImporter
     public function __construct($filename)
     {
         parent::__construct($filename);
+        $this->setFieldMappings([]);
+    }
+
+    public function setFieldMappings($fields)
+    {
+        return parent::setFieldMappings(array_merge([
+            'serial' => 'product key',
+            'serial_number' => 'serial number',
+            'software_version' => 'software version',
+        ], $fields));
     }
 
     protected function handle($row)
@@ -35,16 +45,20 @@ class LicenseImporter extends ItemImporter
     {
         $editingLicense = false;
         $licenseQuery = License::where('name', $this->item['name']);
+        $hasProductKey = $this->item['serial'] !== '';
+        $hasSerialNumber = $this->item['serial_number'] !== '';
 
-        if ($this->item['serial'] !== '') {
-            $licenseQuery->where('serial', $this->item['serial']);
-        }
+        if ($hasProductKey || $hasSerialNumber) {
+            $licenseQuery->where(function ($query) use ($hasProductKey, $hasSerialNumber) {
+                if ($hasProductKey) {
+                    $query->orWhere('serial', $this->item['serial']);
+                }
 
-        if ($this->item['serial_number'] !== '') {
-            $licenseQuery->where('serial_number', $this->item['serial_number']);
-        }
-
-        if (($this->item['serial'] === '') && ($this->item['serial_number'] === '')) {
+                if ($hasSerialNumber) {
+                    $query->orWhere('serial_number', $this->item['serial_number']);
+                }
+            });
+        } else {
             $licenseQuery
                 ->where(function ($query) {
                     $query->whereNull('serial')->orWhere('serial', '');
@@ -54,7 +68,15 @@ class LicenseImporter extends ItemImporter
                 });
         }
 
-        $license = $licenseQuery->first();
+        $matchingLicenses = $licenseQuery->limit(2)->get();
+
+        if ($matchingLicenses->count() > 1) {
+            $this->log('Multiple matching Licenses found for '.$this->item['name'].'; import row skipped.');
+
+            return;
+        }
+
+        $license = $matchingLicenses->first();
         if ($license) {
             if (! $this->updating) {
                 $this->log($this->describeMatchingLicense());
@@ -76,6 +98,7 @@ class LicenseImporter extends ItemImporter
         }
         $this->item['license_email'] = trim($this->findCsvMatch($row, 'license_email'));
         $this->item['license_name'] = trim($this->findCsvMatch($row, 'license_name'));
+        $this->item['software_version'] = trim($this->findCsvMatch($row, 'software_version'));
         $this->item['maintained'] = trim($this->findCsvMatch($row, 'maintained'));
         $this->item['purchase_order'] = trim($this->findCsvMatch($row, 'purchase_order'));
         $this->item['order_number'] = trim($this->findCsvMatch($row, 'order_number'));

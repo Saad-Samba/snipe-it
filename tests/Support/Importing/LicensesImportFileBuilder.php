@@ -26,6 +26,7 @@ use Illuminate\Support\Str;
  * productKey?: string,
  * seats?: int,
  * serialNumber?: string,
+ * softwareVersion?: string,
  * supplierName?: string
  * }
  *
@@ -55,6 +56,7 @@ class LicensesImportFileBuilder extends FileBuilder
             'productKey'       => 'Product Key',
             'seats'            => 'seats',
             'serialNumber'     => 'Serial number',
+            'softwareVersion'  => 'Software Version',
             'supplierName'     => 'supplier',
         ];
     }
@@ -83,6 +85,7 @@ class LicensesImportFileBuilder extends FileBuilder
             'productKey'       => 'PK:LIC:' . Str::random(),
             'seats'            => rand(1, 10),
             'serialNumber'     => 'SN:LIC:' . Str::random(),
+            'softwareVersion'  => $faker->numerify('##.#.#'),
             'supplierName'     => $faker->company,
         ];
     }

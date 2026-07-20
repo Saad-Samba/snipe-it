@@ -24,6 +24,7 @@ class LicensesTransformer
         $array = [
             'id' => (int) $license->id,
             'name' => e($license->name),
+            'software_version' => ($license->software_version) ? e($license->software_version) : null,
             'company' => ($license->company) ? ['id' => (int) $license->company->id, 'name'=> e($license->company->name)] : null,
             'manufacturer' =>  ($license->manufacturer) ? [
                 'id' => (int) $license->manufacturer->id,

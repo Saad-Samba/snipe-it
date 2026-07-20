@@ -27,6 +27,7 @@ class LicenseFactory extends Factory
         return [
             'created_by' => User::factory()->superuser(),
             'name' => $this->faker->name(),
+            'software_version' => $this->faker->numerify('##.#'),
             'license_email' => $this->faker->safeEmail(),
             'serial' => $this->faker->uuid(),
             'serial_number' => $this->faker->uuid(),

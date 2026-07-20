@@ -44,6 +44,7 @@ class License extends Depreciable
         'termination_date' => 'date',
         'perpetual' => 'boolean',
         'serial_number' => 'string',
+        'software_version' => 'string',
         'category_id'  => 'integer',
         'company_id'   => 'integer',
         'project_id'   => 'integer',
@@ -66,6 +67,7 @@ class License extends Depreciable
         'expiration_date'   => 'required_unless:perpetual,true|date_format:Y-m-d|nullable|max:10',
         'termination_date'   => 'date_format:Y-m-d|nullable|max:10',
         'serial_number'   => 'string|nullable|max:191',
+        'software_version' => 'string|nullable|max:255',
         'min_amt'   => 'numeric|nullable|gte:0',
     ];
 
@@ -96,6 +98,7 @@ class License extends Depreciable
         'seats',
         'serial',
         'serial_number',
+        'software_version',
         'supplier_id',
         'termination_date',
         'created_by',
@@ -113,6 +116,7 @@ class License extends Depreciable
         'name',
         'serial',
         'serial_number',
+        'software_version',
         'notes',
         'order_number',
         'purchase_order',
