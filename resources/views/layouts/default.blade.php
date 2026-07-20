@@ -389,6 +389,12 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                                 {{ trans('general.accept_assets_menu') }}
                                             </a></li>
 
+                                        <li {!! (request()->is('account/regional-coordinators') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('account.regional-asset-coordinators.index') }}">
+                                                <x-icon type="users" class="fa-fw" />
+                                                {{ trans('general.regional_asset_coordinators') }}
+                                            </a>
+                                        </li>
 
                                         @can('self.profile')
                                         <li>

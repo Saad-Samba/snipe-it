@@ -33,6 +33,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
      */
     Route::group(['prefix' => 'account'], function () {
 
+        Route::get(
+            'regional-coordinators',
+            [Api\RegionalAssetCoordinatorsController::class, 'index']
+        )->name('api.regional-asset-coordinators.index');
+
         Route::get('requests',
             [
                 Api\ModelRequestsController::class,
