@@ -203,6 +203,7 @@ class SendFinancialChangeReportTest extends TestCase
     public function testCommandRequiresFullFourteenDaysBeforeScheduledRun()
     {
         Mail::fake();
+        Carbon::setTestNow(Carbon::parse('2026-04-26 10:00:00'));
 
         $company = Company::factory()->create();
         User::factory()->create(['email' => 'finance@example.com', 'company_id' => $company->id, 'activated' => 1]);
@@ -217,7 +218,7 @@ class SendFinancialChangeReportTest extends TestCase
         ]);
 
         $this->settings->enableFinanceReport('finance@example.com')->set([
-            'finance_report_anchor_date' => now()->subDays(13),
+            'finance_report_anchor_date' => Carbon::parse('2026-04-13'),
         ]);
 
         $this->artisan('snipeit:financial-change-report')
@@ -225,6 +226,8 @@ class SendFinancialChangeReportTest extends TestCase
             ->assertExitCode(0);
 
         Mail::assertNotSent(FinancialChangeReportMail::class);
+
+        Carbon::setTestNow();
     }
 
     public function testCommandNormalizesAnchorDateToMondayForScheduledCadence()
