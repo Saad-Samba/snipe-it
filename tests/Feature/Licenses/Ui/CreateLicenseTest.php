@@ -53,10 +53,14 @@ class CreateLicenseTest extends TestCase
                 'seats' => '10',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'serial_number' => 'LIC-SN-1001',
+                'software_version' => '2026.1',
             ]);
         $response->assertStatus(302);
         $license = License::where('name', 'Test Valid License')->sole();
         $this->assertNotNull($license);
+        $this->assertSame('LIC-SN-1001', $license->serial_number);
+        $this->assertSame('2026.1', $license->software_version);
         //$license->assetlog()->has_one_of_();
         $this->assertDatabaseHas('action_logs', ['action_type' => 'create', 'item_id' => $license->id, 'item_type' => License::class]);
         $this->assertDatabaseHas('action_logs', ['action_type' => 'add seats', 'item_id' => $license->id, 'item_type' => License::class]);

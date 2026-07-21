@@ -53,8 +53,16 @@ class LicensesController extends Controller
             $licenses->where('licenses.name', '=', $request->input('name'));
         }
 
+        if ($request->filled('software_version')) {
+            $licenses->where('licenses.software_version', '=', $request->input('software_version'));
+        }
+
         if ($request->filled('product_key')) {
             $licenses->where('licenses.serial', '=', $request->input('product_key'));
+        }
+
+        if ($request->filled('serial_number')) {
+            $licenses->where('licenses.serial_number', '=', $request->input('serial_number'));
         }
 
         if ($request->filled('order_number')) {
@@ -155,6 +163,8 @@ class LicensesController extends Controller
                         'notes',
                         'purchase_date',
                         'serial',
+                        'serial_number',
+                        'software_version',
                         'company',
                         'category',
                         'discipline',

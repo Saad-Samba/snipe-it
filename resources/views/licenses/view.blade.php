@@ -155,6 +155,28 @@
                     </div>
                   @endif
 
+                  @if (!is_null($license->serial_number))
+                    <div class="row">
+                      <div class="col-md-3">
+                        <strong>{{ trans('general.serial_number') }}</strong>
+                      </div>
+                      <div class="col-md-9">
+                        {{ $license->serial_number }}
+                      </div>
+                    </div>
+                  @endif
+
+                  @if (!is_null($license->software_version))
+                    <div class="row">
+                      <div class="col-md-3">
+                        <strong>{{ trans('admin/licenses/form.software_version') }}</strong>
+                      </div>
+                      <div class="col-md-9">
+                        {{ $license->software_version }}
+                      </div>
+                    </div>
+                  @endif
+
 
                   @if ($license->category)
                     <div class="row">

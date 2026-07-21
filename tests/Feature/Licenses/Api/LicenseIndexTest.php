@@ -9,6 +9,46 @@ use Tests\TestCase;
 
 class LicenseIndexTest extends TestCase
 {
+    public function testLicensesCanBeFilteredAndSortedBySoftwareVersion()
+    {
+        $licenseB = License::factory()->create(['software_version' => 'B']);
+        $licenseA = License::factory()->create(['software_version' => 'A']);
+        $user = User::factory()->superuser()->create();
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.licenses.index', ['software_version' => 'A']))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $licenseA->id)
+            ->assertJsonPath('rows.0.software_version', 'A');
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.licenses.index', ['sort' => 'software_version', 'order' => 'asc']))
+            ->assertOk()
+            ->assertJsonPath('rows.0.id', $licenseA->id)
+            ->assertJsonPath('rows.1.id', $licenseB->id);
+    }
+
+    public function testLicensesCanBeFilteredAndSortedBySerialNumber()
+    {
+        $licenseB = License::factory()->create(['serial_number' => 'SN-B']);
+        $licenseA = License::factory()->create(['serial_number' => 'SN-A']);
+        $user = User::factory()->superuser()->create();
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.licenses.index', ['serial_number' => 'SN-A']))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $licenseA->id)
+            ->assertJsonPath('rows.0.serial_number', 'SN-A');
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.licenses.index', ['sort' => 'serial_number', 'order' => 'asc']))
+            ->assertOk()
+            ->assertJsonPath('rows.0.id', $licenseA->id)
+            ->assertJsonPath('rows.1.id', $licenseB->id);
+    }
+
     public function testLicensesIndexAdheresToCompanyScoping()
     {
         [$companyA, $companyB] = Company::factory()->count(2)->create();
