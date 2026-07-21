@@ -2010,7 +2010,10 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_candidate_rac_bulk_checkout_form_prefills_request_context()
     {
-        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create([
+            'first_name' => 'Harold',
+            'last_name' => "O'Keefe",
+        ]);
         $coordinator = User::factory()->viewAssets()->checkoutAssets()->create();
         $project = Project::factory()->create();
         $discipline = Discipline::create(['name' => 'Bulk Checkout Scope', 'created_by' => $requester->id]);
@@ -2055,7 +2058,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertDontSee('Request context')
             ->assertSee($assetA->present()->fullName, false)
             ->assertSee($assetB->present()->fullName, false)
-            ->assertSee($requester->present()->fullName, false)
+            ->assertSee($requester->present()->fullName)
             ->assertSee('value="'.now()->format('Y-m-d').'"', false)
             ->assertSee('value="2026-07-15"', false)
             ->assertSee($reservedStatus->name, false);
