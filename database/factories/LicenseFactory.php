@@ -27,8 +27,10 @@ class LicenseFactory extends Factory
         return [
             'created_by' => User::factory()->superuser(),
             'name' => $this->faker->name(),
+            'software_version' => $this->faker->numerify('##.#'),
             'license_email' => $this->faker->safeEmail(),
             'serial' => $this->faker->uuid(),
+            'serial_number' => $this->faker->uuid(),
             'notes'   => 'Created by DB seeder',
             'seats' => $this->faker->numberBetween(1, 10),
             'purchase_date' => $this->faker->dateTimeBetween('-1 years', 'now', date_default_timezone_get())->format('Y-m-d'),

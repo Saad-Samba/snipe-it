@@ -359,7 +359,9 @@ class ReportsController extends Controller
         $rows = [];
         $header = [
             trans('admin/licenses/table.title'),
-            trans('admin/licenses/table.serial'),
+            trans('admin/licenses/form.software_version'),
+            trans('admin/licenses/form.license_key'),
+            trans('general.serial_number'),
             trans('admin/licenses/form.seats'),
             trans('admin/licenses/form.remaining_seats'),
             trans('admin/licenses/form.expiration'),
@@ -375,7 +377,9 @@ class ReportsController extends Controller
         foreach ($licenses as $license) {
             $row = [];
             $row[] = e($license->name);
+            $row[] = e($license->software_version);
             $row[] = e($license->serial);
+            $row[] = e($license->serial_number);
             $row[] = e($license->seats);
             $row[] = $license->remaincount();
             $row[] = $license->expiration_date;

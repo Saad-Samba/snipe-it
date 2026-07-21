@@ -9,6 +9,7 @@ return array(
     'license_key'       => 'Product Key',
     'maintained'        => 'Maintained',
     'name'              => 'Software Name',
+    'software_version'  => 'Software Version',
     'perpetual'         => 'Perpetual',
     'perpetual_help'    => 'Check this when the license does not expire. Expiration date will be disabled and cleared.',
     'expiration_help'   => 'Required unless the license is marked perpetual.',

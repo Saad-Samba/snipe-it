@@ -11,6 +11,16 @@ class LicenseImporter extends ItemImporter
     public function __construct($filename)
     {
         parent::__construct($filename);
+        $this->setFieldMappings([]);
+    }
+
+    public function setFieldMappings($fields)
+    {
+        return parent::setFieldMappings(array_merge([
+            'serial' => 'product key',
+            'serial_number' => 'serial number',
+            'software_version' => 'software version',
+        ], $fields));
     }
 
     protected function handle($row)
@@ -34,17 +44,53 @@ class LicenseImporter extends ItemImporter
     public function createLicenseIfNotExists(array $row)
     {
         $editingLicense = false;
-        $license = License::where('serial', $this->item['serial'])->where('name', $this->item['name'])
-                    ->first();
-        if ($license) {
-            if (! $this->updating) {
+        $productKey = trim((string) ($this->item['serial'] ?? ''));
+        $serialNumber = trim((string) ($this->item['serial_number'] ?? ''));
+        $this->item['serial'] = $productKey;
+        $this->item['serial_number'] = $serialNumber;
 
-                if($this->item['serial'] != "") {
-                    $this->log('A matching License ' . $this->item['name'] . ' with serial ' . $this->item['serial'] . ' already exists');
+        $licenseQuery = License::where('name', $this->item['name']);
+        $hasProductKey = $productKey !== '';
+        $hasSerialNumber = $serialNumber !== '';
+
+        if ($hasProductKey || $hasSerialNumber) {
+            $licenseQuery->where(function ($query) use ($hasProductKey, $hasSerialNumber, $productKey, $serialNumber) {
+                if ($hasProductKey) {
+                    $query->orWhere('serial', $productKey);
                 }
-                else {
-                    $this->log('A matching License ' . $this->item['name'] . ' with no serial number already exists');
+
+                if ($hasSerialNumber) {
+                    $query->orWhere('serial_number', $serialNumber);
                 }
+            });
+        } else {
+            $licenseQuery
+                ->where(function ($query) {
+                    $query->whereNull('serial')->orWhere('serial', '');
+                })
+                ->where(function ($query) {
+                    $query->whereNull('serial_number')->orWhere('serial_number', '');
+                });
+        }
+
+        $matchingLicenses = $licenseQuery->limit(2)->get();
+
+        if ($matchingLicenses->count() > 1) {
+            $this->log('Multiple matching Licenses found for '.$this->item['name'].'; import row skipped.');
+
+            return;
+        }
+
+        $license = $matchingLicenses->first();
+        if ($license) {
+            if ($this->hasConflictingIdentifiers($license, $productKey, $serialNumber)) {
+                $this->log('Conflicting identifiers found for License '.$this->item['name'].'; import row skipped.');
+
+                return;
+            }
+
+            if (! $this->updating) {
+                $this->log($this->describeMatchingLicense());
 
                 return;
             }
@@ -63,6 +109,7 @@ class LicenseImporter extends ItemImporter
         }
         $this->item['license_email'] = trim($this->findCsvMatch($row, 'license_email'));
         $this->item['license_name'] = trim($this->findCsvMatch($row, 'license_name'));
+        $this->item['software_version'] = trim($this->findCsvMatch($row, 'software_version'));
         $this->item['maintained'] = trim($this->findCsvMatch($row, 'maintained'));
         $this->item['purchase_order'] = trim($this->findCsvMatch($row, 'purchase_order'));
         $this->item['order_number'] = trim($this->findCsvMatch($row, 'order_number'));
@@ -120,5 +167,33 @@ class LicenseImporter extends ItemImporter
             return;
         }
         $this->logError($license, 'License "'.$this->item['name'].'"');
+    }
+
+    private function describeMatchingLicense(): string
+    {
+        $details = [];
+
+        if ($this->item['serial'] !== '') {
+            $details[] = 'product key ' . $this->item['serial'];
+        }
+
+        if ($this->item['serial_number'] !== '') {
+            $details[] = 'serial number ' . $this->item['serial_number'];
+        }
+
+        if ($details === []) {
+            $details[] = 'no product key or serial number';
+        }
+
+        return 'A matching License ' . $this->item['name'] . ' with ' . implode(' and ', $details) . ' already exists';
+    }
+
+    private function hasConflictingIdentifiers(License $license, string $productKey, string $serialNumber): bool
+    {
+        $existingProductKey = trim((string) $license->serial);
+        $existingSerialNumber = trim((string) $license->serial_number);
+
+        return ($productKey !== '' && $existingProductKey !== '' && $productKey !== $existingProductKey)
+            || ($serialNumber !== '' && $existingSerialNumber !== '' && $serialNumber !== $existingSerialNumber);
     }
 }

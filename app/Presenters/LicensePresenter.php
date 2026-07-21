@@ -53,11 +53,23 @@ class LicensePresenter extends Presenter
                 'title' => trans('general.name'),
                 'formatter' => 'licensesLinkFormatter',
             ], [
+                'field' => 'software_version',
+                'searchable' => true,
+                'sortable' => true,
+                'visible' => false,
+                'title' => trans('admin/licenses/form.software_version'),
+            ], [
                 'field' => 'product_key',
                 'searchable' => true,
                 'sortable' => true,
                 'title' => trans('admin/licenses/form.license_key'),
                 'formatter' => 'licenseKeyFormatter',
+            ], [
+                'field' => 'serial_number',
+                'searchable' => true,
+                'sortable' => true,
+                'visible' => false,
+                'title' => trans('general.serial_number'),
             ], [
                 'field' => 'expiration_date',
                 'searchable' => true,

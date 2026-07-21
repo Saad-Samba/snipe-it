@@ -90,6 +90,7 @@ class LicensesController extends Controller
         $license->maintained        = $request->input('maintained', 0);
         $license->manufacturer_id   = $request->input('manufacturer_id');
         $license->name              = $request->input('name');
+        $license->software_version  = $request->input('software_version');
         $license->notes             = $request->input('notes');
         $license->order_number      = $request->input('order_number');
         $license->purchase_cost     = $request->input('purchase_cost');
@@ -99,6 +100,7 @@ class LicensesController extends Controller
         $license->reassignable      = $request->input('reassignable', 0);
         $license->seats             = $request->input('seats');
         $license->serial            = $request->input('serial');
+        $license->serial_number     = $request->input('serial_number');
         $license->supplier_id       = $request->input('supplier_id');
         $license->category_id       = $request->input('category_id');
         $license->termination_date  = $request->input('termination_date');
@@ -173,6 +175,7 @@ class LicensesController extends Controller
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained',0);
         $license->name              = $request->input('name');
+        $license->software_version  = $request->input('software_version');
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $license->notes             = $request->input('notes');
@@ -182,6 +185,7 @@ class LicensesController extends Controller
         $license->purchase_order    = $request->input('purchase_order');
         $license->reassignable      = $request->input('reassignable', 0);
         $license->serial            = $request->input('serial');
+        $license->serial_number     = $request->input('serial_number');
         $license->termination_date  = $request->input('termination_date');
         $license->seats             = e($request->input('seats'));
         $license->manufacturer_id   =  $request->input('manufacturer_id');
@@ -302,6 +306,7 @@ class LicensesController extends Controller
         $license = clone $license_to_clone;
         $license->id = null;
         $license->serial = null;
+        $license->serial_number = null;
 
         // Show the page
         return view('licenses/edit')
@@ -343,6 +348,8 @@ class LicensesController extends Controller
                         strtolower(trans('general.id')),
                         trans('general.company'),
                         trans('general.name'),
+                        trans('admin/licenses/form.software_version'),
+                        trans('admin/licenses/form.license_key'),
                         trans('general.serial_number'),
                         trans('general.purchase_date'),
                         trans('general.purchase_cost'),
@@ -376,7 +383,9 @@ class LicensesController extends Controller
                             $license->id,
                             $license->company ? $license->company->name: '',
                             $license->name,
+                            $license->software_version,
                             $license->serial,
+                            $license->serial_number,
                             $license->purchase_date,
                             $license->purchase_cost,
                             $license->order_number,

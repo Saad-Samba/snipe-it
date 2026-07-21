@@ -38,12 +38,16 @@ class UpdateLicenseTest extends TestCase
                 'seats' => '19999',
                 'category_id' => $license_category,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'serial_number' => 'LIC-SN-2001',
+                'software_version' => '2027 R2',
             ])
             ->assertStatus(302);
 
         $license->refresh();
         $this->assertEquals($license->licenseseats()->count(), $license->seats);
         $this->assertEquals($license->licenseseats()->count(), 19999);
+        $this->assertSame('LIC-SN-2001', $license->serial_number);
+        $this->assertSame('2027 R2', $license->software_version);
     }
 
     public function testCannotUpdateLicenseSeatsTooMuch()

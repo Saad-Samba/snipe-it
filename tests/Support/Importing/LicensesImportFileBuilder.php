@@ -23,8 +23,10 @@ use Illuminate\Support\Str;
  * orderNumber?: string,
  * purchaseCost?: int,
  * purchaseDate?: string,
+ * productKey?: string,
  * seats?: int,
  * serialNumber?: string,
+ * softwareVersion?: string,
  * supplierName?: string
  * }
  *
@@ -51,8 +53,10 @@ class LicensesImportFileBuilder extends FileBuilder
             'orderNumber'      => 'Order Number',
             'purchaseCost'     => 'Purchase Cost',
             'purchaseDate'     => 'Purchase Date',
+            'productKey'       => 'Product Key',
             'seats'            => 'seats',
             'serialNumber'     => 'Serial number',
+            'softwareVersion'  => 'Software Version',
             'supplierName'     => 'supplier',
         ];
     }
@@ -78,8 +82,10 @@ class LicensesImportFileBuilder extends FileBuilder
             'orderNumber'      => "ON:LIC:{$faker->uuid}",
             'purchaseCost'     => rand(1, 100_000),
             'purchaseDate'     => $faker->date,
+            'productKey'       => 'PK:LIC:' . Str::random(),
             'seats'            => rand(1, 10),
             'serialNumber'     => 'SN:LIC:' . Str::random(),
+            'softwareVersion'  => $faker->numerify('##.#.#'),
             'supplierName'     => $faker->company,
         ];
     }
