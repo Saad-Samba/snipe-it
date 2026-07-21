@@ -24,6 +24,7 @@ use App\Http\Controllers\ModelRequestsController;
 use App\Http\Controllers\NotesController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectsController;
+use App\Http\Controllers\RegionalAssetCoordinatorsController;
 use App\Http\Controllers\ReportTemplatesController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
@@ -366,6 +367,15 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
         ->breadcrumbs(fn (Trail $trail) =>
                 $trail->parent('home')
             ->push(trans('general.editprofile'), route('profile')));
+
+    Route::get('regional-coordinators', [RegionalAssetCoordinatorsController::class, 'index'])
+        ->name('account.regional-asset-coordinators.index')
+        ->breadcrumbs(fn (Trail $trail) =>
+            $trail->parent('home')
+                ->push(
+                    trans('general.regional_asset_coordinators'),
+                    route('account.regional-asset-coordinators.index')
+                ));
 
     Route::post('profile', [ProfileController::class, 'postIndex'])
         ->name('profile.update');
