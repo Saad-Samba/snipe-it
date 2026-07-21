@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\CheckoutRequest;
+use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
 use App\Models\Project;
@@ -2133,6 +2134,115 @@ class ModelRequestWorkflowTest extends TestCase
             'project_id' => $project->id,
             'discipline_id' => $discipline->id,
         ]);
+        $this->assertDatabaseHas('checkout_request_coordinators', [
+            'checkout_request_id' => $request->id,
+            'user_id' => $coordinator->id,
+            'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_COMPLETED,
+        ]);
+    }
+
+    public function test_partial_allocation_marks_coordinator_target_in_progress_and_request_stays_actionable()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $coordinator = User::factory()->viewAssets()->checkoutAssets()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Partial Allocate Scope', 'created_by' => $requester->id]);
+        $company = Company::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $company->id,
+            'project_id' => $project->id,
+            'quantity' => 2,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ]);
+
+        $request->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+        ]);
+
+        $assetA = $this->createEligibleAsset($model, $company->id, $discipline->id);
+
+        $this->actingAs($coordinator)
+            ->get(route('hardware.index', ['request_id' => $request->id]))
+            ->assertOk();
+
+        $this->actingAs($coordinator)
+            ->post(route('hardware.bulkcheckout.store'), [
+                'request_id' => $request->id,
+                'selected_assets' => [$assetA->id],
+                'checkout_to_type' => 'user',
+                'assigned_user' => $requester->id,
+                'project_id' => $project->id,
+                'discipline_id' => $discipline->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
+            ])
+            ->assertRedirect(route('hardware.index', ['request_id' => $request->id]));
+
+        $request->refresh();
+        $target = $request->coordinatorTargets()->where('user_id', $coordinator->id)->firstOrFail();
+
+        $this->assertSame(CheckoutRequest::STATUS_PARTIALLY_ALLOCATED, $request->status);
+        $this->assertSame(1, $request->remainingAllocationQuantity());
+        $this->assertTrue($request->canBeProcessedBy($coordinator));
+        $this->assertSame(CheckoutRequestCoordinator::RESOLUTION_IN_PROGRESS, $target->resolvedStatus());
+        $this->assertNotNull($target->reviewed_at);
+        $this->assertNotNull($target->last_action_at);
+    }
+
+    public function test_candidate_rac_can_mark_no_more_stock_available_from_request_review_flow()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssets()->viewAssetModels()->create();
+        $coordinator = User::factory()->viewAssets()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'No Stock Scope', 'created_by' => $requester->id]);
+        $company = Company::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $company->id,
+            'project_id' => $project->id,
+            'quantity' => 2,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ]);
+
+        $request->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAs($coordinator)
+            ->get(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']))
+            ->assertOk()
+            ->assertSee('Mark no more reusable stock available');
+
+        $this->actingAs($coordinator)
+            ->post(route('hardware.requests.coordinator-resolution', $request), [
+                'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK,
+                'request_bucket' => 'reusable_now',
+            ])
+            ->assertRedirect(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']));
+
+        $target = $request->fresh()->coordinatorTargets()->where('user_id', $coordinator->id)->firstOrFail();
+
+        $this->assertSame(CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK, $target->resolvedStatus());
+        $this->assertNotNull($target->reviewed_at);
+        $this->assertNotNull($target->last_action_at);
     }
 
     public function test_request_review_page_no_longer_shows_allocate_everything_button()

@@ -25,6 +25,7 @@ class StoreLicenseWithFullMultipleCompanySupportTest extends TestCase
                 'seats' => '1',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => $company->id,
+                'expiration_date' => now()->addYear()->format('Y-m-d'),
             ]);
 
         $license = License::where('name', 'My Cool License')->sole();

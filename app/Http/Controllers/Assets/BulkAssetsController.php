@@ -932,6 +932,17 @@ class BulkAssetsController extends Controller
             if (! $errors) {
                 if ($requestContext) {
                     $requestContext->syncAllocationStatus(true);
+                    $coordinatorTarget = $requestContext->coordinatorTargets()
+                        ->where('user_id', $admin->id)
+                        ->first();
+
+                    if ($coordinatorTarget) {
+                        if ($requestContext->remainingAllocationQuantity() > 0) {
+                            $coordinatorTarget->markInProgress();
+                        } else {
+                            $coordinatorTarget->markCompleted();
+                        }
+                    }
 
                     return redirect()->to(session('back_url', route('hardware.index')))
                         ->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));

@@ -78,6 +78,7 @@ class LicenseRequestWorkflowTest extends TestCase
             'discipline_id' => $discipline->id,
             'project_id' => null,
             'reassignable' => true,
+            'perpetual' => true,
             'expiration_date' => null,
             'termination_date' => null,
             'purchase_cost' => 499.99,

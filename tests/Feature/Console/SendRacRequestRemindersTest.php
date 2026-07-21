@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\CheckoutRequest;
+use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
 use App\Models\Project;
@@ -144,6 +145,60 @@ class SendRacRequestRemindersTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_keeps_reminding_partially_allocated_requests_that_are_still_in_progress()
+    {
+        Notification::fake();
+        [$coordinator, $request] = $this->makeCoordinatorTargetedRequest([
+            'quantity' => 2,
+        ]);
+
+        $allocatedAsset = $this->createEligibleAsset(
+            $request->requestedItem,
+            $request->company_id,
+            $request->requested_discipline_id
+        );
+
+        $request->allocatedAssets()->attach($allocatedAsset->id, [
+            'allocated_by' => $coordinator->id,
+            'allocated_at' => now()->subDay(),
+        ]);
+        $request->syncAllocationStatus(true);
+        $request->coordinatorTargets()->update([
+            'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_IN_PROGRESS,
+            'reviewed_at' => now()->subDay(),
+            'last_action_at' => now()->subDay(),
+            'initial_notified_at' => now()->subDays(3),
+        ]);
+
+        $this->artisan('snipeit:rac-request-reminders')
+            ->expectsOutput('1 coordinators reminded.')
+            ->assertExitCode(0);
+
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class, function ($notification) use ($request) {
+            return $notification->isReminder()
+                && $notification->lines()[0]['request_id'] === $request->id;
+        });
+    }
+
+    public function test_does_not_remind_coordinator_targets_marked_no_more_stock_available()
+    {
+        Notification::fake();
+        [$coordinator, $request] = $this->makeCoordinatorTargetedRequest();
+
+        $request->coordinatorTargets()->update([
+            'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK,
+            'reviewed_at' => now()->subDay(),
+            'last_action_at' => now()->subDay(),
+            'initial_notified_at' => now()->subDays(3),
+        ]);
+
+        $this->artisan('snipeit:rac-request-reminders')
+            ->expectsOutput('0 coordinators reminded.')
+            ->assertExitCode(0);
+
+        Notification::assertNotSentTo($coordinator, RacScopedRequestSummaryNotification::class);
+    }
+
     private function makeCoordinatorTargetedRequest(array $overrides = []): array
     {
         $requester = User::factory()->create();
@@ -191,7 +246,7 @@ class SendRacRequestRemindersTest extends TestCase
             'requested_discipline_id' => $discipline->id,
             'company_id' => $company->id,
             'project_id' => $project->id,
-            'quantity' => 1,
+            'quantity' => $overrides['quantity'] ?? 1,
             'status' => CheckoutRequest::STATUS_PENDING,
         ]);
 

@@ -90,6 +90,10 @@ class SendRacRequestReminders extends Command
             return false;
         }
 
+        if ($target->hasTerminalResolution()) {
+            return false;
+        }
+
         if (! $target->checkoutRequest->canBeProcessedBy($target->coordinator)) {
             return false;
         }

@@ -44,6 +44,9 @@ class License extends Depreciable
         'purchase_date' => 'date',
         'expiration_date' => 'date',
         'termination_date' => 'date',
+        'perpetual' => 'boolean',
+        'serial_number' => 'string',
+        'software_version' => 'string',
         'category_id'  => 'integer',
         'company_id'   => 'integer',
         'project_id'   => 'integer',
@@ -62,8 +65,11 @@ class License extends Depreciable
         'discipline_id' => 'integer|nullable|exists:disciplines,id,deleted_at,NULL',
         'purchase_cost'     =>  'numeric|nullable|gte:0|max:99999999999999999.99',
         'purchase_date'   => 'date_format:Y-m-d|nullable|max:10|required_with:depreciation_id',
-        'expiration_date'   => 'date_format:Y-m-d|nullable|max:10',
+        'perpetual'   => 'boolean',
+        'expiration_date'   => 'required_unless:perpetual,true|date_format:Y-m-d|nullable|max:10',
         'termination_date'   => 'date_format:Y-m-d|nullable|max:10',
+        'serial_number'   => 'string|nullable|max:191',
+        'software_version' => 'string|nullable|max:255',
         'min_amt'   => 'numeric|nullable|gte:0',
     ];
 
@@ -79,6 +85,7 @@ class License extends Depreciable
         'license_email',
         'license_name', //actually licensed_to
         'maintained',
+        'perpetual',
         'manufacturer_id',
         'category_id',
         'name',
@@ -92,6 +99,8 @@ class License extends Depreciable
         'reassignable',
         'seats',
         'serial',
+        'serial_number',
+        'software_version',
         'supplier_id',
         'termination_date',
         'created_by',
@@ -108,6 +117,8 @@ class License extends Depreciable
     protected $searchableAttributes = [
         'name',
         'serial',
+        'serial_number',
+        'software_version',
         'notes',
         'order_number',
         'purchase_order',
@@ -147,6 +158,13 @@ class License extends Depreciable
                 $newSeatCount = $license->getAttributes()['seats'];
 
                 return static::adjustSeatCount($license, 0, $newSeatCount);
+            }
+        );
+        static::saving(
+            function ($license) {
+                if ($license->perpetual) {
+                    $license->expiration_date = null;
+                }
             }
         );
         // However, we listen for updating to be able to prevent the edit if we cannot delete enough seats.
@@ -362,6 +380,16 @@ class License extends Depreciable
     public function setReassignableAttribute($value)
     {
         $this->attributes['reassignable'] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Sets the attribute for whether or not the license is perpetual
+     *
+     * @return void
+     */
+    public function setPerpetualAttribute($value)
+    {
+        $this->attributes['perpetual'] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
