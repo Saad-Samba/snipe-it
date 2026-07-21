@@ -44,18 +44,23 @@ class LicenseImporter extends ItemImporter
     public function createLicenseIfNotExists(array $row)
     {
         $editingLicense = false;
+        $productKey = trim((string) ($this->item['serial'] ?? ''));
+        $serialNumber = trim((string) ($this->item['serial_number'] ?? ''));
+        $this->item['serial'] = $productKey;
+        $this->item['serial_number'] = $serialNumber;
+
         $licenseQuery = License::where('name', $this->item['name']);
-        $hasProductKey = $this->item['serial'] !== '';
-        $hasSerialNumber = $this->item['serial_number'] !== '';
+        $hasProductKey = $productKey !== '';
+        $hasSerialNumber = $serialNumber !== '';
 
         if ($hasProductKey || $hasSerialNumber) {
-            $licenseQuery->where(function ($query) use ($hasProductKey, $hasSerialNumber) {
+            $licenseQuery->where(function ($query) use ($hasProductKey, $hasSerialNumber, $productKey, $serialNumber) {
                 if ($hasProductKey) {
-                    $query->orWhere('serial', $this->item['serial']);
+                    $query->orWhere('serial', $productKey);
                 }
 
                 if ($hasSerialNumber) {
-                    $query->orWhere('serial_number', $this->item['serial_number']);
+                    $query->orWhere('serial_number', $serialNumber);
                 }
             });
         } else {
@@ -78,6 +83,12 @@ class LicenseImporter extends ItemImporter
 
         $license = $matchingLicenses->first();
         if ($license) {
+            if ($this->hasConflictingIdentifiers($license, $productKey, $serialNumber)) {
+                $this->log('Conflicting identifiers found for License '.$this->item['name'].'; import row skipped.');
+
+                return;
+            }
+
             if (! $this->updating) {
                 $this->log($this->describeMatchingLicense());
 
@@ -175,5 +186,14 @@ class LicenseImporter extends ItemImporter
         }
 
         return 'A matching License ' . $this->item['name'] . ' with ' . implode(' and ', $details) . ' already exists';
+    }
+
+    private function hasConflictingIdentifiers(License $license, string $productKey, string $serialNumber): bool
+    {
+        $existingProductKey = trim((string) $license->serial);
+        $existingSerialNumber = trim((string) $license->serial_number);
+
+        return ($productKey !== '' && $existingProductKey !== '' && $productKey !== $existingProductKey)
+            || ($serialNumber !== '' && $existingSerialNumber !== '' && $serialNumber !== $existingSerialNumber);
     }
 }

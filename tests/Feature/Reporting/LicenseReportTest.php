@@ -53,4 +53,37 @@ class LicenseReportTest extends TestCase implements TestsPermissionsRequirement
         $this->assertSame('PK-ABC-123', $matchingRow[2]);
         $this->assertSame('SN-XYZ-789', $matchingRow[3]);
     }
+
+    #[Test]
+    public function primaryLicenseExportIncludesSoftwareVersion(): void
+    {
+        $license = License::factory()->create([
+            'name' => 'MATLAB',
+            'software_version' => 'R2026b',
+            'serial' => 'PK-MATLAB',
+            'serial_number' => 'SN-MATLAB',
+        ]);
+
+        $response = $this->actingAs(User::factory()->viewLicenses()->create())
+            ->get(route('licenses.export'))
+            ->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $records = array_values(iterator_to_array(Reader::createFromString($response->streamedContent())->getRecords()));
+        $headers = $records[0];
+        $matchingRow = collect($records)
+            ->skip(1)
+            ->first(fn (array $row) => $row[0] === (string) $license->id);
+        $softwareVersionIndex = array_search(trans('admin/licenses/form.software_version'), $headers);
+        $productKeyIndex = array_search(trans('admin/licenses/form.license_key'), $headers);
+        $serialNumberIndex = array_search(trans('general.serial_number'), $headers);
+
+        $this->assertNotNull($matchingRow);
+        $this->assertNotFalse($softwareVersionIndex);
+        $this->assertNotFalse($productKeyIndex);
+        $this->assertNotFalse($serialNumberIndex);
+        $this->assertSame('R2026b', $matchingRow[$softwareVersionIndex]);
+        $this->assertSame('PK-MATLAB', $matchingRow[$productKeyIndex]);
+        $this->assertSame('SN-MATLAB', $matchingRow[$serialNumberIndex]);
+    }
 }
