@@ -103,6 +103,38 @@ class UpdateAssetTest extends TestCase
         $this->assertEquals('2023-09-03 00:00:00', $updatedAsset->last_audit_date);
     }
 
+    public function testRejectsUpdateWhenUserLacksCompanyAssignmentUnderFullMultipleCompanySupport()
+    {
+        $this->settings->enableMultipleFullCompanySupport();
+
+        $asset = Asset::factory()->create();
+        $actor = User::factory()->editAssets()->create(['company_id' => null]);
+
+        $this->actingAsForApi($actor)
+            ->patchJson(route('api.assets.update', $asset->id), [
+                'name' => 'test',
+            ])
+            ->assertStatusMessageIs('error');
+
+        $asset->refresh();
+        $this->assertNotEquals('test', $asset->name);
+    }
+
+    public function testCompanyIsRequiredWhenUpdatingAsset()
+    {
+        $asset = Asset::factory()->create(['company_id' => null]);
+
+        $this->actingAsForApi(User::factory()->superuser()->editAssets()->create(['company_id' => null]))
+            ->patchJson(route('api.assets.update', $asset->id), [
+                'name' => 'test',
+            ])
+            ->assertStatusMessageIs('error')
+            ->assertJsonPath('messages.company_id.0', 'The company field is required.');
+
+        $asset->refresh();
+        $this->assertNotEquals('test', $asset->name);
+    }
+
     public function testUpdatesPeriodAsCommaSeparatorForPurchaseCost()
     {
         $this->settings->set([

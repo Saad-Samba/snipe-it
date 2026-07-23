@@ -6,6 +6,7 @@ use App\Http\Traits\TwoColumnUniqueUndeletedTrait;
 use App\Models\Traits\Searchable;
 use App\Presenters\Presentable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Gate;
 use Watson\Validating\ValidatingTrait;
@@ -34,6 +35,7 @@ class Category extends SnipeModel
     protected $casts = [
         'alert_on_response' => 'boolean',
         'created_by'      => 'integer',
+        'manager_id'      => 'integer',
     ];
 
     /**
@@ -41,6 +43,7 @@ class Category extends SnipeModel
      */
     public $rules = [
         'created_by' => 'numeric|nullable',
+        'manager_id' => 'numeric|nullable|exists:users,id',
         'name'   => 'required|min:1|max:255|two_column_unique_undeleted:category_type',
         'require_acceptance'   => 'boolean',
         'use_default_eula'   => 'boolean',
@@ -75,6 +78,7 @@ class Category extends SnipeModel
         'alert_on_response',
         'use_default_eula',
         'created_by',
+        'manager_id',
         'tag_color',
         'notes',
     ];
@@ -93,7 +97,9 @@ class Category extends SnipeModel
      *
      * @var array
      */
-    protected $searchableRelations = [];
+    protected $searchableRelations = [
+        'manager' => ['first_name', 'last_name', 'display_name', 'username'],
+    ];
 
     /**
      * Checks if category can be deleted
@@ -212,6 +218,29 @@ class Category extends SnipeModel
         return $this->hasManyThrough(Asset::class, \App\Models\AssetModel::class, 'category_id', 'model_id');
     }
 
+    public function manager()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'manager_id')->withTrashed();
+    }
+
+    public function scopeManagedBy(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->where('manager_id', $user->id);
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return true;
+        }
+
+        return (int) $this->manager_id === (int) $user->id;
+    }
+
     /**
      * Establishes the category -> assets relationship but also takes into consideration
      * the setting to show archived in lists.
@@ -231,6 +260,20 @@ class Category extends SnipeModel
     }
 
     /**
+     * Establishes the category -> reusable assets relationship.
+     *
+     * Reusable assets should follow the same RTD logic used by model
+     * "remaining" counts so category totals and drilldowns stay consistent.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\Relation
+     */
+    public function reusableAssets()
+    {
+        return $this->hasManyThrough(Asset::class, \App\Models\AssetModel::class, 'category_id', 'model_id')
+            ->RTD();
+    }
+
+    /**
      * Establishes the category -> models relationship
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]
@@ -240,6 +283,21 @@ class Category extends SnipeModel
     public function models()
     {
         return $this->hasMany(\App\Models\AssetModel::class, 'category_id');
+    }
+
+    public function availableModels()
+    {
+        return $this->hasMany(\App\Models\AssetModel::class, 'category_id')
+            ->whereHas('availableAssets');
+    }
+
+    public function scopeOrderManager($query, $order)
+    {
+        return $query
+            ->leftJoin('users as category_manager', 'categories.manager_id', '=', 'category_manager.id')
+            ->select('categories.*')
+            ->orderBy('category_manager.first_name', $order)
+            ->orderBy('category_manager.last_name', $order);
     }
 
     public function fieldset()

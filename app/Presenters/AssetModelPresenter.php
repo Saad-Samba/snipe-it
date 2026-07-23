@@ -78,6 +78,16 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'minAmtFormatter',
                 'class' => 'text-right text-padding-number-cell',
             ],
+            [
+                'field' => 'reference_price',
+                'searchable' => false,
+                'sortable' => true,
+                'switchable' => true,
+                'title' => 'Reference Price',
+                'visible' => true,
+                'formatter' => 'referencePriceFormatter',
+                'class' => 'text-right text-padding-number-cell',
+            ],
 
             [
                 'field' => 'assets_count',
@@ -163,14 +173,6 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'fieldsetsLinkObjFormatter',
             ],
             [
-                'field' => 'requestable',
-                'searchable' => false,
-                'sortable' => true,
-                'visible' => false,
-                'title' => trans('admin/hardware/general.requestable'),
-                'formatter' => 'trueFalseFormatter',
-            ],
-            [
                 'field' => 'require_serial',
                 'searchable' => false,
                 'sortable' => true,
@@ -212,6 +214,16 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'dateDisplayFormatter',
             ],
 
+        ];
+
+        $layout[] = [
+            'field' => 'request',
+            'searchable' => false,
+            'sortable' => false,
+            'switchable' => false,
+            'title' => 'Total Needed',
+            'formatter' => 'modelRequestActionsFormatter',
+            'printIgnore' => true,
         ];
 
         $layout[] = [

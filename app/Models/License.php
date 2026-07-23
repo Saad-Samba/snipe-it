@@ -6,6 +6,7 @@ use App\Helpers\Helper;
 use App\Models\Traits\CompanyableTrait;
 use App\Models\Traits\HasUploads;
 use App\Models\Traits\Loggable;
+use App\Models\Traits\Requestable;
 use App\Models\Traits\Searchable;
 use App\Presenters\Presentable;
 use Carbon\Carbon;
@@ -20,6 +21,7 @@ use Watson\Validating\ValidatingTrait;
 class License extends Depreciable
 {
     use HasFactory;
+    use Requestable;
 
     protected $presenter = \App\Presenters\LicensePresenter::class;
 
@@ -214,6 +216,61 @@ class License extends Depreciable
     public function discipline()
     {
         return $this->belongsTo(Discipline::class, 'discipline_id');
+    }
+
+    public function availableReusableSeats()
+    {
+        return $this->licenseSeats()
+            ->whereNull('assigned_to')
+            ->whereNull('asset_id')
+            ->where('unreassignable_seat', false);
+    }
+
+    public function expectedReleaseSeatsByDate(?string $neededByDate = null)
+    {
+        $query = $this->licenseSeats()
+            ->where(function ($query) {
+                $query->whereNotNull('assigned_to')
+                    ->orWhereNotNull('asset_id');
+            })
+            ->whereNotNull('expected_release_date')
+            ->where('unreassignable_seat', false);
+
+        if ($neededByDate) {
+            $query->whereDate('expected_release_date', '<=', $neededByDate);
+        }
+
+        return $query;
+    }
+
+    public function potentiallyCoverableSeatsByDate(?string $neededByDate = null)
+    {
+        return $this->licenseSeats()->whereIn('license_seats.id', function ($query) use ($neededByDate) {
+            $query->select('id')
+                ->from('license_seats')
+                ->where('license_id', $this->id)
+                ->where('unreassignable_seat', false)
+                ->where(function ($query) use ($neededByDate) {
+                    $query->where(function ($query) {
+                        $query->whereNull('assigned_to')
+                            ->whereNull('asset_id');
+                    })->orWhere(function ($query) use ($neededByDate) {
+                        $query->where(function ($query) {
+                            $query->whereNotNull('assigned_to')
+                                ->orWhereNotNull('asset_id');
+                        })->whereNotNull('expected_release_date');
+
+                        if ($neededByDate) {
+                            $query->whereDate('expected_release_date', '<=', $neededByDate);
+                        }
+                    });
+                });
+        });
+    }
+
+    public function expectedReleaseSeatCount(?string $neededByDate = null): int
+    {
+        return $this->expectedReleaseSeatsByDate($neededByDate)->count();
     }
 
 
@@ -780,6 +837,23 @@ class License extends Depreciable
     public function freeSeats()
     {
         return $this->hasMany(\App\Models\LicenseSeat::class)->whereNull('assigned_to')->whereNull('deleted_at')->whereNull('asset_id');
+    }
+
+    public function reusableFreeSeatsCount(): int
+    {
+        $availableSeats = array_key_exists('free_seats_count', $this->getAttributes())
+            ? (int) $this->getAttribute('free_seats_count')
+            : (int) $this->freeSeats()->count();
+
+        return max(0, $availableSeats - self::unReassignableCount($this));
+    }
+
+    public function isReusableForRequest(): bool
+    {
+        return ! $this->isInactive()
+            && (bool) $this->reassignable
+            && $this->company_id
+            && $this->discipline_id;
     }
 
     public function scopeActiveLicenses($query)

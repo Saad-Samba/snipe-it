@@ -26,6 +26,7 @@ class LicenseSeat extends SnipeModel implements ICompanyableChild
     protected $table = 'license_seats';
     protected $casts = [
         'unreassignable_seat' => 'boolean',
+        'expected_release_date' => 'date',
     ];
 
     /**
@@ -36,6 +37,7 @@ class LicenseSeat extends SnipeModel implements ICompanyableChild
     protected $fillable = [
         'assigned_to',
         'asset_id',
+        'expected_release_date',
         'notes',
     ];
 

@@ -154,6 +154,7 @@ class LicenseSeatsController extends Controller
         if ($licenseSeat->save()) {
             if($assignmentTouched) {
                 if ($is_checkin) {
+                    $licenseSeat->expected_release_date = null;
                     if (!$licenseSeat->license->reassignable) {
                         $licenseSeat->unreassignable_seat = true;
                         $licenseSeat->save();

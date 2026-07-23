@@ -4,6 +4,8 @@ namespace Tests\Feature\Assets\Ui;
 
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\Company;
+use App\Models\StatusLabel;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -26,6 +28,7 @@ class StoreAssetsTest extends TestCase
         ]);
 
         $response = $this->post(route('hardware.store'), [
+            'company_id' => Company::factory()->create()->id,
             'model_id' => $model->id,
             'serials' => [1 => 'ABC123'],
             'asset_tags' =>[1 => '1234'],
@@ -73,5 +76,47 @@ class StoreAssetsTest extends TestCase
         ]);
 
         $response->assertSessionMissing('success-unescaped');
+    }
+
+    public function testCompanyIsRequiredWhenStoringAsset()
+    {
+        $user = User::factory()->superuser()->create(['company_id' => null]);
+        $this->actingAs($user);
+
+        $response = $this->from(route('hardware.create'))->post(route('hardware.store'), [
+            'model_id' => AssetModel::factory()->create()->id,
+            'asset_tags' => [1 => '1234'],
+            'status_id' => StatusLabel::factory()->create()->id,
+        ]);
+
+        $response->assertRedirect(route('hardware.create'));
+        $response->assertSessionHasErrors([
+            'company_id' => 'The company field is required.',
+        ]);
+
+        $this->assertDatabaseMissing('assets', [
+            'asset_tag' => '1234',
+        ]);
+    }
+
+    public function testCompanyIsRequiredWhenStoringAssetWithFmcsDisabledEvenIfUserHasACompany()
+    {
+        $user = User::factory()->superuser()->create();
+        $this->actingAs($user);
+
+        $response = $this->from(route('hardware.create'))->post(route('hardware.store'), [
+            'model_id' => AssetModel::factory()->create()->id,
+            'asset_tags' => [1 => '1235'],
+            'status_id' => StatusLabel::factory()->create()->id,
+        ]);
+
+        $response->assertRedirect(route('hardware.create'));
+        $response->assertSessionHasErrors([
+            'company_id' => 'The company field is required.',
+        ]);
+
+        $this->assertDatabaseMissing('assets', [
+            'asset_tag' => '1235',
+        ]);
     }
 }

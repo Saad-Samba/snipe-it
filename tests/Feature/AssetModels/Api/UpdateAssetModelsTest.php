@@ -39,6 +39,24 @@ class UpdateAssetModelsTest extends TestCase
 
     }
 
+    public function testAfmCannotUpdateAssetModelOutsideManagedCategory()
+    {
+        $afm = User::factory()->viewAssetModels()->editAssetModels()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $model = AssetModel::factory()->create();
+
+        $this->actingAsForApi($afm)
+            ->patchJson(route('api.models.update', $model), [
+                'name' => 'Out Of Scope Update',
+                'category_id' => $model->category_id,
+            ])
+            ->assertForbidden();
+
+        $this->assertNotEquals('Out Of Scope Update', $model->fresh()->name);
+    }
+
     public function testCannotUpdateAssetModelViaPatchWithAccessoryCategory()
     {
         $category = Category::factory()->forAccessories()->create();

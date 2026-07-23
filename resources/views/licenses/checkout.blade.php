@@ -18,12 +18,20 @@
     <div class="col-md-8">
         <form class="form-horizontal" method="post" action="" autocomplete="off">
             {{csrf_field()}}
+            @if (request()->filled('request_id'))
+                <input type="hidden" name="request_id" value="{{ request()->input('request_id') }}">
+            @endif
 
             <div class="box box-default">
                 <div class="box-header with-border">
                     <h2 class="box-title"> {{ $license->name }} ({{ trans('admin/licenses/message.seats_available', ['seat_count' => $license->availCount()->count()]) }})</h2>
                 </div>
                 <div class="box-body">
+                    @if (!empty($requestContext))
+                        <div class="alert alert-info">
+                            This checkout is being completed for request <strong>#{{ $requestContext->id }}</strong>.
+                        </div>
+                    @endif
 
 
                     <!-- License name -->
@@ -74,6 +82,21 @@
                     @include ('partials.forms.checkout-selector', ['user_select' => 'true','asset_select' => 'true', 'location_select' => 'false'])
                     @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.user'), 'fieldname' => 'assigned_to', 'style' => (session('checkout_to_type') ?: 'user') == 'user' ? '' : 'display: none;'])
                     @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.select_asset'), 'fieldname' => 'asset_id', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
+
+                    <!-- Note -->
+                    <div class="form-group {{ $errors->has('expected_release_date') ? 'error' : '' }}">
+                        <label for="expected_release_date" class="col-md-3 control-label">Expected Release Date</label>
+                        <div class="col-md-4">
+                            <input
+                                class="form-control"
+                                id="expected_release_date"
+                                name="expected_release_date"
+                                type="date"
+                                value="{{ old('expected_release_date') }}">
+                            <p class="help-block">Informational only. Use this when the assigned seat is expected to be released on a known date.</p>
+                            {!! $errors->first('expected_release_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+                        </div>
+                    </div>
 
                     <!-- Note -->
                     <div class="form-group {{ $errors->has('notes') ? 'error' : '' }}">

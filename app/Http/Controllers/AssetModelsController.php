@@ -7,6 +7,7 @@ use App\Http\Requests\ImageUploadRequest;
 use App\Http\Requests\StoreAssetModelRequest;
 use App\Models\Actionlog;
 use App\Models\AssetModel;
+use App\Models\Category;
 use App\Models\CustomField;
 use App\Models\SnipeModel;
 use App\Models\User;
@@ -56,6 +57,7 @@ class AssetModelsController extends Controller
         $this->authorize('create', AssetModel::class);
 
         return view('models/edit')->with('category_type', 'asset')
+            ->with('availableCategories', $this->availableAssetCategories())
             ->with('depreciation_list', Helper::depreciationList())
             ->with('item', new AssetModel);
     }
@@ -77,12 +79,12 @@ class AssetModelsController extends Controller
         $model->name = $request->input('name');
         $model->model_number = $request->input('model_number');
         $model->min_amt = $request->input('min_amt');
+        $model->reference_price = $request->input('reference_price');
         $model->manufacturer_id = $request->input('manufacturer_id');
         $model->category_id = $request->input('category_id');
         $model->notes = $request->input('notes');
         $model->created_by = auth()->id();
         $model->obsolete = $request->has('obsolete');
-        $model->requestable = $request->has('requestable');
         $model->require_serial = $request->input('require_serial', 0);
 
         if ($request->input('fieldset_id') != '') {
@@ -126,9 +128,12 @@ class AssetModelsController extends Controller
      */
     public function edit(AssetModel $model) : View | RedirectResponse
     {
-        $this->authorize('update', AssetModel::class);
+        $this->authorize('update', $model);
         $category_type = 'asset';
-        return view('models/edit', compact('category_type'))->with('item', $model)->with('depreciation_list', Helper::depreciationList());
+        return view('models/edit', compact('category_type'))
+            ->with('availableCategories', $this->availableAssetCategories())
+            ->with('item', $model)
+            ->with('depreciation_list', Helper::depreciationList());
     }
 
 
@@ -145,7 +150,7 @@ class AssetModelsController extends Controller
      */
     public function update(StoreAssetModelRequest $request, AssetModel $model) : RedirectResponse
     {
-        $this->authorize('update', AssetModel::class);
+        $this->authorize('update', $model);
 
         $model = $request->handleImages($model);
         $model->depreciation_id = $request->input('depreciation_id');
@@ -153,11 +158,11 @@ class AssetModelsController extends Controller
         $model->name = $request->input('name');
         $model->model_number = $request->input('model_number');
         $model->min_amt = $request->input('min_amt');
+        $model->reference_price = $request->input('reference_price');
         $model->manufacturer_id = $request->input('manufacturer_id');
         $model->category_id = $request->input('category_id');
         $model->notes = $request->input('notes');
         $model->obsolete = $request->input('obsolete', '0');
-        $model->requestable = $request->input('requestable', '0');
         $model->require_serial = $request->input('require_serial', 0);
         $model->fieldset_id = $request->input('fieldset_id');
 
@@ -196,7 +201,7 @@ class AssetModelsController extends Controller
      */
     public function destroy(AssetModel $model) : RedirectResponse
     {
-        $this->authorize('delete', AssetModel::class);
+        $this->authorize('delete', $model);
 
 
         if ($model->assets()->count() > 0) {
@@ -220,9 +225,8 @@ class AssetModelsController extends Controller
      */
     public function getRestore($id) : RedirectResponse
     {
-        $this->authorize('create', AssetModel::class);
-
         if ($model = AssetModel::withTrashed()->find($id)) {
+            $this->authorize('update', $model);
 
             if ($model->deleted_at == '') {
                 return redirect()->back()->with('error', trans('general.not_deleted', ['item_type' => trans('general.asset_model')]));
@@ -263,7 +267,7 @@ class AssetModelsController extends Controller
      */
     public function show(AssetModel $model) : View | RedirectResponse
     {
-        $this->authorize('view', AssetModel::class);
+        $this->authorize('view', $model);
         return view('models/view', compact('model'));
     }
 
@@ -276,6 +280,7 @@ class AssetModelsController extends Controller
      */
     public function getClone(AssetModel $model) : View | RedirectResponse
     {
+        $this->authorize('view', $model);
         $this->authorize('create', AssetModel::class);
 
         $cloned_model = clone $model;
@@ -284,6 +289,7 @@ class AssetModelsController extends Controller
 
         // Show the page
         return view('models/edit')
+            ->with('availableCategories', $this->availableAssetCategories())
             ->with('depreciation_list', Helper::depreciationList())
             ->with('item', $model)
             ->with('model_id', $model->id)
@@ -300,7 +306,23 @@ class AssetModelsController extends Controller
      */
     public function getCustomFields($modelId) : View
     {
-        return view('models.custom_fields_form')->with('model', AssetModel::find($modelId));
+        $model = AssetModel::findOrFail($modelId);
+        $this->authorize('view', $model);
+
+        return view('models.custom_fields_form')->with('model', $model);
+    }
+
+    private function availableAssetCategories()
+    {
+        $categories = Category::query()
+            ->where('category_type', 'asset')
+            ->orderBy('name', 'asc');
+
+        if (! auth()->user()->isSuperUser() && ! auth()->user()->isAdmin()) {
+            $categories->where('manager_id', auth()->id());
+        }
+
+        return $categories->get(['id', 'name']);
     }
 
 

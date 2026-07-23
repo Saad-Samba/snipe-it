@@ -383,20 +383,18 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                                 {{ trans('general.viewassets') }}
                                             </a></li>
 
-                                        @can('viewRequestable', \App\Models\Asset::class)
-                                            <li {!! (request()->is('account/requested') ? ' class="active"' : '') !!}>
-                                                <a href="{{ route('account.requested') }}">
-                                                    <x-icon type="checkmark" class="fa-fw" />
-                                                    {{ trans('general.requested_assets_menu') }}
-                                                </a></li>
-                                        @endcan
-
                                         <li {!! (request()->is('account/accept') ? ' class="active"' : '') !!}>
                                             <a href="{{ route('account.accept') }}">
                                                 <x-icon type="checkmark" class="fa-fw" />
                                                 {{ trans('general.accept_assets_menu') }}
                                             </a></li>
 
+                                        <li {!! (request()->is('account/regional-coordinators') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('account.regional-asset-coordinators.index') }}">
+                                                <x-icon type="users" class="fa-fw" />
+                                                {{ trans('general.regional_asset_coordinators') }}
+                                            </a>
+                                        </li>
 
                                         @can('self.profile')
                                         <li>
@@ -850,14 +848,23 @@ dir="{{ Helper::determineLanguageDirection() }}">
                             </li>
                         @endcan
 
-                        @can('viewRequestable', \App\Models\Asset::class)
-                            <li{!! (request()->is('account/requestable-assets') ? ' class="active"' : '') !!}>
-                                <a href="{{ route('requestable-assets') }}">
+                        @if (auth()->check() && auth()->user()->hasAccess('models.request'))
+                            <li class="treeview{{ (request()->is('requests*')) ? ' active' : '' }}">
+                                <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
-                                    <span>{{ trans('general.requestable_items') }}</span>
+                                    <span>Requests</span>
+                                    <x-icon type="angle-left" class="pull-right"/>
                                 </a>
+
+                                <ul class="treeview-menu">
+                                    <li{!! (request()->is('requests') ? ' class="active"' : '') !!}>
+                                        <a href="{{ route('requests.index') }}">
+                                            Submitted Requests
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
-                        @endcan
+                        @endif
 
 
                     </ul>

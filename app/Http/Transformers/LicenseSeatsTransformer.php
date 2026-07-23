@@ -26,6 +26,8 @@ class LicenseSeatsTransformer
             'id' => (int) $seat->id,
             'license_id' => (int) $seat->license->id,
             'updated_at' => Helper::getFormattedDateObject($seat->updated_at, 'datetime'), // we use updated_at here because the record gets updated when it's checked in or out
+            'expected_release_date' => Helper::getFormattedDateObject($seat->expected_release_date, 'date'),
+            'expected_release_date_value' => optional($seat->expected_release_date)?->format('Y-m-d'),
             'assigned_user' => ($seat->user) ? [
                 'id' => (int) $seat->user->id,
                 'name'=> e($seat->user->present()->fullName),

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\AssetCheckoutRequest;
+use App\Models\CheckoutRequest;
 use App\Models\CustomField;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -65,7 +66,10 @@ class BulkAssetsController extends Controller
             }
 
             $request->session()->flashInput(['selected_assets' => $asset_ids]);
-            return redirect()->route('hardware.bulkcheckout.show');
+            return redirect()->route('hardware.bulkcheckout.show', array_filter([
+                'request_id' => $request->input('request_id'),
+                'project_id' => $request->input('project_id'),
+            ]));
         }
 
         if ($request->input('bulk_actions') === 'maintenance') {
@@ -657,6 +661,10 @@ class BulkAssetsController extends Controller
             );
         }
 
+        if ($request->filled('request_id')) {
+            return redirect()->to(session('back_url', route('hardware.index')))->with('success', $message);
+        }
+
         return redirect($bulk_back_url)->with('success', $message);
     }
 
@@ -700,6 +708,7 @@ class BulkAssetsController extends Controller
             'bulk_back_url' => $bulk_back_url,
             'form_action' => route('hardware.bulkcheckin.store'),
             'default_location_name' => $defaultLocationName,
+            'request_id' => $request->input('request_id'),
         ]);
     }
 
@@ -746,20 +755,32 @@ class BulkAssetsController extends Controller
     /**
      * Show Bulk Checkout Page
      */
-    public function showCheckout() : View
+    public function showCheckout(Request $request) : View
     {
         $this->authorize('checkout', Asset::class);
+        $requestContext = $request->filled('request_id')
+            ? $this->resolveAuthorizedRequestContext((int) $request->input('request_id'))
+            : null;
+        $selectedAssetIds = collect(old('selected_assets'))
+            ->filter()
+            ->map(fn ($assetId) => (int) $assetId)
+            ->values()
+            ->all();
+
+        if (empty($selectedAssetIds) && $requestContext) {
+            $selectedAssetIds = $requestContext->suggestedReusableAssetIds();
+        }
 
         $alreadyAssigned = collect();
 
-        if (old('selected_assets') && is_array(old('selected_assets'))) {
-            $assets = Asset::findMany(old('selected_assets'));
+        if (! empty($selectedAssetIds)) {
+            $assets = Asset::findMany($selectedAssetIds);
 
             [$assignable, $alreadyAssigned] = $assets->partition(function (Asset $asset) {
                 return !$asset->assigned_to;
             });
 
-            session()->flashInput(['selected_assets' => $assignable->pluck('id')->values()->toArray()]);
+            $selectedAssetIds = $assignable->pluck('id')->map(fn ($assetId) => (int) $assetId)->values()->all();
         }
 
         $do_not_change = ['' => trans('general.do_not_change')];
@@ -768,6 +789,13 @@ class BulkAssetsController extends Controller
         return view('hardware/bulk-checkout', [
             'statusLabel_list' => $status_label_list,
             'removed_assets' => $alreadyAssigned,
+            'selected_asset_ids' => $selectedAssetIds,
+            'request_id' => $requestContext?->id ?? $request->input('request_id'),
+            'request_project_id' => $requestContext?->project_id ?? $request->input('project_id'),
+            'request_assigned_user_id' => $requestContext?->user_id,
+            'request_discipline_id' => $requestContext?->requested_discipline_id,
+            'request_status_id' => Setting::rfqReservedStatusId(),
+            'request_needed_by_date' => optional($requestContext?->needed_by_date)?->format('Y-m-d'),
         ]);
     }
 
@@ -777,6 +805,10 @@ class BulkAssetsController extends Controller
     public function storeCheckout(AssetCheckoutRequest $request) : RedirectResponse | ModelNotFoundException
     {
         $this->authorize('checkout', Asset::class);
+        $requestContext = $request->filled('request_id')
+            ? $this->resolveAuthorizedRequestContext((int) $request->input('request_id'))
+            : null;
+        $redirectParameters = $this->bulkCheckoutRouteParameters($requestContext, $request);
 
         try {
             $admin = auth()->user();
@@ -785,7 +817,7 @@ class BulkAssetsController extends Controller
             session()->put(['checkout_to_type' => $target]);
 
             if (! is_array($request->get('selected_assets'))) {
-                return redirect()->route('hardware.bulkcheckout.show')->withInput()->with('error', trans('admin/hardware/message.checkout.no_assets_selected'));
+                return redirect()->route('hardware.bulkcheckout.show', $redirectParameters)->withInput()->with('error', trans('admin/hardware/message.checkout.no_assets_selected'));
             }
 
             $asset_ids = array_filter($request->get('selected_assets'));
@@ -797,7 +829,7 @@ class BulkAssetsController extends Controller
                 // re-add the asset ids so the assets select is re-populated
                 $request->session()->flashInput(['selected_assets' => $asset_ids]);
 
-                return redirect(route('hardware.bulkcheckout.show'))
+                return redirect(route('hardware.bulkcheckout.show', $redirectParameters))
                     ->with('error', trans('general.error_assets_already_checked_out'));
             }
 
@@ -811,7 +843,7 @@ class BulkAssetsController extends Controller
                     // re-add the asset ids so the assets select is re-populated
                     $request->session()->flashInput(['selected_assets' => $asset_ids]);
 
-                    return redirect(route('hardware.bulkcheckout.show'))
+                    return redirect(route('hardware.bulkcheckout.show', $redirectParameters))
                         ->with('error', trans('general.error_user_company_multiple'));
                 }
             }
@@ -834,14 +866,38 @@ class BulkAssetsController extends Controller
                 $expected_checkin = $request->get('expected_checkin');
             }
 
+            $projectId = $request->filled('project_id')
+                ? $request->integer('project_id')
+                : $requestContext?->project_id;
+            $disciplineId = $request->filled('discipline_id')
+                ? $request->integer('discipline_id')
+                : $requestContext?->requested_discipline_id;
+
             $errors = [];
-            DB::transaction(function () use ($target, $admin, $checkout_at, $expected_checkin, &$errors, $assets, $request) { //NOTE: $errors is passsed by reference!
+            DB::transaction(function () use ($target, $admin, $checkout_at, $expected_checkin, &$errors, $assets, $request, $requestContext, $projectId, $disciplineId) { //NOTE: $errors is passsed by reference!
                 foreach ($assets as $asset) {
                     $this->authorize('checkout', $asset);
+
+                    if (
+                        $requestContext
+                        && $requestContext->requestable_type === AssetModel::class
+                        && (int) $asset->model_id !== (int) $requestContext->requestable_id
+                    ) {
+                        $errors['selected_assets'][] = trans('admin/hardware/message.multi-checkout.error', ['asset' => $asset->present()->fullName]);
+                        continue;
+                    }
 
                     // See if there is a status label passed
                     if ($request->filled('status_id')) {
                         $asset->status_id = $request->get('status_id');
+                    }
+
+                    if ($projectId) {
+                        $asset->project_id = $projectId;
+                    }
+
+                    if ($disciplineId) {
+                        $asset->discipline_id = $disciplineId;
                     }
 
                     $asset->financialChangeEffectiveAt = $checkout_at;
@@ -859,20 +915,71 @@ class BulkAssetsController extends Controller
 
                     if (!$checkout_success) {
                         $errors = array_merge_recursive($errors, $asset->getErrors()->toArray());
+                        continue;
+                    }
+
+                    if ($requestContext) {
+                        $requestContext->allocatedAssets()->syncWithoutDetaching([
+                            $asset->id => [
+                                'allocated_by' => $admin->id,
+                                'allocated_at' => now(),
+                            ],
+                        ]);
                     }
                 }
             });
 
             if (! $errors) {
+                if ($requestContext) {
+                    $requestContext->syncAllocationStatus(true);
+                    $coordinatorTarget = $requestContext->coordinatorTargets()
+                        ->where('user_id', $admin->id)
+                        ->first();
+
+                    if ($coordinatorTarget) {
+                        if ($requestContext->remainingAllocationQuantity() > 0) {
+                            $coordinatorTarget->markInProgress();
+                        } else {
+                            $coordinatorTarget->markCompleted();
+                        }
+                    }
+
+                    return redirect()->to(session('back_url', route('hardware.index')))
+                        ->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));
+                }
+
                 // Redirect to the new asset page
                 return redirect()->to('hardware')->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));
             }
             // Redirect to the asset management page with error
-            return redirect()->route('hardware.bulkcheckout.show')->withInput()->with('error', trans_choice('admin/hardware/message.multi-checkout.error', $asset_ids))->withErrors($errors);
+            return redirect()->route('hardware.bulkcheckout.show', $redirectParameters)->withInput()->with('error', trans_choice('admin/hardware/message.multi-checkout.error', $asset_ids))->withErrors($errors);
         } catch (ModelNotFoundException $e) {
-            return redirect()->route('hardware.bulkcheckout.show')->withInput()->with('error', trans_choice('admin/hardware/message.multi-checkout.error', $request->input('selected_assets')));
+            return redirect()->route('hardware.bulkcheckout.show', $redirectParameters)->withInput()->with('error', trans_choice('admin/hardware/message.multi-checkout.error', $request->input('selected_assets')));
         }
         
+    }
+
+    protected function resolveAuthorizedRequestContext(int $requestId): ?CheckoutRequest
+    {
+        $requestContext = CheckoutRequest::with(['user', 'project', 'requestedDiscipline'])->find($requestId);
+
+        abort_if(! $requestContext, 404);
+        abort_unless(
+            auth()->user()->isSuperUser()
+            || (int) $requestContext->user_id === (int) auth()->id()
+            || $requestContext->candidateCoordinators()->where('users.id', auth()->id())->exists(),
+            403
+        );
+
+        return $requestContext;
+    }
+
+    protected function bulkCheckoutRouteParameters(?CheckoutRequest $requestContext, Request $request): array
+    {
+        return array_filter([
+            'request_id' => $requestContext?->id ?? $request->input('request_id'),
+            'project_id' => $requestContext?->project_id ?? $request->input('project_id'),
+        ]);
     }
     public function restore(Request $request) : RedirectResponse
     {

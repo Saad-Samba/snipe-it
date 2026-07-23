@@ -147,9 +147,24 @@ class UserFactory extends Factory
         return $this->appendPermission(['assets.view.requestable' => '1']);
     }
 
+    public function requestAssetModels()
+    {
+        return $this->appendPermission(['models.request' => '1']);
+    }
+
     public function deleteAssetModels()
     {
         return $this->appendPermission(['models.delete' => '1']);
+    }
+
+    public function createAssetModels()
+    {
+        return $this->appendPermission(['models.create' => '1']);
+    }
+
+    public function editAssetModels()
+    {
+        return $this->appendPermission(['models.edit' => '1']);
     }
 
     public function viewAssetModels()
@@ -250,6 +265,11 @@ class UserFactory extends Factory
     public function checkoutLicenses()
     {
         return $this->appendPermission(['licenses.checkout' => '1']);
+    }
+
+    public function requestLicenses()
+    {
+        return $this->appendPermission(['licenses.request' => '1']);
     }
 
     public function viewKeysLicenses()

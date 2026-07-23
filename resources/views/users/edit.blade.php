@@ -283,6 +283,41 @@
                       </div> <!--/form-group-->
                   @endif
 
+                  <!-- Company -->
+                  @if ((Gate::allows('canEditAuthFields', $user)) && (\App\Models\Company::canManageUsersCompanies()))
+                      @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.select_company'), 'fieldname' => 'company_id'])
+                  @else
+                      @if ($user->company)
+                          <div class="form-group">
+                              <label class="col-md-3 control-label" for="locale">{{ trans('general.company') }}</label>
+                              <div class="col-md-6">
+                                  <p class="form-control-static">
+                                      {{ $user->company ? $user->company->name : '' }}
+                                  </p>
+                              </div>
+                          </div>
+                      @endif
+                  @endif
+
+                  <div class="form-group">
+                      <div class="col-md-7 col-md-offset-3">
+                          <label class="form-control" for="rac_enabled">
+                              <input type="checkbox" value="1" name="rac_enabled" id="rac_enabled" {{ old('rac_enabled', $user->racAssignment ? 1 : 0) ? ' checked="checked"' : '' }} aria-label="rac_enabled">
+                              {{ trans('admin/users/general.rac_enabled_label') }}
+                          </label>
+
+                          <p class="help-block">{{ trans('admin/users/general.rac_enabled_help') }}</p>
+                      </div>
+                  </div>
+
+                  <div id="rac_discipline_wrapper" style="{{ old('rac_enabled', $user->racAssignment ? 1 : 0) ? '' : 'display:none' }}">
+                      @include ('partials.forms.edit.discipline-select', [
+                          'translated_name' => trans('admin/users/general.rac_discipline'),
+                          'fieldname' => 'rac_discipline_id',
+                          'selected' => old('rac_discipline_id', optional($user->racAssignment)->discipline_id),
+                      ])
+                  </div>
+
                   
                   @include ('partials.forms.edit.image-upload', ['fieldname' => 'avatar', 'image_path' => app('users_upload_path')])
 
@@ -320,24 +355,6 @@
                                       {!! $errors->first('display_name', '<span class="alert-msg" aria-hidden="true">:message</span>') !!}
                                   </div>
                               </div>
-
-
-                              <!-- Company -->
-                              @if ((Gate::allows('canEditAuthFields', $user)) && (\App\Models\Company::canManageUsersCompanies()))
-                                  @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.select_company'), 'fieldname' => 'company_id'])
-                              @else
-                                  @if ($user->company)
-                                      <div class="form-group">
-                                          <label class="col-md-3 control-label" for="locale">{{ trans('general.company') }}</label>
-                                          <div class="col-md-6">
-                                              <p class="form-control-static">
-                                                  {{ $user->company ? $user->company->name : '' }}
-                                              </p>
-                                          </div>
-                                      </div>
-                                  @endif
-                              @endif
-
 
                               <!-- language -->
                               <div class="form-group {{ $errors->has('locale') ? 'has-error' : '' }}">
@@ -673,6 +690,16 @@
 <script nonce="{{ csrf_token() }}">
 
 $(document).ready(function() {
+
+    function toggleRacFields() {
+        var enabled = $('#rac_enabled').is(':checked');
+        $('#rac_discipline_wrapper').toggle(enabled);
+        $('#discipline_select').prop('required', enabled);
+        $('#company_select').prop('required', enabled);
+    }
+
+    $('#rac_enabled').on('change', toggleRacFields);
+    toggleRacFields();
 
 
     // Set some defaults

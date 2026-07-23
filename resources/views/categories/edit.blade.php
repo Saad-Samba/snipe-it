@@ -53,6 +53,13 @@
     </div>
 </div>
 
+@include ('partials.forms.edit.user-select', [
+    'translated_name' => 'Category Manager',
+    'fieldname' => 'manager_id',
+    'field_id' => 'category_manager_select',
+    'container_id' => 'category_manager',
+])
+
 <livewire:category-edit-form
     :alert-on-response="(bool) old('alert_on_response', $item->alert_on_response)"
     :default-eula-text="$snipeSettings->default_eula_text"

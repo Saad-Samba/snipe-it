@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\AssetModels\Api;
 
+use App\Models\Asset;
 use App\Models\Company;
 use App\Models\AssetModel;
+use App\Models\CheckoutRequest;
+use App\Models\Project;
+use App\Models\Statuslabel;
 use App\Models\User;
 use App\Models\Category;
 use App\Models\CustomFieldset;
@@ -42,6 +46,59 @@ class IndexAssetModelsTest extends TestCase
                 'rows',
             ])
             ->assertJson(fn(AssertableJson $json) => $json->has('rows', 3)->etc());
+    }
+
+    public function testAssetModelIndexReturnsReferencePriceFields()
+    {
+        $model = AssetModel::factory()->create([
+            'name' => 'Priced API Model',
+            'reference_price' => 1499.99,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(
+                route('api.models.index', [
+                    'search' => 'Priced API Model',
+                    'sort' => 'name',
+                    'order' => 'asc',
+                    'offset' => '0',
+                    'limit' => '20',
+                ]))
+            ->assertOk()
+            ->assertJson(fn(AssertableJson $json) => $json
+                ->where('rows.0.id', $model->id)
+                ->where('rows.0.reference_price', 1499.99)
+                ->where('rows.0.reference_price_formatted', '1,499.99')
+                ->etc());
+    }
+
+    public function testAfmAssetModelIndexOnlyReturnsManagedCategoryModels()
+    {
+        $afm = User::factory()->viewAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $managedModel = AssetModel::factory()->create([
+            'name' => 'Managed API Model',
+            'category_id' => $managedCategory->id,
+        ]);
+        AssetModel::factory()->create([
+            'name' => 'Unmanaged API Model',
+        ]);
+
+        $this->actingAsForApi($afm)
+            ->getJson(
+                route('api.models.index', [
+                    'sort' => 'name',
+                    'order' => 'asc',
+                    'offset' => '0',
+                    'limit' => '20',
+                ]))
+            ->assertOk()
+            ->assertJson(fn(AssertableJson $json) => $json
+                ->where('total', 1)
+                ->where('rows.0.name', $managedModel->name)
+                ->etc());
     }
 
     public function testAssetModelIndexReturnsObsoleteFlag()
@@ -140,6 +197,201 @@ class IndexAssetModelsTest extends TestCase
             ->assertJson(fn (AssertableJson $json) => $json
                 ->where('rows.0.fieldset.id', $fieldset->id)
                 ->where('rows.0.fieldset.name', $fieldset->name)
+                ->etc());
+    }
+
+    public function testAssetModelIndexCanFilterToAvailableModelsWithinCategory()
+    {
+        $category = Category::factory()->forAssets()->create();
+        $availableModel = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'name' => 'Available Model',
+        ]);
+        $unavailableModel = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'name' => 'Unavailable Model',
+        ]);
+
+        $deployableStatus = Statuslabel::factory()->rtd()->create();
+        $assignedUser = User::factory()->create();
+
+        Asset::factory()->create([
+            'model_id' => $availableModel->id,
+            'status_id' => $deployableStatus->id,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $unavailableModel->id,
+            'status_id' => $deployableStatus->id,
+            'assigned_to' => $assignedUser->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(
+                route('api.models.index', [
+                    'category_id' => $category->id,
+                    'available_models' => 1,
+                    'sort' => 'name',
+                    'order' => 'asc',
+                    'offset' => '0',
+                    'limit' => '20',
+                ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('total', 1)
+                ->where('rows.0.name', 'Available Model')
+                ->missing('rows.1')
+                ->etc());
+    }
+
+    public function testAssetModelIndexExposesRequestActionsForAvailableModels()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $requester->id,
+        ]);
+        $availableModel = AssetModel::factory()->create([
+            'name' => 'Requestable Available Model',
+            'category_id' => $managedCategory->id,
+        ]);
+        $unavailableModel = AssetModel::factory()->create([
+            'name' => 'Unavailable Model',
+            'category_id' => $managedCategory->id,
+        ]);
+
+        $deployableStatus = Statuslabel::factory()->rtd()->create();
+        $assignedUser = User::factory()->create();
+
+        Asset::factory()->create([
+            'model_id' => $availableModel->id,
+            'status_id' => $deployableStatus->id,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $unavailableModel->id,
+            'status_id' => $deployableStatus->id,
+            'assigned_to' => $assignedUser->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Available Model',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', true)
+                ->where('rows.0.available_actions.cancel_request', false)
+                ->where('rows.0.available_actions.update_request', false)
+                ->where('rows.0.requested_quantity', null)
+                ->etc());
+
+        $availableModel->request(1);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Available Model',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', true)
+                ->where('rows.0.available_actions.cancel_request', false)
+                ->where('rows.0.available_actions.update_request', false)
+                ->where('rows.0.requested_quantity', 1)
+                ->etc());
+    }
+
+    public function testAssetModelIndexKeepsRequestActionWhenReusableStockIsUnavailable()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $requester->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Requestable Without Stock',
+            'category_id' => $managedCategory->id,
+        ]);
+
+        $deployableStatus = Statuslabel::factory()->rtd()->create();
+        $assignedUser = User::factory()->create();
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $deployableStatus->id,
+            'assigned_to' => $assignedUser->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Without Stock',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', true)
+                ->where('rows.0.available_actions.cancel_request', false)
+                ->where('rows.0.available_actions.update_request', false)
+                ->where('rows.0.requested_quantity', null)
+                ->etc());
+    }
+
+    public function testAssetModelIndexDoesNotExposeSingularRequestMetadataWhenMultipleActiveRequestsExist()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $requester->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Requestable Multiple Requests Model',
+            'category_id' => $managedCategory->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'company_id' => Company::factory()->create()->id,
+            'project_id' => Project::factory()->create()->id,
+            'quantity' => 1,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'company_id' => Company::factory()->create()->id,
+            'project_id' => Project::factory()->create()->id,
+            'quantity' => 2,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', [
+                'search' => 'Requestable Multiple Requests Model',
+                'sort' => 'name',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('rows.0.available_actions.request', true)
+                ->where('rows.0.requested_quantity', null)
+                ->where('rows.0.requested_company_id', null)
+                ->where('rows.0.requested_project_id', null)
+                ->where('rows.0.requested_needed_by_date', null)
                 ->etc());
     }
 

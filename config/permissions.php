@@ -180,6 +180,10 @@ return [
             'permission' => 'licenses.files',
             'display'    => true,
         ],
+        [
+            'permission' => 'licenses.request',
+            'display'    => true,
+        ],
     ],
 
 
@@ -269,6 +273,10 @@ return [
         ],
         [
             'permission' => 'models.delete',
+            'display'    => true,
+        ],
+        [
+            'permission' => 'models.request',
             'display'    => true,
         ],
 

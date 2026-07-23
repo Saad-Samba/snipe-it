@@ -18,6 +18,7 @@ use App\Models\Accessory;
 use App\Models\Company;
 use App\Models\Consumable;
 use App\Models\License;
+use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\User;
 use App\Notifications\CurrentInventory;
 use App\Notifications\WelcomeNotification;
@@ -31,6 +32,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\DeleteUserRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 class UsersController extends Controller
 {
@@ -466,6 +468,7 @@ class UsersController extends Controller
         app('App\Http\Requests\ImageUploadRequest')->handleImages($user, 600, 'avatar', 'avatars', 'avatar');
         
         if ($user->save()) {
+            $this->syncRacAssignment($user, $request);
 
             if (($user->activated == '1') && ($user->email != '') && ($request->input('send_welcome') == '1')) {
 
@@ -591,6 +594,7 @@ class UsersController extends Controller
             app('App\Http\Requests\ImageUploadRequest')->handleImages($user, 600, 'avatar', 'avatars', 'avatar');
 
             if ($user->save()) {
+                $this->syncRacAssignment($user, $request);
                 // Check if the request has groups passed and has a value, AND that the user us a superuser
                 if (($request->has('groups')) && (auth()->user()->isSuperUser())) {
 
@@ -608,6 +612,42 @@ class UsersController extends Controller
                 return response()->json(Helper::formatStandardApiResponse('success', (new UsersTransformer)->transformUser($user), trans('admin/users/message.success.update')));
             }
             return response()->json(Helper::formatStandardApiResponse('error', null, $user->getErrors()));
+    }
+
+    protected function syncRacAssignment(User $user, Request $request): void
+    {
+        $existingAssignment = $user->racAssignment()->first();
+
+        if (! $request->boolean('rac_enabled')) {
+            if ($existingAssignment) {
+                $existingAssignment->delete();
+            }
+
+            return;
+        }
+
+        $disciplineId = (int) $request->input('rac_discipline_id');
+
+        $conflictingAssignment = RegionalAssetCoordinatorAssignment::query()
+            ->where('company_id', $user->company_id)
+            ->where('discipline_id', $disciplineId)
+            ->where('user_id', '!=', $user->id)
+            ->first();
+
+        if ($conflictingAssignment) {
+            throw ValidationException::withMessages([
+                'rac_discipline_id' => 'A RAC is already assigned to this company and discipline.',
+            ]);
+        }
+
+        RegionalAssetCoordinatorAssignment::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'company_id' => $user->company_id,
+                'discipline_id' => $disciplineId,
+                'created_by' => $existingAssignment?->created_by ?? auth()->id(),
+            ]
+        );
     }
 
     /**

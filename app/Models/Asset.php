@@ -232,6 +232,13 @@ class Asset extends Depreciable
         return $this->belongsTo(Discipline::class, 'discipline_id');
     }
 
+    public function checkoutRequests()
+    {
+        return $this->belongsToMany(CheckoutRequest::class, 'checkout_request_assets')
+            ->withPivot(['allocated_by', 'allocated_at'])
+            ->withTimestamps();
+    }
+
     protected static function booted(): void
     {
         static::forceDeleted(function (Asset $asset) {

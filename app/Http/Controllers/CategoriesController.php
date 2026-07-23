@@ -78,6 +78,7 @@ class CategoriesController extends Controller
         $category->require_acceptance = $request->input('require_acceptance', '0');
         $category->alert_on_response = $request->input('alert_on_response', '0');
         $category->checkin_email = $request->input('checkin_email', '0');
+        $category->manager_id = $request->input('manager_id', null);
         $category->tag_color  = $request->input('tag_color');
         $category->fieldset_id = $request->input('fieldset_id');
         $category->notes = $request->input('notes');
@@ -101,7 +102,7 @@ class CategoriesController extends Controller
      */
     public function edit(Category $category) : RedirectResponse | View
     {
-        $this->authorize('update', Category::class);
+        $this->authorize('update', $category);
         return view('categories/edit')->with('item', $category)
         ->with('category_types', Helper::categoryTypeList());
     }
@@ -117,7 +118,7 @@ class CategoriesController extends Controller
      */
     public function update(ImageUploadRequest $request, Category $category) : RedirectResponse
     {
-        $this->authorize('update', Category::class);
+        $this->authorize('update', $category);
         $category->name = $request->input('name');
 
         // Don't allow the user to change the category_type once it's been created
@@ -134,6 +135,7 @@ class CategoriesController extends Controller
         $category->require_acceptance = $request->input('require_acceptance', '0');
         $category->alert_on_response = $request->input('alert_on_response', '0');
         $category->checkin_email = $request->input('checkin_email', '0');
+        $category->manager_id = $request->input('manager_id', null);
         $category->tag_color  = $request->input('tag_color');
         $category->fieldset_id = $request->input('fieldset_id');
         $category->notes = $request->input('notes');
@@ -157,7 +159,7 @@ class CategoriesController extends Controller
      */
     public function destroy(Category $category): RedirectResponse
     {
-        $this->authorize('delete', Category::class);
+        $this->authorize('delete', $category);
         try {
             DestroyCategoryAction::run($category);
         } catch (ItemStillHasChildren $e) {
@@ -181,7 +183,7 @@ class CategoriesController extends Controller
      */
     public function show(Category $category) : View | RedirectResponse
     {
-        $this->authorize('view', Category::class);
+        $this->authorize('view', $category);
 
             if ($category->category_type == 'asset') {
                 $category_type = 'hardware';

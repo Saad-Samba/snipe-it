@@ -38,6 +38,8 @@
                         class="table table-striped snipe-table"
                         data-url="{{ route('api.models.index', [
                             'status' => e(request('status')),
+                            'category_id' => e(request('category_id')),
+                            'available_models' => e(request('available_models')),
                             'obsolete' => e(request('obsolete')),
                         ]) }}"
                         data-export-options='{

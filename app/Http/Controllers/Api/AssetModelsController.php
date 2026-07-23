@@ -40,6 +40,7 @@ class AssetModelsController extends Controller
                 'name',
                 'model_number',
                 'min_amt',
+                'reference_price',
                 'eol',
                 'notes',
                 'obsolete',
@@ -54,7 +55,6 @@ class AssetModelsController extends Controller
                 'deleted_at',
                 'updated_at',
                 'require_serial',
-                'requestable',
                 // These are *relationships* so we wouldn't normally include them in this array,
                 // since they would normally create a `column not found` error,
                 // BUT we account for them in the ordering switch down at the end of this method
@@ -69,6 +69,7 @@ class AssetModelsController extends Controller
             'models.name',
             'models.model_number',
             'models.min_amt',
+            'models.reference_price',
             'models.eol',
             'models.created_by',
             'models.notes',
@@ -81,7 +82,6 @@ class AssetModelsController extends Controller
             'models.deleted_at',
             'models.updated_at',
             'models.require_serial',
-            'models.requestable',
         ];
 
         $assetmodels = AssetModel::select($selectedColumns)
@@ -90,6 +90,8 @@ class AssetModelsController extends Controller
             ->withCount('availableAssets as remaining')
             ->withCount('assignedAssets as assets_assigned_count')
             ->withCount('archivedAssets as assets_archived_count');
+
+        $assetmodels->managedBy(auth()->user());
 
         $filter = [];
 
@@ -121,18 +123,16 @@ class AssetModelsController extends Controller
             $assetmodels = $assetmodels->where('models.model_number', '=', $request->input('model_number'));
         }
 
-        if ($request->input('requestable') == 'true') {
-            $assetmodels = $assetmodels->where('models.requestable', '=', '1');
-        } elseif ($request->input('requestable') == 'false') {
-            $assetmodels = $assetmodels->where('models.requestable', '=', '0');
-        }
-
         if ($request->filled('notes')) {
             $assetmodels = $assetmodels->where('models.notes', '=', $request->input('notes'));
         }
 
         if ($request->filled('category_id')) {
             $assetmodels = $assetmodels->where('models.category_id', '=', $request->input('category_id'));
+        }
+
+        if ($request->boolean('available_models')) {
+            $assetmodels = $assetmodels->whereHas('availableAssets');
         }
 
         if ($request->filled('obsolete')) {
@@ -210,8 +210,8 @@ class AssetModelsController extends Controller
      */
     public function show($id) :  array
     {
-        $this->authorize('view', AssetModel::class);
         $assetmodel = AssetModel::withCount('assets as assets_count')->findOrFail($id);
+        $this->authorize('view', $assetmodel);
 
         return (new AssetModelsTransformer)->transformAssetModel($assetmodel);
     }
@@ -225,7 +225,8 @@ class AssetModelsController extends Controller
      */
     public function assets($id) : array
     {
-        $this->authorize('view', AssetModel::class);
+        $assetmodel = AssetModel::findOrFail($id);
+        $this->authorize('view', $assetmodel);
         $assets = Asset::where('model_id', '=', $id)->get();
 
         return (new AssetsTransformer)->transformAssets($assets, $assets->count());
@@ -243,8 +244,8 @@ class AssetModelsController extends Controller
      */
     public function update(StoreAssetModelRequest $request, $id) : JsonResponse
     {
-        $this->authorize('update', AssetModel::class);
         $assetmodel = AssetModel::findOrFail($id);
+        $this->authorize('update', $assetmodel);
         $assetmodel->fill($request->all());
         $assetmodel = $request->handleImages($assetmodel);
 
@@ -277,7 +278,6 @@ class AssetModelsController extends Controller
      */
     public function destroy($id) : JsonResponse
     {
-        $this->authorize('delete', AssetModel::class);
         $assetmodel = AssetModel::findOrFail($id);
         $this->authorize('delete', $assetmodel);
 
@@ -316,7 +316,8 @@ class AssetModelsController extends Controller
             'models.model_number',
             'models.manufacturer_id',
             'models.category_id',
-        ])->with('manufacturer', 'category');
+        ])->with('manufacturer', 'category')
+            ->managedBy(auth()->user());
 
         $settings = \App\Models\Setting::getSettings();
 

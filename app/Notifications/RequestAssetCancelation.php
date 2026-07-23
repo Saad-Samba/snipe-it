@@ -93,7 +93,7 @@ class RequestAssetCancelation extends Notification
             ->from($botname)
             ->to($channel)
             ->attachment(function ($attachment) use ($item, $note, $fields) {
-                $attachment->title(htmlspecialchars_decode($item->display_name), $item->present()->viewUrl())
+                $attachment->title(htmlspecialchars_decode($item->display_name ?? $item->name), $item->present()->viewUrl())
                     ->fields($fields)
                     ->content($note);
             });

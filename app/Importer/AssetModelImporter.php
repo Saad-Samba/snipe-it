@@ -99,7 +99,6 @@ class AssetModelImporter extends ItemImporter
         $this->item['fieldset'] = trim($this->findCsvMatch($row, 'fieldset'));
         $this->item['depreciation'] = trim($this->findCsvMatch($row, 'depreciation'));
         $this->setBooleanFieldIfPresent($row, 'obsolete');
-        $this->setBooleanFieldIfPresent($row, 'requestable');
         $this->setBooleanFieldIfPresent($row, 'require_serial');
 
         if (!empty($this->item['category'])) {
