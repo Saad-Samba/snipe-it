@@ -61,6 +61,7 @@ return [
     'bad_data'      		=> 'Nothing found. Maybe bad data?',
     'bulkaudit'             => 'Bulk Audit',
     'bulkaudit_status'      => 'Audit Status',
+    'bulk_audit_tag_help'   => 'Scan or enter one asset tag at a time, then select Audit. Repeat for each asset; results are added to the Bulk Audit Status list.',
     'bulk_checkout'  		=> 'Bulk Checkout',
     'bulk_edit'             => 'Bulk Edit',
     'bulk_delete'           => 'Bulk Delete',

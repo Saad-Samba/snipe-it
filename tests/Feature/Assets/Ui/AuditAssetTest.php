@@ -22,6 +22,15 @@ class AuditAssetTest extends TestCase
             ->assertStatus(200);
     }
 
+    public function testBulkAuditExplainsSingleAssetWorkflow(): void
+    {
+        $this->actingAs(User::factory()->auditAssets()->create())
+            ->get(route('assets.bulkaudit'))
+            ->assertOk()
+            ->assertSeeText(trans('general.bulk_audit_tag_help'))
+            ->assertSee('aria-describedby="asset_tag_help"', false);
+    }
+
     public function testAssetAuditPostIsRedirectedToAssetIndexIfRedirectSelectionIsIndex()
     {
         $asset = Asset::factory()->create();

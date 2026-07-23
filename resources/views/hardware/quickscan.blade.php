@@ -32,9 +32,10 @@
                             <label for="asset_tag" class="col-md-3 control-label" id="audit_tag">{{ trans('general.asset_tag') }}</label>
                             <div class="col-md-9">
                                 <div class="input-group date col-md-11 required" data-date-format="yyyy-mm-dd">
-                                    <input type="text" class="form-control" name="asset_tag" id="asset_tag" required value="{{ old('asset_tag') }}">
+                                    <input type="text" class="form-control" name="asset_tag" id="asset_tag" aria-describedby="asset_tag_help" required value="{{ old('asset_tag') }}">
 
                                 </div>
+                                <p class="help-block" id="asset_tag_help">{{ trans('general.bulk_audit_tag_help') }}</p>
                                 {!! $errors->first('asset_tag', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
                             </div>
                         </div>
