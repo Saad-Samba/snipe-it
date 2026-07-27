@@ -10,8 +10,10 @@ use Illuminate\Support\Collection;
 
 class ResolveCheckoutRequestCoordinatorsAction
 {
-    public static function run(CheckoutRequest $checkoutRequest): Collection
+    public static function run(CheckoutRequest $checkoutRequest, mixed $context = null): Collection
     {
+        $sendAlternativeFollowUp = ! is_bool($context) || $context;
+
         if ($checkoutRequest->requestable_type !== AssetModel::class) {
             $checkoutRequest->coordinatorTargets()->delete();
 
@@ -28,7 +30,9 @@ class ResolveCheckoutRequestCoordinatorsAction
         $checkoutRequest->coordinatorTargets()->delete();
 
         if ($eligibleAssetPairs->isEmpty()) {
-            SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
+            if ($sendAlternativeFollowUp) {
+                SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
+            }
 
             return collect();
         }
@@ -70,7 +74,9 @@ class ResolveCheckoutRequestCoordinatorsAction
             })
             ->values();
 
-        SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
+        if ($sendAlternativeFollowUp) {
+            SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
+        }
 
         return $resolvedCoordinators;
     }

@@ -1,24 +1,26 @@
 @component('mail::message')
 # Reusable-stock review complete
 
-The RAC review for request **#{{ $request->id }}** is complete, but the requested quantity was not fully covered.
+The RAC review is complete for the following requested models, but the requested quantities were not fully covered.
 
-**Requested model:** {{ optional($request->requestedItem)->name ?: '-' }}
+@component('mail::table')
+| Request | Model | Requested | Fulfilled | Remaining |
+|:--|:--|--:|--:|--:|
+@foreach ($requests as $request)
+| #{{ $request->id }} | {{ optional($request->requestedItem)->name ?: '-' }} | {{ $request->quantity }} | {{ $request->allocatedQuantity() }} | {{ $request->remainingAllocationQuantity() }} |
+@endforeach
+@endcomponent
 
-**Requested quantity:** {{ $request->quantity }}
-
-**Fulfilled quantity:** {{ $fulfilledQuantity }}
-
-**Remaining quantity:** {{ $remainingQuantity }}
-
-@if ($afm)
-Please coordinate with **{{ $afm->display_name }}**, copied on this email, to determine whether an alternative model is acceptable.
+@if ($afms->isNotEmpty())
+Please coordinate with the concerned Asset Family Managers copied on this email
+({{ $afms->pluck('display_name')->join(', ') }})
+to determine whether alternative models are acceptable.
 @else
-Please coordinate with the appropriate Asset Family Manager to determine whether an alternative model is acceptable.
+Please coordinate with the appropriate Asset Family Manager to determine whether alternative models are acceptable.
 @endif
 
-If an alternative is agreed, submit a new request for the remaining quantity and reference original request **#{{ $request->id }}**.
-The reusable-stock review of this original request is complete for the requested model.
+If alternatives are agreed, submit new requests for the remaining quantities and reference the corresponding original request numbers shown above.
+The reusable-stock review of these original requests is complete.
 
 @component('mail::button', ['url' => $requestsUrl])
 View submitted requests

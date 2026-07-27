@@ -1443,6 +1443,15 @@ class ModelRequestWorkflowTest extends TestCase
             'company_id' => $companyId,
             'quantity' => 1,
         ]);
+
+        $submittedRequests = CheckoutRequest::query()
+            ->where('user_id', $requester->id)
+            ->where('project_id', $project->id)
+            ->get();
+
+        $this->assertCount(2, $submittedRequests);
+        $this->assertNotNull($submittedRequests->first()->submission_batch_id);
+        $this->assertCount(1, $submittedRequests->pluck('submission_batch_id')->unique());
     }
 
     public function test_request_cart_submit_creates_distinct_requests_for_same_model_and_discipline_across_companies()

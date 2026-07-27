@@ -151,6 +151,94 @@ class AlternativeFollowUpNotificationTest extends TestCase
         );
     }
 
+    public function test_models_from_the_same_submission_and_afm_are_sent_in_one_email()
+    {
+        Notification::fake();
+        [$firstRequest, $afm, $requestor] = $this->makeRequest();
+        $batchId = (string) Str::uuid();
+        $firstRequest->forceFill(['submission_batch_id' => $batchId])->save();
+        $secondRequest = $this->makeRelatedRequest($firstRequest, $afm, [
+            'submission_batch_id' => $batchId,
+        ]);
+        $rac = User::factory()->create();
+
+        $secondRequest->coordinatorTargets()->create([
+            'user_id' => $rac->id,
+            'company_id' => $secondRequest->company_id,
+            'discipline_id' => $secondRequest->requested_discipline_id,
+            'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_PENDING,
+        ]);
+
+        SendAlternativeFollowUpNotificationAction::run($firstRequest);
+
+        Notification::assertNothingSent();
+        $this->assertNull($firstRequest->fresh()->alternative_follow_up_notified_at);
+
+        $secondRequest->coordinatorTargets()->firstOrFail()->markCompletedNoStock();
+        SendAlternativeFollowUpNotificationAction::run($secondRequest);
+
+        $this->assertNotNull($firstRequest->fresh()->alternative_follow_up_notified_at);
+        $this->assertNotNull($secondRequest->fresh()->alternative_follow_up_notified_at);
+        Notification::assertSentToTimes($requestor, RequestAlternativeFollowUpNotification::class, 1);
+        Notification::assertSentTo(
+            $requestor,
+            RequestAlternativeFollowUpNotification::class,
+            function (RequestAlternativeFollowUpNotification $notification) use ($requestor, $afm, $firstRequest, $secondRequest) {
+                $notifiedRequestIds = $notification->checkoutRequests()->pluck('id')->sort()->values()->all();
+                $mail = $notification->toMail($requestor);
+
+                return $notifiedRequestIds === collect([$firstRequest->id, $secondRequest->id])->sort()->values()->all()
+                    && $mail->subject === 'Alternative model follow-up for 2 requested models'
+                    && $mail->cc === [[$afm->email, $afm->display_name]];
+            }
+        );
+    }
+
+    public function test_one_submission_sends_one_email_and_copies_every_concerned_afm()
+    {
+        Notification::fake();
+        [$firstRequest, $firstAfm, $requestor] = $this->makeRequest();
+        $batchId = (string) Str::uuid();
+        $firstRequest->forceFill(['submission_batch_id' => $batchId])->save();
+        $secondAfm = User::factory()->create();
+        $secondRequest = $this->makeRelatedRequest($firstRequest, $secondAfm, [
+            'submission_batch_id' => $batchId,
+        ]);
+        $rac = User::factory()->create();
+        $secondRequest->coordinatorTargets()->create([
+            'user_id' => $rac->id,
+            'company_id' => $secondRequest->company_id,
+            'discipline_id' => $secondRequest->requested_discipline_id,
+            'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_PENDING,
+        ]);
+
+        SendAlternativeFollowUpNotificationAction::run($firstRequest);
+
+        Notification::assertNothingSent();
+        $secondRequest->coordinatorTargets()->firstOrFail()->markCompletedNoStock();
+        SendAlternativeFollowUpNotificationAction::run($secondRequest);
+
+        Notification::assertSentToTimes($requestor, RequestAlternativeFollowUpNotification::class, 1);
+        Notification::assertSentTo(
+            $requestor,
+            RequestAlternativeFollowUpNotification::class,
+            function (RequestAlternativeFollowUpNotification $notification) use ($requestor, $firstAfm, $secondAfm, $firstRequest, $secondRequest) {
+                $notifiedRequestIds = $notification->checkoutRequests()->pluck('id')->sort()->values()->all();
+                $cc = collect($notification->toMail($requestor)->cc)
+                    ->sortBy(fn (array $recipient) => $recipient[0])
+                    ->values()
+                    ->all();
+                $expectedCc = collect([
+                    [$firstAfm->email, $firstAfm->display_name],
+                    [$secondAfm->email, $secondAfm->display_name],
+                ])->sortBy(fn (array $recipient) => $recipient[0])->values()->all();
+
+                return $notifiedRequestIds === collect([$firstRequest->id, $secondRequest->id])->sort()->values()->all()
+                    && $cc === $expectedCc;
+            }
+        );
+    }
+
     private function makeRequest(array $attributes = []): array
     {
         $afm = User::factory()->create();
@@ -180,5 +268,26 @@ class AlternativeFollowUpNotificationTest extends TestCase
         ], $attributes));
 
         return [$request, $afm, $requestor];
+    }
+
+    private function makeRelatedRequest(CheckoutRequest $request, User $afm, array $attributes = []): CheckoutRequest
+    {
+        $category = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+        ]);
+
+        return CheckoutRequest::factory()->forAssetModel()->create(array_merge([
+            'user_id' => $request->user_id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $request->requested_discipline_id,
+            'company_id' => $request->company_id,
+            'project_id' => $request->project_id,
+            'quantity' => 2,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ], $attributes));
     }
 }

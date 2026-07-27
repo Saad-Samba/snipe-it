@@ -28,6 +28,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ModelRequestsController extends Controller
@@ -407,9 +408,11 @@ class ModelRequestsController extends Controller
 
         $project = Project::find((int) $validated['project_id']);
         $submittedAt = now()->toDateTimeString();
+        $submissionBatchId = (string) Str::uuid();
         $coordinatorNotificationBuckets = [];
+        $submittedRequestIds = [];
 
-        DB::transaction(function () use ($cart, $validated, $user, $project, $submittedAt, &$coordinatorNotificationBuckets) {
+        DB::transaction(function () use ($cart, $validated, $user, $project, $submittedAt, $submissionBatchId, &$coordinatorNotificationBuckets, &$submittedRequestIds) {
             foreach ($cart as $line) {
                 $item = AssetModel::findOrFail((int) $line['model_id']);
                 $disciplineId = (int) $line['discipline_id'];
@@ -426,6 +429,7 @@ class ModelRequestsController extends Controller
                         'project_id' => (int) $validated['project_id'],
                         'needed_by_date' => $validated['needed_by_date'],
                         'requested_discipline_id' => $disciplineId,
+                        'submission_batch_id' => $submissionBatchId,
                     ],
                     $this->estimateAssetModelRequest($item, $quantity, $validated['needed_by_date'])
                 );
@@ -435,7 +439,8 @@ class ModelRequestsController extends Controller
                     ? $this->updateExistingModelProjectRequest($existingRequest, $quantity, $requestAttributes)
                     : $item->request($quantity, $requestAttributes);
 
-                $coordinatorMatches = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+                $coordinatorMatches = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, false);
+                $submittedRequestIds[] = (int) $checkoutRequest->id;
                 $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
                     $coordinatorNotificationBuckets,
                     $checkoutRequest,
@@ -446,6 +451,11 @@ class ModelRequestsController extends Controller
                 );
             }
         });
+
+        CheckoutRequest::query()
+            ->whereIn('id', $submittedRequestIds)
+            ->get()
+            ->each(fn (CheckoutRequest $checkoutRequest) => SendAlternativeFollowUpNotificationAction::run($checkoutRequest));
 
         $request->session()->forget(self::MODEL_REQUEST_CART_SESSION_KEY);
         $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);

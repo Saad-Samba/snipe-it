@@ -6,12 +6,13 @@ use App\Models\CheckoutRequest;
 use App\Models\User;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Collection;
 
 class RequestAlternativeFollowUpNotification extends Notification
 {
     public function __construct(
-        private readonly CheckoutRequest $checkoutRequest,
-        private readonly ?User $afm = null
+        private readonly Collection $checkoutRequests,
+        private readonly Collection $afms
     ) {
     }
 
@@ -22,32 +23,39 @@ class RequestAlternativeFollowUpNotification extends Notification
 
     public function toMail($notifiable): MailMessage
     {
-        $request = $this->checkoutRequest->loadMissing([
+        $requests = $this->checkoutRequests->each->loadMissing([
             'requestedItem',
             'project',
             'company',
             'requestedDiscipline',
         ]);
+        $firstRequest = $requests->first();
+        $subject = $requests->count() === 1
+            ? 'Alternative model follow-up for request #'.$firstRequest->id
+            : 'Alternative model follow-up for '.$requests->count().' requested models';
 
         $message = (new MailMessage)
-            ->subject('Alternative model follow-up for request #'.$request->id)
+            ->subject($subject)
             ->markdown('notifications.markdown.request-alternative-follow-up', [
-                'request' => $request,
-                'afm' => $this->afm,
-                'fulfilledQuantity' => $request->allocatedQuantity(),
-                'remainingQuantity' => $request->remainingAllocationQuantity(),
+                'requests' => $requests,
+                'afms' => $this->afms,
                 'requestsUrl' => route('requests.index'),
             ]);
 
-        if ($this->afm) {
-            $message->cc($this->afm->email, $this->afm->display_name);
-        }
+        $this->afms->each(
+            fn (User $afm) => $message->cc($afm->email, $afm->display_name)
+        );
 
         return $message;
     }
 
     public function checkoutRequest(): CheckoutRequest
     {
-        return $this->checkoutRequest;
+        return $this->checkoutRequests->first();
+    }
+
+    public function checkoutRequests(): Collection
+    {
+        return $this->checkoutRequests;
     }
 }

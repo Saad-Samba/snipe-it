@@ -39,6 +39,7 @@ class CheckoutRequest extends Model
         'estimated_savings',
         'reference_price_snapshot',
         'status',
+        'submission_batch_id',
         'alternative_follow_up_notified_at',
         'note',
     ];
