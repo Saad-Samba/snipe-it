@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\CheckoutRequests\CancelCheckoutRequestAction;
+use App\Actions\CheckoutRequests\ConfirmAfmReviewAction;
 use App\Actions\CheckoutRequests\CreateCheckoutRequestAction;
 use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
@@ -509,9 +510,62 @@ class ModelRequestsController extends Controller
         $checkoutRequest->needed_by_date = $neededByDate;
         $checkoutRequest->fill($this->estimateAssetModelRequest($item, $quantity, $neededByDate));
         $checkoutRequest->status = CheckoutRequest::STATUS_PENDING;
+        $checkoutRequest->resetAfmReview();
         $checkoutRequest->save();
+        ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
 
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
+    }
+
+    public function getAfmReviews(): View
+    {
+        $user = auth()->user();
+        abort_unless($user->isSuperUser() || $user->isAssetFamilyManager(), 403);
+
+        $requests = CheckoutRequest::query()
+            ->with([
+                'user',
+                'requestedItem.category',
+                'project',
+                'company',
+                'requestedDiscipline',
+                'coordinatorTargets.coordinator',
+                'afmReviewer',
+                'afmReviewedBy',
+            ])
+            ->where('requestable_type', AssetModel::class)
+            ->whereNotNull('afm_review_status')
+            ->whereNull('canceled_at')
+            ->when(! $user->isSuperUser(), function ($query) use ($user) {
+                $query->whereHasMorph(
+                    'requestedItem',
+                    [AssetModel::class],
+                    fn ($modelQuery) => $modelQuery->managedBy($user)
+                );
+            })
+            ->orderByRaw("CASE WHEN afm_review_status = 'pending' THEN 0 ELSE 1 END")
+            ->latest('afm_review_requested_at')
+            ->get();
+
+        return view('requests.afm-index', compact('requests'));
+    }
+
+    public function confirmAfmReview(Request $request, CheckoutRequest $checkoutRequest): RedirectResponse
+    {
+        $validated = $request->validate([
+            'afm_review_note' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        ConfirmAfmReviewAction::run(
+            $checkoutRequest,
+            auth()->user(),
+            $validated['afm_review_note'] ?? null
+        );
+
+        return redirect()->back()->with(
+            'success',
+            'AFM review recorded. The remaining quantity is confirmed for procurement.'
+        );
     }
 
     public function cancelSubmittedRequest(CheckoutRequest $checkoutRequest): RedirectResponse
@@ -667,7 +721,8 @@ class ModelRequestsController extends Controller
     {
         $request->quantity = $quantity;
         $request->fill($attributes);
-        $request->status = $request->status ?: CheckoutRequest::STATUS_PENDING;
+        $request->status = CheckoutRequest::STATUS_PENDING;
+        $request->resetAfmReview();
         $request->save();
 
         return $request->fresh();

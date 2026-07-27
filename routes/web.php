@@ -512,6 +512,15 @@ Route::group(['prefix' => 'requests', 'middleware' => ['auth']], function () {
     Route::post('{checkoutRequest}/cancel', [ModelRequestsController::class, 'cancelSubmittedRequest'])
         ->name('requests.cancel');
 
+    Route::get('afm/reviews', [ModelRequestsController::class, 'getAfmReviews'])
+        ->name('requests.afm.index')
+        ->breadcrumbs(fn (Trail $trail) =>
+        $trail->parent('home')
+            ->push('AFM Reviews', route('requests.afm.index')));
+
+    Route::post('{checkoutRequest}/afm-review', [ModelRequestsController::class, 'confirmAfmReview'])
+        ->name('requests.afm.confirm');
+
 });
 
 Route::group(['middleware' => ['auth']], function () {

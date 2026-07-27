@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Assets;
 
+use App\Actions\CheckoutRequests\EvaluateAfmReviewRequirementAction;
 use App\Helpers\Helper;
 use App\Http\Controllers\CheckInOutRequest;
 use App\Http\Controllers\Controller;
@@ -932,17 +933,19 @@ class BulkAssetsController extends Controller
             if (! $errors) {
                 if ($requestContext) {
                     $requestContext->syncAllocationStatus(true);
-                    $coordinatorTarget = $requestContext->coordinatorTargets()
+                    $coordinatorTargets = $requestContext->coordinatorTargets()
                         ->where('user_id', $admin->id)
-                        ->first();
+                        ->get();
 
-                    if ($coordinatorTarget) {
+                    foreach ($coordinatorTargets as $coordinatorTarget) {
                         if ($requestContext->remainingAllocationQuantity() > 0) {
                             $coordinatorTarget->markInProgress();
                         } else {
                             $coordinatorTarget->markCompleted();
                         }
                     }
+
+                    EvaluateAfmReviewRequirementAction::run($requestContext);
 
                     return redirect()->to(session('back_url', route('hardware.index')))
                         ->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));

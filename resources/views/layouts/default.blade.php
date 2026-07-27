@@ -561,6 +561,14 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         </li>
                                     @endcan
 
+                                    @if (auth()->user()->isSuperUser() || auth()->user()->isAssetFamilyManager())
+                                        <li{!! (request()->routeIs('requests.afm.*') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('requests.afm.index') }}">
+                                                AFM Reviews
+                                            </a>
+                                        </li>
+                                    @endif
+
                                     @can('create', \App\Models\Asset::class)
                                         <li{!! (Request::query('Deleted') ? ' class="active"' : '') !!}>
                                             <a href="{{ url('hardware?status=Deleted') }}">

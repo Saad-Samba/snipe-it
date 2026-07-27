@@ -28,6 +28,8 @@ class ResolveCheckoutRequestCoordinatorsAction
         $checkoutRequest->coordinatorTargets()->delete();
 
         if ($eligibleAssetPairs->isEmpty()) {
+            EvaluateAfmReviewRequirementAction::run($checkoutRequest);
+
             return collect();
         }
 
@@ -51,7 +53,7 @@ class ResolveCheckoutRequestCoordinatorsAction
             ]);
         }
 
-        return $matchedAssignments
+        $resolvedCoordinators = $matchedAssignments
             ->filter(fn (RegionalAssetCoordinatorAssignment $assignment) => $assignment->coordinator)
             ->groupBy('user_id')
             ->map(function (Collection $userAssignments, int|string $userId) use ($reusableCountsByScope) {
@@ -67,6 +69,10 @@ class ResolveCheckoutRequestCoordinatorsAction
                 ];
             })
             ->values();
+
+        EvaluateAfmReviewRequirementAction::run($checkoutRequest);
+
+        return $resolvedCoordinators;
     }
 
     private static function makeScopeKey(int $companyId, int $disciplineId): string

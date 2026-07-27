@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Assets;
 
+use App\Actions\CheckoutRequests\EvaluateAfmReviewRequirementAction;
 use App\Events\CheckoutableCheckedIn;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
@@ -80,7 +81,8 @@ class AssetsController extends Controller
             abort_unless(
                 auth()->user()->isSuperUser()
                 || (int) $requestContext->user_id === (int) auth()->id()
-                || $requestContext->candidateCoordinators()->where('users.id', auth()->id())->exists(),
+                || $requestContext->candidateCoordinators()->where('users.id', auth()->id())->exists()
+                || $requestContext->isManagedByAfm(auth()->user()),
                 403
             );
             session(['back_url' => $request->fullUrl()]);
@@ -104,13 +106,17 @@ class AssetsController extends Controller
             403
         );
 
-        $coordinatorTarget = $checkoutRequest->coordinatorTargets()
+        $coordinatorTargets = $checkoutRequest->coordinatorTargets()
             ->where('user_id', auth()->id())
-            ->firstOrFail();
+            ->get();
+
+        abort_if($coordinatorTargets->isEmpty(), 404);
 
         if ($resolutionStatus === CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK) {
-            $coordinatorTarget->markCompletedNoStock();
+            $coordinatorTargets->each->markCompletedNoStock();
         }
+
+        EvaluateAfmReviewRequirementAction::run($checkoutRequest);
 
         return redirect()->route('hardware.index', array_filter([
             'request_id' => $checkoutRequest->id,
