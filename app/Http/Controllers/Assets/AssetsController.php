@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Assets;
 
-use App\Actions\CheckoutRequests\EvaluateAfmReviewRequirementAction;
+use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
 use App\Events\CheckoutableCheckedIn;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
@@ -81,8 +81,7 @@ class AssetsController extends Controller
             abort_unless(
                 auth()->user()->isSuperUser()
                 || (int) $requestContext->user_id === (int) auth()->id()
-                || $requestContext->candidateCoordinators()->where('users.id', auth()->id())->exists()
-                || $requestContext->isManagedByAfm(auth()->user()),
+                || $requestContext->candidateCoordinators()->where('users.id', auth()->id())->exists(),
                 403
             );
             session(['back_url' => $request->fullUrl()]);
@@ -116,7 +115,7 @@ class AssetsController extends Controller
             $coordinatorTargets->each->markCompletedNoStock();
         }
 
-        EvaluateAfmReviewRequirementAction::run($checkoutRequest);
+        SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
 
         return redirect()->route('hardware.index', array_filter([
             'request_id' => $checkoutRequest->id,

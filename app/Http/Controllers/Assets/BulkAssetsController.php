@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Assets;
 
-use App\Actions\CheckoutRequests\EvaluateAfmReviewRequirementAction;
+use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
 use App\Helpers\Helper;
 use App\Http\Controllers\CheckInOutRequest;
 use App\Http\Controllers\Controller;
@@ -945,7 +945,7 @@ class BulkAssetsController extends Controller
                         }
                     }
 
-                    EvaluateAfmReviewRequirementAction::run($requestContext);
+                    SendAlternativeFollowUpNotificationAction::run($requestContext);
 
                     return redirect()->to(session('back_url', route('hardware.index')))
                         ->with('success', trans_choice('admin/hardware/message.multi-checkout.success', $asset_ids));

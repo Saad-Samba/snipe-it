@@ -56,10 +56,6 @@
     if (isset($requestContext) && $requestContext && auth()->check()) {
         $coordinatorTarget = $requestContext->coordinatorTargets->firstWhere('user_id', auth()->id());
     }
-    $isAfmReviewer = isset($requestContext)
-        && $requestContext
-        && auth()->check()
-        && $requestContext->isManagedByAfm(auth()->user());
 @endphp
 
 <div class="row">
@@ -88,45 +84,6 @@
                         <input type="hidden" name="request_bucket" value="{{ request()->input('request_bucket', 'reusable_now') }}">
                         <button type="submit" class="btn btn-default">Mark no more reusable stock available</button>
                     </form>
-                @endif
-            </div>
-          @endif
-
-          @if ($isAfmReviewer && $requestContext->afm_review_status)
-            <div class="alert {{ $requestContext->awaitsAfmReview() ? 'alert-warning' : 'alert-success' }}">
-                <strong>AFM review</strong>
-                @if ($requestContext->awaitsAfmReview())
-                    <p style="margin:8px 0 12px;">
-                        Regional handling is complete. {{ $requestContext->allocatedQuantity() }} of
-                        {{ $requestContext->quantity }} requested items were allocated, leaving
-                        <strong>{{ $requestContext->remainingAllocationQuantity() }}</strong> for AFM review before procurement.
-                    </p>
-                    <form method="POST" action="{{ route('requests.afm.confirm', $requestContext) }}">
-                        @csrf
-                        <div class="form-group">
-                            <label for="afm_review_note">Review note</label>
-                            <textarea
-                                class="form-control"
-                                id="afm_review_note"
-                                name="afm_review_note"
-                                rows="3"
-                                maxlength="5000"
-                                placeholder="Summarize the RAC outcomes and the reason procurement may proceed."
-                            >{{ old('afm_review_note') }}</textarea>
-                        </div>
-                        <button type="submit" class="btn btn-warning">
-                            Confirm remaining procurement need
-                        </button>
-                    </form>
-                @else
-                    <p style="margin:8px 0 0;">
-                        The remaining quantity of {{ $requestContext->afm_confirmed_shortfall }} was confirmed for procurement
-                        by {{ optional($requestContext->afmReviewedBy)->display_name ?: 'the AFM' }}
-                        on {{ optional($requestContext->afm_reviewed_at)?->format('Y-m-d H:i') }}.
-                    </p>
-                    @if ($requestContext->afm_review_note)
-                        <p style="margin:8px 0 0;"><strong>Note:</strong> {{ $requestContext->afm_review_note }}</p>
-                    @endif
                 @endif
             </div>
           @endif

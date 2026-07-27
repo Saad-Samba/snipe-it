@@ -28,7 +28,7 @@ class ResolveCheckoutRequestCoordinatorsAction
         $checkoutRequest->coordinatorTargets()->delete();
 
         if ($eligibleAssetPairs->isEmpty()) {
-            EvaluateAfmReviewRequirementAction::run($checkoutRequest);
+            SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
 
             return collect();
         }
@@ -70,7 +70,7 @@ class ResolveCheckoutRequestCoordinatorsAction
             })
             ->values();
 
-        EvaluateAfmReviewRequirementAction::run($checkoutRequest);
+        SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
 
         return $resolvedCoordinators;
     }

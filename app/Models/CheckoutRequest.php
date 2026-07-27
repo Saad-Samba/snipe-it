@@ -25,9 +25,6 @@ class CheckoutRequest extends Model
     public const STATUS_FULFILLED = 'fulfilled';
     public const STATUS_REJECTED = 'rejected';
 
-    public const AFM_REVIEW_PENDING = 'pending';
-    public const AFM_REVIEW_CONFIRMED = 'confirmed';
-
     protected $fillable = [
         'user_id',
         'requested_discipline_id',
@@ -42,13 +39,7 @@ class CheckoutRequest extends Model
         'estimated_savings',
         'reference_price_snapshot',
         'status',
-        'afm_review_status',
-        'afm_reviewer_id',
-        'afm_reviewed_by',
-        'afm_review_requested_at',
-        'afm_reviewed_at',
-        'afm_confirmed_shortfall',
-        'afm_review_note',
+        'alternative_follow_up_notified_at',
         'note',
     ];
 
@@ -56,9 +47,7 @@ class CheckoutRequest extends Model
         'needed_by_date' => 'date',
         'estimated_savings' => 'float',
         'reference_price_snapshot' => 'float',
-        'afm_review_requested_at' => 'datetime',
-        'afm_reviewed_at' => 'datetime',
-        'afm_confirmed_shortfall' => 'integer',
+        'alternative_follow_up_notified_at' => 'datetime',
     ];
 
     protected $table = 'checkout_requests';
@@ -103,16 +92,6 @@ class CheckoutRequest extends Model
     public function coordinatorTargets()
     {
         return $this->hasMany(CheckoutRequestCoordinator::class);
-    }
-
-    public function afmReviewer()
-    {
-        return $this->belongsTo(User::class, 'afm_reviewer_id')->withTrashed();
-    }
-
-    public function afmReviewedBy()
-    {
-        return $this->belongsTo(User::class, 'afm_reviewed_by')->withTrashed();
     }
 
     public function allocatedAssets()
@@ -177,7 +156,6 @@ class CheckoutRequest extends Model
     public function canBeProcessedBy(User $user): bool
     {
         return $this->canBeViewedBy($user)
-            && $this->afm_review_status === null
             && !in_array($this->resolvedStatus(), [self::STATUS_CANCELED, self::STATUS_FULLY_ALLOCATED, self::STATUS_NOT_ALLOCATED, self::STATUS_REJECTED, self::STATUS_FULFILLED], true)
             && $this->remainingAllocationQuantity() > 0;
     }
@@ -218,7 +196,7 @@ class CheckoutRequest extends Model
             ->exists();
     }
 
-    public function requiresAfmReview(): bool
+    public function requiresAlternativeFollowUp(): bool
     {
         return $this->requestable_type === AssetModel::class
             && ! $this->canceled_at
@@ -226,39 +204,9 @@ class CheckoutRequest extends Model
             && $this->racHandlingComplete();
     }
 
-    public function awaitsAfmReview(): bool
+    public function resetAlternativeFollowUpNotification(): void
     {
-        return $this->afm_review_status === self::AFM_REVIEW_PENDING;
-    }
-
-    public function isManagedByAfm(User $user): bool
-    {
-        if ($user->isSuperUser()) {
-            return true;
-        }
-
-        if ($this->requestable_type !== AssetModel::class) {
-            return false;
-        }
-
-        $model = AssetModel::withoutGlobalScopes()
-            ->with('category.manager')
-            ->find($this->requestable_id);
-
-        return (int) $model?->category?->manager?->id === (int) $user->id;
-    }
-
-    public function resetAfmReview(): void
-    {
-        $this->forceFill([
-            'afm_review_status' => null,
-            'afm_reviewer_id' => null,
-            'afm_reviewed_by' => null,
-            'afm_review_requested_at' => null,
-            'afm_reviewed_at' => null,
-            'afm_confirmed_shortfall' => null,
-            'afm_review_note' => null,
-        ]);
+        $this->forceFill(['alternative_follow_up_notified_at' => null]);
     }
 
     public function suggestedReusableAssetIds(): array
