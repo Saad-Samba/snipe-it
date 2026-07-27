@@ -127,4 +127,77 @@ class UpdateCategoriesTest extends TestCase
         $this->assertFalse(Category::where('name', 'Test Category Edited')->where('notes', 'Test Note Edited')->exists());
 
     }
+
+    public function testCategoryManagerEditFormShowsOwnershipAsReadOnly()
+    {
+        $manager = User::factory()->create([
+            'first_name' => 'Assigned',
+            'last_name' => 'AFM',
+            'permissions' => json_encode([
+                'categories.view' => 1,
+                'categories.edit' => 1,
+            ]),
+        ]);
+        $category = Category::factory()->forAssets()->create([
+            'manager_id' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->get(route('categories.edit', $category))
+            ->assertOk()
+            ->assertSee('Category Manager', false)
+            ->assertSee('Assigned AFM', false)
+            ->assertDontSee('category_manager_select', false);
+    }
+
+    public function testCategoryManagerCannotChangeManagedCategoryOwnership()
+    {
+        $manager = User::factory()->create([
+            'permissions' => json_encode([
+                'categories.view' => 1,
+                'categories.edit' => 1,
+            ]),
+        ]);
+        $otherManager = User::factory()->create();
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'Managed Category',
+            'manager_id' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->put(route('categories.update', $category), [
+                'name' => 'Managed Category Updated',
+                'category_type' => 'asset',
+                'manager_id' => $otherManager->id,
+            ])
+            ->assertRedirect(route('categories.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'name' => 'Managed Category Updated',
+            'manager_id' => $manager->id,
+        ]);
+    }
+
+    public function testCategoryManagerCannotUpdateUnmanagedCategory()
+    {
+        $manager = User::factory()->create([
+            'permissions' => json_encode([
+                'categories.view' => 1,
+                'categories.edit' => 1,
+            ]),
+        ]);
+        Category::factory()->forAssets()->create([
+            'manager_id' => $manager->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create();
+
+        $this->actingAs($manager)
+            ->put(route('categories.update', $unmanagedCategory), [
+                'name' => 'Should Not Change',
+                'category_type' => 'asset',
+            ])
+            ->assertForbidden();
+    }
 }

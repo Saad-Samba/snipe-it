@@ -53,12 +53,21 @@
     </div>
 </div>
 
-@include ('partials.forms.edit.user-select', [
-    'translated_name' => 'Category Manager',
-    'fieldname' => 'manager_id',
-    'field_id' => 'category_manager_select',
-    'container_id' => 'category_manager',
-])
+@if (auth()->user()->isSuperUser() || auth()->user()->isAdmin())
+    @include ('partials.forms.edit.user-select', [
+        'translated_name' => 'Category Manager',
+        'fieldname' => 'manager_id',
+        'field_id' => 'category_manager_select',
+        'container_id' => 'category_manager',
+    ])
+@elseif ($item->manager)
+    <div class="form-group">
+        <label class="col-md-3 control-label">Category Manager</label>
+        <div class="col-md-7">
+            <p class="form-control-static">{{ $item->manager->display_name }}</p>
+        </div>
+    </div>
+@endif
 
 <livewire:category-edit-form
     :alert-on-response="(bool) old('alert_on_response', $item->alert_on_response)"

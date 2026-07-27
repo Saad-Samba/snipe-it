@@ -14,11 +14,12 @@ class CategoryPolicy extends SnipePermissionsPolicy
 
     public function index(User $user)
     {
-        return match ($this->permissionState($user, 'view')) {
-            'allow' => true,
-            'deny' => false,
-            default => Category::managedBy($user)->exists(),
-        };
+        if ($this->permissionState($user, 'view') === 'deny') {
+            return false;
+        }
+
+        return $this->permissionState($user, 'view') === 'allow'
+            || Category::managedBy($user)->exists();
     }
 
     public function view(User $user, $item = null)
@@ -27,11 +28,47 @@ class CategoryPolicy extends SnipePermissionsPolicy
             return $this->index($user);
         }
 
-        return match ($this->permissionState($user, 'view')) {
-            'allow' => true,
-            'deny' => false,
-            default => Category::managedBy($user)->exists(),
-        };
+        if ($this->permissionState($user, 'view') === 'deny') {
+            return false;
+        }
+
+        if ($user->hasCategoryOwnershipScope()) {
+            return $item->isManagedBy($user);
+        }
+
+        return $this->permissionState($user, 'view') === 'allow';
+    }
+
+    public function create(User $user)
+    {
+        return $this->permissionState($user, 'create') === 'allow'
+            && ! $user->hasCategoryOwnershipScope();
+    }
+
+    public function update(User $user, $item = null)
+    {
+        if ($this->permissionState($user, 'edit') !== 'allow') {
+            return false;
+        }
+
+        if ($item instanceof Category && $user->hasCategoryOwnershipScope()) {
+            return $item->isManagedBy($user);
+        }
+
+        return true;
+    }
+
+    public function delete(User $user, $item = null)
+    {
+        if ($this->permissionState($user, 'delete') !== 'allow') {
+            return false;
+        }
+
+        if ($item instanceof Category && $user->hasCategoryOwnershipScope()) {
+            return empty($item->deleted_at) && $item->isManagedBy($user);
+        }
+
+        return ! $item instanceof Category || empty($item->deleted_at);
     }
 
     protected function permissionState(User $user, string $ability): string

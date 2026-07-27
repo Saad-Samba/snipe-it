@@ -878,6 +878,7 @@
     // Custom Field table buttons
     window.categoryButtons = () => {
         const buttons = {
+            @unless (auth()->user()->hasCategoryOwnershipScope())
             btnShowMine: {
                 text: 'My Categories',
                 icon: 'fa fa-user',
@@ -888,6 +889,7 @@
                     title: 'My Categories',
                 }
             },
+            @endunless
         };
 
         @can('create', \App\Models\Category::class)

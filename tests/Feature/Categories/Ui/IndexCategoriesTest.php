@@ -35,6 +35,7 @@ class IndexCategoriesTest extends TestCase
 
         $this->actingAs($manager)
             ->get(route('categories.index'))
-            ->assertOk();
+            ->assertOk()
+            ->assertDontSee('My Categories', false);
     }
 }

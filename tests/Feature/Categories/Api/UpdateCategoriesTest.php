@@ -93,4 +93,53 @@ class UpdateCategoriesTest extends TestCase
         $this->assertNotEquals('accessory', $category->category_type, 'EULA was not updated');
 
     }
+
+    public function testCategoryManagerCanUpdateManagedCategoryWithoutChangingOwnership()
+    {
+        $manager = User::factory()->create([
+            'permissions' => json_encode([
+                'categories.view' => 1,
+                'categories.edit' => 1,
+            ]),
+        ]);
+        $otherManager = User::factory()->create();
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'Managed Category',
+            'manager_id' => $manager->id,
+        ]);
+
+        $this->actingAsForApi($manager)
+            ->patchJson(route('api.categories.update', $category), [
+                'name' => 'Managed Category Updated',
+                'manager_id' => $otherManager->id,
+            ])
+            ->assertOk()
+            ->assertStatusMessageIs('success');
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'name' => 'Managed Category Updated',
+            'manager_id' => $manager->id,
+        ]);
+    }
+
+    public function testCategoryManagerCannotUpdateUnmanagedCategory()
+    {
+        $manager = User::factory()->create([
+            'permissions' => json_encode([
+                'categories.view' => 1,
+                'categories.edit' => 1,
+            ]),
+        ]);
+        Category::factory()->forAssets()->create([
+            'manager_id' => $manager->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create();
+
+        $this->actingAsForApi($manager)
+            ->patchJson(route('api.categories.update', $unmanagedCategory), [
+                'name' => 'Should Not Change',
+            ])
+            ->assertForbidden();
+    }
 }

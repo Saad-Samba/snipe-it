@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\CustomFieldset;
+use App\Models\Group;
 use App\Models\User;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Tests\TestCase;
@@ -17,6 +18,31 @@ class CreateCategoriesTest extends TestCase
         $this->actingAsForApi(User::factory()->create())
             ->postJson(route('api.categories.store'))
             ->assertForbidden();
+    }
+
+    public function testAfmCannotCreateCategoryEvenWithCreatePermission()
+    {
+        $afmGroup = Group::factory()->create([
+            'name' => config('leams.roles.afm_group_name'),
+            'permissions' => json_encode([
+                'categories.view' => 1,
+                'categories.create' => 1,
+            ]),
+        ]);
+        $afm = User::factory()->create();
+        $afm->groups()->attach($afmGroup);
+
+        $this->actingAsForApi($afm)
+            ->postJson(route('api.categories.store'), [
+                'name' => 'Self Assigned Category',
+                'category_type' => 'asset',
+                'manager_id' => $afm->id,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('categories', [
+            'name' => 'Self Assigned Category',
+        ]);
     }
 
     public function testCanCreateCategoryWithValidCategoryType()

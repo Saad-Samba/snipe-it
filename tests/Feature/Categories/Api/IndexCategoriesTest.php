@@ -5,6 +5,7 @@ namespace Tests\Feature\Categories\Api;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\Group;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Illuminate\Testing\Fluent\AssertableJson;
@@ -20,28 +21,68 @@ class IndexCategoriesTest extends TestCase
             ->assertForbidden();
     }
 
-    public function testCategoryManagerCanViewAllCategoriesWithoutGlobalCategoriesViewPermission()
+    public function testCategoryManagerCanViewOnlyManagedCategoriesWithoutGlobalCategoriesViewPermission()
     {
         $manager = User::factory()->create();
         $managedCategory = Category::factory()->forAssets()->create([
             'name' => 'Managed Category',
             'manager_id' => $manager->id,
         ]);
-        $unmanagedCategory = Category::factory()->forAssets()->create([
+        Category::factory()->forAssets()->create([
             'name' => 'Unmanaged Category',
         ]);
 
         $this->actingAsForApi($manager)
             ->getJson(route('api.categories.index'))
             ->assertOk()
-            ->assertJsonFragment([
-                'id' => $managedCategory->id,
-                'name' => 'Managed Category',
-            ])
-            ->assertJsonFragment([
-                'id' => $unmanagedCategory->id,
-                'name' => 'Unmanaged Category',
-            ]);
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('total', 1)
+                ->where('rows.0.id', $managedCategory->id)
+                ->missing('rows.1')
+                ->etc());
+    }
+
+    public function testAfmWithGlobalViewPermissionCanViewOnlyManagedCategories()
+    {
+        $afmGroup = Group::factory()->create([
+            'name' => config('leams.roles.afm_group_name'),
+            'permissions' => json_encode(['categories.view' => 1]),
+        ]);
+        $afm = User::factory()->create();
+        $afm->groups()->attach($afmGroup);
+
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        Category::factory()->forAssets()->create();
+
+        $this->actingAsForApi($afm)
+            ->getJson(route('api.categories.index'))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('total', 1)
+                ->where('rows.0.id', $managedCategory->id)
+                ->missing('rows.1')
+                ->etc());
+    }
+
+    public function testUnassignedAfmDoesNotSeeAllCategories()
+    {
+        $afmGroup = Group::factory()->create([
+            'name' => config('leams.roles.afm_group_name'),
+            'permissions' => json_encode(['categories.view' => 1]),
+        ]);
+        $afm = User::factory()->create();
+        $afm->groups()->attach($afmGroup);
+        Category::factory()->forAssets()->create();
+
+        $this->actingAsForApi($afm)
+            ->getJson(route('api.categories.index'))
+            ->assertOk()
+            ->assertJson(fn (AssertableJson $json) => $json
+                ->where('total', 0)
+                ->where('rows', [])
+                ->etc());
     }
 
     public function testExplicitCategoriesViewDenyBlocksManagerFallbackAccess()

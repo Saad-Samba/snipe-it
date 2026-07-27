@@ -3,6 +3,7 @@
 namespace Tests\Feature\Categories\Api;
 
 use App\Models\Category;
+use App\Models\Group;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -23,7 +24,7 @@ class ShowCategoriesTest extends TestCase
             ]);
     }
 
-    public function testManagerCanViewUnmanagedCategoryWithoutGlobalCategoriesViewPermission()
+    public function testManagerCannotViewUnmanagedCategoryWithoutGlobalCategoriesViewPermission()
     {
         $manager = User::factory()->create();
         Category::factory()->forAssets()->create([
@@ -33,9 +34,24 @@ class ShowCategoriesTest extends TestCase
 
         $this->actingAsForApi($manager)
             ->getJson(route('api.categories.show', $category))
-            ->assertOk()
-            ->assertJson([
-                'id' => $category->id,
-            ]);
+            ->assertForbidden();
+    }
+
+    public function testAfmCannotViewUnmanagedCategoryWithGlobalCategoriesViewPermission()
+    {
+        $afmGroup = Group::factory()->create([
+            'name' => config('leams.roles.afm_group_name'),
+            'permissions' => json_encode(['categories.view' => 1]),
+        ]);
+        $afm = User::factory()->create();
+        $afm->groups()->attach($afmGroup);
+        Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create();
+
+        $this->actingAsForApi($afm)
+            ->getJson(route('api.categories.show', $unmanagedCategory))
+            ->assertForbidden();
     }
 }

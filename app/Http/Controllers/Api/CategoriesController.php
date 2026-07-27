@@ -26,6 +26,7 @@ class CategoriesController extends Controller
     public function index(Request $request) : array
     {
         $this->authorize('view', Category::class);
+        $requestingUser = $request->user();
         $allowed_columns = [
             'id',
             'name',
@@ -76,6 +77,10 @@ class CategoriesController extends Controller
                 'availableModels as available_models_count',
                 'reusableAssets as reusable_assets_count'
             );
+
+        if ($requestingUser->hasCategoryOwnershipScope()) {
+            $categories->managedBy($requestingUser);
+        }
 
         $filter = [];
 
@@ -182,7 +187,7 @@ class CategoriesController extends Controller
     {
         $this->authorize('create', Category::class);
         $category = new Category;
-        $category->fill($request->all());
+        $category->fill($this->categoryAttributes($request));
         $category->category_type = strtolower($request->input('category_type'));
         $category = $request->handleImages($category);
 
@@ -229,7 +234,7 @@ class CategoriesController extends Controller
                 Helper::formatStandardApiResponse('error', null,  ['category_type' => trans('admin/categories/message.update.cannot_change_category_type')], 422)
             );
         }
-        $category->fill($request->all());
+        $category->fill($this->categoryAttributes($request));
         $category = $request->handleImages($category);
 
         if ($category->save()) {
@@ -283,6 +288,10 @@ class CategoriesController extends Controller
             'image',
         ]);
 
+        if ($request->user()->hasCategoryOwnershipScope()) {
+            $categories->managedBy($request->user());
+        }
+
         if ($request->filled('search')) {
             $categories = $categories->where('name', 'LIKE', '%'.$request->get('search').'%');
         }
@@ -297,5 +306,14 @@ class CategoriesController extends Controller
         }
 
         return (new SelectlistTransformer)->transformSelectlist($categories);
+    }
+
+    private function categoryAttributes(Request $request): array
+    {
+        if ($request->user()->isSuperUser() || $request->user()->isAdmin()) {
+            return $request->all();
+        }
+
+        return $request->except('manager_id');
     }
 }

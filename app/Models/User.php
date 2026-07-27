@@ -343,6 +343,30 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
         return $this->checkPermissionSection('admin');
     }
 
+    /**
+     * Determine whether this user belongs to the configured Asset Family Manager role.
+     */
+    public function isAssetFamilyManager(): bool
+    {
+        $groupName = config('leams.roles.afm_group_name');
+
+        if (! is_string($groupName) || trim($groupName) === '') {
+            return false;
+        }
+
+        return $this->groups()->where('permission_groups.name', $groupName)->exists();
+    }
+
+    /**
+     * Determine whether category access must be limited to categories assigned to this user.
+     */
+    public function hasCategoryOwnershipScope(): bool
+    {
+        return ! $this->isSuperUser()
+            && ! $this->isAdmin()
+            && ($this->isAssetFamilyManager() || Category::managedBy($this)->exists());
+    }
+
 
     /**
      * Checks if the user can edit their own profile
