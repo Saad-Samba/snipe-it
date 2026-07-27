@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\CheckoutRequests\CancelCheckoutRequestAction;
 use App\Actions\CheckoutRequests\CreateCheckoutRequestAction;
 use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
+use App\Actions\CheckoutRequests\RacRoutingResult;
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Enums\ActionType;
 use App\Exceptions\AssetNotRequestable;
@@ -21,6 +22,7 @@ use App\Models\User;
 use App\Notifications\RacScopedRequestSummaryNotification;
 use App\Notifications\RequestAssetCancelation;
 use App\Notifications\RequestAssetNotification;
+use App\Notifications\UnroutedRacRequestNotification;
 use Exception;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -28,6 +30,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class ModelRequestsController extends Controller
@@ -164,6 +167,7 @@ class ModelRequestsController extends Controller
         }
 
         $coordinatorNotificationBuckets = [];
+        $unroutedRacNotificationLines = [];
         $requestAttributes = $fullItemType == AssetModel::class
             ? array_merge(
                 [
@@ -181,14 +185,19 @@ class ModelRequestsController extends Controller
             : $item->request($quantity, $requestAttributes);
 
         if ($fullItemType == AssetModel::class) {
-            $coordinatorMatches = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+            $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
             $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
                 $coordinatorNotificationBuckets,
                 $checkoutRequest,
                 $user,
                 $data['project'],
                 $data['requested_date'],
-                $coordinatorMatches
+                $routingResult->coordinatorMatches
+            );
+            $unroutedRacNotificationLines = $this->addUnroutedRacNotificationLine(
+                $unroutedRacNotificationLines,
+                $checkoutRequest,
+                $routingResult
             );
         }
 
@@ -198,6 +207,7 @@ class ModelRequestsController extends Controller
         }
 
         $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);
+        $this->sendUnroutedRacNotifications($unroutedRacNotificationLines);
 
         return redirect()->back()->with('success')->with('success', trans('admin/hardware/message.requests.success'));
     }
@@ -225,7 +235,9 @@ class ModelRequestsController extends Controller
             throw new AuthorizationException('You are not authorized to request models.');
         }
 
-        DB::transaction(function () use ($validated, $user) {
+        $unroutedRacNotificationLines = [];
+
+        DB::transaction(function () use ($validated, $user, &$unroutedRacNotificationLines) {
             foreach ($validated['model_quantities'] as $modelId => $quantity) {
                 $item = AssetModel::findOrFail((int) $modelId);
                 $this->ensureModelRequestAuthorized($item, $user);
@@ -244,19 +256,16 @@ class ModelRequestsController extends Controller
                     ? $this->updateExistingModelProjectRequest($existingRequest, (int) $quantity, $requestAttributes)
                     : $item->request((int) $quantity, $requestAttributes);
 
-                $data = [
-                    'item_quantity' => (int) $quantity,
-                    'requested_by' => $user->display_name,
-                    'item' => $item,
-                    'item_type' => 'model',
-                    'target' => $user,
-                    'project' => Project::find((int) $validated['project_id']),
-                    'item_url' => route('view/model', $item->id),
-                ];
-
-                ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
+                $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+                $unroutedRacNotificationLines = $this->addUnroutedRacNotificationLine(
+                    $unroutedRacNotificationLines,
+                    $checkoutRequest,
+                    $routingResult
+                );
             }
         });
+
+        $this->sendUnroutedRacNotifications($unroutedRacNotificationLines);
 
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
@@ -408,8 +417,9 @@ class ModelRequestsController extends Controller
         $project = Project::find((int) $validated['project_id']);
         $submittedAt = now()->toDateTimeString();
         $coordinatorNotificationBuckets = [];
+        $unroutedRacNotificationLines = [];
 
-        DB::transaction(function () use ($cart, $validated, $user, $project, $submittedAt, &$coordinatorNotificationBuckets) {
+        DB::transaction(function () use ($cart, $validated, $user, $project, $submittedAt, &$coordinatorNotificationBuckets, &$unroutedRacNotificationLines) {
             foreach ($cart as $line) {
                 $item = AssetModel::findOrFail((int) $line['model_id']);
                 $disciplineId = (int) $line['discipline_id'];
@@ -435,20 +445,26 @@ class ModelRequestsController extends Controller
                     ? $this->updateExistingModelProjectRequest($existingRequest, $quantity, $requestAttributes)
                     : $item->request($quantity, $requestAttributes);
 
-                $coordinatorMatches = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+                $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
                 $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
                     $coordinatorNotificationBuckets,
                     $checkoutRequest,
                     $user,
                     $project,
                     $submittedAt,
-                    $coordinatorMatches
+                    $routingResult->coordinatorMatches
+                );
+                $unroutedRacNotificationLines = $this->addUnroutedRacNotificationLine(
+                    $unroutedRacNotificationLines,
+                    $checkoutRequest,
+                    $routingResult
                 );
             }
         });
 
         $request->session()->forget(self::MODEL_REQUEST_CART_SESSION_KEY);
         $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);
+        $this->sendUnroutedRacNotifications($unroutedRacNotificationLines);
 
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
@@ -787,6 +803,56 @@ class ModelRequestsController extends Controller
                 ->whereNull('initial_notified_at')
                 ->update(['initial_notified_at' => now()]);
         }
+    }
+
+    private function addUnroutedRacNotificationLine(
+        array $lines,
+        CheckoutRequest $checkoutRequest,
+        RacRoutingResult $routingResult
+    ): array {
+        if (! $routingResult->shouldAlert || empty($routingResult->unroutedScopes)) {
+            return $lines;
+        }
+
+        $lines[] = [
+            'request_id' => (int) $checkoutRequest->id,
+            'model_name' => $checkoutRequest->requestedItem()?->name ?? $checkoutRequest->name(),
+            'project_name' => optional($checkoutRequest->project)->name,
+            'unrouted_scopes' => $routingResult->unroutedScopes,
+            'review_url' => route('assets.requested'),
+        ];
+
+        return $lines;
+    }
+
+    private function sendUnroutedRacNotifications(array $lines): void
+    {
+        if (empty($lines)) {
+            return;
+        }
+
+        $settings = Setting::getSettings();
+        if (! $settings->alerts_enabled || empty($settings->alert_email) || config('app.lock_passwords')) {
+            return;
+        }
+
+        $recipients = collect(explode(',', $settings->alert_email))
+            ->map(fn (string $email) => trim($email))
+            ->filter()
+            ->unique();
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        foreach ($recipients as $recipient) {
+            Notification::route('mail', $recipient)
+                ->notify(new UnroutedRacRequestNotification($lines));
+        }
+
+        CheckoutRequest::query()
+            ->whereIn('id', collect($lines)->pluck('request_id')->map(fn ($id) => (int) $id))
+            ->update(['rac_routing_alerted_at' => now()]);
     }
 
     private function requestDetailUrlFor(CheckoutRequest $checkoutRequest): string

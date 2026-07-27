@@ -25,6 +25,11 @@ class CheckoutRequest extends Model
     public const STATUS_FULFILLED = 'fulfilled';
     public const STATUS_REJECTED = 'rejected';
 
+    public const RAC_ROUTING_ROUTED = 'routed';
+    public const RAC_ROUTING_PARTIALLY_ROUTED = 'partially_routed';
+    public const RAC_ROUTING_UNROUTED = 'unrouted';
+    public const RAC_ROUTING_NOT_REQUIRED = 'not_required';
+
     protected $fillable = [
         'user_id',
         'requested_discipline_id',
@@ -39,6 +44,9 @@ class CheckoutRequest extends Model
         'estimated_savings',
         'reference_price_snapshot',
         'status',
+        'rac_routing_status',
+        'rac_unrouted_scopes',
+        'rac_routing_alerted_at',
         'note',
     ];
 
@@ -46,6 +54,8 @@ class CheckoutRequest extends Model
         'needed_by_date' => 'date',
         'estimated_savings' => 'float',
         'reference_price_snapshot' => 'float',
+        'rac_unrouted_scopes' => 'array',
+        'rac_routing_alerted_at' => 'datetime',
     ];
 
     protected $table = 'checkout_requests';

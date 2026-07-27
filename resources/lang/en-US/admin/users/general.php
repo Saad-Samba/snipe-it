@@ -62,6 +62,6 @@ return [
     'generate_password' => 'Generate random password',
     'individual_override' => 'This user has at least one individual permission set, which may override group permissions.',
     'rac_enabled_label' => 'This user acts as a Regional Asset Coordinator (RAC)',
-    'rac_enabled_help' => 'When enabled, the user becomes the responsible coordinator for the selected discipline within their company.',
-    'rac_discipline' => 'RAC Discipline',
+    'rac_enabled_help' => 'When enabled, the user becomes the responsible coordinator for the selected disciplines within their company.',
+    'rac_discipline' => 'RAC Disciplines',
 ];

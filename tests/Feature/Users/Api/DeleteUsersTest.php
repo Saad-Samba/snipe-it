@@ -163,7 +163,7 @@ class DeleteUsersTest extends TestCase implements TestsFullMultipleCompaniesSupp
         ]);
         $company = Company::factory()->create();
         $user = User::factory()->create(['company_id' => $company->id]);
-        $user->racAssignment()->create([
+        $user->racAssignments()->create([
             'company_id' => $company->id,
             'discipline_id' => $discipline->id,
             'created_by' => $deleter->id,

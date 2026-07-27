@@ -81,7 +81,24 @@
                             <td></td>
                             @endif
                             <td>{{ $request->coordinatorTargets->pluck('company.name')->filter()->unique()->implode(', ') }}</td>
-                            <td>{{ $request->coordinatorTargets->pluck('coordinator.display_name')->filter()->unique()->implode(', ') }}</td>
+                            <td>
+                                {{ $request->coordinatorTargets->pluck('coordinator.display_name')->filter()->unique()->implode(', ') }}
+                                @if (in_array($request->rac_routing_status, [\App\Models\CheckoutRequest::RAC_ROUTING_UNROUTED, \App\Models\CheckoutRequest::RAC_ROUTING_PARTIALLY_ROUTED], true))
+                                    <div class="text-danger">
+                                        <strong>Unrouted — RAC missing</strong>
+                                        <ul class="list-unstyled">
+                                            @foreach ($request->rac_unrouted_scopes ?? [] as $scope)
+                                                <li>
+                                                    {{ $scope['company_name'] ?? 'Company #'.$scope['company_id'] }}
+                                                    /
+                                                    {{ $scope['discipline_name'] ?? 'Discipline #'.$scope['discipline_id'] }}
+                                                    ({{ $scope['reusable_quantity'] }} reusable)
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+                            </td>
                             <td>{{ $request->quantity }}</td>
 
                             <td>

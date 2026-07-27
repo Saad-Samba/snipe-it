@@ -567,4 +567,39 @@ class UpdateUserTest extends TestCase
         ]);
     }
 
+    public function testApiUserUpdateCanAssignMultipleRacDisciplinesAndUnrelatedPatchPreservesThem()
+    {
+        $superUser = User::factory()->superuser()->create();
+        $company = Company::factory()->create();
+        $disciplineA = Discipline::create([
+            'name' => 'API Multi RAC Discipline A',
+            'created_by' => $superUser->id,
+        ]);
+        $disciplineB = Discipline::create([
+            'name' => 'API Multi RAC Discipline B',
+            'created_by' => $superUser->id,
+        ]);
+        $user = User::factory()->create();
+
+        $this->actingAsForApi($superUser)->patchJson(route('api.users.update', $user), [
+            'company_id' => $company->id,
+            'rac_enabled' => 1,
+            'rac_discipline_ids' => [$disciplineA->id, $disciplineB->id],
+        ])->assertStatusMessageIs('success');
+
+        $this->assertSame(
+            [$disciplineA->id, $disciplineB->id],
+            $user->racAssignments()->orderBy('discipline_id')->pluck('discipline_id')->all()
+        );
+
+        $this->actingAsForApi($superUser)->patchJson(route('api.users.update', $user), [
+            'last_name' => 'Preserved RAC',
+        ])->assertStatusMessageIs('success');
+
+        $this->assertSame(
+            [$disciplineA->id, $disciplineB->id],
+            $user->racAssignments()->orderBy('discipline_id')->pluck('discipline_id')->all()
+        );
+    }
+
 }

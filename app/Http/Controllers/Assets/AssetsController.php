@@ -1118,7 +1118,12 @@ class AssetsController extends Controller
     public function getRequestedIndex($user_id = null)
     {
         $this->authorize('index', Asset::class);
-        $requestedItems = CheckoutRequest::with('user', 'requestedItem')->whereNull('canceled_at')->with('user', 'requestedItem');
+        $requestedItems = CheckoutRequest::with([
+            'user',
+            'requestedItem',
+            'coordinatorTargets.company',
+            'coordinatorTargets.coordinator',
+        ])->whereNull('canceled_at');
 
         if ($user_id) {
             $requestedItems->where('user_id', $user_id)->get();

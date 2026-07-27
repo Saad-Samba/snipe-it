@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Requests;
 
+use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
@@ -16,6 +17,7 @@ use App\Models\Statuslabel;
 use App\Models\User;
 use App\Notifications\RacScopedRequestSummaryNotification;
 use App\Notifications\RequestAssetNotification;
+use App\Notifications\UnroutedRacRequestNotification;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -121,6 +123,152 @@ class ModelRequestWorkflowTest extends TestCase
                 && $notification->lines()[0]['discipline_name'] === $disciplineA->name
                 && $notification->lines()[0]['reusable_quantity'] === 1;
         });
+    }
+
+    public function test_model_request_marks_and_alerts_when_reusable_scope_has_no_rac()
+    {
+        Notification::fake();
+        $this->settings->enableAlertEmail('asset-admin@example.com');
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $discipline = Discipline::create([
+            'name' => 'Uncovered Discipline',
+            'created_by' => $requester->id,
+        ]);
+        $sourceCompany = Company::factory()->create(['name' => 'Uncovered Source']);
+        $destinationCompany = Company::factory()->create(['name' => 'Destination']);
+        $project = Project::factory()->create(['name' => 'Unrouted Project']);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+        $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-quantity' => 1,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $destinationCompany->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-08-01',
+            ])
+            ->assertRedirect();
+
+        $checkoutRequest = CheckoutRequest::query()
+            ->where('user_id', $requester->id)
+            ->where('requestable_id', $model->id)
+            ->firstOrFail();
+
+        $this->assertSame(CheckoutRequest::RAC_ROUTING_UNROUTED, $checkoutRequest->rac_routing_status);
+        $this->assertSame([
+            [
+                'company_id' => $sourceCompany->id,
+                'company_name' => $sourceCompany->name,
+                'discipline_id' => $discipline->id,
+                'discipline_name' => $discipline->name,
+                'reusable_quantity' => 2,
+            ],
+        ], $checkoutRequest->rac_unrouted_scopes);
+        $this->assertNotNull($checkoutRequest->rac_routing_alerted_at);
+        $this->assertCount(0, $checkoutRequest->coordinatorTargets);
+
+        Notification::assertSentOnDemand(
+            UnroutedRacRequestNotification::class,
+            function (UnroutedRacRequestNotification $notification, array $channels, object $notifiable) use ($checkoutRequest, $sourceCompany) {
+                return $notifiable->routes['mail'] === 'asset-admin@example.com'
+                    && $notification->lines()[0]['request_id'] === $checkoutRequest->id
+                    && $notification->lines()[0]['unrouted_scopes'][0]['company_name'] === $sourceCompany->name;
+            }
+        );
+    }
+
+    public function test_rerouting_preserves_existing_coordinator_resolution_and_does_not_repeat_gap_alert()
+    {
+        Notification::fake();
+        $this->settings->enableAlertEmail('asset-admin@example.com');
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $coveredDiscipline = Discipline::create(['name' => 'Covered', 'created_by' => $requester->id]);
+        $uncoveredDiscipline = Discipline::create(['name' => 'Uncovered', 'created_by' => $requester->id]);
+        $sourceCompany = Company::factory()->create();
+        $destinationCompany = Company::factory()->create();
+        $coordinator = User::factory()->create(['company_id' => $sourceCompany->id]);
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $this->createEligibleAsset($model, $sourceCompany->id, $coveredDiscipline->id);
+        $this->createEligibleAsset($model, $sourceCompany->id, $uncoveredDiscipline->id);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $coveredDiscipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-quantity' => 1,
+                'requested_discipline_id' => $coveredDiscipline->id,
+                'company_id' => $destinationCompany->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-08-01',
+            ]);
+
+        $checkoutRequest = CheckoutRequest::query()
+            ->where('user_id', $requester->id)
+            ->where('requestable_id', $model->id)
+            ->firstOrFail();
+        $target = $checkoutRequest->coordinatorTargets()->firstOrFail();
+        $target->markCompletedNoStock();
+        $alertedAt = $checkoutRequest->fresh()->rac_routing_alerted_at;
+        $this->createEligibleAsset($model, $sourceCompany->id, $uncoveredDiscipline->id);
+
+        $result = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest->fresh());
+
+        $this->assertSame(CheckoutRequest::RAC_ROUTING_PARTIALLY_ROUTED, $result->status);
+        $this->assertFalse($result->shouldAlert);
+        $this->assertSame(2, $result->unroutedScopes[0]['reusable_quantity']);
+        $this->assertSame(
+            CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK,
+            $checkoutRequest->coordinatorTargets()->firstOrFail()->resolution_status
+        );
+        $this->assertTrue($alertedAt->equalTo($checkoutRequest->fresh()->rac_routing_alerted_at));
+    }
+
+    public function test_scheduled_reconciliation_backfills_existing_pending_requests()
+    {
+        Notification::fake();
+        $this->settings->enableAlertEmail('asset-admin@example.com');
+
+        $requester = User::factory()->create();
+        $discipline = Discipline::create(['name' => 'Backfill Gap', 'created_by' => $requester->id]);
+        $sourceCompany = Company::factory()->create();
+        $model = AssetModel::factory()->create();
+        $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+
+        $checkoutRequest = CheckoutRequest::factory()
+            ->forAssetModel()
+            ->create([
+                'requestable_id' => $model->id,
+                'user_id' => $requester->id,
+                'status' => CheckoutRequest::STATUS_PENDING,
+                'rac_routing_status' => null,
+                'rac_unrouted_scopes' => null,
+                'rac_routing_alerted_at' => null,
+            ]);
+
+        $this->artisan('snipeit:reconcile-rac-routing')
+            ->expectsOutput('1 active requests reconciled; 1 unrouted requests included in administrator alerts.')
+            ->assertSuccessful();
+
+        $this->assertSame(
+            CheckoutRequest::RAC_ROUTING_UNROUTED,
+            $checkoutRequest->fresh()->rac_routing_status
+        );
+        $this->assertNotNull($checkoutRequest->fresh()->rac_routing_alerted_at);
+        Notification::assertSentOnDemand(UnroutedRacRequestNotification::class);
     }
 
     public function test_category_assignment_grants_models_request_capability()

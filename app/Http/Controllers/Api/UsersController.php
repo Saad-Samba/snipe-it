@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Users\SyncUserRacAssignmentsAction;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveUserRequest;
@@ -18,7 +19,6 @@ use App\Models\Accessory;
 use App\Models\Company;
 use App\Models\Consumable;
 use App\Models\License;
-use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\User;
 use App\Notifications\CurrentInventory;
 use App\Notifications\WelcomeNotification;
@@ -32,7 +32,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\DeleteUserRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Validation\ValidationException;
 
 class UsersController extends Controller
 {
@@ -616,38 +615,7 @@ class UsersController extends Controller
 
     protected function syncRacAssignment(User $user, Request $request): void
     {
-        $existingAssignment = $user->racAssignment()->first();
-
-        if (! $request->boolean('rac_enabled')) {
-            if ($existingAssignment) {
-                $existingAssignment->delete();
-            }
-
-            return;
-        }
-
-        $disciplineId = (int) $request->input('rac_discipline_id');
-
-        $conflictingAssignment = RegionalAssetCoordinatorAssignment::query()
-            ->where('company_id', $user->company_id)
-            ->where('discipline_id', $disciplineId)
-            ->where('user_id', '!=', $user->id)
-            ->first();
-
-        if ($conflictingAssignment) {
-            throw ValidationException::withMessages([
-                'rac_discipline_id' => 'A RAC is already assigned to this company and discipline.',
-            ]);
-        }
-
-        RegionalAssetCoordinatorAssignment::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'company_id' => $user->company_id,
-                'discipline_id' => $disciplineId,
-                'created_by' => $existingAssignment?->created_by ?? auth()->id(),
-            ]
-        );
+        SyncUserRacAssignmentsAction::run($user, $request);
     }
 
     /**
