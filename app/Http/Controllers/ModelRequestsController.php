@@ -6,6 +6,7 @@ use App\Actions\CheckoutRequests\CancelCheckoutRequestAction;
 use App\Actions\CheckoutRequests\CreateCheckoutRequestAction;
 use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
+use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
 use App\Enums\ActionType;
 use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
