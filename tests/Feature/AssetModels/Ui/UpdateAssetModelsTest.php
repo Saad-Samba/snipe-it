@@ -30,7 +30,7 @@ class UpdateAssetModelsTest extends TestCase
 
     public function testAfmCanEditManagedAssetModel()
     {
-        $afm = User::factory()->viewAssetModels()->editAssetModels()->create();
+        $afm = User::factory()->create();
         $managedCategory = Category::factory()->forAssets()->create([
             'manager_id' => $afm->id,
         ]);
@@ -51,7 +51,7 @@ class UpdateAssetModelsTest extends TestCase
 
     public function testAfmCannotEditUnmanagedAssetModel()
     {
-        $afm = User::factory()->viewAssetModels()->editAssetModels()->create();
+        $afm = User::factory()->create();
         $managedCategory = Category::factory()->forAssets()->create([
             'manager_id' => $afm->id,
         ]);
@@ -76,7 +76,7 @@ class UpdateAssetModelsTest extends TestCase
 
     public function testAfmEditFormOnlyShowsManagedCategories()
     {
-        $afm = User::factory()->viewAssetModels()->editAssetModels()->create();
+        $afm = User::factory()->create();
         $managedCategory = Category::factory()->forAssets()->create([
             'name' => 'Managed Update Category',
             'manager_id' => $afm->id,

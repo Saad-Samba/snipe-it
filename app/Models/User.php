@@ -42,6 +42,34 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
     use Presentable;
     use Searchable;
 
+    private const ASSET_FAMILY_MANAGER_PERMISSIONS = [
+        'reports.view',
+        'assets.view',
+        'users.view',
+        'models.view',
+        'models.create',
+        'models.edit',
+        'models.request',
+        'categories.view',
+        'categories.edit',
+        'customfields.view',
+        'customfields.create',
+        'customfields.edit',
+        'manufacturers.view',
+        'manufacturers.create',
+        'manufacturers.edit',
+        'suppliers.view',
+        'suppliers.create',
+        'suppliers.edit',
+        'depreciations.view',
+        'depreciations.create',
+        'depreciations.edit',
+        'locations.view',
+        'companies.view',
+        'departments.view',
+        'statuslabels.view',
+    ];
+
     protected $hidden = [
         'password',
         'remember_token',
@@ -316,7 +344,13 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
             return true;
         }
 
-        return $this->checkPermissionSection($section);
+        if ($this->checkPermissionSection($section)) {
+            return true;
+        }
+
+        return in_array($section, self::ASSET_FAMILY_MANAGER_PERMISSIONS, true)
+            && ! $this->hasExplicitPermissionDenial($section)
+            && $this->isAssetFamilyManager();
     }
 
     /**
@@ -344,17 +378,11 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
     }
 
     /**
-     * Determine whether this user belongs to the configured Asset Family Manager role.
+     * Determine whether this user manages at least one asset family.
      */
     public function isAssetFamilyManager(): bool
     {
-        $groupName = config('leams.roles.afm_group_name');
-
-        if (! is_string($groupName) || trim($groupName) === '') {
-            return false;
-        }
-
-        return $this->groups()->where('permission_groups.name', $groupName)->exists();
+        return Category::managedBy($this)->exists();
     }
 
     /**
@@ -364,7 +392,14 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
     {
         return ! $this->isSuperUser()
             && ! $this->isAdmin()
-            && ($this->isAssetFamilyManager() || Category::managedBy($this)->exists());
+            && $this->isAssetFamilyManager();
+    }
+
+    private function hasExplicitPermissionDenial(string $permission): bool
+    {
+        $permissions = $this->decodePermissions();
+
+        return is_array($permissions) && (($permissions[$permission] ?? null) === -1);
     }
 
 

@@ -96,12 +96,7 @@ class UpdateCategoriesTest extends TestCase
 
     public function testCategoryManagerCanUpdateManagedCategoryWithoutChangingOwnership()
     {
-        $manager = User::factory()->create([
-            'permissions' => json_encode([
-                'categories.view' => 1,
-                'categories.edit' => 1,
-            ]),
-        ]);
+        $manager = User::factory()->create();
         $otherManager = User::factory()->create();
         $category = Category::factory()->forAssets()->create([
             'name' => 'Managed Category',
@@ -125,12 +120,7 @@ class UpdateCategoriesTest extends TestCase
 
     public function testCategoryManagerCannotUpdateUnmanagedCategory()
     {
-        $manager = User::factory()->create([
-            'permissions' => json_encode([
-                'categories.view' => 1,
-                'categories.edit' => 1,
-            ]),
-        ]);
+        $manager = User::factory()->create();
         Category::factory()->forAssets()->create([
             'manager_id' => $manager->id,
         ]);

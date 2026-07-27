@@ -74,7 +74,7 @@ class IndexAssetModelsTest extends TestCase
 
     public function testAfmAssetModelIndexOnlyReturnsManagedCategoryModels()
     {
-        $afm = User::factory()->viewAssetModels()->create();
+        $afm = User::factory()->create();
         $managedCategory = Category::factory()->forAssets()->create([
             'manager_id' => $afm->id,
         ]);

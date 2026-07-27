@@ -133,10 +133,6 @@ class UpdateCategoriesTest extends TestCase
         $manager = User::factory()->create([
             'first_name' => 'Assigned',
             'last_name' => 'AFM',
-            'permissions' => json_encode([
-                'categories.view' => 1,
-                'categories.edit' => 1,
-            ]),
         ]);
         $category = Category::factory()->forAssets()->create([
             'manager_id' => $manager->id,
@@ -152,12 +148,7 @@ class UpdateCategoriesTest extends TestCase
 
     public function testCategoryManagerCannotChangeManagedCategoryOwnership()
     {
-        $manager = User::factory()->create([
-            'permissions' => json_encode([
-                'categories.view' => 1,
-                'categories.edit' => 1,
-            ]),
-        ]);
+        $manager = User::factory()->create();
         $otherManager = User::factory()->create();
         $category = Category::factory()->forAssets()->create([
             'name' => 'Managed Category',
@@ -182,12 +173,7 @@ class UpdateCategoriesTest extends TestCase
 
     public function testCategoryManagerCannotUpdateUnmanagedCategory()
     {
-        $manager = User::factory()->create([
-            'permissions' => json_encode([
-                'categories.view' => 1,
-                'categories.edit' => 1,
-            ]),
-        ]);
+        $manager = User::factory()->create();
         Category::factory()->forAssets()->create([
             'manager_id' => $manager->id,
         ]);

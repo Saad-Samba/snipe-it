@@ -3,7 +3,6 @@
 namespace Tests\Feature\Categories\Api;
 
 use App\Models\Category;
-use App\Models\Group;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -39,12 +38,9 @@ class ShowCategoriesTest extends TestCase
 
     public function testAfmCannotViewUnmanagedCategoryWithGlobalCategoriesViewPermission()
     {
-        $afmGroup = Group::factory()->create([
-            'name' => config('leams.roles.afm_group_name'),
+        $afm = User::factory()->create([
             'permissions' => json_encode(['categories.view' => 1]),
         ]);
-        $afm = User::factory()->create();
-        $afm->groups()->attach($afmGroup);
         Category::factory()->forAssets()->create([
             'manager_id' => $afm->id,
         ]);

@@ -877,20 +877,7 @@
 
     // Custom Field table buttons
     window.categoryButtons = () => {
-        const buttons = {
-            @unless (auth()->user()->hasCategoryOwnershipScope())
-            btnShowMine: {
-                text: 'My Categories',
-                icon: 'fa fa-user',
-                event () {
-                    window.location.href = '{{ route('categories.index', ['manager_id' => auth()->id()]) }}';
-                },
-                attributes: {
-                    title: 'My Categories',
-                }
-            },
-            @endunless
-        };
+        const buttons = {};
 
         @can('create', \App\Models\Category::class)
         buttons.btnAdd = {

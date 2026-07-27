@@ -23,7 +23,7 @@ class IndexCategoriesTest extends TestCase
             ->assertSee('Category Manager', false)
             ->assertSee('Available Models', false)
             ->assertSee('Available Assets', false)
-            ->assertSee('My Categories', false);
+            ->assertDontSee('My Categories', false);
     }
 
     public function testCategoryManagerCanOpenCategoryListWithoutGlobalCategoriesViewPermission()

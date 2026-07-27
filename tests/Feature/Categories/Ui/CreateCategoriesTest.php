@@ -5,7 +5,6 @@ namespace Tests\Feature\Categories\Ui;
 use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\CustomFieldset;
-use App\Models\Group;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -30,15 +29,12 @@ class CreateCategoriesTest extends TestCase
 
     public function testAfmCannotOpenOrSubmitCategoryCreation()
     {
-        $afmGroup = Group::factory()->create([
-            'name' => config('leams.roles.afm_group_name'),
-            'permissions' => json_encode([
-                'categories.view' => 1,
-                'categories.create' => 1,
-            ]),
+        $afm = User::factory()->create([
+            'permissions' => json_encode(['categories.create' => 1]),
         ]);
-        $afm = User::factory()->create();
-        $afm->groups()->attach($afmGroup);
+        Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
 
         $this->actingAs($afm)
             ->get(route('categories.create'))

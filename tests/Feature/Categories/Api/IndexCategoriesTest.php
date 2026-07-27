@@ -5,7 +5,6 @@ namespace Tests\Feature\Categories\Api;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
-use App\Models\Group;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Illuminate\Testing\Fluent\AssertableJson;
@@ -42,14 +41,11 @@ class IndexCategoriesTest extends TestCase
                 ->etc());
     }
 
-    public function testAfmWithGlobalViewPermissionCanViewOnlyManagedCategories()
+    public function testAssignedAfmWithFormerGlobalViewPermissionCanViewOnlyManagedCategories()
     {
-        $afmGroup = Group::factory()->create([
-            'name' => config('leams.roles.afm_group_name'),
+        $afm = User::factory()->create([
             'permissions' => json_encode(['categories.view' => 1]),
         ]);
-        $afm = User::factory()->create();
-        $afm->groups()->attach($afmGroup);
 
         $managedCategory = Category::factory()->forAssets()->create([
             'manager_id' => $afm->id,
@@ -66,22 +62,20 @@ class IndexCategoriesTest extends TestCase
                 ->etc());
     }
 
-    public function testUnassignedAfmDoesNotSeeAllCategories()
+    public function testUnassignedGlobalViewerIsNotTreatedAsAfm()
     {
-        $afmGroup = Group::factory()->create([
-            'name' => config('leams.roles.afm_group_name'),
+        $viewer = User::factory()->create([
             'permissions' => json_encode(['categories.view' => 1]),
         ]);
-        $afm = User::factory()->create();
-        $afm->groups()->attach($afmGroup);
-        Category::factory()->forAssets()->create();
+        Category::factory()->forAssets()->count(2)->create();
+        $expectedCategoryCount = Category::count();
 
-        $this->actingAsForApi($afm)
+        $this->actingAsForApi($viewer)
             ->getJson(route('api.categories.index'))
             ->assertOk()
             ->assertJson(fn (AssertableJson $json) => $json
-                ->where('total', 0)
-                ->where('rows', [])
+                ->where('total', $expectedCategoryCount)
+                ->has('rows', $expectedCategoryCount)
                 ->etc());
     }
 

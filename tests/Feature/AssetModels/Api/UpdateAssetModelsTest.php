@@ -41,7 +41,7 @@ class UpdateAssetModelsTest extends TestCase
 
     public function testAfmCannotUpdateAssetModelOutsideManagedCategory()
     {
-        $afm = User::factory()->viewAssetModels()->editAssetModels()->create();
+        $afm = User::factory()->create();
         Category::factory()->forAssets()->create([
             'manager_id' => $afm->id,
         ]);

@@ -123,8 +123,10 @@ class ModelRequestWorkflowTest extends TestCase
         });
     }
 
-    public function test_model_request_requires_models_request_permission()
+    public function test_category_assignment_grants_models_request_capability()
     {
+        Notification::fake();
+
         $requester = User::factory()->create();
         $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
@@ -137,8 +139,6 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
         $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
         $destinationCompany = Company::factory()->create();
-        $destinationCompany = Company::factory()->create();
-        $destinationCompany = Company::factory()->create();
 
         $this->actingAs($requester)
             ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
@@ -148,9 +148,9 @@ class ModelRequestWorkflowTest extends TestCase
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
-            ->assertForbidden();
+            ->assertRedirect();
 
-        $this->assertDatabaseMissing('checkout_requests', [
+        $this->assertDatabaseHas('checkout_requests', [
             'user_id' => $requester->id,
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,

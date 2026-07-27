@@ -47,16 +47,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
                 'activated' => 1,
                 'company_id' => null,
                 'locale' => 'en-US',
-                'permissions' => json_encode([
-                    'categories.view' => '1',
-                    'models.view' => '1',
-                    'models.request' => '1',
-                    'assets.view' => '1',
-                    'assets.checkout' => '1',
-                    'assets.checkin' => '1',
-                ]),
+                'permissions' => json_encode([]),
                 'password' => bcrypt('password'),
-                'notes' => 'Deterministic QA AFM-style user for My Categories validation.',
+                'notes' => 'Deterministic assignment-derived AFM for category scope validation.',
                 'created_by' => $admin->id,
             ]
         );
@@ -71,16 +64,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
                 'activated' => 1,
                 'company_id' => null,
                 'locale' => 'en-US',
-                'permissions' => json_encode([
-                    'categories.view' => '1',
-                    'models.view' => '1',
-                    'models.request' => '1',
-                    'assets.view' => '1',
-                    'assets.checkout' => '1',
-                    'assets.checkin' => '1',
-                ]),
+                'permissions' => json_encode([]),
                 'password' => bcrypt('password'),
-                'notes' => 'Deterministic QA AFM-style user for manager filter validation.',
+                'notes' => 'Deterministic assignment-derived AFM for manager scope validation.',
                 'created_by' => $admin->id,
             ]
         );
@@ -208,7 +194,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
             type: 'asset',
             managerId: $alphaManager->id,
             createdBy: $admin->id,
-            notes: 'Managed by Alpha Manager. Included in My Categories for qa-category-alpha.'
+            notes: 'Managed by Alpha Manager and visible in the AFM assigned-family scope.'
         );
 
         $bravoCategory = $this->upsertCategory(

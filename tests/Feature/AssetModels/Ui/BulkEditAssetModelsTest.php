@@ -45,7 +45,7 @@ class BulkEditAssetModelsTest extends TestCase
 
     public function testAfmCannotBulkEditUnmanagedModels()
     {
-        $afm = User::factory()->editAssetModels()->create();
+        $afm = User::factory()->create();
         $managedCategory = Category::factory()->forAssets()->create([
             'manager_id' => $afm->id,
         ]);

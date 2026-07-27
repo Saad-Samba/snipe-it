@@ -28,7 +28,7 @@ class CreateAssetModelsTest extends TestCase
 
     public function testAfmCannotAccessCreatePageWithoutManagedCategories()
     {
-        $afm = User::factory()->createAssetModels()->create();
+        $afm = User::factory()->create();
 
         $this->actingAs($afm)
             ->get(route('models.create'))
@@ -37,7 +37,7 @@ class CreateAssetModelsTest extends TestCase
 
     public function testAfmCreatePageOnlyShowsManagedCategories()
     {
-        $afm = User::factory()->createAssetModels()->create();
+        $afm = User::factory()->create();
         $managedCategory = Category::factory()->forAssets()->create([
             'name' => 'Managed Alpha Category',
             'manager_id' => $afm->id,
@@ -72,7 +72,7 @@ class CreateAssetModelsTest extends TestCase
 
     public function testAfmCanCreateAssetModelInManagedCategory()
     {
-        $afm = User::factory()->viewAssetModels()->createAssetModels()->create();
+        $afm = User::factory()->create();
         $managedCategory = Category::factory()->forAssets()->create([
             'manager_id' => $afm->id,
         ]);
@@ -127,7 +127,7 @@ class CreateAssetModelsTest extends TestCase
 
     public function testAfmCannotCreateAssetModelInUnmanagedCategory()
     {
-        $afm = User::factory()->viewAssetModels()->createAssetModels()->create();
+        $afm = User::factory()->create();
         Category::factory()->forAssets()->create([
             'manager_id' => $afm->id,
         ]);
