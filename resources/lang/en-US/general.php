@@ -278,6 +278,7 @@ return [
     'unassigned_ready_to_deploy' => 'Unassigned Ready to Deploy',
     'requested_date'        => 'Requested Date',
     'requested_assets'      => 'Requested Assets',
+    'rac_requests'          => 'RAC Requests',
     'requested_assets_menu' => 'Requestable Items',
     'request_canceled'      => 'Request Canceled',
     'request_item'          => 'Request this item',
