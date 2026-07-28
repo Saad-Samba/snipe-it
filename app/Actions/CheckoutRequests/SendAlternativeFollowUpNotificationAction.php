@@ -96,9 +96,17 @@ class SendAlternativeFollowUpNotificationAction
         });
 
         if ($shouldNotify) {
-            $requestor->notify(
-                new RequestAlternativeFollowUpNotification($requestsToNotify, $afms)
-            );
+            try {
+                $requestor->notify(
+                    new RequestAlternativeFollowUpNotification($requestsToNotify, $afms)
+                );
+            } catch (\Throwable $exception) {
+                CheckoutRequest::query()
+                    ->whereIn('id', $requestsToNotify->pluck('id'))
+                    ->update(['alternative_follow_up_notified_at' => null]);
+
+                throw $exception;
+            }
         }
 
         return $checkoutRequest;

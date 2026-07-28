@@ -10,10 +10,10 @@ use Illuminate\Support\Collection;
 
 class ResolveCheckoutRequestCoordinatorsAction
 {
-    public static function run(CheckoutRequest $checkoutRequest, mixed $context = null): Collection
-    {
-        $sendAlternativeFollowUp = ! is_bool($context) || $context;
-
+    public static function run(
+        CheckoutRequest $checkoutRequest,
+        bool $sendAlternativeFollowUp = true
+    ): Collection {
         if ($checkoutRequest->requestable_type !== AssetModel::class) {
             $checkoutRequest->coordinatorTargets()->delete();
 

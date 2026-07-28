@@ -227,7 +227,10 @@ class ModelRequestsController extends Controller
             throw new AuthorizationException('You are not authorized to request models.');
         }
 
-        DB::transaction(function () use ($validated, $user) {
+        $submissionBatchId = (string) Str::uuid();
+        $submittedRequestIds = [];
+
+        DB::transaction(function () use ($validated, $user, $submissionBatchId, &$submittedRequestIds) {
             foreach ($validated['model_quantities'] as $modelId => $quantity) {
                 $item = AssetModel::findOrFail((int) $modelId);
                 $this->ensureModelRequestAuthorized($item, $user);
@@ -237,6 +240,7 @@ class ModelRequestsController extends Controller
                         'company_id' => (int) $validated['company_id'],
                         'project_id' => (int) $validated['project_id'],
                         'needed_by_date' => $validated['needed_by_date'],
+                        'submission_batch_id' => $submissionBatchId,
                     ],
                     $this->estimateAssetModelRequest($item, (int) $quantity, $validated['needed_by_date'])
                 );
@@ -246,19 +250,15 @@ class ModelRequestsController extends Controller
                     ? $this->updateExistingModelProjectRequest($existingRequest, (int) $quantity, $requestAttributes)
                     : $item->request((int) $quantity, $requestAttributes);
 
-                $data = [
-                    'item_quantity' => (int) $quantity,
-                    'requested_by' => $user->display_name,
-                    'item' => $item,
-                    'item_type' => 'model',
-                    'target' => $user,
-                    'project' => Project::find((int) $validated['project_id']),
-                    'item_url' => route('view/model', $item->id),
-                ];
-
-                ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, $data);
+                ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, false);
+                $submittedRequestIds[] = (int) $checkoutRequest->id;
             }
         });
+
+        CheckoutRequest::query()
+            ->whereIn('id', $submittedRequestIds)
+            ->get()
+            ->each(fn (CheckoutRequest $checkoutRequest) => SendAlternativeFollowUpNotificationAction::run($checkoutRequest));
 
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }

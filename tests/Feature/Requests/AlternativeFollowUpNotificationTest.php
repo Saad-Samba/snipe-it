@@ -151,6 +151,30 @@ class AlternativeFollowUpNotificationTest extends TestCase
         );
     }
 
+    public function test_failed_delivery_can_be_retried()
+    {
+        [$request, , $requestor] = $this->makeRequest();
+
+        Notification::shouldReceive('send')
+            ->once()
+            ->andThrow(new \RuntimeException('Mail transport unavailable'));
+
+        try {
+            SendAlternativeFollowUpNotificationAction::run($request);
+            $this->fail('Expected notification delivery to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Mail transport unavailable', $exception->getMessage());
+        }
+
+        $this->assertNull($request->fresh()->alternative_follow_up_notified_at);
+
+        Notification::fake();
+        SendAlternativeFollowUpNotificationAction::run($request);
+
+        $this->assertNotNull($request->fresh()->alternative_follow_up_notified_at);
+        Notification::assertSentTo($requestor, RequestAlternativeFollowUpNotification::class);
+    }
+
     public function test_models_from_the_same_submission_and_afm_are_sent_in_one_email()
     {
         Notification::fake();

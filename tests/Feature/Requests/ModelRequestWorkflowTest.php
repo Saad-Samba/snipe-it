@@ -16,6 +16,7 @@ use App\Models\Statuslabel;
 use App\Models\User;
 use App\Notifications\RacScopedRequestSummaryNotification;
 use App\Notifications\RequestAssetNotification;
+use App\Notifications\RequestAlternativeFollowUpNotification;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -1378,6 +1379,21 @@ class ModelRequestWorkflowTest extends TestCase
                     ->first()
                     ?->needed_by_date
             )->format('Y-m-d')
+        );
+
+        $submittedRequests = CheckoutRequest::query()
+            ->where('user_id', $requester->id)
+            ->whereIn('requestable_id', [$modelA->id, $modelB->id])
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(2, $submittedRequests);
+        $this->assertNotNull($submittedRequests->first()->submission_batch_id);
+        $this->assertCount(1, $submittedRequests->pluck('submission_batch_id')->unique());
+        Notification::assertSentToTimes(
+            $requester,
+            RequestAlternativeFollowUpNotification::class,
+            1
         );
     }
 
