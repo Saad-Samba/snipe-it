@@ -39,6 +39,8 @@ class CheckoutRequest extends Model
         'estimated_savings',
         'reference_price_snapshot',
         'status',
+        'submission_batch_id',
+        'alternative_follow_up_notified_at',
         'note',
     ];
 
@@ -46,6 +48,7 @@ class CheckoutRequest extends Model
         'needed_by_date' => 'date',
         'estimated_savings' => 'float',
         'reference_price_snapshot' => 'float',
+        'alternative_follow_up_notified_at' => 'datetime',
     ];
 
     protected $table = 'checkout_requests';
@@ -179,6 +182,32 @@ class CheckoutRequest extends Model
     public function remainingAllocationQuantity(): int
     {
         return max((int) $this->quantity - $this->allocatedQuantity(), 0);
+    }
+
+    public function racHandlingComplete(): bool
+    {
+        return ! $this->coordinatorTargets()
+            ->where(function ($query) {
+                $query->whereNull('resolution_status')
+                    ->orWhereNotIn(
+                        'resolution_status',
+                        CheckoutRequestCoordinator::terminalResolutionStatuses()
+                    );
+            })
+            ->exists();
+    }
+
+    public function requiresAlternativeFollowUp(): bool
+    {
+        return $this->requestable_type === AssetModel::class
+            && ! $this->canceled_at
+            && $this->remainingAllocationQuantity() > 0
+            && $this->racHandlingComplete();
+    }
+
+    public function resetAlternativeFollowUpNotification(): void
+    {
+        $this->forceFill(['alternative_follow_up_notified_at' => null]);
     }
 
     public function suggestedReusableAssetIds(): array

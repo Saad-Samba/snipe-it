@@ -10,8 +10,10 @@ use Illuminate\Support\Collection;
 
 class ResolveCheckoutRequestCoordinatorsAction
 {
-    public static function run(CheckoutRequest $checkoutRequest): Collection
-    {
+    public static function run(
+        CheckoutRequest $checkoutRequest,
+        bool $sendAlternativeFollowUp = true
+    ): Collection {
         if ($checkoutRequest->requestable_type !== AssetModel::class) {
             $checkoutRequest->coordinatorTargets()->delete();
 
@@ -28,6 +30,10 @@ class ResolveCheckoutRequestCoordinatorsAction
         $checkoutRequest->coordinatorTargets()->delete();
 
         if ($eligibleAssetPairs->isEmpty()) {
+            if ($sendAlternativeFollowUp) {
+                SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
+            }
+
             return collect();
         }
 
@@ -51,7 +57,7 @@ class ResolveCheckoutRequestCoordinatorsAction
             ]);
         }
 
-        return $matchedAssignments
+        $resolvedCoordinators = $matchedAssignments
             ->filter(fn (RegionalAssetCoordinatorAssignment $assignment) => $assignment->coordinator)
             ->groupBy('user_id')
             ->map(function (Collection $userAssignments, int|string $userId) use ($reusableCountsByScope) {
@@ -67,6 +73,12 @@ class ResolveCheckoutRequestCoordinatorsAction
                 ];
             })
             ->values();
+
+        if ($sendAlternativeFollowUp) {
+            SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
+        }
+
+        return $resolvedCoordinators;
     }
 
     private static function makeScopeKey(int $companyId, int $disciplineId): string
