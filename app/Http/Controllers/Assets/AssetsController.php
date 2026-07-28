@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Assets;
 
+use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
 use App\Events\CheckoutableCheckedIn;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
@@ -104,13 +105,17 @@ class AssetsController extends Controller
             403
         );
 
-        $coordinatorTarget = $checkoutRequest->coordinatorTargets()
+        $coordinatorTargets = $checkoutRequest->coordinatorTargets()
             ->where('user_id', auth()->id())
-            ->firstOrFail();
+            ->get();
+
+        abort_if($coordinatorTargets->isEmpty(), 404);
 
         if ($resolutionStatus === CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK) {
-            $coordinatorTarget->markCompletedNoStock();
+            $coordinatorTargets->each->markCompletedNoStock();
         }
+
+        SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
 
         return redirect()->route('hardware.index', array_filter([
             'request_id' => $checkoutRequest->id,

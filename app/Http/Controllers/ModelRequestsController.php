@@ -7,6 +7,7 @@ use App\Actions\CheckoutRequests\CreateCheckoutRequestAction;
 use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
 use App\Actions\CheckoutRequests\RacRoutingResult;
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
+use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
 use App\Enums\ActionType;
 use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
@@ -31,6 +32,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ModelRequestsController extends Controller
@@ -236,8 +238,10 @@ class ModelRequestsController extends Controller
         }
 
         $unroutedRacNotificationLines = [];
+        $submissionBatchId = (string) Str::uuid();
+        $submittedRequestIds = [];
 
-        DB::transaction(function () use ($validated, $user, &$unroutedRacNotificationLines) {
+        DB::transaction(function () use ($validated, $user, $submissionBatchId, &$submittedRequestIds, &$unroutedRacNotificationLines) {
             foreach ($validated['model_quantities'] as $modelId => $quantity) {
                 $item = AssetModel::findOrFail((int) $modelId);
                 $this->ensureModelRequestAuthorized($item, $user);
@@ -247,6 +251,7 @@ class ModelRequestsController extends Controller
                         'company_id' => (int) $validated['company_id'],
                         'project_id' => (int) $validated['project_id'],
                         'needed_by_date' => $validated['needed_by_date'],
+                        'submission_batch_id' => $submissionBatchId,
                     ],
                     $this->estimateAssetModelRequest($item, (int) $quantity, $validated['needed_by_date'])
                 );
@@ -256,7 +261,8 @@ class ModelRequestsController extends Controller
                     ? $this->updateExistingModelProjectRequest($existingRequest, (int) $quantity, $requestAttributes)
                     : $item->request((int) $quantity, $requestAttributes);
 
-                $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+                $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, false);
+                $submittedRequestIds[] = (int) $checkoutRequest->id;
                 $unroutedRacNotificationLines = $this->addUnroutedRacNotificationLine(
                     $unroutedRacNotificationLines,
                     $checkoutRequest,
@@ -266,6 +272,11 @@ class ModelRequestsController extends Controller
         });
 
         $this->sendUnroutedRacNotifications($unroutedRacNotificationLines);
+
+        CheckoutRequest::query()
+            ->whereIn('id', $submittedRequestIds)
+            ->get()
+            ->each(fn (CheckoutRequest $checkoutRequest) => SendAlternativeFollowUpNotificationAction::run($checkoutRequest));
 
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
@@ -416,10 +427,12 @@ class ModelRequestsController extends Controller
 
         $project = Project::find((int) $validated['project_id']);
         $submittedAt = now()->toDateTimeString();
+        $submissionBatchId = (string) Str::uuid();
         $coordinatorNotificationBuckets = [];
         $unroutedRacNotificationLines = [];
+        $submittedRequestIds = [];
 
-        DB::transaction(function () use ($cart, $validated, $user, $project, $submittedAt, &$coordinatorNotificationBuckets, &$unroutedRacNotificationLines) {
+        DB::transaction(function () use ($cart, $validated, $user, $project, $submittedAt, $submissionBatchId, &$coordinatorNotificationBuckets, &$submittedRequestIds, &$unroutedRacNotificationLines) {
             foreach ($cart as $line) {
                 $item = AssetModel::findOrFail((int) $line['model_id']);
                 $disciplineId = (int) $line['discipline_id'];
@@ -436,6 +449,7 @@ class ModelRequestsController extends Controller
                         'project_id' => (int) $validated['project_id'],
                         'needed_by_date' => $validated['needed_by_date'],
                         'requested_discipline_id' => $disciplineId,
+                        'submission_batch_id' => $submissionBatchId,
                     ],
                     $this->estimateAssetModelRequest($item, $quantity, $validated['needed_by_date'])
                 );
@@ -445,7 +459,8 @@ class ModelRequestsController extends Controller
                     ? $this->updateExistingModelProjectRequest($existingRequest, $quantity, $requestAttributes)
                     : $item->request($quantity, $requestAttributes);
 
-                $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+                $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, false);
+                $submittedRequestIds[] = (int) $checkoutRequest->id;
                 $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
                     $coordinatorNotificationBuckets,
                     $checkoutRequest,
@@ -461,6 +476,11 @@ class ModelRequestsController extends Controller
                 );
             }
         });
+
+        CheckoutRequest::query()
+            ->whereIn('id', $submittedRequestIds)
+            ->get()
+            ->each(fn (CheckoutRequest $checkoutRequest) => SendAlternativeFollowUpNotificationAction::run($checkoutRequest));
 
         $request->session()->forget(self::MODEL_REQUEST_CART_SESSION_KEY);
         $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);
@@ -525,7 +545,9 @@ class ModelRequestsController extends Controller
         $checkoutRequest->needed_by_date = $neededByDate;
         $checkoutRequest->fill($this->estimateAssetModelRequest($item, $quantity, $neededByDate));
         $checkoutRequest->status = CheckoutRequest::STATUS_PENDING;
+        $checkoutRequest->resetAlternativeFollowUpNotification();
         $checkoutRequest->save();
+        ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
 
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
@@ -683,7 +705,8 @@ class ModelRequestsController extends Controller
     {
         $request->quantity = $quantity;
         $request->fill($attributes);
-        $request->status = $request->status ?: CheckoutRequest::STATUS_PENDING;
+        $request->status = CheckoutRequest::STATUS_PENDING;
+        $request->resetAlternativeFollowUpNotification();
         $request->save();
 
         return $request->fresh();

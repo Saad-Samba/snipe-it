@@ -47,6 +47,8 @@ class CheckoutRequest extends Model
         'rac_routing_status',
         'rac_unrouted_scopes',
         'rac_routing_alerted_at',
+        'submission_batch_id',
+        'alternative_follow_up_notified_at',
         'note',
     ];
 
@@ -56,6 +58,7 @@ class CheckoutRequest extends Model
         'reference_price_snapshot' => 'float',
         'rac_unrouted_scopes' => 'array',
         'rac_routing_alerted_at' => 'datetime',
+        'alternative_follow_up_notified_at' => 'datetime',
     ];
 
     protected $table = 'checkout_requests';
@@ -189,6 +192,39 @@ class CheckoutRequest extends Model
     public function remainingAllocationQuantity(): int
     {
         return max((int) $this->quantity - $this->allocatedQuantity(), 0);
+    }
+
+    public function racHandlingComplete(): bool
+    {
+        if (in_array($this->rac_routing_status, [
+            self::RAC_ROUTING_UNROUTED,
+            self::RAC_ROUTING_PARTIALLY_ROUTED,
+        ], true)) {
+            return false;
+        }
+
+        return ! $this->coordinatorTargets()
+            ->where(function ($query) {
+                $query->whereNull('resolution_status')
+                    ->orWhereNotIn(
+                        'resolution_status',
+                        CheckoutRequestCoordinator::terminalResolutionStatuses()
+                    );
+            })
+            ->exists();
+    }
+
+    public function requiresAlternativeFollowUp(): bool
+    {
+        return $this->requestable_type === AssetModel::class
+            && ! $this->canceled_at
+            && $this->remainingAllocationQuantity() > 0
+            && $this->racHandlingComplete();
+    }
+
+    public function resetAlternativeFollowUpNotification(): void
+    {
+        $this->forceFill(['alternative_follow_up_notified_at' => null]);
     }
 
     public function suggestedReusableAssetIds(): array

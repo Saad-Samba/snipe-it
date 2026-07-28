@@ -12,16 +12,20 @@ use Illuminate\Support\Collection;
 
 class ResolveCheckoutRequestCoordinatorsAction
 {
-    public static function run(CheckoutRequest $checkoutRequest): RacRoutingResult
-    {
+    public static function run(
+        CheckoutRequest $checkoutRequest,
+        bool $sendAlternativeFollowUp = true
+    ): RacRoutingResult {
         if ($checkoutRequest->requestable_type !== AssetModel::class) {
             $checkoutRequest->coordinatorTargets()->delete();
 
-            return self::persistRoutingSnapshot(
+            $result = self::persistRoutingSnapshot(
                 $checkoutRequest,
                 CheckoutRequest::RAC_ROUTING_NOT_REQUIRED,
                 collect()
             );
+
+            return self::finish($checkoutRequest, $result, $sendAlternativeFollowUp);
         }
 
         $eligibleAssetPairs = Asset::query()
@@ -34,11 +38,13 @@ class ResolveCheckoutRequestCoordinatorsAction
         if ($eligibleAssetPairs->isEmpty()) {
             $checkoutRequest->coordinatorTargets()->delete();
 
-            return self::persistRoutingSnapshot(
+            $result = self::persistRoutingSnapshot(
                 $checkoutRequest,
                 CheckoutRequest::RAC_ROUTING_NOT_REQUIRED,
                 collect()
             );
+
+            return self::finish($checkoutRequest, $result, $sendAlternativeFollowUp);
         }
 
         $reusableCountsByScope = $eligibleAssetPairs
@@ -105,12 +111,26 @@ class ResolveCheckoutRequestCoordinatorsAction
             })
             ->values();
 
-        return self::persistRoutingSnapshot(
+        $result = self::persistRoutingSnapshot(
             $checkoutRequest,
             $routingStatus,
             $unroutedScopes,
             $coordinatorMatches
         );
+
+        return self::finish($checkoutRequest, $result, $sendAlternativeFollowUp);
+    }
+
+    private static function finish(
+        CheckoutRequest $checkoutRequest,
+        RacRoutingResult $result,
+        bool $sendAlternativeFollowUp
+    ): RacRoutingResult {
+        if ($sendAlternativeFollowUp) {
+            SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
+        }
+
+        return $result;
     }
 
     private static function makeScopeKey(int $companyId, int $disciplineId): string

@@ -32,7 +32,7 @@ class ReconcileRacRouting extends Command
                 $lines = [];
 
                 foreach ($checkoutRequests as $checkoutRequest) {
-                    $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+                    $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, false);
                     $reconciledCount++;
 
                     if (! $routingResult->shouldAlert || empty($routingResult->unroutedScopes)) {
