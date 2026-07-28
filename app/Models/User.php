@@ -48,7 +48,6 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
         'models.view',
         'models.create',
         'models.edit',
-        'models.request',
         'categories.view',
         'categories.edit',
         'customfields.view',

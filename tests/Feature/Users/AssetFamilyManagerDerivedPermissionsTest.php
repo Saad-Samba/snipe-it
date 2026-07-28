@@ -28,7 +28,6 @@ class AssetFamilyManagerDerivedPermissionsTest extends TestCase
             'models.view',
             'models.create',
             'models.edit',
-            'models.request',
             'categories.view',
             'categories.edit',
             'customfields.view',
@@ -54,6 +53,7 @@ class AssetFamilyManagerDerivedPermissionsTest extends TestCase
         $this->assertFalse($user->hasAccess('categories.create'));
         $this->assertFalse($user->hasAccess('categories.delete'));
         $this->assertFalse($user->hasAccess('models.delete'));
+        $this->assertFalse($user->hasAccess('models.request'));
 
         $category->update(['manager_id' => null]);
 

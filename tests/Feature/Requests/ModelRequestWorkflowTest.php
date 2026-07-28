@@ -272,47 +272,21 @@ class ModelRequestWorkflowTest extends TestCase
         Notification::assertSentOnDemand(UnroutedRacRequestNotification::class);
     }
 
-    public function test_category_assignment_grants_models_request_capability()
+    public function test_category_assignment_does_not_grant_models_request_capability()
     {
-        Notification::fake();
-
         $requester = User::factory()->create();
-        $project = Project::factory()->create();
-        $model = AssetModel::factory()->create([
-            'category_id' => $this->managedAssetCategoryFor($requester)->id,
-        ]);
-
-        $discipline = Discipline::create([
-            'name' => 'Validation',
-            'created_by' => $requester->id,
-        ]);
-        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
-        $destinationCompany = Company::factory()->create();
-
-        $this->actingAs($requester)
-            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
-                'request-quantity' => 1,
-                'requested_discipline_id' => $discipline->id,
-                'company_id' => $destinationCompany->id,
-                'project_id' => $project->id,
-                'needed_by_date' => '2026-06-01',
-            ])
-            ->assertRedirect();
-
-        $this->assertDatabaseHas('checkout_requests', [
-            'user_id' => $requester->id,
-            'requestable_id' => $model->id,
-            'requestable_type' => AssetModel::class,
-        ]);
-    }
-
-    public function test_model_request_requires_model_to_be_in_requesters_managed_category_scope()
-    {
-        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
-        $project = Project::factory()->create();
         Category::factory()->forAssets()->create([
             'manager_id' => $requester->id,
         ]);
+
+        $this->assertTrue($requester->isAssetFamilyManager());
+        $this->assertFalse($requester->hasAccess('models.request'));
+    }
+
+    public function test_model_request_permission_allows_request_outside_managed_category_scope()
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $project = Project::factory()->create();
         $model = AssetModel::factory()->create([
             'category_id' => Category::factory()->forAssets()->create()->id,
         ]);
@@ -332,9 +306,9 @@ class ModelRequestWorkflowTest extends TestCase
                 'project_id' => $project->id,
                 'needed_by_date' => '2026-06-01',
             ])
-            ->assertForbidden();
+            ->assertRedirect();
 
-        $this->assertDatabaseMissing('checkout_requests', [
+        $this->assertDatabaseHas('checkout_requests', [
             'user_id' => $requester->id,
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
