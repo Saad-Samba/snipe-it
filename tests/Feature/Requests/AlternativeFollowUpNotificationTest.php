@@ -12,6 +12,7 @@ use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
 use App\Models\Project;
+use App\Models\Statuslabel;
 use App\Models\User;
 use App\Notifications\RequestAlternativeFollowUpNotification;
 use Illuminate\Support\Facades\Notification;
@@ -20,6 +21,30 @@ use Tests\TestCase;
 
 class AlternativeFollowUpNotificationTest extends TestCase
 {
+    public function test_request_with_an_unrouted_reusable_scope_waits_for_rac_coverage()
+    {
+        Notification::fake();
+        [$request, , $requestor] = $this->makeRequest();
+        Asset::factory()->create([
+            'model_id' => $request->requestable_id,
+            'company_id' => $request->company_id,
+            'discipline_id' => $request->requested_discipline_id,
+            'status_id' => Statuslabel::factory()->rtd()->create()->id,
+            'requestable' => 1,
+            'assigned_to' => null,
+            'assigned_type' => null,
+        ]);
+
+        ResolveCheckoutRequestCoordinatorsAction::run($request);
+
+        $this->assertSame(
+            CheckoutRequest::RAC_ROUTING_UNROUTED,
+            $request->fresh()->rac_routing_status
+        );
+        $this->assertNull($request->fresh()->alternative_follow_up_notified_at);
+        Notification::assertNotSentTo($requestor, RequestAlternativeFollowUpNotification::class);
+    }
+
     public function test_request_without_a_matching_rac_immediately_notifies_requestor_and_copies_afm()
     {
         Notification::fake();

@@ -338,6 +338,73 @@ class UpdateUserTest extends TestCase
         ]);
     }
 
+    public function testUserCanBeAssignedToMultipleRacDisciplinesAndDeselectedScopesAreRemoved()
+    {
+        $superUser = User::factory()->superuser()->create();
+        $company = Company::factory()->create();
+        $disciplineA = Discipline::create([
+            'name' => 'Multi RAC Discipline A',
+            'created_by' => $superUser->id,
+        ]);
+        $disciplineB = Discipline::create([
+            'name' => 'Multi RAC Discipline B',
+            'created_by' => $superUser->id,
+        ]);
+        $user = User::factory()->create();
+
+        $basePayload = [
+            'first_name' => $user->first_name,
+            'username' => $user->username,
+            'company_id' => $company->id,
+            'rac_enabled' => 1,
+            'redirect_option' => 'index',
+        ];
+
+        $this->actingAs($superUser)
+            ->put(route('users.update', $user), array_merge($basePayload, [
+                'rac_discipline_ids' => [$disciplineA->id, $disciplineB->id],
+            ]))
+            ->assertRedirect(route('users.index'));
+
+        $this->assertDatabaseHas('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'discipline_id' => $disciplineA->id,
+        ]);
+        $this->assertDatabaseHas('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'discipline_id' => $disciplineB->id,
+        ]);
+
+        $this->actingAs($superUser)
+            ->put(route('users.update', $user), array_merge($basePayload, [
+                'rac_discipline_ids' => [$disciplineB->id],
+            ]))
+            ->assertRedirect(route('users.index'));
+
+        $this->assertDatabaseMissing('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'discipline_id' => $disciplineA->id,
+        ]);
+        $this->assertDatabaseHas('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'discipline_id' => $disciplineB->id,
+        ]);
+
+        $this->actingAs($superUser)
+            ->put(route('users.update', $user), array_merge($basePayload, [
+                'rac_enabled' => 0,
+                'rac_discipline_ids' => [],
+            ]))
+            ->assertRedirect(route('users.index'));
+
+        $this->assertDatabaseMissing('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+        ]);
+    }
+
     public function testUserCannotClaimRacScopeAlreadyAssignedToAnotherUser()
     {
         $superUser = User::factory()->superuser()->create();
@@ -349,7 +416,7 @@ class UpdateUserTest extends TestCase
         $existingRac = User::factory()->create(['company_id' => $company->id]);
         $candidate = User::factory()->create();
 
-        $existingRac->racAssignment()->create([
+        $existingRac->racAssignments()->create([
             'company_id' => $company->id,
             'discipline_id' => $discipline->id,
             'created_by' => $superUser->id,
@@ -362,12 +429,12 @@ class UpdateUserTest extends TestCase
                 'username' => $candidate->username,
                 'company_id' => $company->id,
                 'rac_enabled' => 1,
-                'rac_discipline_id' => $discipline->id,
+                'rac_discipline_ids' => [$discipline->id],
                 'redirect_option' => 'index',
             ])
             ->assertRedirect(route('users.edit', $candidate))
             ->assertSessionHasErrors([
-                'rac_discipline_id' => 'A RAC is already assigned to '.$company->name.' / '.$discipline->name.': '.$existingRac->display_name.'.',
+                'rac_discipline_ids' => 'A RAC is already assigned to '.$company->name.' / '.$discipline->name.': '.$existingRac->display_name.'.',
             ]);
 
         $this->assertDatabaseMissing('regional_asset_coordinator_assignments', [

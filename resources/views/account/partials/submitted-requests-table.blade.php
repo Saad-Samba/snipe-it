@@ -32,6 +32,7 @@
         <th data-field="procurement_shortfall" data-sortable="true" data-request-tooltip="Remaining quantity not covered by reusable now plus due back.">Shortfall</th>
         <th data-field="amount_to_buy" data-sortable="true" data-formatter="requestAmountToBuyFormatter">Pending to Buy</th>
         <th data-field="status" data-sortable="true" data-formatter="requestStatusFormatter">Status</th>
+        <th data-field="rac_routing_status" data-sortable="true" data-formatter="requestStatusFormatter">RAC Routing</th>
         <th data-field="request_date" data-sortable="true" data-formatter="dateDisplayFormatter">{{ trans('general.requested_date') }}</th>
         <th data-field="updated_at" data-sortable="true" data-formatter="dateDisplayFormatter">Updated</th>
         <th data-field="actions" data-switchable="false" data-searchable="false" data-sortable="false" data-visible="true" data-formatter="requestWorkflowActionsFormatter">{{ trans('table.actions') }}</th>

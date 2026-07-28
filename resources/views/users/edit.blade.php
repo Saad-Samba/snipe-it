@@ -302,7 +302,8 @@
                   <div class="form-group">
                       <div class="col-md-7 col-md-offset-3">
                           <label class="form-control" for="rac_enabled">
-                              <input type="checkbox" value="1" name="rac_enabled" id="rac_enabled" {{ old('rac_enabled', $user->racAssignment ? 1 : 0) ? ' checked="checked"' : '' }} aria-label="rac_enabled">
+                              <input type="hidden" name="rac_enabled" value="0">
+                              <input type="checkbox" value="1" name="rac_enabled" id="rac_enabled" {{ old('rac_enabled', $user->racAssignments->isNotEmpty() ? 1 : 0) ? ' checked="checked"' : '' }} aria-label="rac_enabled">
                               {{ trans('admin/users/general.rac_enabled_label') }}
                           </label>
 
@@ -310,11 +311,13 @@
                       </div>
                   </div>
 
-                  <div id="rac_discipline_wrapper" style="{{ old('rac_enabled', $user->racAssignment ? 1 : 0) ? '' : 'display:none' }}">
+                  <div id="rac_discipline_wrapper" style="{{ old('rac_enabled', $user->racAssignments->isNotEmpty() ? 1 : 0) ? '' : 'display:none' }}">
                       @include ('partials.forms.edit.discipline-select', [
                           'translated_name' => trans('admin/users/general.rac_discipline'),
-                          'fieldname' => 'rac_discipline_id',
-                          'selected' => old('rac_discipline_id', optional($user->racAssignment)->discipline_id),
+                          'fieldname' => 'rac_discipline_ids[]',
+                          'validation_name' => 'rac_discipline_ids',
+                          'selected' => $user->racAssignments->pluck('discipline_id'),
+                          'multiple' => 'true',
                       ])
                   </div>
 

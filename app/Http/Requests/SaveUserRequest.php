@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Collection;
 use App\Rules\UserCannotSwitchCompaniesIfItemsAssigned;
 
 class SaveUserRequest extends FormRequest
@@ -40,6 +41,8 @@ class SaveUserRequest extends FormRequest
             'company_id' => ['nullable', 'integer', 'exists:companies,id'],
             'rac_enabled' => ['nullable', 'boolean'],
             'rac_discipline_id' => ['nullable', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
+            'rac_discipline_ids' => ['nullable', 'array'],
+            'rac_discipline_ids.*' => ['integer', 'distinct', 'exists:disciplines,id,deleted_at,NULL'],
         ];
 
         switch ($this->method()) {
@@ -81,22 +84,25 @@ class SaveUserRequest extends FormRequest
                 return;
             }
 
-            $disciplineId = $this->resolvedRacDisciplineId();
+            $disciplineIds = $this->resolvedRacDisciplineIds();
             $companyId = $this->resolvedCompanyId();
+            $disciplineErrorKey = $this->has('rac_discipline_ids')
+                ? 'rac_discipline_ids'
+                : 'rac_discipline_id';
 
-            if (! $disciplineId) {
-                $validator->errors()->add('rac_discipline_id', 'The discipline field is required when the user acts as a RAC.');
+            if (empty($disciplineIds)) {
+                $validator->errors()->add($disciplineErrorKey, 'At least one discipline is required when the user acts as a RAC.');
             }
 
             if (! $companyId) {
                 $validator->errors()->add('company_id', 'The company field is required when the user acts as a RAC.');
             }
 
-            if ($disciplineId && $companyId) {
+            if (! empty($disciplineIds) && $companyId) {
                 $conflictingAssignment = RegionalAssetCoordinatorAssignment::query()
                     ->with(['coordinator', 'company', 'discipline'])
                     ->where('company_id', $companyId)
-                    ->where('discipline_id', $disciplineId)
+                    ->whereIn('discipline_id', $disciplineIds)
                     ->when($this->route('user') instanceof User, function ($query) {
                         $query->where('user_id', '!=', $this->route('user')->id);
                     })
@@ -110,7 +116,7 @@ class SaveUserRequest extends FormRequest
                     $disciplineName = $conflictingAssignment->discipline?->name ?: 'this discipline';
 
                     $validator->errors()->add(
-                        'rac_discipline_id',
+                        $disciplineErrorKey,
                         "A RAC is already assigned to {$companyName} / {$disciplineName}: {$assignee}."
                     );
                 }
@@ -124,16 +130,28 @@ class SaveUserRequest extends FormRequest
             return (bool) $this->input('rac_enabled');
         }
 
-        return (bool) $this->existingRacAssignment();
+        return $this->existingRacAssignments()->isNotEmpty();
     }
 
-    protected function resolvedRacDisciplineId(): ?int
+    protected function resolvedRacDisciplineIds(): array
     {
-        if ($this->filled('rac_discipline_id')) {
-            return (int) $this->input('rac_discipline_id');
+        if ($this->has('rac_discipline_ids')) {
+            return collect($this->input('rac_discipline_ids', []))
+                ->filter(fn ($disciplineId) => is_numeric($disciplineId) && (int) $disciplineId > 0)
+                ->map(fn ($disciplineId) => (int) $disciplineId)
+                ->unique()
+                ->values()
+                ->all();
         }
 
-        return $this->existingRacAssignment()?->discipline_id;
+        if ($this->filled('rac_discipline_id')) {
+            return [(int) $this->input('rac_discipline_id')];
+        }
+
+        return $this->existingRacAssignments()
+            ->pluck('discipline_id')
+            ->map(fn ($disciplineId) => (int) $disciplineId)
+            ->all();
     }
 
     protected function resolvedCompanyId(): ?int
@@ -151,16 +169,16 @@ class SaveUserRequest extends FormRequest
         return null;
     }
 
-    protected function existingRacAssignment(): ?RegionalAssetCoordinatorAssignment
+    protected function existingRacAssignments(): Collection
     {
         $routedUser = $this->route('user');
 
         if (! $routedUser instanceof User) {
-            return null;
+            return collect();
         }
 
-        return $routedUser->relationLoaded('racAssignment')
-            ? $routedUser->racAssignment
-            : $routedUser->racAssignment()->first();
+        return $routedUser->relationLoaded('racAssignments')
+            ? $routedUser->racAssignments
+            : $routedUser->racAssignments()->get();
     }
 }
