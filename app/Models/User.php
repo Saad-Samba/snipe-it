@@ -261,11 +261,6 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
         return $this->hasOne(RegionalAssetCoordinatorAssignment::class, 'user_id');
     }
 
-    public function racRequestTargets(): HasMany
-    {
-        return $this->hasMany(CheckoutRequestCoordinator::class, 'user_id');
-    }
-
     public function hasIndividualPermissions()
     {
         $permissions = [];

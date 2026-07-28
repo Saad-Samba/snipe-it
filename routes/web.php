@@ -24,7 +24,6 @@ use App\Http\Controllers\ModelRequestsController;
 use App\Http\Controllers\NotesController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectsController;
-use App\Http\Controllers\RacRequestsController;
 use App\Http\Controllers\RegionalAssetCoordinatorsController;
 use App\Http\Controllers\ReportTemplatesController;
 use App\Http\Controllers\ReportsController;
@@ -377,12 +376,6 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
                     trans('general.regional_asset_coordinators'),
                     route('account.regional-asset-coordinators.index')
                 ));
-
-    Route::get('rac-requests', [RacRequestsController::class, 'index'])
-        ->name('account.rac-requests.index')
-        ->breadcrumbs(fn (Trail $trail) =>
-            $trail->parent('home')
-                ->push(trans('general.rac_requests'), route('account.rac-requests.index')));
 
     Route::post('profile', [ProfileController::class, 'postIndex'])
         ->name('profile.update');

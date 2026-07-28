@@ -361,10 +361,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
 
                             <!-- User Account: style can be found in dropdown.less -->
                             @if (Auth::check())
-                                @php
-                                    $showRacRequests = Auth::user()->racAssignment()->exists()
-                                        || Auth::user()->racRequestTargets()->exists();
-                                @endphp
                                 <li class="dropdown user user-menu">
                                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                                         @if (Auth::user()->present()->gravatar())
@@ -399,15 +395,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                                 {{ trans('general.regional_asset_coordinators') }}
                                             </a>
                                         </li>
-
-                                        @if ($showRacRequests)
-                                            <li {!! (request()->is('account/rac-requests') ? ' class="active"' : '') !!}>
-                                                <a href="{{ route('account.rac-requests.index') }}">
-                                                    <x-icon type="requestable" class="fa-fw" />
-                                                    {{ trans('general.rac_requests') }}
-                                                </a>
-                                            </li>
-                                        @endif
 
                                         @can('self.profile')
                                         <li>
@@ -861,8 +848,8 @@ dir="{{ Helper::determineLanguageDirection() }}">
                             </li>
                         @endcan
 
-                        @if (auth()->check() && (auth()->user()->hasAccess('models.request') || $showRacRequests))
-                            <li class="treeview{{ (request()->is('requests*') || request()->is('account/rac-requests')) ? ' active' : '' }}">
+                        @if (auth()->check() && auth()->user()->hasAccess('models.request'))
+                            <li class="treeview{{ (request()->is('requests*')) ? ' active' : '' }}">
                                 <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
                                     <span>Requests</span>
@@ -870,20 +857,11 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                 </a>
 
                                 <ul class="treeview-menu">
-                                    @if (auth()->user()->hasAccess('models.request'))
-                                        <li{!! (request()->is('requests') ? ' class="active"' : '') !!}>
-                                            <a href="{{ route('requests.index') }}">
-                                                Submitted Requests
-                                            </a>
-                                        </li>
-                                    @endif
-                                    @if ($showRacRequests)
-                                        <li{!! (request()->is('account/rac-requests') ? ' class="active"' : '') !!}>
-                                            <a href="{{ route('account.rac-requests.index') }}">
-                                                {{ trans('general.rac_requests') }}
-                                            </a>
-                                        </li>
-                                    @endif
+                                    <li{!! (request()->is('requests') ? ' class="active"' : '') !!}>
+                                        <a href="{{ route('requests.index') }}">
+                                            Submitted Requests
+                                        </a>
+                                    </li>
                                 </ul>
                             </li>
                         @endif
