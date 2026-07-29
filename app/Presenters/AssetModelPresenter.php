@@ -26,14 +26,6 @@ class AssetModelPresenter extends Presenter
                 'title' => trans('general.id'),
                 'visible' => false,
             ], [
-                'field' => 'company',
-                'searchable' => true,
-                'sortable' => true,
-                'switchable' => true,
-                'title' => trans('admin/companies/table.title'),
-                'visible' => false,
-                'formatter' => 'companiesLinkObjFormatter',
-            ], [
                 'field' => 'name',
                 'searchable' => true,
                 'sortable' => true,
@@ -216,15 +208,17 @@ class AssetModelPresenter extends Presenter
 
         ];
 
-        $layout[] = [
-            'field' => 'request',
-            'searchable' => false,
-            'sortable' => false,
-            'switchable' => false,
-            'title' => 'Total Needed',
-            'formatter' => 'modelRequestActionsFormatter',
-            'printIgnore' => true,
-        ];
+        if (auth()->check() && auth()->user()->hasAccess('models.request')) {
+            $layout[] = [
+                'field' => 'request',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => false,
+                'title' => 'Total Needed',
+                'formatter' => 'modelRequestActionsFormatter',
+                'printIgnore' => true,
+            ];
+        }
 
         $layout[] = [
             'field' => 'actions',
