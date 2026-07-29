@@ -63,7 +63,7 @@ class ModelRequestsController extends Controller
 
         $validated = $this->validateModelRequestPayload($request);
         $item = AssetModel::findOrFail($itemId);
-        $this->ensureModelRequestAuthorized($item, auth()->user());
+        $this->ensureModelRequestAuthorized($item);
         $this->ensureModelRequestProjectProvided($validated['project_id'] ?? null);
         $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
         $this->ensureModelRequestNeededByDateProvided($validated['needed_by_date'] ?? null);
@@ -124,7 +124,7 @@ class ModelRequestsController extends Controller
         $isCancelRequest = $cancel_by_admin || $requestAction === 'cancel';
 
         if ($fullItemType == AssetModel::class) {
-            $this->ensureModelRequestAuthorized($item, $user);
+            $this->ensureModelRequestAuthorized($item);
             if (! $isCancelRequest) {
                 $this->ensureModelRequestProjectProvided($projectId);
                 $this->ensureModelRequestNeededByDateProvided($neededByDate);
@@ -244,7 +244,7 @@ class ModelRequestsController extends Controller
         DB::transaction(function () use ($validated, $user, $submissionBatchId, &$submittedRequestIds, &$unroutedRacNotificationLines) {
             foreach ($validated['model_quantities'] as $modelId => $quantity) {
                 $item = AssetModel::findOrFail((int) $modelId);
-                $this->ensureModelRequestAuthorized($item, $user);
+                $this->ensureModelRequestAuthorized($item);
 
                 $requestAttributes = array_merge(
                     [
@@ -299,7 +299,7 @@ class ModelRequestsController extends Controller
         $cart = $this->getModelRequestCart($request);
         foreach ($validated['lines'] as $line) {
             $model = AssetModel::findOrFail((int) $line['model_id']);
-            $this->ensureModelRequestAuthorized($model, $user);
+            $this->ensureModelRequestAuthorized($model);
             $disciplineId = (int) $line['discipline_id'];
             $companyId = (int) $line['company_id'];
             $key = $this->makeModelRequestCartKey((int) $line['model_id'], $disciplineId, $companyId);
@@ -367,7 +367,7 @@ class ModelRequestsController extends Controller
 
         foreach ($cart as $line) {
             $model = AssetModel::findOrFail((int) $line['model_id']);
-            $this->ensureModelRequestAuthorized($model, $user);
+            $this->ensureModelRequestAuthorized($model);
             $discipline = Discipline::findOrFail((int) $line['discipline_id']);
             $company = Company::findOrFail((int) $line['company_id']);
 
@@ -439,7 +439,7 @@ class ModelRequestsController extends Controller
                 $companyId = (int) $line['company_id'];
                 $quantity = (int) $line['quantity'];
 
-                $this->ensureModelRequestAuthorized($item, $user);
+                $this->ensureModelRequestAuthorized($item);
                 $this->ensureModelRequestDisciplineProvided($disciplineId);
                 $this->ensureModelRequestCompanyProvided($companyId);
 
@@ -530,7 +530,7 @@ class ModelRequestsController extends Controller
         $item = $checkoutRequest->requestedItem;
         abort_if(! $item instanceof AssetModel, 404);
 
-        $this->ensureModelRequestAuthorized($item, auth()->user());
+        $this->ensureModelRequestAuthorized($item);
         $this->ensureModelRequestProjectProvided($projectId);
         $this->ensureModelRequestNeededByDateProvided($neededByDate);
         $this->ensureModelRequestQuantityProvided($quantity);
@@ -640,13 +640,9 @@ class ModelRequestsController extends Controller
         ]);
     }
 
-    private function ensureModelRequestAuthorized(AssetModel $item, User $user): void
+    private function ensureModelRequestAuthorized(AssetModel $item): void
     {
-        if (! $user->hasAccess('models.request')) {
-            throw new AuthorizationException('You are not authorized to request models.');
-        }
-
-        $this->authorize('view', $item);
+        $this->authorize('request', $item);
     }
 
     private function estimateAssetModelRequest(AssetModel $item, int $quantity, ?string $neededByDate = null): array

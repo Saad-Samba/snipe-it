@@ -26,6 +26,12 @@ class AssetModelPolicy extends SnipePermissionsPolicy
         return $item->isManagedBy($user);
     }
 
+    public function request(User $user, AssetModel $item)
+    {
+        return $user->hasAccess($this->columnName().'.request')
+            && empty($item->deleted_at);
+    }
+
     public function create(User $user)
     {
         return $user->hasAccess($this->columnName().'.create')
