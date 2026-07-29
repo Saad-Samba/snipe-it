@@ -785,13 +785,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         </li>
                                     @endcan
 
-                                    @can('view', \App\Models\Depreciation::class)
-                                        <li  {{!! (request()->is('depreciations') ? ' class="active"' : '') !!}}>
-                                            <a href="{{ route('depreciations.index') }}">
-                                                {{ trans('general.depreciation') }}
-                                            </a>
-                                        </li>
-                                    @endcan
                                 </ul>
                             </li>
                         @endcan
@@ -818,11 +811,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                     <li {{!! (request()->is('reports/audit') ? ' class="active"' : '') !!}}>
                                         <a href="{{ route('reports.audit') }}">
                                             {{ trans('general.audit_report') }}</a>
-                                    </li>
-                                    <li {{!! (request()->is('reports/depreciation') ? ' class="active"' : '') !!}}>
-                                        <a href="{{ url('reports/depreciation') }}">
-                                            {{ trans('general.depreciation_report') }}
-                                        </a>
                                     </li>
                                     <li {{!! (request()->is('reports/licenses') ? ' class="active"' : '') !!}}>
                                         <a href="{{ url('reports/licenses') }}">

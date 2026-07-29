@@ -213,13 +213,6 @@
                         </li>
                     @endif
 
-                    @if ($model->depreciation)
-                        <li>
-                            <strong>{{ trans('general.depreciation') }}</strong>:
-                            {{ $model->depreciation->name }} ({{ $model->depreciation->months.' '.trans('general.months')}})
-                        </li>
-                    @endif
-
                     @if ($model->eol)
                         <li>
                             <strong>{{ trans('general.eol') }}</strong>:

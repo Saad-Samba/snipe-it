@@ -33,7 +33,6 @@
 </div>
 @include ('partials.forms.edit.manufacturer-select', ['translated_name' => trans('general.manufacturer'), 'fieldname' => 'manufacturer_id'])
 @include ('partials.forms.edit.model_number')
-@include ('partials.forms.edit.depreciation')
 @include ('partials.forms.edit.minimum_quantity')
 
 <div class="form-group {{ $errors->has('reference_price') ? ' has-error' : '' }}">

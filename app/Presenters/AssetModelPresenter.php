@@ -122,15 +122,6 @@ class AssetModelPresenter extends Presenter
                 'footerFormatter' => 'qtySumFormatter',
             ],
             [
-                'field' => 'depreciation',
-                'searchable' => false,
-                'sortable' => true,
-                'switchable' => true,
-                'title' => trans('general.depreciation'),
-                'visible' => false,
-                'formatter' => 'depreciationsLinkObjFormatter',
-            ],
-            [
                 'field' => 'category',
                 'searchable' => true,
                 'sortable' => true,

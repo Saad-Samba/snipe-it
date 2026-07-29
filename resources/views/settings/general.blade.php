@@ -403,23 +403,6 @@
                                </div>
                            </div>
                            
-                               <!-- Depreciation method -->
-                               <div class="form-group {{ $errors->has('depreciation_method') ? 'error' : '' }}">
-
-                                   <label for="depreciation_method" class="col-md-3 control-label">{{ trans('admin/depreciations/general.depreciation_method') }}</label>
-
-                                   <div class="col-md-8">
-                                       <x-input.select
-                                           name="depreciation_method"
-                                           id="depreciation_method"
-                                           :options="['default' => trans('admin/depreciations/general.linear_depreciation'), 'half_1' => trans('admin/depreciations/general.half_1'), 'half_2' => trans('admin/depreciations/general.half_2')]"
-                                           :selected="old('depreciation_method', $setting->depreciation_method)"
-                                           style="width: 80%"
-                                       />
-                                   </div>
-                               </div>
-                               <!-- /.form-group -->
-
                                <!-- unique serial -->
                                <div class="form-group">
                                    <div class="col-md-8 col-md-offset-3">

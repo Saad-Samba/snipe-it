@@ -348,7 +348,6 @@ class SettingsController extends Controller
         $setting->default_eula_text = $request->input('default_eula_text');
         $setting->thumbnail_max_h = $request->input('thumbnail_max_h');
         $setting->privacy_policy_link = $request->input('privacy_policy_link');
-        $setting->depreciation_method = $request->input('depreciation_method');
         $setting->dash_chart_type = $request->input('dash_chart_type');
         $setting->profile_edit = $request->input('profile_edit', 0);
         $setting->require_checkinout_notes = $request->input('require_checkinout_notes', 0);

@@ -187,13 +187,6 @@ class AssetPresenter extends Presenter
                 'title' => trans('general.purchase_cost'),
                 'footerFormatter' => 'sumFormatter',
                 'class' => 'text-right',
-            ], [
-                "field" => "book_value",
-                "searchable" => false,
-                "sortable" => false,
-                "title" => trans('admin/hardware/table.book_value'),
-                "footerFormatter" => 'sumFormatter',
-                "class" => "text-right",
             ],[
                 'field' => 'order_number',
                 'searchable' => true,
