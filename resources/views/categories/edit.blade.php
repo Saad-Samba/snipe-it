@@ -69,14 +69,20 @@
     </div>
 @endif
 
-<livewire:category-edit-form
-    :alert-on-response="(bool) old('alert_on_response', $item->alert_on_response)"
-    :default-eula-text="$snipeSettings->default_eula_text"
-    :eula-text="old('eula_text', $item->eula_text)"
-    :require-acceptance="(bool) old('require_acceptance', $item->require_acceptance)"
-    :send-check-in-email="(bool) old('checkin_email', $item->checkin_email)"
-    :use-default-eula="(bool) old('use_default_eula', $item->use_default_eula)"
-/>
+<div class="form-group">
+    <div class="col-md-9 col-md-offset-3">
+        <label class="form-control">
+            <input
+                type="checkbox"
+                name="checkin_email"
+                value="1"
+                @checked(old('checkin_email', $item->checkin_email))
+                aria-label="checkin_email"
+            />
+            {{ trans('admin/categories/general.email_to_user_upon_checkin_and_checkout') }}
+        </label>
+    </div>
+</div>
 
 @include ('partials.forms.edit.image-upload', ['image_path' => app('categories_upload_path')])
 
@@ -96,26 +102,6 @@
 </div>
 
 
-
-@if ($snipeSettings->default_eula_text!='')
-<!-- Modal -->
-<div class="modal fade" id="eulaModal" tabindex="-1" role="dialog" aria-labelledby="eulaModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h2 class="modal-title" id="eulaModalLabel">{{ trans('admin/settings/general.default_eula_text') }}</h2>
-            </div>
-            <div class="modal-body">
-                {{ \App\Models\Setting::getDefaultEula() }}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
 
     <fieldset name="color-preferences">
         <x-form-legend help_text="{{ trans('general.tag_color_help') }}">

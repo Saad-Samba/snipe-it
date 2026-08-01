@@ -310,10 +310,22 @@ class CategoriesController extends Controller
 
     private function categoryAttributes(Request $request): array
     {
-        if ($request->user()->isSuperUser() || $request->user()->isAdmin()) {
-            return $request->all();
+        $attributes = $request->except([
+            'eula_text',
+            'use_default_eula',
+            'require_acceptance',
+            'alert_on_response',
+        ]);
+
+        if (! $request->user()->isSuperUser() && ! $request->user()->isAdmin()) {
+            unset($attributes['manager_id']);
         }
 
-        return $request->except('manager_id');
+        return $attributes + [
+            'eula_text' => null,
+            'use_default_eula' => false,
+            'require_acceptance' => false,
+            'alert_on_response' => false,
+        ];
     }
 }

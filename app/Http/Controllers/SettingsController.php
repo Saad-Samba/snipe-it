@@ -339,13 +339,13 @@ class SettingsController extends Controller
         $setting->email_domain = $request->input('email_domain');
         $setting->email_format = $request->input('email_format');
         $setting->username_format = $request->input('username_format');
-        $setting->require_accept_signature = $request->input('require_accept_signature');
+        $setting->require_accept_signature = false;
         $setting->show_assigned_assets = $request->input('show_assigned_assets', '0');
         if (! config('app.lock_passwords')) {
             $setting->login_note = $request->input('login_note');
         }
 
-        $setting->default_eula_text = $request->input('default_eula_text');
+        $setting->default_eula_text = null;
         $setting->thumbnail_max_h = $request->input('thumbnail_max_h');
         $setting->privacy_policy_link = $request->input('privacy_policy_link');
         $setting->dash_chart_type = $request->input('dash_chart_type');

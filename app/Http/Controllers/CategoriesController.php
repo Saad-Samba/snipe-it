@@ -73,10 +73,10 @@ class CategoriesController extends Controller
         $category = new Category();
         $category->name = $request->input('name');
         $category->category_type = $request->input('category_type');
-        $category->eula_text = $request->input('eula_text');
-        $category->use_default_eula = $request->input('use_default_eula', '0');
-        $category->require_acceptance = $request->input('require_acceptance', '0');
-        $category->alert_on_response = $request->input('alert_on_response', '0');
+        $category->eula_text = null;
+        $category->use_default_eula = false;
+        $category->require_acceptance = false;
+        $category->alert_on_response = false;
         $category->checkin_email = $request->input('checkin_email', '0');
         if ($this->canAssignCategoryManager()) {
             $category->manager_id = $request->input('manager_id', null);
@@ -132,10 +132,10 @@ class CategoriesController extends Controller
 
         $category->fill($this->categoryAttributes($request));
 
-        $category->eula_text = $request->input('eula_text');
-        $category->use_default_eula = $request->input('use_default_eula', '0');
-        $category->require_acceptance = $request->input('require_acceptance', '0');
-        $category->alert_on_response = $request->input('alert_on_response', '0');
+        $category->eula_text = null;
+        $category->use_default_eula = false;
+        $category->require_acceptance = false;
+        $category->alert_on_response = false;
         $category->checkin_email = $request->input('checkin_email', '0');
         if ($this->canAssignCategoryManager()) {
             $category->manager_id = $request->input('manager_id', null);

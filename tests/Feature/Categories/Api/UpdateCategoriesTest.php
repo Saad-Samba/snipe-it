@@ -43,8 +43,8 @@ class UpdateCategoriesTest extends TestCase
         $this->assertEquals('Test Category Edited', $category->name, 'Name was not updated');
         $this->assertEquals('Test Note Edited', $category->notes, 'Note was not updated');
         $this->assertEquals($fieldset->id, $category->fieldset_id, 'Fieldset was not updated');
-        $this->assertEquals(1, $category->require_acceptance, 'Require acceptance was not updated');
-        $this->assertTrue($category->alert_on_response, 'Alert on response was not updated');
+        $this->assertEquals(0, $category->require_acceptance, 'Require acceptance should remain disabled');
+        $this->assertFalse($category->alert_on_response, 'Acceptance response alerts should remain disabled');
     }
 
     public function testCanUpdateCategoryViaPatchWithoutCategoryType()
@@ -65,7 +65,7 @@ class UpdateCategoriesTest extends TestCase
         //dd($response);
         $category->refresh();
         $this->assertEquals('Test Category', $category->name, 'Name was not updated');
-        $this->assertEquals('Test EULA', $category->eula_text, 'EULA was not updated');
+        $this->assertNull($category->eula_text, 'EULA should remain disabled');
         $this->assertEquals('Test Note', $category->notes, 'Note was not updated');
 
     }

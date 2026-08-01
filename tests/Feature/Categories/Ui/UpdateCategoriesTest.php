@@ -80,8 +80,8 @@ class UpdateCategoriesTest extends TestCase
             'fieldset_id' => $fieldset->id,
             'manager_id' => $manager->id,
             'notes' => 'Test Note Edited',
-            'require_acceptance' => 1,
-            'alert_on_response' => 1,
+            'require_acceptance' => 0,
+            'alert_on_response' => 0,
         ]);
     }
 

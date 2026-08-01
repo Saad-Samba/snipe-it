@@ -75,13 +75,6 @@ class CategoryPresenter extends Presenter
                 'visible' => true,
                 'formatter' => 'categoryReusableAssetsFormatter',
             ], [
-                'field' => 'has_eula',
-                'searchable' => false,
-                'sortable' => false,
-                'title' => trans('admin/categories/table.eula_text'),
-                'visible' => false,
-                'formatter' => 'trueFalseFormatter',
-            ], [
                 'field' => 'checkin_email',
                 'searchable' => false,
                 'sortable' => true,
@@ -89,20 +82,6 @@ class CategoryPresenter extends Presenter
                 'title' => 'Send Email',
                 'visible' => true,
                 'formatter' => 'trueFalseFormatter',
-            ], [
-                'field' => 'require_acceptance',
-                'searchable' => false,
-                'sortable' => true,
-                'title' => trans('admin/categories/table.require_acceptance'),
-                'visible' => true,
-                'formatter' => 'trueFalseFormatter',
-            ], [
-                "field" => "use_default_eula",
-                "searchable" => false,
-                "sortable" => true,
-                "title" => trans('admin/categories/general.use_default_eula_column'),
-                'visible' => true,
-                "formatter" => 'trueFalseFormatter',
             ], [
                 'field' => 'tag_color',
                 'searchable' => true,

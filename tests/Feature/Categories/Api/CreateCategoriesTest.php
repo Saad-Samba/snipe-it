@@ -64,12 +64,12 @@ class CreateCategoriesTest extends TestCase
 
         $category = Category::find($response['payload']['id']);
         $this->assertEquals('Test Category', $category->name);
-        $this->assertEquals('Test EULA', $category->eula_text);
+        $this->assertNull($category->eula_text);
         $this->assertEquals('Test Note', $category->notes);
         $this->assertEquals('asset', $category->category_type);
         $this->assertEquals($fieldset->id, $category->fieldset_id);
-        $this->assertEquals(1, $category->require_acceptance);
-        $this->assertEquals(1, $category->alert_on_response);
+        $this->assertEquals(0, $category->require_acceptance);
+        $this->assertFalse($category->alert_on_response);
     }
 
     public function testCannotCreateCategoryWithoutCategoryType()

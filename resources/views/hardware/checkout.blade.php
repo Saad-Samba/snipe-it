@@ -171,27 +171,13 @@
 
 
 
-                        @if ($asset->requireAcceptance() || $asset->getEula() || ($snipeSettings->webhook_endpoint!=''))
+                        @if ($snipeSettings->webhook_endpoint!='')
                             <div class="form-group notification-callout">
                                 <div class="col-md-8 col-md-offset-3">
                                     <div class="callout callout-info">
 
-                                        @if ($asset->requireAcceptance())
-                                            <x-icon type="email" />
-                                            {{ trans('admin/categories/general.required_acceptance') }}
-                                            <br>
-                                        @endif
-
-                                        @if ($asset->getEula())
-                                            <x-icon type="email" />
-                                            {{ trans('admin/categories/general.required_eula') }}
-                                            <br>
-                                        @endif
-
-                                        @if ($snipeSettings->webhook_endpoint!='')
-                                            <i class="fab fa-slack" aria-hidden="true"></i>
-                                            {{ trans('general.webhook_msg_note') }}
-                                        @endif
+                                        <i class="fab fa-slack" aria-hidden="true"></i>
+                                        {{ trans('general.webhook_msg_note') }}
                                     </div>
                                 </div>
                             </div>

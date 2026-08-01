@@ -24,7 +24,10 @@ class CreateCategoriesTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('categories.create'))
-            ->assertOk();
+            ->assertOk()
+            ->assertDontSee('name="require_acceptance"', false)
+            ->assertDontSee('name="eula_text"', false)
+            ->assertDontSee('name="use_default_eula"', false);
     }
 
     public function testAfmCannotOpenOrSubmitCategoryCreation()
@@ -69,9 +72,9 @@ class CreateCategoriesTest extends TestCase
             'name' => 'Test Category',
             'category_type' => 'asset',
             'fieldset_id' => $fieldset->id,
-            'eula_text' => 'Sample text',
+            'eula_text' => null,
             'notes' => 'My Note',
-            'require_acceptance' => 1,
+            'require_acceptance' => 0,
             'alert_on_response' => 0,
         ]);
     }
