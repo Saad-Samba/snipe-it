@@ -41,6 +41,7 @@
     <div class="col-md-7">
         <x-input.select
             name="fieldset_id"
+            id="fieldset_id"
             :options="\App\Helpers\Helper::customFieldsetList()"
             :selected="old('fieldset_id', $item->fieldset_id)"
             style="min-width:350px"
@@ -49,9 +50,13 @@
         {!! $errors->first('fieldset_id', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
     </div>
     <div class="col-md-7 col-md-offset-3">
-        <p class="help-block">Used as the default fieldset for asset models in this category. A model can still override it.</p>
+        <p class="help-block">{{ trans('admin/categories/general.fieldset_help') }}</p>
     </div>
 </div>
+
+@livewire('custom-field-set-preview-for-category', [
+    'fieldset_id' => old('fieldset_id', $item->fieldset_id),
+])
 
 @if (auth()->user()->isSuperUser() || auth()->user()->isAdmin())
     @include ('partials.forms.edit.user-select', [

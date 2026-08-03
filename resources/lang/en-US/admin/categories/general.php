@@ -27,5 +27,11 @@ return array(
     'import_checkin_email'              => 'Send Checkin Email',
     'import_eula_text'                  => 'EULA text',
     'import_category_type'              => 'Category Type',
+    'fieldset_help'                     => 'All asset models in this Category / Asset Family use the selected fieldset.',
+    'fieldset_fields'                   => 'Included Custom Fields',
+    'fieldset_has_no_fields'            => 'This fieldset does not contain any custom fields.',
+    'fieldset_preview_help'             => 'These fields will be available when creating or editing assets in this Category / Asset Family. Values are entered on each asset.',
+    'field_required'                    => 'Required',
+    'field_optional'                    => 'Optional',
 
 );

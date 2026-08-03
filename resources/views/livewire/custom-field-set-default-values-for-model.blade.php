@@ -8,9 +8,6 @@
                 <p class="form-control-static">
                     {{ $this->inheritedFieldset?->name ?? trans('admin/models/general.no_category_fieldset') }}
                 </p>
-                <p class="help-block">
-                    {{ trans('admin/models/general.category_fieldset_inheritance_help') }}
-                </p>
             </div>
         </div>
     @else
