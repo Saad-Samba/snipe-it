@@ -85,7 +85,13 @@ class BulkAssetModelsController extends Controller
             $update_array['category_id'] = $request->input('category_id');
         }
 
-        if ($request->input('fieldset_id') != 'NC') {
+        if (! config('leams.model_fieldset_overrides')) {
+            $request->validate([
+                'fieldset_id' => 'prohibited',
+            ], [
+                'fieldset_id.prohibited' => trans('admin/models/message.fieldset_override_disabled'),
+            ]);
+        } elseif ($request->input('fieldset_id') != 'NC') {
             $update_array['fieldset_id'] = $request->input('fieldset_id');
         }
 

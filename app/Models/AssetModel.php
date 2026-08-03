@@ -210,12 +210,14 @@ class AssetModel extends SnipeModel
 
     public function getFieldsetAttribute($value = null)
     {
-        $explicitFieldset = $this->relationLoaded('fieldset')
-            ? $this->relations['fieldset']
-            : $this->fieldset()->getResults();
+        if (config('leams.model_fieldset_overrides')) {
+            $explicitFieldset = $this->relationLoaded('fieldset')
+                ? $this->relations['fieldset']
+                : $this->fieldset()->getResults();
 
-        if ($explicitFieldset) {
-            return $explicitFieldset;
+            if ($explicitFieldset) {
+                return $explicitFieldset;
+            }
         }
 
         $category = $this->relationLoaded('category')
@@ -462,10 +464,16 @@ class AssetModel extends SnipeModel
 
     public function scopeOrderFieldset($query, $order)
     {
-        return $query
+        $query
             ->leftJoin('categories as fieldset_categories', 'models.category_id', '=', 'fieldset_categories.id')
+            ->leftJoin('custom_fieldsets as inherited_fieldsets', 'fieldset_categories.fieldset_id', '=', 'inherited_fieldsets.id');
+
+        if (! config('leams.model_fieldset_overrides')) {
+            return $query->orderBy('inherited_fieldsets.name', $order);
+        }
+
+        return $query
             ->leftJoin('custom_fieldsets as explicit_fieldsets', 'models.fieldset_id', '=', 'explicit_fieldsets.id')
-            ->leftJoin('custom_fieldsets as inherited_fieldsets', 'fieldset_categories.fieldset_id', '=', 'inherited_fieldsets.id')
             ->orderByRaw('COALESCE(explicit_fieldsets.name, inherited_fieldsets.name) '.$order);
     }
 

@@ -1,4 +1,19 @@
 <span>
+    @if (! config('leams.model_fieldset_overrides'))
+        <div class="form-group">
+            <label class="col-md-3 control-label">
+                {{ trans('admin/models/general.fieldset') }}
+            </label>
+            <div class="col-md-7">
+                <p class="form-control-static">
+                    {{ $this->inheritedFieldset?->name ?? trans('admin/models/general.no_category_fieldset') }}
+                </p>
+                <p class="help-block">
+                    {{ trans('admin/models/general.category_fieldset_inheritance_help') }}
+                </p>
+            </div>
+        </div>
+    @else
     <div class="form-group{{ $errors->has('custom_fieldset') ? ' has-error' : '' }}">
         <label for="custom_fieldset" class="col-md-3 control-label">
             {{ trans('admin/models/general.fieldset') }}
@@ -161,6 +176,7 @@
             @endif
 
     @endif
+    @endif
     <script>
         (() => {
             const componentId = @js($this->getId());
@@ -169,7 +185,7 @@
 
             const installCategorySync = () => {
                 const syncCategorySelection = () => {
-                    const categorySelect = $('#category_select_id');
+                    const categorySelect = $('#category_select_id, #category_id').first();
                     if (! categorySelect.length) {
                         return;
                     }

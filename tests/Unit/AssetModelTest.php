@@ -40,8 +40,27 @@ class AssetModelTest extends TestCase
         $this->assertEquals($fieldset->id, $model->fieldset?->id);
     }
 
-    public function test_explicit_asset_model_fieldset_overrides_category_fieldset()
+    public function test_explicit_asset_model_fieldset_is_ignored_when_overrides_are_disabled()
     {
+        $categoryFieldset = CustomFieldset::factory()->create();
+        $modelFieldset = CustomFieldset::factory()->create();
+        $category = Category::factory()->create([
+            'category_type' => 'asset',
+            'fieldset_id' => $categoryFieldset->id,
+        ]);
+
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'fieldset_id' => $modelFieldset->id,
+        ]);
+
+        $this->assertEquals($categoryFieldset->id, $model->fieldset?->id);
+    }
+
+    public function test_explicit_asset_model_fieldset_overrides_category_fieldset_when_enabled()
+    {
+        config()->set('leams.model_fieldset_overrides', true);
+
         $categoryFieldset = CustomFieldset::factory()->create();
         $modelFieldset = CustomFieldset::factory()->create();
         $category = Category::factory()->create([

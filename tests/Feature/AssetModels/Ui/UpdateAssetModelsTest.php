@@ -28,6 +28,48 @@ class UpdateAssetModelsTest extends TestCase
             ->assertOk();
     }
 
+    public function testEditPageShowsCategoryFieldsetWithoutModelOverrideControls()
+    {
+        $categoryFieldset = CustomFieldset::factory()->create(['name' => 'Category Governed Fieldset']);
+        $hiddenModelFieldset = CustomFieldset::factory()->create(['name' => 'Stored Model Override']);
+        $category = Category::factory()->forAssets()->create([
+            'fieldset_id' => $categoryFieldset->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'fieldset_id' => $hiddenModelFieldset->id,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('models.edit', $model))
+            ->assertOk()
+            ->assertSee('Category Governed Fieldset')
+            ->assertDontSee('Stored Model Override')
+            ->assertDontSeeHtml('name="fieldset_id"')
+            ->assertDontSeeHtml('name="add_default_values"');
+    }
+
+    public function testModelFieldsetOverrideCannotBeSubmittedWhileDisabled()
+    {
+        $category = Category::factory()->forAssets()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'fieldset_id' => null,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.edit', $model))
+            ->put(route('models.update', $model), [
+                'name' => $model->name,
+                'category_id' => $category->id,
+                'fieldset_id' => CustomFieldset::factory()->create()->id,
+            ])
+            ->assertRedirect(route('models.edit', $model))
+            ->assertSessionHasErrors(['fieldset_id']);
+
+        $this->assertNull($model->fresh()->fieldset_id);
+    }
+
     public function testAfmCanEditManagedAssetModel()
     {
         $afm = User::factory()->create();
@@ -187,6 +229,8 @@ class UpdateAssetModelsTest extends TestCase
 
     public function test_default_values_remain_unchanged_after_validation_error_occurs()
     {
+        config()->set('leams.model_fieldset_overrides', true);
+
         $this->markIncompleteIfMySQL('Custom Field Tests do not work in MySQL');
 
         $assetModel = AssetModel::factory()->create();
@@ -220,6 +264,8 @@ class UpdateAssetModelsTest extends TestCase
 
     public function test_default_values_can_be_updated()
     {
+        config()->set('leams.model_fieldset_overrides', true);
+
         $this->markIncompleteIfMySQL('Custom Field Tests do not work in MySQL');
 
         $assetModel = AssetModel::factory()->create();

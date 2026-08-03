@@ -85,7 +85,7 @@ class AssetModelsController extends Controller
         $model->obsolete = $request->has('obsolete');
         $model->require_serial = $request->input('require_serial', 0);
 
-        if ($request->input('fieldset_id') != '') {
+        if (config('leams.model_fieldset_overrides') && $request->input('fieldset_id') != '') {
             $model->fieldset_id = $request->input('fieldset_id');
         }
 
@@ -105,7 +105,7 @@ class AssetModelsController extends Controller
 
 
         if ($model->save()) {
-            if ($this->shouldAddDefaultValues($request->input(), $model)) {
+            if (config('leams.model_fieldset_overrides') && $this->shouldAddDefaultValues($request->input(), $model)) {
                 if (!$this->assignCustomFieldsDefaultValues($model, $request->input('default_values'))){
                     return redirect()->back()->withInput()->with('error', trans('admin/custom_fields/message.fieldset_default_value.error'));
                 }
@@ -160,12 +160,16 @@ class AssetModelsController extends Controller
         $model->notes = $request->input('notes');
         $model->obsolete = $request->input('obsolete', '0');
         $model->require_serial = $request->input('require_serial', 0);
-        $model->fieldset_id = $request->input('fieldset_id');
+        if (config('leams.model_fieldset_overrides')) {
+            $model->fieldset_id = $request->input('fieldset_id');
+        }
 
         if ($model->save()) {
-            $this->removeCustomFieldsDefaultValues($model);
+            if (config('leams.model_fieldset_overrides')) {
+                $this->removeCustomFieldsDefaultValues($model);
+            }
 
-            if ($this->shouldAddDefaultValues($request->input(), $model)) {
+            if (config('leams.model_fieldset_overrides') && $this->shouldAddDefaultValues($request->input(), $model)) {
                 if (!$this->assignCustomFieldsDefaultValues($model, $request->input('default_values'))) {
                     return redirect()->back()->withInput()->withErrors($this->validatorErrors);
                 }

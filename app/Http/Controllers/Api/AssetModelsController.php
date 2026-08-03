@@ -190,7 +190,7 @@ class AssetModelsController extends Controller
     {
         $this->authorize('create', AssetModel::class);
         $assetmodel = new AssetModel;
-        $assetmodel->fill($request->all());
+        $assetmodel->fill($this->modelAttributes($request));
         $assetmodel = $request->handleImages($assetmodel);
 
         if ($assetmodel->save()) {
@@ -246,7 +246,7 @@ class AssetModelsController extends Controller
     {
         $assetmodel = AssetModel::findOrFail($id);
         $this->authorize('update', $assetmodel);
-        $assetmodel->fill($request->all());
+        $assetmodel->fill($this->modelAttributes($request));
         $assetmodel = $request->handleImages($assetmodel);
 
         /**
@@ -257,7 +257,7 @@ class AssetModelsController extends Controller
          * in previous versions. I assume there was a good reason for
          * it, but I'll be damned if I can think of one. - snipe
          */
-        if ($request->filled('custom_fieldset_id')) {
+        if (config('leams.model_fieldset_overrides') && $request->filled('custom_fieldset_id')) {
             $assetmodel->fieldset_id = $request->get('custom_fieldset_id');
         }
 
@@ -267,6 +267,20 @@ class AssetModelsController extends Controller
         }
 
         return response()->json(Helper::formatStandardApiResponse('error', null, $assetmodel->getErrors()));
+    }
+
+    private function modelAttributes(StoreAssetModelRequest $request): array
+    {
+        if (config('leams.model_fieldset_overrides')) {
+            return $request->all();
+        }
+
+        return $request->except([
+            'fieldset_id',
+            'custom_fieldset_id',
+            'add_default_values',
+            'default_values',
+        ]);
     }
 
     /**

@@ -46,10 +46,21 @@ class StoreAssetModelRequest extends ImageUploadRequest
      */
     public function rules(): array
     {
-        return array_merge(
+        $rules = array_merge(
             ['category_type' => 'in:asset'],
             parent::rules(),
         );
+
+        if (! config('leams.model_fieldset_overrides')) {
+            $rules = array_merge($rules, [
+                'fieldset_id' => 'prohibited',
+                'custom_fieldset_id' => 'prohibited',
+                'add_default_values' => 'prohibited',
+                'default_values' => 'prohibited',
+            ]);
+        }
+
+        return $rules;
     }
 
     public function withValidator($validator): void
@@ -78,7 +89,13 @@ class StoreAssetModelRequest extends ImageUploadRequest
 
     public function messages(): array
     {
-        $messages = ['category_type.in' => trans('admin/models/message.invalid_category_type')];
+        $messages = [
+            'category_type.in' => trans('admin/models/message.invalid_category_type'),
+            'fieldset_id.prohibited' => trans('admin/models/message.fieldset_override_disabled'),
+            'custom_fieldset_id.prohibited' => trans('admin/models/message.fieldset_override_disabled'),
+            'add_default_values.prohibited' => trans('admin/models/message.fieldset_override_disabled'),
+            'default_values.prohibited' => trans('admin/models/message.fieldset_override_disabled'),
+        ];
         return $messages;
     }
 

@@ -15,6 +15,8 @@ return array(
     'fieldset'                  => 'Fieldset',
     'no_custom_field'           => 'No custom fields',
     'add_default_values'        => 'Add default values',
+    'no_category_fieldset'      => 'No fieldset assigned to this Category',
+    'category_fieldset_inheritance_help' => 'Inherited from the selected Category / Asset Family. Model-level fieldset overrides are disabled during the initial rollout.',
     'obsolete_help'             => 'Mark as obsolete when the model is no longer supported or supplied by the manufacturer (e.g. removed from official catalogue or marked end-of-life), or when it is no longer suitable for use within current operational requirements.',
     'obsolete_status_warning'   => 'Do not change obsolete status',
     'obsolete_indicator'        => 'Obsolete',

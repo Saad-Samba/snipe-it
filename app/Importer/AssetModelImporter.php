@@ -101,6 +101,16 @@ class AssetModelImporter extends ItemImporter
         $this->setBooleanFieldIfPresent($row, 'obsolete');
         $this->setBooleanFieldIfPresent($row, 'require_serial');
 
+        if (! config('leams.model_fieldset_overrides') && ! empty($this->item['fieldset'])) {
+            $this->addErrorToBag(
+                $assetModel,
+                'fieldset',
+                trans('admin/models/message.fieldset_override_disabled')
+            );
+
+            return;
+        }
+
         if (!empty($this->item['category'])) {
             if ($category = $this->createOrFetchCategory($this->item['category'])) {
                 $this->item['category_id'] = $category;

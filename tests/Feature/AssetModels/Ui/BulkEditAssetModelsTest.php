@@ -4,11 +4,43 @@ namespace Tests\Feature\AssetModels\Ui;
 
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\CustomFieldset;
 use App\Models\User;
 use Tests\TestCase;
 
 class BulkEditAssetModelsTest extends TestCase
 {
+    public function testBulkEditPageDoesNotShowModelFieldsetControlWhileDisabled()
+    {
+        $models = AssetModel::factory()->count(2)->create();
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->post(route('models.bulkedit.index'), [
+                'ids' => $models->pluck('id')->all(),
+                'bulk_actions' => 'edit',
+            ])
+            ->assertOk()
+            ->assertDontSeeHtml('name="fieldset_id"');
+    }
+
+    public function testBulkEditRejectsModelFieldsetOverrideWhileDisabled()
+    {
+        $models = AssetModel::factory()->count(2)->create(['fieldset_id' => null]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.index'))
+            ->post(route('models.bulkedit.store'), [
+                'ids' => $models->pluck('id')->all(),
+                'fieldset_id' => CustomFieldset::factory()->create()->id,
+            ])
+            ->assertRedirect(route('models.index'))
+            ->assertSessionHasErrors(['fieldset_id']);
+
+        AssetModel::findMany($models->pluck('id'))->each(function (AssetModel $model) {
+            $this->assertNull($model->fieldset_id);
+        });
+    }
+
     public function testUserCanBulkSetAssetModelsObsolete()
     {
         $models = AssetModel::factory()->count(2)->create(['obsolete' => false]);

@@ -69,22 +69,24 @@
                                 </div>
                             </div>
 
-                            <!-- custom fields -->
-                            <div class="form-group {{ $errors->has('fieldset_id') ? ' has-error' : '' }}">
-                                <label for="category_id" class="col-md-3 control-label">
-                                    {{ trans('admin/models/general.fieldset') }}
-                                </label>
-                                <div class="col-md-7">
-                                    <x-input.select
-                                        name="fieldset_id"
-                                        :options="$fieldset_list"
-                                        :selected="old('fieldset_id', 'NC')"
-                                        class="js-fieldset-field"
-                                        style="width:350px"
-                                    />
-                                    {!! $errors->first('fieldset_id', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
+                            @if (config('leams.model_fieldset_overrides'))
+                                <!-- custom fields -->
+                                <div class="form-group {{ $errors->has('fieldset_id') ? ' has-error' : '' }}">
+                                    <label for="fieldset_id" class="col-md-3 control-label">
+                                        {{ trans('admin/models/general.fieldset') }}
+                                    </label>
+                                    <div class="col-md-7">
+                                        <x-input.select
+                                            name="fieldset_id"
+                                            :options="$fieldset_list"
+                                            :selected="old('fieldset_id', 'NC')"
+                                            class="js-fieldset-field"
+                                            style="width:350px"
+                                        />
+                                        {!! $errors->first('fieldset_id', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
+                                    </div>
                                 </div>
-                            </div>
+                            @endif
 
                             @include ('partials.forms.edit.minimum_quantity')
 

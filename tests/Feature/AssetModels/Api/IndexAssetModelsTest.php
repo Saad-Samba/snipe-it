@@ -395,25 +395,29 @@ class IndexAssetModelsTest extends TestCase
                 ->etc());
     }
 
-    public function testAssetModelIndexSortsByInheritedCategoryFieldsetName()
+    public function testAssetModelIndexSortsByCategoryFieldsetAndIgnoresStoredModelOverride()
     {
-        $inheritedFieldset = CustomFieldset::factory()->create(['name' => 'Alpha Fieldset']);
-        $explicitFieldset = CustomFieldset::factory()->create(['name' => 'Zulu Fieldset']);
+        $alphaFieldset = CustomFieldset::factory()->create(['name' => 'Alpha Fieldset']);
+        $zuluFieldset = CustomFieldset::factory()->create(['name' => 'Zulu Fieldset']);
+        $storedOverride = CustomFieldset::factory()->create(['name' => 'Aardvark Stored Override']);
 
-        $category = Category::factory()->forAssets()->create([
-            'fieldset_id' => $inheritedFieldset->id,
+        $alphaCategory = Category::factory()->forAssets()->create([
+            'fieldset_id' => $alphaFieldset->id,
+        ]);
+        $zuluCategory = Category::factory()->forAssets()->create([
+            'fieldset_id' => $zuluFieldset->id,
         ]);
 
         AssetModel::factory()->create([
-            'category_id' => $category->id,
+            'category_id' => $zuluCategory->id,
+            'fieldset_id' => $storedOverride->id,
+            'name' => 'Category-only model',
+        ]);
+
+        AssetModel::factory()->create([
+            'category_id' => $alphaCategory->id,
             'fieldset_id' => null,
             'name' => 'Inherited sort model',
-        ]);
-
-        AssetModel::factory()->create([
-            'category_id' => $category->id,
-            'fieldset_id' => $explicitFieldset->id,
-            'name' => 'Explicit sort model',
         ]);
 
         $this->actingAsForApi(User::factory()->superuser()->create())
@@ -427,7 +431,8 @@ class IndexAssetModelsTest extends TestCase
             ->assertOk()
             ->assertJson(fn (AssertableJson $json) => $json
                 ->where('rows.0.name', 'Inherited sort model')
-                ->where('rows.1.name', 'Explicit sort model')
+                ->where('rows.1.name', 'Category-only model')
+                ->where('rows.1.fieldset.name', 'Zulu Fieldset')
                 ->etc());
     }
 
