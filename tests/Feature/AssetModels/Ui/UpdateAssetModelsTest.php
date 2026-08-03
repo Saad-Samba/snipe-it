@@ -28,9 +28,10 @@ class UpdateAssetModelsTest extends TestCase
             ->assertOk();
     }
 
-    public function testEditPageShowsCategoryFieldsetWithoutModelOverrideControls()
+    public function testEditPageShowsCategoryFieldsetDefaultsWithoutModelOverrideControls()
     {
         $categoryFieldset = CustomFieldset::factory()->create(['name' => 'Category Governed Fieldset']);
+        $categoryFieldset->fields()->attach(CustomField::factory()->create(), ['order' => 1, 'required' => false]);
         $hiddenModelFieldset = CustomFieldset::factory()->create(['name' => 'Stored Model Override']);
         $category = Category::factory()->forAssets()->create([
             'fieldset_id' => $categoryFieldset->id,
@@ -46,7 +47,80 @@ class UpdateAssetModelsTest extends TestCase
             ->assertSee('Category Governed Fieldset')
             ->assertDontSee('Stored Model Override')
             ->assertDontSeeHtml('name="fieldset_id"')
-            ->assertDontSeeHtml('name="add_default_values"');
+            ->assertSeeHtml('name="add_default_values"');
+    }
+
+    public function testModelDefaultsCanBeSavedForTheInheritedCategoryFieldset(): void
+    {
+        $fieldset = CustomFieldset::factory()->create();
+        $field = CustomField::factory()->create([
+            'name' => 'Network Speed',
+            'element' => 'text',
+            'format' => '',
+        ]);
+        $unrelatedField = CustomField::factory()->create(['name' => 'Unrelated Field']);
+        $fieldset->fields()->attach($field, ['order' => 1, 'required' => false]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'fieldset_id' => null,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->put(route('models.update', $model), [
+                'name' => $model->name,
+                'category_id' => $category->id,
+                'add_default_values' => '1',
+                'default_values' => [
+                    $field->id => '1 Gbps',
+                    $unrelatedField->id => 'Must not be attached',
+                ],
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertDatabaseHas('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $field->id,
+            'default_value' => '1 Gbps',
+        ]);
+        $this->assertDatabaseMissing('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $unrelatedField->id,
+        ]);
+        $this->assertNull($model->fresh()->fieldset_id);
+    }
+
+    public function testChangingCategoryReplacesDefaultsUsingTheNewCategoryFieldset(): void
+    {
+        $oldFieldset = CustomFieldset::factory()->create();
+        $newFieldset = CustomFieldset::factory()->create();
+        $oldField = CustomField::factory()->create(['name' => 'Old Category Field']);
+        $newField = CustomField::factory()->create(['name' => 'New Category Field']);
+        $oldFieldset->fields()->attach($oldField, ['order' => 1, 'required' => false]);
+        $newFieldset->fields()->attach($newField, ['order' => 1, 'required' => false]);
+        $oldCategory = Category::factory()->forAssets()->create(['fieldset_id' => $oldFieldset->id]);
+        $newCategory = Category::factory()->forAssets()->create(['fieldset_id' => $newFieldset->id]);
+        $model = AssetModel::factory()->create(['category_id' => $oldCategory->id]);
+        $model->defaultValues()->attach($oldField, ['default_value' => 'Old value']);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->put(route('models.update', $model), [
+                'name' => $model->name,
+                'category_id' => $newCategory->id,
+                'add_default_values' => '1',
+                'default_values' => [$newField->id => 'New value'],
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertDatabaseMissing('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $oldField->id,
+        ]);
+        $this->assertDatabaseHas('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $newField->id,
+            'default_value' => 'New value',
+        ]);
     }
 
     public function testModelFieldsetOverrideCannotBeSubmittedWhileDisabled()

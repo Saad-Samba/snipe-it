@@ -4,6 +4,8 @@ namespace Tests\Feature\AssetModels\Ui;
 
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\CustomField;
+use App\Models\CustomFieldset;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -68,6 +70,36 @@ class CreateAssetModelsTest extends TestCase
 
         $this->assertTrue(AssetModel::where('name', 'Test Model')->exists());
         $this->assertTrue(AssetModel::where('name', 'Test Model')->sole()->obsolete);
+    }
+
+    public function testModelCanBeCreatedWithDefaultsFromItsCategoryFieldset(): void
+    {
+        $fieldset = CustomFieldset::factory()->create();
+        $field = CustomField::factory()->create([
+            'name' => 'Operating Voltage',
+            'element' => 'text',
+            'format' => '',
+        ]);
+        $fieldset->fields()->attach($field, ['order' => 1, 'required' => false]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->post(route('models.store'), [
+                'name' => 'Model With Category Defaults',
+                'category_id' => $category->id,
+                'add_default_values' => '1',
+                'default_values' => [$field->id => '24 VDC'],
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $model = AssetModel::where('name', 'Model With Category Defaults')->sole();
+
+        $this->assertDatabaseHas('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $field->id,
+            'default_value' => '24 VDC',
+        ]);
+        $this->assertNull($model->fieldset_id);
     }
 
     public function testAfmCanCreateAssetModelInManagedCategory()

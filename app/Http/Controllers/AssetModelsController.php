@@ -8,7 +8,6 @@ use App\Http\Requests\StoreAssetModelRequest;
 use App\Models\Actionlog;
 use App\Models\AssetModel;
 use App\Models\Category;
-use App\Models\CustomField;
 use App\Models\SnipeModel;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -80,6 +79,7 @@ class AssetModelsController extends Controller
         $model->reference_price = $request->input('reference_price');
         $model->manufacturer_id = $request->input('manufacturer_id');
         $model->category_id = $request->input('category_id');
+        $model->unsetRelation('category');
         $model->notes = $request->input('notes');
         $model->created_by = auth()->id();
         $model->obsolete = $request->has('obsolete');
@@ -105,7 +105,7 @@ class AssetModelsController extends Controller
 
 
         if ($model->save()) {
-            if (config('leams.model_fieldset_overrides') && $this->shouldAddDefaultValues($request->input(), $model)) {
+            if ($this->shouldAddDefaultValues($request->input(), $model)) {
                 if (!$this->assignCustomFieldsDefaultValues($model, $request->input('default_values'))){
                     return redirect()->back()->withInput()->with('error', trans('admin/custom_fields/message.fieldset_default_value.error'));
                 }
@@ -157,6 +157,7 @@ class AssetModelsController extends Controller
         $model->reference_price = $request->input('reference_price');
         $model->manufacturer_id = $request->input('manufacturer_id');
         $model->category_id = $request->input('category_id');
+        $model->unsetRelation('category');
         $model->notes = $request->input('notes');
         $model->obsolete = $request->input('obsolete', '0');
         $model->require_serial = $request->input('require_serial', 0);
@@ -165,11 +166,9 @@ class AssetModelsController extends Controller
         }
 
         if ($model->save()) {
-            if (config('leams.model_fieldset_overrides')) {
-                $this->removeCustomFieldsDefaultValues($model);
-            }
+            $this->removeCustomFieldsDefaultValues($model);
 
-            if (config('leams.model_fieldset_overrides') && $this->shouldAddDefaultValues($request->input(), $model)) {
+            if ($this->shouldAddDefaultValues($request->input(), $model)) {
                 if (!$this->assignCustomFieldsDefaultValues($model, $request->input('default_values'))) {
                     return redirect()->back()->withInput()->withErrors($this->validatorErrors);
                 }
@@ -462,9 +461,14 @@ class AssetModelsController extends Controller
      */
     private function assignCustomFieldsDefaultValues(AssetModel|SnipeModel $model, array $defaultValues): bool
     {
+        $fieldsetFields = $model->fieldset?->fields->keyBy('id') ?? collect();
+        $defaultValues = collect($defaultValues)
+            ->filter(fn ($value, $customFieldId) => $fieldsetFields->has((int) $customFieldId))
+            ->all();
+
         $data = array();
         foreach ($defaultValues as $customFieldId => $defaultValue) {
-            $customField = CustomField::find($customFieldId);
+            $customField = $fieldsetFields->get((int) $customFieldId);
 
             $data[$customField->db_column] = $defaultValue;
         }

@@ -4,6 +4,7 @@ namespace Tests\Feature\Livewire;
 
 use App\Livewire\CustomFieldSetDefaultValuesForModel;
 use App\Models\Category;
+use App\Models\CustomField;
 use App\Models\CustomFieldset;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -23,9 +24,10 @@ class CustomFieldSetDefaultValuesForModelTest extends TestCase
             ->assertSee('Category Default Fieldset');
     }
 
-    public function testComponentOnlyShowsTheInheritedCategoryFieldsetWhenOverridesAreDisabled()
+    public function testComponentShowsInheritedFieldsetDefaultsWithoutOverrideControlsWhenOverridesAreDisabled()
     {
         $categoryFieldset = CustomFieldset::factory()->create(['name' => 'Governed Category Fieldset']);
+        $categoryFieldset->fields()->attach(CustomField::factory()->create(), ['order' => 1, 'required' => false]);
         $modelFieldset = CustomFieldset::factory()->create(['name' => 'Hidden Model Override']);
         $category = Category::factory()->forAssets()->create([
             'fieldset_id' => $categoryFieldset->id,
@@ -40,6 +42,6 @@ class CustomFieldSetDefaultValuesForModelTest extends TestCase
             ->assertSee('Governed Category Fieldset')
             ->assertDontSee('Hidden Model Override')
             ->assertDontSeeHtml('name="fieldset_id"')
-            ->assertDontSeeHtml('name="add_default_values"');
+            ->assertSeeHtml('name="add_default_values"');
     }
 }

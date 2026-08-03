@@ -4,11 +4,31 @@
             <label class="col-md-3 control-label">
                 {{ trans('admin/models/general.fieldset') }}
             </label>
-            <div class="col-md-7">
+            <div class="col-md-5">
                 <p class="form-control-static">
                     {{ $this->inheritedFieldset?->name ?? trans('admin/models/general.no_category_fieldset') }}
                 </p>
             </div>
+            @if ($this->inheritedFieldset && $this->fields->isNotEmpty())
+                <div class="col-md-3">
+                    <label class="form-control">
+                        <input
+                            type="checkbox"
+                            name="add_default_values"
+                            value="1"
+                            id="add_default_values"
+                            wire:model.live="add_default_values"
+                            data-livewire-component="{{ $this->getId() }}"
+                        />
+                        {{ trans('admin/models/general.add_default_values') }}
+                    </label>
+                </div>
+                <div class="col-md-7 col-md-offset-3">
+                    <p class="help-block">
+                        {{ trans('admin/models/general.default_values_help') }}
+                    </p>
+                </div>
+            @endif
         </div>
     @else
     <div class="form-group{{ $errors->has('custom_fieldset') ? ' has-error' : '' }}">
@@ -52,12 +72,11 @@
             </div>
         @endif
     </div>
+    @endif
 
-    @if ($add_default_values)
+    @if ($add_default_values && $this->fields->isNotEmpty())
 
-        @if ($this->fields)
-
-                @foreach ($this->fields as $field)
+        @foreach ($this->fields as $field)
                     <div class="form-group" wire:key="field-{{ $field->id }}">
 
                         <label class="col-md-3 control-label{{ $errors->has($field->db_column_name()) ? ' has-error' : '' }}">{{ $field->name }}</label>
@@ -168,11 +187,8 @@
                         </div>
                     </div>
 
-            @endforeach
+        @endforeach
 
-            @endif
-
-    @endif
     @endif
     <script>
         (() => {

@@ -27,8 +27,7 @@ class CustomFieldSetDefaultValuesForModel extends Component
         $this->fieldset_id = config('leams.model_fieldset_overrides')
             ? $this->model?->fieldset_id
             : null;
-        $this->add_default_values = config('leams.model_fieldset_overrides')
-            && ($this->model?->defaultValues->count() > 0);
+        $this->add_default_values = ($this->model?->defaultValues->count() > 0);
 
 
         $this->initializeSelectedValuesArray();
