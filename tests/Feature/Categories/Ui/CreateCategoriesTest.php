@@ -27,7 +27,8 @@ class CreateCategoriesTest extends TestCase
             ->assertOk()
             ->assertDontSee('name="require_acceptance"', false)
             ->assertDontSee('name="eula_text"', false)
-            ->assertDontSee('name="use_default_eula"', false);
+            ->assertDontSee('name="use_default_eula"', false)
+            ->assertDontSee(route('account.accept'), false);
     }
 
     public function testAfmCannotOpenOrSubmitCategoryCreation()

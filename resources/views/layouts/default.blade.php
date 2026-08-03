@@ -383,12 +383,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                                 {{ trans('general.viewassets') }}
                                             </a></li>
 
-                                        <li {!! (request()->is('account/accept') ? ' class="active"' : '') !!}>
-                                            <a href="{{ route('account.accept') }}">
-                                                <x-icon type="checkmark" class="fa-fw" />
-                                                {{ trans('general.accept_assets_menu') }}
-                                            </a></li>
-
                                         <li {!! (request()->is('account/regional-coordinators') ? ' class="active"' : '') !!}>
                                             <a href="{{ route('account.regional-asset-coordinators.index') }}">
                                                 <x-icon type="users" class="fa-fw" />
