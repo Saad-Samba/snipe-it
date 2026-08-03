@@ -3,7 +3,10 @@
 namespace Tests\Feature\Users;
 
 use App\Models\Category;
+use App\Models\CustomField;
+use App\Models\CustomFieldset;
 use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 class AssetFamilyManagerDerivedPermissionsTest extends TestCase
@@ -31,8 +34,6 @@ class AssetFamilyManagerDerivedPermissionsTest extends TestCase
             'categories.view',
             'categories.edit',
             'customfields.view',
-            'customfields.create',
-            'customfields.edit',
             'manufacturers.view',
             'manufacturers.create',
             'manufacturers.edit',
@@ -52,6 +53,9 @@ class AssetFamilyManagerDerivedPermissionsTest extends TestCase
 
         $this->assertFalse($user->hasAccess('categories.create'));
         $this->assertFalse($user->hasAccess('categories.delete'));
+        $this->assertFalse($user->hasAccess('customfields.create'));
+        $this->assertFalse($user->hasAccess('customfields.edit'));
+        $this->assertFalse($user->hasAccess('customfields.delete'));
         $this->assertFalse($user->hasAccess('models.delete'));
         $this->assertFalse($user->hasAccess('models.request'));
 
@@ -72,5 +76,17 @@ class AssetFamilyManagerDerivedPermissionsTest extends TestCase
 
         $this->assertTrue($user->isAssetFamilyManager());
         $this->assertFalse($user->hasAccess('models.view'));
+    }
+
+    public function testAdminRetainsFullCustomFieldCrudPermissions()
+    {
+        $admin = User::factory()->admin()->create();
+
+        foreach ([CustomField::class, CustomFieldset::class] as $model) {
+            $this->assertTrue(Gate::forUser($admin)->allows('view', $model));
+            $this->assertTrue(Gate::forUser($admin)->allows('create', $model));
+            $this->assertTrue(Gate::forUser($admin)->allows('update', $model));
+            $this->assertTrue(Gate::forUser($admin)->allows('delete', $model));
+        }
     }
 }
