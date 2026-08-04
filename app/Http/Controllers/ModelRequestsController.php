@@ -41,18 +41,19 @@ class ModelRequestsController extends Controller
 
     public function getRequestableIndex(): View
     {
-        $assets = Asset::with('model', 'defaultLoc', 'location', 'assignedTo', 'requests')->Hardware()->RequestableAssets();
+        if (! auth()->user()?->hasAccess('models.request')) {
+            throw new AuthorizationException('You are not authorized to request models.');
+        }
+
         $models = AssetModel::with([
             'category',
-            'requests',
-            'assets' => function ($q) {
-                $q->where('requestable', 1)
-                    ->whereHas('assetstatus', fn ($s) => $s->where('archived', 0)
-                        ->where(fn ($s) => $s->where('deployable', 1)->orWhere('pending', 1)));
-            },
-        ])->RequestableModels()->get();
+        ])
+            ->withCount(['availableAssets as reusable_assets_count'])
+            ->RequestableModels()
+            ->orderBy('name')
+            ->get();
 
-        return view('account/requestable-assets', compact('assets', 'models'));
+        return view('account/requestable-assets', compact('models'));
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse

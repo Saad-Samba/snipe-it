@@ -826,7 +826,7 @@ dir="{{ Helper::determineLanguageDirection() }}">
                         @endcan
 
                         @if (auth()->check() && auth()->user()->hasAccess('models.request'))
-                            <li class="treeview{{ (request()->is('requests*')) ? ' active' : '' }}">
+                            <li class="treeview{{ (request()->is('requests*') || request()->is('account/requestable-assets')) ? ' active' : '' }}">
                                 <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
                                     <span>Requests</span>
@@ -834,6 +834,11 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                 </a>
 
                                 <ul class="treeview-menu">
+                                    <li{!! (request()->is('account/requestable-assets') ? ' class="active"' : '') !!}>
+                                        <a href="{{ route('requestable-assets') }}">
+                                            Request Models
+                                        </a>
+                                    </li>
                                     <li{!! (request()->is('requests') ? ' class="active"' : '') !!}>
                                         <a href="{{ route('requests.index') }}">
                                             Submitted Requests

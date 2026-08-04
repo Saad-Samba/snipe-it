@@ -30,6 +30,18 @@ class IndexAssetModelsTest extends TestCase
             ->assertDontSee(trans('mail.min_QTY'));
     }
 
+    public function test_models_index_does_not_include_request_controls(): void
+    {
+        $user = User::factory()->viewAssetModels()->requestAssetModels()->create();
+
+        $this->actingAs($user)
+            ->get(route('models.index'))
+            ->assertOk()
+            ->assertDontSee('&quot;field&quot;:&quot;request&quot;', false)
+            ->assertDontSee('id="modelRequestCartButton"', false)
+            ->assertDontSee('Add Selected to Cart');
+    }
+
     public function test_available_models_view_explains_filters_and_links_reusable_assets_to_the_model(): void
     {
         $category = Category::factory()->forAssets()->create([

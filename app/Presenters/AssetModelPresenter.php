@@ -190,18 +190,6 @@ class AssetModelPresenter extends Presenter
 
         ];
 
-        if (auth()->check() && auth()->user()->hasAccess('models.request')) {
-            $layout[] = [
-                'field' => 'request',
-                'searchable' => false,
-                'sortable' => false,
-                'switchable' => false,
-                'title' => 'Total Needed',
-                'formatter' => 'modelRequestActionsFormatter',
-                'printIgnore' => true,
-            ];
-        }
-
         $layout[] = [
             'field' => 'actions',
             'searchable' => false,

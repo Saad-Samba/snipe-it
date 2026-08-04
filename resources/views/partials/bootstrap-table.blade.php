@@ -1929,43 +1929,6 @@
         openModelRequestCartModal();
     });
 
-    function getInlineModelBookingQuantity(modelId) {
-        var value = $('#model-booking-quantity-' + modelId).val();
-        var quantity = parseInt(value, 10);
-
-        return Number.isFinite(quantity) ? quantity : 0;
-    }
-
-    function getInlineModelDisciplineId(modelId) {
-        var value = $('#model-booking-discipline-' + modelId).val();
-        var disciplineId = parseInt(value, 10);
-
-        return Number.isFinite(disciplineId) ? disciplineId : 0;
-    }
-
-    function getInlineModelCompanyId(modelId) {
-        var value = $('#model-booking-company-' + modelId).val();
-        var companyId = parseInt(value, 10);
-
-        return Number.isFinite(companyId) ? companyId : 0;
-    }
-
-    function buildInlineBookingInput(modelId, quantity) {
-        return '<input type="number" min="1" id="model-booking-quantity-' + modelId + '" value="' + quantity + '" class="form-control input-sm model-request-inline-control" style="width:70px;height:30px;padding:4px 6px;display:inline-block;">';
-    }
-
-    function buildInlineDisciplineSelect(modelId, selectedDisciplineId) {
-        return '<select id="model-booking-discipline-' + modelId + '" class="form-control input-sm model-request-inline-control" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
-            + buildModelRequestDisciplineOptions(selectedDisciplineId || '')
-            + '</select>';
-    }
-
-    function buildInlineCompanySelect(modelId, selectedCompanyId) {
-        return '<select id="model-booking-company-' + modelId + '" class="form-control input-sm model-request-inline-control" style="width:150px;height:30px;padding:4px 6px;display:inline-block;">'
-            + buildModelRequestCompanyOptions(selectedCompanyId || '')
-            + '</select>';
-    }
-
     function addLinesToRequestCart(lines, openCartOnSuccess) {
         return $.ajax({
             url: modelRequestCartAddUrl,
@@ -1995,64 +1958,6 @@
             window.alert(message);
         });
     }
-
-    $('#modelsBulkForm').off('submit.model-booking').on('submit.model-booking', function (event) {
-        var bulkAction = $(this).find('select[name="bulk_actions"]').val();
-
-        if (bulkAction !== 'request') {
-            return true;
-        }
-
-        event.preventDefault();
-
-        var $table = $('#asssetModelsTable');
-        var rows = $table.bootstrapTable('getSelections');
-
-        if (!rows.length) {
-            window.alert('Select at least one model.');
-            return false;
-        }
-
-        var lines = [];
-
-        for (var i = 0; i < rows.length; i++) {
-            var row = rows[i];
-
-            if (!row.available_actions || row.available_actions.request !== true) {
-                window.alert('Only requestable models can be added to the cart.');
-                return false;
-            }
-
-            var quantity = getInlineModelBookingQuantity(row.id);
-            var disciplineId = getInlineModelDisciplineId(row.id);
-            var companyId = getInlineModelCompanyId(row.id);
-
-            if (!quantity) {
-                window.alert('Enter a total needed quantity for each selected model.');
-                return false;
-            }
-
-            if (!disciplineId) {
-                window.alert('Select a discipline for each selected model.');
-                return false;
-            }
-
-            if (!companyId) {
-                window.alert('Select a company for each selected model.');
-                return false;
-            }
-
-            lines.push({
-                model_id: row.id,
-                quantity: quantity,
-                discipline_id: disciplineId,
-                company_id: companyId
-            });
-        }
-
-        addLinesToRequestCart(lines, true);
-        return false;
-    });
 
     function openModelRequestModal(options) {
         ensureModelRequestModal();
@@ -2312,21 +2217,6 @@
 
             $(errorTarget).text(message).show();
         });
-    }
-
-    function modelRequestActionsFormatter(value, row) {
-        var requestedQuantity = 1;
-
-        if ((row.available_actions) && (row.available_actions.request === true)) {
-            return '<div style="display:flex;align-items:center;gap:6px;min-width:104px;">'
-                + buildInlineBookingInput(row.id, requestedQuantity)
-                + buildInlineDisciplineSelect(row.id, '')
-                + buildInlineCompanySelect(row.id, '')
-                + '<button type="button" class="btn btn-primary btn-sm model-request-inline-control" style="width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;" data-tooltip="true" title="Add to cart" onclick="var quantity = getInlineModelBookingQuantity(' + row.id + '); var disciplineId = getInlineModelDisciplineId(' + row.id + '); var companyId = getInlineModelCompanyId(' + row.id + '); if (!quantity) { window.alert(\'Enter a total needed quantity first.\'); return; } if (!disciplineId) { window.alert(\'Select a discipline first.\'); return; } if (!companyId) { window.alert(\'Select a company first.\'); return; } addLinesToRequestCart([{ model_id: ' + row.id + ', quantity: quantity, discipline_id: disciplineId, company_id: companyId }], false);"><i class=\"fas fa-cart-plus\" aria-hidden=\"true\"></i><span class=\"sr-only\">Add to cart</span></button>'
-                + '</div>';
-        }
-
-        return '';
     }
 
     function requestStatusFormatter(value) {

@@ -1,220 +1,205 @@
 @extends('layouts/default')
 
 @section('title0')
-  {{ trans('general.requestable_items') }}
+    Request Models
 @stop
 
-{{-- Page title --}}
 @section('title')
-    @yield('title0')  @parent
+    @yield('title0') @parent
 @stop
 
-{{-- Page content --}}
 @section('content')
-
 <div class="row">
     <div class="col-md-12">
-
-
-        @if (($assets->count() < 1) && ($models->count() < 1))
-
-            <div class="col-md-12">
-                <div class="alert alert-info fade in">
-                    <i class="fas fa-info-circle faa-pulse animated"></i>
-                    <strong>{{ trans('general.notification_info') }}: </strong>
-                    {{ trans('general.no_requestable') }}
+        <div class="box box-default">
+            <div class="box-header with-border">
+                <div class="pull-right">
+                    <a href="{{ route('requests.index') }}" class="btn btn-default">
+                        <i class="fas fa-list" aria-hidden="true"></i>
+                        Submitted Requests
+                    </a>
+                    <button type="button" class="btn btn-primary" id="modelRequestCartButton">
+                        <i class="fas fa-shopping-cart" aria-hidden="true"></i>
+                        Request Cart
+                        <span class="badge" id="modelRequestCartCount">{{ count(session('model_request_cart', [])) }}</span>
+                    </button>
                 </div>
+                <h2 class="box-title">Request Models</h2>
+                <p class="help-block" style="margin-bottom:0;">
+                    Select a reusable model, add the required quantity and destination scope, then submit the cart for one project and needed-by date.
+                </p>
             </div>
 
-        @else
-        <div class="nav-tabs-custom">
-            <ul class="nav nav-tabs">
-                @if ($assets->count() > 0)
-                <li class="active">
-                    <a href="#assets" data-toggle="tab" title="{{ trans('general.assets') }}">{{ trans('general.assets') }}
-                        <span class="badge badge-secondary"> {{ $assets->count()}}</span>
-                    </a>               
-                </li>
-                @endif
-                @if ($models->count() > 0)
-                <li>
-                    <a href="#models" data-toggle="tab" title="{{ trans('general.asset_models') }}">{{ trans('general.asset_models') }}
-                        <span class="badge badge-secondary"> {{ $models->count()}}</span>
-                    </a>                   
-                </li>
-                @endif
-            </ul>
-            <div class="tab-content">
-                @if ($assets->count() > 0)
-                <div class="tab-pane fade in active" id="assets">
-                    <div class="row">
-                        <div class="col-md-12">
-                                <div class="table-responsive">
-                                    <table
-                                        data-cookie-id-table="requestableAssetsListingTable"
-                                        data-id-table="requestableAssetsListingTable"
-                                        data-side-pagination="server"
-                                        data-show-export="false"
-                                        data-show-footer="false"
-                                        data-sort-order="asc"
-                                        data-sort-name="name"
-                                        data-toolbar="#assetsBulkEditToolbar"
-                                        data-bulk-button-id="#bulkAssetEditButton"
-                                        data-bulk-form-id="#assetsBulkForm"
-                                        id="assetsListingTable"
-                                        class="table table-striped snipe-table"
-                                        data-url="{{ route('api.assets.requestable', ['requestable' => true]) }}">
-
-                                        <thead>
-                                            <tr>
-                                                <th class="col-md-1" data-field="image" data-formatter="imageFormatter" data-sortable="true">{{ trans('general.image') }}</th>
-                                                <th class="col-md-2" data-field="asset_tag" data-sortable="true" >{{ trans('general.asset_tag') }}</th>                                                
-                                                <th class="col-md-2" data-field="model" data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
-                                                <th class="col-md-2" data-field="model_number" data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
-                                                <th class="col-md-2" data-field="name" data-sortable="true">{{ trans('admin/hardware/form.name') }}</th>
-                                                <th class="col-md-3" data-field="serial" data-sortable="true">{{ trans('admin/hardware/table.serial') }}</th>
-                                                <th class="col-md-2" data-field="location" data-sortable="true">{{ trans('admin/hardware/table.location') }}</th>
-                                                <th class="col-md-2" data-field="status" data-sortable="true">{{ trans('admin/hardware/table.status') }}</th>
-                                                <th class="col-md-2" data-field="expected_checkin" data-formatter="dateDisplayFormatter" data-sortable="true">{{ trans('admin/hardware/form.expected_checkin') }}</th>
-
-                                                @foreach(\App\Models\CustomField::get() as $field)
-                                                    @if (($field->field_encrypted=='0') && ($field->show_in_requestable_list=='1'))
-                                                        <th class="col-md-2" data-field="custom_fields.{{ $field->db_column }}" data-sortable="true">{{ $field->name }}</th>
-                                                    @endif
-                                                @endforeach
-                                                <th class="col-md-1" data-formatter="assetRequestActionsFormatter" data-field="actions" data-sortable="false">{{ trans('table.actions') }}</th>
-                                            </tr>
-                                        </thead>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+            <div class="box-body">
+                @if ($models->isEmpty())
+                    <div class="alert alert-info fade in" style="margin-bottom:0;">
+                        <i class="fas fa-info-circle" aria-hidden="true"></i>
+                        No models with reusable inventory are currently available.
+                    </div>
+                @else
+                    <div class="table-responsive">
+                        <table
+                            id="requestableModelsTable"
+                            class="table table-striped snipe-table"
+                            data-id-table="requestableModelsTable"
+                            data-cookie-id-table="requestableModelsTable"
+                            data-search="true"
+                            data-pagination="true">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="false">{{ trans('general.image') }}</th>
+                                    <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
+                                    <th data-sortable="true">{{ trans('general.category') }}</th>
+                                    <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
+                                    <th data-sortable="true">Reusable Assets</th>
+                                    <th data-sortable="true">Reference Price</th>
+                                    <th data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($models as $requestableModel)
+                                    <tr>
+                                        <td>
+                                            @if ($requestableModel->image && $requestableModel->getImageUrl())
+                                                <img
+                                                    src="{{ $requestableModel->getImageUrl() }}"
+                                                    alt=""
+                                                    style="max-height: {{ $snipeSettings->thumbnail_max_h }}px; width:auto;"
+                                                    class="img-responsive">
+                                            @endif
+                                        </td>
+                                        <td>{{ $requestableModel->name }}</td>
+                                        <td>{{ $requestableModel->category?->name }}</td>
+                                        <td>{{ $requestableModel->model_number }}</td>
+                                        <td>{{ $requestableModel->reusable_assets_count }}</td>
+                                        <td>
+                                            @if ($requestableModel->reference_price !== null)
+                                                {{ App\Helpers\Helper::formatCurrencyOutput($requestableModel->reference_price) }}
+                                            @else
+                                                &mdash;
+                                            @endif
+                                        </td>
+                                        <td class="text-right">
+                                            <button
+                                                type="button"
+                                                class="btn btn-primary btn-sm add-model-to-request-cart"
+                                                data-model-id="{{ $requestableModel->id }}"
+                                                data-model-name="{{ $requestableModel->name }}">
+                                                <i class="fas fa-cart-plus" aria-hidden="true"></i>
+                                                Add to Request
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 @endif
+            </div>
+        </div>
+    </div>
+</div>
 
-                @if ($models->count() > 0)
-                <div class="tab-pane fade in {{ ($assets->count() == 0) ? 'active' : '' }}" id="models">
-                    <div class="row">
-                        <div class="col-md-12">
-                                <table
-                                        name="requested-assets"
-                                        data-toolbar="#toolbar"
-                                        class="table table-striped snipe-table"
-                                        id="table"
-                                        data-id-table="advancedTable"
-                                        data-cookie-id-table="requestableAssets">
-                                <thead>
-                                    <tr role="row">
-                                        <th class="col-md-1" data-sortable="true">{{ trans('general.image') }}</th>
-                                        <th class="col-md-6" data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
-                                        <th class="col-md-2" data-sortable="true">{{ trans('admin/accessories/general.remaining') }}</th>
-                                        <th class="col-md-2 actions" data-sortable="false">{{ trans('table.actions') }}</th>
-                                    </tr>
-                                </thead>
+<div class="modal fade" id="add-model-to-request-cart-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form id="add-model-to-request-cart-form">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    <h4 class="modal-title">Add Model to Request</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger" id="add-model-to-request-cart-error" style="display:none;"></div>
+                    <input type="hidden" id="add-model-to-request-cart-model-id">
 
-                                <tbody>
-                                    @foreach($models as $requestableModel)
-                                        <tr>
+                    <div class="form-group">
+                        <label>Model</label>
+                        <p class="form-control-static" id="add-model-to-request-cart-model-name"></p>
+                    </div>
 
-                                                <td>
+                    <div class="form-group">
+                        <label for="add-model-to-request-cart-quantity">Quantity</label>
+                        <input type="number" min="1" value="1" class="form-control" id="add-model-to-request-cart-quantity" required>
+                    </div>
 
-                                                    @if (($requestableModel->image) && ($requestableModel->getImageUrl()))
-                                                        <a href="{{ $requestableModel->getImageUrl() }}" data-toggle="lightbox" data-type="image">
-                                                            <img src="{{ $requestableModel->getImageUrl() }}" style="max-height: {{ $snipeSettings->thumbnail_max_h }}px; width: auto;" class="img-responsive">
-                                                        </a>
-                                                    @endif
+                    <div class="form-group">
+                        <label for="add-model-to-request-cart-discipline">Discipline</label>
+                        <select class="form-control" id="add-model-to-request-cart-discipline" required>
+                            <option value="">{{ trans('general.select_discipline') }}</option>
+                            @foreach (App\Models\Discipline::orderBy('name')->get(['id', 'name']) as $discipline)
+                                <option value="{{ $discipline->id }}">{{ $discipline->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
 
-                                                </td>
-
-                                                <td>
-                                                    @can('view', \App\Models\AssetModel::class)
-                                                        <a href="{{ route('models.show', ['model' => $requestableModel->id]) }}">{{ $requestableModel->name }}</a>
-                                                    @else
-                                                        {{ $requestableModel->name }}
-                                                    @endcan
-                                                </td>
-
-                                                <td>{{$requestableModel->assets->where('requestable', '1')->count()}}</td>
-
-                                                <td>
-                                                    @php($activeRequests = $requestableModel->requests->where('canceled_at', null)->where('user_id', Auth::id()))
-                                                    @php($activeRequest = $activeRequests->count() === 1 ? $activeRequests->first() : null)
-                                                    @php($hasMultipleActiveRequests = $activeRequests->count() > 1)
-                                                    <form action="{{ route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $requestableModel->id])}}" method="POST" accept-charset="utf-8">
-                                                        {{ csrf_field() }}
-                                                        @if ($activeRequest)
-                                                            <input type="hidden" name="request-action" value="cancel">
-                                                        @endif
-                                                    <div class="form-inline">
-                                                        <input type="text" style="width: 70px; margin-right: 10px;" class="form-control" name="request-quantity" value="{{ $activeRequest?->quantity }}" placeholder="{{ trans('general.qty') }}">
-                                                        <select name="requested_discipline_id" class="form-control" style="margin-right: 10px; max-width: 180px;" required>
-                                                            <option value="">{{ trans('general.select_discipline') }}</option>
-                                                            @foreach(\App\Models\Discipline::orderBy('name')->get(['id', 'name']) as $discipline)
-                                                                <option value="{{ $discipline->id }}" @selected((int) $activeRequest?->requested_discipline_id === (int) $discipline->id)>{{ $discipline->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <select name="company_id" class="form-control" style="margin-right: 10px; max-width: 180px;" required>
-                                                            <option value="">{{ trans('general.select_company') }}</option>
-                                                            @foreach(\App\Models\Company::orderBy('name')->get(['id', 'name']) as $company)
-                                                                <option value="{{ $company->id }}" @selected((int) $activeRequest?->company_id === (int) $company->id)>{{ $company->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <select name="project_id" class="form-control" style="margin-right: 10px; max-width: 180px;" required>
-                                                            <option value="">{{ trans('general.select_project') }}</option>
-                                                            @foreach(\App\Models\Project::orderBy('name')->get(['id', 'name']) as $project)
-                                                                <option value="{{ $project->id }}" @selected((int) $activeRequest?->project_id === (int) $project->id)>{{ $project->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <input type="date" style="margin-right: 10px;" class="form-control" name="needed_by_date" value="{{ optional($activeRequest?->needed_by_date)->format('Y-m-d') }}" required>
-                                                    @if ($activeRequest)
-                                                        <input class="btn btn-danger btn-sm" type="submit" value="{{ trans('button.cancel') }}">
-                                                    @else
-                                                        <input class="btn btn-primary btn-sm" type="submit" value="{{ trans('button.request') }}">
-                                                    @endif
-                                                    </div>
-                                                    @if ($hasMultipleActiveRequests)
-                                                        <p class="help-block" style="margin-top: 8px;">
-                                                            Manage existing requests from <a href="{{ route('requests.index', ['model_id' => $requestableModel->id]) }}">Submitted Requests</a>.
-                                                        </p>
-                                                    @endif
-                                                    </form>
-                                                </td>
-                                        </tr>
-
-                                    @endforeach
-                                </tbody>
-                            </table>
-
-                        </div>
+                    <div class="form-group">
+                        <label for="add-model-to-request-cart-company">{{ trans('general.company') }}</label>
+                        <select class="form-control" id="add-model-to-request-cart-company" required>
+                            <option value="">{{ trans('general.select_company') }}</option>
+                            @foreach (App\Models\Company::orderBy('name')->get(['id', 'name']) as $company)
+                                <option value="{{ $company->id }}">{{ $company->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
-                @endif
-
-            </div> <!-- .tab-content-->
-        </div> <!-- .nav-tabs-custom -->
-
-        @endif
-    </div> <!-- .col-md-12> -->
-</div> <!-- .row -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-cart-plus" aria-hidden="true"></i>
+                        Add to Cart
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @stop
 
-
 @section('moar_scripts')
-    @include ('partials.bootstrap-table', [
-        'exportFile' => 'requested-export',
+    @include('partials.bootstrap-table', [
+        'exportFile' => 'requestable-models-export',
         'search' => true,
         'clientSearch' => true,
     ])
 
-
     <script nonce="{{ csrf_token() }}">
+        $(document)
+            .off('click.add-model-request', '.add-model-to-request-cart')
+            .on('click.add-model-request', '.add-model-to-request-cart', function () {
+                var button = $(this);
 
-    $( "a[name='Request']").click(function(event) {
-        // event.preventDefault();
-        quantity = $(this).closest('td').siblings().find('input').val();
-        currentUrl = $(this).attr('href');
-        // $(this).attr('href', currentUrl + '?quantity=' + quantity);
-        // alert($(this).attr('href'));
-    });
-</script>
+                $('#add-model-to-request-cart-model-id').val(button.data('model-id'));
+                $('#add-model-to-request-cart-model-name').text(button.data('model-name'));
+                $('#add-model-to-request-cart-quantity').val(1);
+                $('#add-model-to-request-cart-discipline').val('');
+                $('#add-model-to-request-cart-company').val('');
+                $('#add-model-to-request-cart-error').hide().text('');
+                $('#add-model-to-request-cart-modal').modal('show');
+            });
+
+        $('#add-model-to-request-cart-form').on('submit', function (event) {
+            event.preventDefault();
+
+            var modelId = parseInt($('#add-model-to-request-cart-model-id').val(), 10);
+            var quantity = parseInt($('#add-model-to-request-cart-quantity').val(), 10);
+            var disciplineId = parseInt($('#add-model-to-request-cart-discipline').val(), 10);
+            var companyId = parseInt($('#add-model-to-request-cart-company').val(), 10);
+
+            if (!modelId || !quantity || !disciplineId || !companyId) {
+                $('#add-model-to-request-cart-error').text('Quantity, discipline, and company are required.').show();
+                return;
+            }
+
+            addLinesToRequestCart([{
+                model_id: modelId,
+                quantity: quantity,
+                discipline_id: disciplineId,
+                company_id: companyId
+            }], false).done(function () {
+                $('#add-model-to-request-cart-modal').modal('hide');
+            });
+        });
+    </script>
 @stop
