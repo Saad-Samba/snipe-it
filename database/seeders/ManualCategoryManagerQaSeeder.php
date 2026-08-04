@@ -73,6 +73,27 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ]
         );
 
+        $eplRequester = User::withoutGlobalScopes()->updateOrCreate(
+            ['username' => 'qa-epl-requester'],
+            [
+                'first_name' => 'QA',
+                'last_name' => 'EPL Requester',
+                'display_name' => 'QA EPL Requester',
+                'email' => 'qa-epl-requester@example.com',
+                'activated' => 1,
+                'company_id' => null,
+                'locale' => 'en-US',
+                'permissions' => json_encode([
+                    'assets.view' => '1',
+                    'models.view' => '1',
+                    'models.request' => '1',
+                ]),
+                'password' => bcrypt('password'),
+                'notes' => 'Deterministic EPL requester for reusable inventory request workflow QA.',
+                'created_by' => $admin->id,
+            ]
+        );
+
         $casablancaCoordinator = User::withoutGlobalScopes()->updateOrCreate(
             ['username' => 'qa-category-coordinator-casa'],
             [
@@ -131,17 +152,17 @@ class ManualCategoryManagerQaSeeder extends Seeder
 
         $alphaProject = Project::withoutGlobalScopes()->updateOrCreate(
             ['name' => 'QA Alpha Project'],
-            ['created_by' => $admin->id]
+            ['created_by' => $eplRequester->id]
         );
 
         $betaProject = Project::withoutGlobalScopes()->updateOrCreate(
             ['name' => 'QA Beta Project'],
-            ['created_by' => $admin->id]
+            ['created_by' => $eplRequester->id]
         );
 
         $crossSiteProject = Project::withoutGlobalScopes()->updateOrCreate(
             ['name' => 'QA Cross-Site Project'],
-            ['created_by' => $admin->id]
+            ['created_by' => $eplRequester->id]
         );
 
         $powerDisciplineId = DB::table('disciplines')->where('name', 'QA Power Discipline')->value('id');
@@ -370,42 +391,42 @@ class ManualCategoryManagerQaSeeder extends Seeder
 
         $alphaRequest = CheckoutRequest::withoutGlobalScopes()->updateOrCreate(
             [
-                'user_id' => $alphaManager->id,
                 'requestable_id' => $alphaModelA->id,
                 'requestable_type' => AssetModel::class,
+                'project_id' => $alphaProject->id,
                 'canceled_at' => null,
             ],
             [
+                'user_id' => $eplRequester->id,
                 'quantity' => 2,
-                'project_id' => $alphaProject->id,
                 'fulfilled_at' => null,
             ]
         );
 
         $betaRequest = CheckoutRequest::withoutGlobalScopes()->updateOrCreate(
             [
-                'user_id' => $betaManager->id,
                 'requestable_id' => $alphaModelB->id,
                 'requestable_type' => AssetModel::class,
+                'project_id' => $betaProject->id,
                 'canceled_at' => null,
             ],
             [
+                'user_id' => $eplRequester->id,
                 'quantity' => 1,
-                'project_id' => $betaProject->id,
                 'fulfilled_at' => null,
             ]
         );
 
         $crossSiteRequest = CheckoutRequest::withoutGlobalScopes()->updateOrCreate(
             [
-                'user_id' => $alphaManager->id,
                 'requestable_id' => $crossSiteModel->id,
                 'requestable_type' => AssetModel::class,
+                'project_id' => $crossSiteProject->id,
                 'canceled_at' => null,
             ],
             [
+                'user_id' => $eplRequester->id,
                 'quantity' => 2,
-                'project_id' => $crossSiteProject->id,
                 'status' => CheckoutRequest::STATUS_PENDING,
                 'fulfilled_at' => null,
             ]
@@ -413,8 +434,11 @@ class ManualCategoryManagerQaSeeder extends Seeder
 
         foreach ([$alphaRequest, $betaRequest, $crossSiteRequest] as $request) {
             $request->allocatedAssets()->detach();
+            $request->coordinatorTargets()->delete();
             $request->status = CheckoutRequest::STATUS_PENDING;
             $request->fulfilled_at = null;
+            $request->alternative_follow_up_notified_at = null;
+            $request->rac_routing_alerted_at = null;
             $request->save();
         }
 
@@ -426,6 +450,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $this->command?->line('Admin: qa-category-admin / password');
         $this->command?->line('AFM Alpha: qa-category-alpha / password');
         $this->command?->line('AFM Beta: qa-category-beta / password');
+        $this->command?->line('EPL requester: qa-epl-requester / password');
         $this->command?->line('RAC Casablanca: qa-category-coordinator-casa / password');
         $this->command?->line('RAC Rabat: qa-category-coordinator-rabat / password');
         $this->command?->line('Alpha manager categories: QA Category Family Alpha, QA Category Family Bravo');
@@ -433,13 +458,13 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $this->command?->line('Unassigned control: QA Category Family Unassigned');
         $this->command?->line('Expected Alpha counts: 2 available models, 3 remaining assets');
         $this->command?->line('Expected Bravo counts: 0 available models, 0 remaining assets');
-        $this->command?->line('AFM request demo models: QA Alpha Model A, QA Alpha Model B');
+        $this->command?->line('EPL request demo models: QA Alpha Model A, QA Alpha Model B');
         $this->command?->line('Inherited fieldset demo: QA Alpha Technical Details on QA Category Family Alpha');
         $this->command?->line('Cross-site request demo model: QA Cross-Site Model');
         $this->command?->line('Seeded request projects: QA Alpha Project, QA Beta Project, QA Cross-Site Project');
         $this->command?->line('Routing companies: QA Casablanca Site, QA Rabat Site');
         $this->command?->line('Routing discipline on eligible assets: QA Power Discipline');
-        $this->command?->line('Notifications target the routed RACs, while AFMs track booked counts through the request project.');
+        $this->command?->line('Notifications target the routed RACs, while the EPL tracks booked counts through the request project.');
     }
 
     private function upsertCategory(
