@@ -52,6 +52,7 @@
                             data-cookie-id-table="requestableModelsTable"
                             data-bulk-button-id="#requestableModelsBulkAddButton"
                             data-bulk-form-id="#requestableModelsBulkForm"
+                            data-click-to-select="false"
                             data-search="true"
                             data-pagination="true">
                             <thead>
