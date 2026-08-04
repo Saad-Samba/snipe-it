@@ -221,6 +221,11 @@ class IndexAssetModelsTest extends TestCase
         ]);
 
         Asset::factory()->create([
+            'model_id' => $availableModel->id,
+            'status_id' => Statuslabel::factory()->pending()->create()->id,
+        ]);
+
+        Asset::factory()->create([
             'model_id' => $unavailableModel->id,
             'status_id' => $deployableStatus->id,
             'assigned_to' => $assignedUser->id,
@@ -241,6 +246,7 @@ class IndexAssetModelsTest extends TestCase
             ->assertJson(fn (AssertableJson $json) => $json
                 ->where('total', 1)
                 ->where('rows.0.name', 'Available Model')
+                ->where('rows.0.remaining', 1)
                 ->missing('rows.1')
                 ->etc());
     }

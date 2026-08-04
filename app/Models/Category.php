@@ -34,6 +34,7 @@ class Category extends SnipeModel
 
     protected $casts = [
         'alert_on_response' => 'boolean',
+        'checkin_email'     => 'boolean',
         'created_by'      => 'integer',
         'manager_id'      => 'integer',
     ];
@@ -84,6 +85,20 @@ class Category extends SnipeModel
     ];
 
     use Searchable;
+
+    /**
+     * Asset custody changes always notify the affected user. Keep the legacy
+     * category field for upstream compatibility while enforcing one company
+     * policy across web, API, imports, seeders, and other save paths.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Category $category) {
+            if ($category->category_type === 'asset') {
+                $category->checkin_email = true;
+            }
+        });
+    }
 
     /**
      * The attributes that should be included when searching the model.

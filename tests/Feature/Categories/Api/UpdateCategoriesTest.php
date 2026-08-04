@@ -34,6 +34,7 @@ class UpdateCategoriesTest extends TestCase
                 'notes' => 'Test Note Edited',
                 'require_acceptance' => true,
                 'alert_on_response' => true,
+                'checkin_email' => false,
             ])
             ->assertOk()
             ->assertStatusMessageIs('success')
@@ -45,6 +46,7 @@ class UpdateCategoriesTest extends TestCase
         $this->assertEquals($fieldset->id, $category->fieldset_id, 'Fieldset was not updated');
         $this->assertEquals(0, $category->require_acceptance, 'Require acceptance should remain disabled');
         $this->assertFalse($category->alert_on_response, 'Acceptance response alerts should remain disabled');
+        $this->assertTrue($category->checkin_email, 'Asset category emails should remain enabled');
     }
 
     public function testCanUpdateCategoryViaPatchWithoutCategoryType()

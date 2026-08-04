@@ -74,21 +74,6 @@
     </div>
 @endif
 
-<div class="form-group">
-    <div class="col-md-9 col-md-offset-3">
-        <label class="form-control">
-            <input
-                type="checkbox"
-                name="checkin_email"
-                value="1"
-                @checked(old('checkin_email', $item->checkin_email))
-                aria-label="checkin_email"
-            />
-            {{ trans('admin/categories/general.email_to_user_upon_checkin_and_checkout') }}
-        </label>
-    </div>
-</div>
-
 @include ('partials.forms.edit.image-upload', ['image_path' => app('categories_upload_path')])
 
 <div class="form-group{!! $errors->has('notes') ? ' has-error' : '' !!}">

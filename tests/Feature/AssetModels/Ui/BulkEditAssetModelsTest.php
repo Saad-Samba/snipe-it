@@ -75,6 +75,23 @@ class BulkEditAssetModelsTest extends TestCase
         });
     }
 
+    public function test_bulk_web_update_does_not_change_minimum_quantity(): void
+    {
+        $models = AssetModel::factory()->count(2)->create(['min_amt' => 5]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->post(route('models.bulkedit.store'), [
+                'ids' => $models->pluck('id')->all(),
+                'min_amt' => 10,
+                'reference_price' => 100,
+            ])
+            ->assertRedirect(route('models.index'));
+
+        AssetModel::findMany($models->pluck('id'))->each(function (AssetModel $model) {
+            $this->assertSame(5, $model->min_amt);
+        });
+    }
+
     public function testAfmCannotBulkEditUnmanagedModels()
     {
         $afm = User::factory()->create();

@@ -62,7 +62,9 @@ class AssetModelsTransformer
             'assets_count' => (int) $assetmodel->assets_count,
             'assets_assigned_count' => (int) $assetmodel->assets_assigned_count,
             'assets_archived_count' => (int) $assetmodel->assets_archived_count,
-            'remaining' => (int) ($assetmodel->assets_count - (int) $assetmodel->assets_assigned_count) - (int) $assetmodel->assets_archived_count,
+            'remaining' => isset($assetmodel->remaining)
+                ? (int) $assetmodel->remaining
+                : (int) ($assetmodel->assets_count - (int) $assetmodel->assets_assigned_count) - (int) $assetmodel->assets_archived_count,
             'category' => ($assetmodel->category) ? [
                 'id' => (int) $assetmodel->category->id,
                 'name'=> e($assetmodel->category->name),

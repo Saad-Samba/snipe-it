@@ -1472,28 +1472,42 @@
         }
     }
 
-    function categoryReusableAssetsFormatter(value, row) {
-        if (value === null || value === undefined) {
-            return '0';
+    function categoryReusableInventoryFormatter(value, row) {
+        if (!row || row.category_type_raw !== 'asset') {
+            return '&mdash;';
         }
 
-        if (!row || row.category_type_raw !== 'asset' || value < 1) {
-            return value;
+        var models = Number(value) || 0;
+        var assets = Number(row.reusable_assets_count) || 0;
+        var modelsLabel = models === 1 ? 'Model' : 'Models';
+        var assetsLabel = assets === 1 ? 'Asset' : 'Assets';
+        var modelMetric = '<span style="display:inline-block; min-width:52px; text-align:left; vertical-align:middle;">'
+            + '<strong style="display:block; font-size:inherit; line-height:inherit; font-weight:600;">' + models + '</strong>'
+            + '<span class="text-muted" style="font-size:inherit; line-height:inherit;">' + modelsLabel + '</span>'
+            + '</span>';
+        var assetMetric = '<span style="display:inline-block; min-width:52px; padding-left:10px; border-left:1px solid #ddd; text-align:left; vertical-align:middle;">'
+            + '<strong style="display:block; font-size:inherit; line-height:inherit; font-weight:600; color:#333;">' + assets + '</strong>'
+            + '<span class="text-muted" style="font-size:inherit; line-height:inherit;">' + assetsLabel + '</span>'
+            + '</span>';
+
+        if (models > 0) {
+            modelMetric = '<a href="{{ route('models.index') }}?category_id=' + row.id + '&available_models=1" style="display:inline-block; min-width:52px; text-align:left; vertical-align:middle;">'
+                + '<strong style="display:block; font-size:inherit; line-height:inherit; font-weight:600;">' + models + '</strong>'
+                + '<span style="font-size:inherit; line-height:inherit;">' + modelsLabel + '</span>'
+                + '</a>';
         }
 
-        return '<a href="{{ route('hardware.index') }}?category_id=' + row.id + '&reusable_assets=1">' + value + '</a>';
+        return '<div style="white-space:nowrap;">' + modelMetric + assetMetric + '</div>';
     }
 
-    function categoryAvailableModelsFormatter(value, row) {
-        if (value === null || value === undefined) {
-            return '0';
+    function modelReusableAssetsFormatter(value, row) {
+        var assets = Number(value) || 0;
+
+        if (!row || assets < 1) {
+            return assets;
         }
 
-        if (!row || row.category_type_raw !== 'asset' || value < 1) {
-            return value;
-        }
-
-        return '<a href="{{ route('models.index') }}?category_id=' + row.id + '&available_models=1">' + value + '</a>';
+        return '<a href="{{ route('hardware.index') }}?model_id=' + row.id + '&reusable_assets=1">' + assets + '</a>';
     }
 
 

@@ -8,6 +8,8 @@ use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\CheckoutRequest;
 use App\Models\Company;
+use App\Models\CustomField;
+use App\Models\CustomFieldset;
 use App\Models\Discipline;
 use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
@@ -189,12 +191,30 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ]
         );
 
+        $alphaFieldset = CustomFieldset::updateOrCreate(
+            ['name' => 'QA Alpha Technical Details'],
+            ['created_by' => $admin->id]
+        );
+        $operatingVoltageField = CustomField::updateOrCreate(
+            ['name' => 'QA Operating Voltage'],
+            [
+                'element' => 'text',
+                'format' => '',
+                'help_text' => 'Nominal operating voltage inherited from the category fieldset.',
+                'created_by' => $admin->id,
+            ]
+        );
+        $alphaFieldset->fields()->syncWithoutDetaching([
+            $operatingVoltageField->id => ['order' => 1, 'required' => false],
+        ]);
+
         $alphaCategory = $this->upsertCategory(
             name: 'QA Category Family Alpha',
             type: 'asset',
             managerId: $alphaManager->id,
             createdBy: $admin->id,
-            notes: 'Managed by Alpha Manager and visible in the AFM assigned-family scope.'
+            notes: 'Managed by Alpha Manager and visible in the AFM assigned-family scope.',
+            fieldsetId: $alphaFieldset->id
         );
 
         $bravoCategory = $this->upsertCategory(
@@ -226,6 +246,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
             categoryId: $alphaCategory->id,
             createdBy: $admin->id
         );
+        $alphaModelA->defaultValues()->syncWithoutDetaching([
+            $operatingVoltageField->id => ['default_value' => '24 VDC'],
+        ]);
 
         $alphaModelB = $this->upsertModel(
             name: 'QA Alpha Model B',
@@ -411,6 +434,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $this->command?->line('Expected Alpha counts: 2 available models, 3 remaining assets');
         $this->command?->line('Expected Bravo counts: 0 available models, 0 remaining assets');
         $this->command?->line('AFM request demo models: QA Alpha Model A, QA Alpha Model B');
+        $this->command?->line('Inherited fieldset demo: QA Alpha Technical Details on QA Category Family Alpha');
         $this->command?->line('Cross-site request demo model: QA Cross-Site Model');
         $this->command?->line('Seeded request projects: QA Alpha Project, QA Beta Project, QA Cross-Site Project');
         $this->command?->line('Routing companies: QA Casablanca Site, QA Rabat Site');
@@ -423,13 +447,15 @@ class ManualCategoryManagerQaSeeder extends Seeder
         string $type,
         ?int $managerId,
         int $createdBy,
-        string $notes
+        string $notes,
+        ?int $fieldsetId = null
     ): Category {
         return Category::withoutGlobalScopes()->updateOrCreate(
             ['name' => $name, 'category_type' => $type],
             [
                 'created_by' => $createdBy,
                 'manager_id' => $managerId,
+                'fieldset_id' => $fieldsetId,
                 'checkin_email' => 0,
                 'require_acceptance' => 0,
                 'use_default_eula' => 0,

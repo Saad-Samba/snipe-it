@@ -99,10 +99,6 @@ class BulkAssetModelsController extends Controller
             $update_array['obsolete'] = $request->input('obsolete');
         }
 
-        if ($request->filled('min_amt')) {
-            $update_array['min_amt'] = $request->input('min_amt');
-        }
-
         if ($request->filled('reference_price')) {
             $update_array['reference_price'] = $request->input('reference_price');
         }

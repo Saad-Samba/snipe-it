@@ -28,6 +28,7 @@ class CreateCategoriesTest extends TestCase
             ->assertDontSee('name="require_acceptance"', false)
             ->assertDontSee('name="eula_text"', false)
             ->assertDontSee('name="use_default_eula"', false)
+            ->assertDontSee('name="checkin_email"', false)
             ->assertDontSee(route('account.accept'), false);
     }
 
@@ -77,6 +78,7 @@ class CreateCategoriesTest extends TestCase
             'notes' => 'My Note',
             'require_acceptance' => 0,
             'alert_on_response' => 0,
+            'checkin_email' => 1,
         ]);
     }
 

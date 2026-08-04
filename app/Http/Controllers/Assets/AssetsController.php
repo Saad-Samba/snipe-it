@@ -15,6 +15,7 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
+use App\Models\Category;
 use App\Models\Company;
 use App\Models\Location;
 use App\Models\Setting;
@@ -66,7 +67,25 @@ class AssetsController extends Controller
     {
         $this->authorize('index', Asset::class);
         $company = Company::find($request->input('company_id'));
+        $filterModel = null;
+        $filterCategory = null;
         $requestContext = null;
+
+        if ($request->filled('model_id')) {
+            $filterModel = AssetModel::query()
+                ->managedBy(auth()->user())
+                ->with('category')
+                ->find((int) $request->input('model_id'));
+        }
+
+        if ($request->filled('category_id')) {
+            $filterCategory = Category::query()
+                ->managedBy(auth()->user())
+                ->where('category_type', 'asset')
+                ->find((int) $request->input('category_id'));
+        } elseif ($filterModel) {
+            $filterCategory = $filterModel->category;
+        }
 
         if ($request->filled('request_id')) {
             $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project', 'company', 'requestedDiscipline', 'coordinatorTargets'])->find((int) $request->input('request_id'));
@@ -89,6 +108,8 @@ class AssetsController extends Controller
 
         return view('hardware/index')
             ->with('company', $company)
+            ->with('filterModel', $filterModel)
+            ->with('filterCategory', $filterCategory)
             ->with('requestContext', $requestContext);
     }
 

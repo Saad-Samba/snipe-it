@@ -88,8 +88,6 @@
                                 </div>
                             @endif
 
-                            @include ('partials.forms.edit.minimum_quantity')
-
                             <div class="form-group {{ $errors->has('reference_price') ? ' has-error' : '' }}">
                                 <label for="reference_price" class="col-md-3 control-label">Reference Price</label>
                                 <div class="col-md-7">

@@ -3,6 +3,8 @@
 @section('title0')
 @if (isset($requestContext) && $requestContext)
   Request #{{ $requestContext->id }}
+@elseif (($filterModel ?? null) && request()->boolean('reusable_assets'))
+  Reusable Assets — {{ $filterModel->name }}
 @else
 
   @if ((Request::get('company_id')) && ($company))
@@ -62,6 +64,37 @@
   <div class="col-md-12">
     <div class="box">
       <div class="box-body">
+          @php
+              $activeTableFilters = [];
+
+              if ($filterModel ?? null) {
+                  $activeTableFilters[] = [
+                      'label' => 'Model: '.$filterModel->name,
+                      'remove_url' => route('hardware.index', request()->except('model_id')),
+                  ];
+              } elseif (($filterCategory ?? null) && request()->filled('category_id')) {
+                  $activeTableFilters[] = [
+                      'label' => 'Category: '.$filterCategory->name,
+                      'remove_url' => route('hardware.index', request()->except('category_id')),
+                  ];
+              }
+
+              if (request()->boolean('reusable_assets')) {
+                  $activeTableFilters[] = [
+                      'label' => 'Availability: Reusable',
+                      'remove_url' => route('hardware.index', request()->except('reusable_assets')),
+                  ];
+              }
+
+              $clearFiltersUrl = route('hardware.index');
+              $backToContextUrl = ($filterCategory ?? null)
+                  ? route('models.index', ['category_id' => $filterCategory->id, 'available_models' => 1])
+                  : null;
+              $backToContextLabel = ($filterCategory ?? null) ? 'Back to available models' : null;
+          @endphp
+
+          @include('partials.table-filter-context')
+
           @if ($coordinatorTarget)
             <div class="alert alert-info">
                 <strong>Coordinator review</strong>

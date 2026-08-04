@@ -161,13 +161,6 @@
                         </li>
                     @endif
 
-                    @if ($model->min_amt)
-                        <li>
-                            <strong>{{ trans('general.min_amt') }}</strong>:
-                           {{$model->min_amt }}
-                        </li>
-                    @endif
-
                     @if ($model->manufacturer)
                         <li>
                             <strong>{{ trans('general.manufacturer') }}</strong>:

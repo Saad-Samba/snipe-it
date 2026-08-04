@@ -38,11 +38,20 @@ class AssetModelsController extends Controller
      * @author [A. Gianotto] [<snipe@snipe.net>]
      * @since [v1.0]
      */
-    public function index() : View
+    public function index(Request $request) : View
     {
         $this->authorize('index', AssetModel::class);
 
-        return view('models/index');
+        $filterCategory = null;
+
+        if ($request->filled('category_id')) {
+            $filterCategory = Category::query()
+                ->managedBy(auth()->user())
+                ->where('category_type', 'asset')
+                ->find((int) $request->input('category_id'));
+        }
+
+        return view('models/index')->with('filterCategory', $filterCategory);
     }
 
     /**
@@ -75,7 +84,6 @@ class AssetModelsController extends Controller
         $model->eol = $request->input('eol');
         $model->name = $request->input('name');
         $model->model_number = $request->input('model_number');
-        $model->min_amt = $request->input('min_amt');
         $model->reference_price = $request->input('reference_price');
         $model->manufacturer_id = $request->input('manufacturer_id');
         $model->category_id = $request->input('category_id');
@@ -153,7 +161,6 @@ class AssetModelsController extends Controller
         $model->eol = $request->input('eol');
         $model->name = $request->input('name');
         $model->model_number = $request->input('model_number');
-        $model->min_amt = $request->input('min_amt');
         $model->reference_price = $request->input('reference_price');
         $model->manufacturer_id = $request->input('manufacturer_id');
         $model->category_id = $request->input('category_id');

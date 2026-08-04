@@ -25,7 +25,9 @@ class CreateAssetModelsTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('models.create'))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee(trans('admin/models/general.eol_help'))
+            ->assertDontSee('name="min_amt"', false);
     }
 
     public function testAfmCannotAccessCreatePageWithoutManagedCategories()

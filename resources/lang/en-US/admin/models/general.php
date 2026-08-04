@@ -18,6 +18,7 @@ return array(
     'default_values_help'       => 'Optional values entered here are prefilled when creating assets of this model and can still be changed on the asset.',
     'no_category_fieldset'      => 'No fieldset assigned to this Category',
     'obsolete_help'             => 'Mark as obsolete when the model is no longer supported or supplied by the manufacturer (e.g. removed from official catalogue or marked end-of-life), or when it is no longer suitable for use within current operational requirements.',
+    'eol_help'                  => 'Enter the expected life of the model in months. For each asset with a purchase date, its EOL date is calculated as the purchase date plus this value. When expiration alerts are enabled, assets approaching that date are included in the scheduled alert email. An EOL date set explicitly on an asset overrides this calculation.',
     'obsolete_status_warning'   => 'Do not change obsolete status',
     'obsolete_indicator'        => 'Obsolete',
     'obsolete_asset_tooltip'    => 'This asset belongs to a model marked obsolete.',

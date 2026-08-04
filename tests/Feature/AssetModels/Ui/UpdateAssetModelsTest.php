@@ -25,7 +25,22 @@ class UpdateAssetModelsTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('models.edit', AssetModel::factory()->create()))
-            ->assertOk();
+            ->assertOk()
+            ->assertDontSee('name="min_amt"', false);
+    }
+
+    public function test_web_update_preserves_existing_minimum_quantity(): void
+    {
+        $model = AssetModel::factory()->create(['min_amt' => 5]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => $model->name,
+                'category_id' => $model->category_id,
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertSame(5, $model->fresh()->min_amt);
     }
 
     public function testEditPageShowsCategoryFieldsetDefaultsWithoutModelOverrideControls()

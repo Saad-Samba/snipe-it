@@ -21,8 +21,11 @@ class IndexCategoriesTest extends TestCase
             ->get(route('categories.index'))
             ->assertOk()
             ->assertSee('Category Manager', false)
-            ->assertSee('Available Models', false)
-            ->assertSee('Available Assets', false)
+            ->assertSee('Reusable Inventory', false)
+            ->assertDontSee('&quot;title&quot;:&quot;Available Models&quot;', false)
+            ->assertDontSee('&quot;title&quot;:&quot;Available Assets&quot;', false)
+            ->assertDontSee('&quot;title&quot;:&quot;Send Email&quot;', false)
+            ->assertSee('categoryReusableInventoryFormatter', false)
             ->assertDontSee('My Categories', false);
     }
 

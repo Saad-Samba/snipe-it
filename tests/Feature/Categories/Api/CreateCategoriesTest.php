@@ -54,6 +54,7 @@ class CreateCategoriesTest extends TestCase
                 'notes' => 'Test Note',
                 'require_acceptance' => true,
                 'alert_on_response' => true,
+                'checkin_email' => false,
             ])
             ->assertOk()
             ->assertStatusMessageIs('success')
@@ -70,6 +71,7 @@ class CreateCategoriesTest extends TestCase
         $this->assertEquals($fieldset->id, $category->fieldset_id);
         $this->assertEquals(0, $category->require_acceptance);
         $this->assertFalse($category->alert_on_response);
+        $this->assertTrue($category->checkin_email);
     }
 
     public function testCannotCreateCategoryWithoutCategoryType()
