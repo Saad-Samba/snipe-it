@@ -216,7 +216,7 @@
                 lines.push(line);
             }
 
-            addLinesToRequestCart(lines, true);
+            addLinesToRequestCart(lines, false);
             return false;
         });
     </script>
