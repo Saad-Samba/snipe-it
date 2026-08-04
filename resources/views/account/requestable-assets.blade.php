@@ -26,7 +26,7 @@
                 </div>
                 <h2 class="box-title">Request Models</h2>
                 <p class="help-block" style="margin-bottom:0;">
-                    Select a reusable model, add the required quantity and destination scope, then submit the cart for one project and needed-by date.
+                    Enter the required quantity and destination scope, add one or several models to the cart, then submit the cart for one project and needed-by date.
                 </p>
             </div>
 
@@ -37,28 +37,44 @@
                         No models with reusable inventory are currently available.
                     </div>
                 @else
+                    <form id="requestableModelsBulkForm" class="form-inline" style="margin-bottom:10px;">
+                        <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>
+                            <i class="fas fa-cart-plus" aria-hidden="true"></i>
+                            Add Selected to Cart
+                        </button>
+                    </form>
+
                     <div class="table-responsive">
                         <table
                             id="requestableModelsTable"
                             class="table table-striped snipe-table"
                             data-id-table="requestableModelsTable"
                             data-cookie-id-table="requestableModelsTable"
+                            data-bulk-button-id="#requestableModelsBulkAddButton"
+                            data-bulk-form-id="#requestableModelsBulkForm"
                             data-search="true"
                             data-pagination="true">
                             <thead>
                                 <tr>
+                                    <th data-field="state" data-checkbox="true"></th>
+                                    <th data-field="id" data-visible="false">ID</th>
                                     <th data-sortable="false">{{ trans('general.image') }}</th>
                                     <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
                                     <th data-sortable="true">{{ trans('general.category') }}</th>
                                     <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
                                     <th data-sortable="true">Reusable Assets</th>
                                     <th data-sortable="true">Reference Price</th>
+                                    <th data-sortable="false">Total Needed</th>
+                                    <th data-sortable="false">Discipline</th>
+                                    <th data-sortable="false">{{ trans('general.company') }}</th>
                                     <th data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($models as $requestableModel)
                                     <tr>
+                                        <td></td>
+                                        <td>{{ $requestableModel->id }}</td>
                                         <td>
                                             @if ($requestableModel->image && $requestableModel->getImageUrl())
                                                 <img
@@ -79,12 +95,42 @@
                                                 &mdash;
                                             @endif
                                         </td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value="1"
+                                                id="model-booking-quantity-{{ $requestableModel->id }}"
+                                                class="form-control input-sm model-request-inline-control"
+                                                style="width:70px;">
+                                        </td>
+                                        <td>
+                                            <select
+                                                id="model-booking-discipline-{{ $requestableModel->id }}"
+                                                class="form-control input-sm model-request-inline-control"
+                                                style="width:160px;">
+                                                <option value="">{{ trans('general.select_discipline') }}</option>
+                                                @foreach ($disciplines as $discipline)
+                                                    <option value="{{ $discipline->id }}">{{ $discipline->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select
+                                                id="model-booking-company-{{ $requestableModel->id }}"
+                                                class="form-control input-sm model-request-inline-control"
+                                                style="width:160px;">
+                                                <option value="">{{ trans('general.select_company') }}</option>
+                                                @foreach ($companies as $company)
+                                                    <option value="{{ $company->id }}">{{ $company->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </td>
                                         <td class="text-right">
                                             <button
                                                 type="button"
                                                 class="btn btn-primary btn-sm add-model-to-request-cart"
-                                                data-model-id="{{ $requestableModel->id }}"
-                                                data-model-name="{{ $requestableModel->name }}">
+                                                data-model-id="{{ $requestableModel->id }}">
                                                 <i class="fas fa-cart-plus" aria-hidden="true"></i>
                                                 Add to Request
                                             </button>
@@ -99,62 +145,6 @@
         </div>
     </div>
 </div>
-
-<div class="modal fade" id="add-model-to-request-cart-modal" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <form id="add-model-to-request-cart-form">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                    <h4 class="modal-title">Add Model to Request</h4>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-danger" id="add-model-to-request-cart-error" style="display:none;"></div>
-                    <input type="hidden" id="add-model-to-request-cart-model-id">
-
-                    <div class="form-group">
-                        <label>Model</label>
-                        <p class="form-control-static" id="add-model-to-request-cart-model-name"></p>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="add-model-to-request-cart-quantity">Quantity</label>
-                        <input type="number" min="1" value="1" class="form-control" id="add-model-to-request-cart-quantity" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="add-model-to-request-cart-discipline">Discipline</label>
-                        <select class="form-control" id="add-model-to-request-cart-discipline" required>
-                            <option value="">{{ trans('general.select_discipline') }}</option>
-                            @foreach (App\Models\Discipline::orderBy('name')->get(['id', 'name']) as $discipline)
-                                <option value="{{ $discipline->id }}">{{ $discipline->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="add-model-to-request-cart-company">{{ trans('general.company') }}</label>
-                        <select class="form-control" id="add-model-to-request-cart-company" required>
-                            <option value="">{{ trans('general.select_company') }}</option>
-                            @foreach (App\Models\Company::orderBy('name')->get(['id', 'name']) as $company)
-                                <option value="{{ $company->id }}">{{ $company->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                        Add to Cart
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 @stop
 
 @section('moar_scripts')
@@ -165,41 +155,68 @@
     ])
 
     <script nonce="{{ csrf_token() }}">
-        $(document)
-            .off('click.add-model-request', '.add-model-to-request-cart')
-            .on('click.add-model-request', '.add-model-to-request-cart', function () {
-                var button = $(this);
+        function requestLineForModel(modelId) {
+            var quantity = parseInt($('#model-booking-quantity-' + modelId).val(), 10);
+            var disciplineId = parseInt($('#model-booking-discipline-' + modelId).val(), 10);
+            var companyId = parseInt($('#model-booking-company-' + modelId).val(), 10);
 
-                $('#add-model-to-request-cart-model-id').val(button.data('model-id'));
-                $('#add-model-to-request-cart-model-name').text(button.data('model-name'));
-                $('#add-model-to-request-cart-quantity').val(1);
-                $('#add-model-to-request-cart-discipline').val('');
-                $('#add-model-to-request-cart-company').val('');
-                $('#add-model-to-request-cart-error').hide().text('');
-                $('#add-model-to-request-cart-modal').modal('show');
-            });
-
-        $('#add-model-to-request-cart-form').on('submit', function (event) {
-            event.preventDefault();
-
-            var modelId = parseInt($('#add-model-to-request-cart-model-id').val(), 10);
-            var quantity = parseInt($('#add-model-to-request-cart-quantity').val(), 10);
-            var disciplineId = parseInt($('#add-model-to-request-cart-discipline').val(), 10);
-            var companyId = parseInt($('#add-model-to-request-cart-company').val(), 10);
-
-            if (!modelId || !quantity || !disciplineId || !companyId) {
-                $('#add-model-to-request-cart-error').text('Quantity, discipline, and company are required.').show();
-                return;
+            if (!quantity) {
+                window.alert('Enter a total needed quantity for each model.');
+                return null;
             }
 
-            addLinesToRequestCart([{
+            if (!disciplineId) {
+                window.alert('Select a discipline for each model.');
+                return null;
+            }
+
+            if (!companyId) {
+                window.alert('Select a company for each model.');
+                return null;
+            }
+
+            return {
                 model_id: modelId,
                 quantity: quantity,
                 discipline_id: disciplineId,
                 company_id: companyId
-            }], false).done(function () {
-                $('#add-model-to-request-cart-modal').modal('hide');
+            };
+        }
+
+        $(document)
+            .off('click.add-model-request', '.add-model-to-request-cart')
+            .on('click.add-model-request', '.add-model-to-request-cart', function () {
+                var line = requestLineForModel(parseInt($(this).data('model-id'), 10));
+
+                if (line) {
+                    addLinesToRequestCart([line], false);
+                }
             });
+
+        $('#requestableModelsBulkForm').on('submit', function (event) {
+            event.preventDefault();
+
+            var rows = $('#requestableModelsTable').bootstrapTable('getSelections');
+
+            if (!rows.length) {
+                window.alert('Select at least one model.');
+                return false;
+            }
+
+            var lines = [];
+
+            for (var i = 0; i < rows.length; i++) {
+                var line = requestLineForModel(parseInt(rows[i].id, 10));
+
+                if (!line) {
+                    return false;
+                }
+
+                lines.push(line);
+            }
+
+            addLinesToRequestCart(lines, true);
+            return false;
         });
     </script>
 @stop

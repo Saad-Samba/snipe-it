@@ -52,8 +52,10 @@ class ModelRequestsController extends Controller
             ->RequestableModels()
             ->orderBy('name')
             ->get();
+        $companies = Company::orderBy('name')->get(['id', 'name']);
+        $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
 
-        return view('account/requestable-assets', compact('models'));
+        return view('account/requestable-assets', compact('companies', 'disciplines', 'models'));
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse

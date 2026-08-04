@@ -43,8 +43,13 @@ class RequestableModelsPageTest extends TestCase
             ->assertSeeText('Communication')
             ->assertSeeText('Reusable Assets')
             ->assertSeeText('Add to Request')
+            ->assertSeeText('Add Selected to Cart')
             ->assertSeeText('Request Cart')
             ->assertSeeText('Submitted Requests')
+            ->assertSee('model-booking-quantity-'.$requestableModel->id, false)
+            ->assertSee('model-booking-discipline-'.$requestableModel->id, false)
+            ->assertSee('model-booking-company-'.$requestableModel->id, false)
+            ->assertDontSee('add-model-to-request-cart-modal', false)
             ->assertDontSeeText('Unavailable Model')
             ->assertDontSee('href="#assets"', false)
             ->assertDontSee(route('api.assets.requestable'), false);
