@@ -13,6 +13,27 @@
 
             <div class="box box-default">
                 <div class="box-body">
+                    @if ($showSubmissionBatches ?? false)
+                        <div class="alert alert-info">
+                            Each row is one cart submission. Open a submission to review its models, then select an availability value to inspect the related assets.
+                        </div>
+                    @endif
+                    @if (!empty($filteredSubmission))
+                        <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                            <span>
+                                Showing submission <strong>{{ $filteredSubmission['reference'] }}</strong>
+                                @if (!empty($filteredSubmission['project']))
+                                    for <strong>{{ $filteredSubmission['project'] }}</strong>
+                                @endif
+                            </span>
+                            <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">Back to submissions</a>
+                        </div>
+                        @include('account.partials.request-project-summary', [
+                            'summary' => $filteredSubmission,
+                            'requestsLabel' => 'Model Lines',
+                        ])
+                        <h4 style="margin:0 0 12px;">Models in this submission</h4>
+                    @endif
                     @if (!empty($filteredModel))
                         <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                             <span>
@@ -37,12 +58,20 @@
                     @if (!empty($filteredProject) && !empty($projectSummary))
                         @include('account.partials.request-project-summary', ['summary' => $projectSummary])
                     @endif
-                    @include('account.partials.submitted-requests-table', [
-                        'tableId' => 'userRequests',
-                        'requestMode' => $requestMode ?? 'requester',
-                        'dataUrl' => $dataUrl ?? route('api.requests.index'),
-                        'exportFileName' => 'my-requested-assets-'.date('Y-m-d'),
-                    ])
+                    @if ($showSubmissionBatches ?? false)
+                        @include('account.partials.submitted-request-batches-table', [
+                            'tableId' => 'userRequestSubmissions',
+                            'dataUrl' => $dataUrl,
+                            'exportFileName' => 'my-request-submissions-'.date('Y-m-d'),
+                        ])
+                    @else
+                        @include('account.partials.submitted-requests-table', [
+                            'tableId' => 'userRequests',
+                            'requestMode' => $requestMode ?? 'requester',
+                            'dataUrl' => $dataUrl ?? route('api.requests.index'),
+                            'exportFileName' => 'my-requested-assets-'.date('Y-m-d'),
+                        ])
+                    @endif
 
                 </div> <!-- .box-body -->
             </div> <!-- .box-default -->
@@ -54,7 +83,7 @@
     @include ('partials.bootstrap-table')
     <script nonce="{{ csrf_token() }}">
         $(function () {
-            var $table = $('#userRequests');
+            var $table = $('#userRequests, #userRequestSubmissions');
 
             function getActiveAdvancedFilters() {
                 var bootstrapTableInstance = $table.data('bootstrap.table');

@@ -1,5 +1,8 @@
 <div class="well well-sm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px;">
-    <div><strong>Requests</strong><br>{{ $summary['requests_count'] }}</div>
+    @if (isset($summary['models_count']))
+        <div><strong>Models</strong><br>{{ $summary['models_count'] }}</div>
+    @endif
+    <div><strong>{{ $requestsLabel ?? 'Requests' }}</strong><br>{{ $summary['requests_count'] }}</div>
     <div><strong>Total Needed</strong><br>{{ $summary['total_needed'] }}</div>
     <div><strong>Reusable Now</strong><br>{{ $summary['reusable_now'] }}</div>
     <div><strong>Due Back</strong><br>{{ $summary['due_back_before_needed_by'] }}</div>

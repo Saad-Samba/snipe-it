@@ -2288,6 +2288,25 @@
         return value;
     }
 
+    function requestBatchLinkFormatter(value, row) {
+        if (row && row.details_url) {
+            return '<a href="' + row.details_url + '">' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestBatchActionsFormatter(value, row) {
+        if (!row || !row.details_url) {
+            return '';
+        }
+
+        return '<a href="' + row.details_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="Open submission">'
+            + '<i class="fas fa-eye" aria-hidden="true"></i>'
+            + '<span class="sr-only">Open submission</span>'
+            + '</a>';
+    }
+
     function requestModelLinkFormatter(value, row) {
         if (row && row.model_show_url) {
             return '<a href="' + row.model_show_url + '">' + value + '</a>';

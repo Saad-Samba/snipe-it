@@ -20,6 +20,7 @@ use App\Notifications\RequestAssetNotification;
 use App\Notifications\UnroutedRacRequestNotification;
 use App\Notifications\RequestAlternativeFollowUpNotification;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class ModelRequestWorkflowTest extends TestCase
@@ -331,6 +332,98 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAsForApi($requester)
             ->getJson(route('api.requests.index'))
             ->assertForbidden();
+    }
+
+    public function test_submitted_requests_batch_api_groups_cart_lines_and_preserves_legacy_requests()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create(['name' => 'Grouped Submission Project']);
+        $batchId = (string) Str::uuid();
+        $modelA = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'name' => 'Grouped Model A',
+        ]);
+        $modelB = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'name' => 'Grouped Model B',
+        ]);
+
+        $firstRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $modelA->id,
+            'project_id' => $project->id,
+            'submission_batch_id' => $batchId,
+            'quantity' => 2,
+        ]);
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $modelB->id,
+            'project_id' => $project->id,
+            'submission_batch_id' => $batchId,
+            'quantity' => 3,
+        ]);
+        $legacyRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $modelA->id,
+            'project_id' => $project->id,
+            'submission_batch_id' => null,
+            'quantity' => 1,
+        ]);
+
+        $rows = $this->actingAsForApi($requester)
+            ->getJson(route('api.requests.index', ['view' => 'batches']))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->json('rows');
+
+        $batchRow = collect($rows)->firstWhere('submission_batch_id', $batchId);
+        $legacyRow = collect($rows)->firstWhere('submission_batch_id', null);
+
+        $this->assertSame('#'.$firstRequest->id, $batchRow['submission_reference']);
+        $this->assertSame('Grouped Submission Project', $batchRow['project']);
+        $this->assertSame(2, $batchRow['models_count']);
+        $this->assertSame(2, $batchRow['lines_count']);
+        $this->assertSame(5, $batchRow['total_quantity']);
+        $this->assertSame(route('requests.index', ['submission_batch_id' => $batchId]), $batchRow['details_url']);
+        $this->assertSame('#'.$legacyRequest->id, $legacyRow['submission_reference']);
+        $this->assertSame(route('requests.index', ['request_id' => $legacyRequest->id]), $legacyRow['details_url']);
+    }
+
+    public function test_submitted_requests_page_shows_batches_and_batch_detail_shows_model_lines()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $project = Project::factory()->create(['name' => 'Drilldown Project']);
+        $batchId = (string) Str::uuid();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+            'name' => 'Drilldown Model',
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'project_id' => $project->id,
+            'submission_batch_id' => $batchId,
+            'quantity' => 2,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('requests.index'))
+            ->assertOk()
+            ->assertSee('userRequestSubmissions', false)
+            ->assertSee('Each row is one cart submission')
+            ->assertSee('view=batches', false)
+            ->assertDontSee('Reference Price');
+
+        $this->actingAs($requester)
+            ->get(route('requests.index', ['submission_batch_id' => $batchId]))
+            ->assertOk()
+            ->assertSee('Showing submission')
+            ->assertSee('Drilldown Project')
+            ->assertSee('Models in this submission')
+            ->assertSee('userRequests', false)
+            ->assertSee('Reference Price')
+            ->assertSee('submission_batch_id='.$batchId, false);
     }
 
     public function test_requested_assets_api_returns_project_and_booked_metadata_for_requester()
@@ -647,10 +740,11 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_submitted_requests_page_shows_reference_price_column()
+    public function test_submission_detail_page_shows_reference_price_column()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create();
+        $batchId = (string) Str::uuid();
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
@@ -660,11 +754,12 @@ class ModelRequestWorkflowTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'project_id' => $project->id,
+            'submission_batch_id' => $batchId,
             'reference_price_snapshot' => 1250.00,
         ]);
 
         $this->actingAs($requester)
-            ->get(route('requests.index'))
+            ->get(route('requests.index', ['submission_batch_id' => $batchId]))
             ->assertOk()
             ->assertSee('Reference Price');
     }

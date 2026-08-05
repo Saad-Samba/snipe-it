@@ -603,9 +603,12 @@ class ModelRequestsController extends Controller
 
         $modelId = $request->integer('model_id');
         $projectId = $request->integer('project_id');
+        $requestId = $request->integer('request_id');
+        $submissionBatchId = trim((string) $request->input('submission_batch_id'));
         $query = [];
         $filteredModel = null;
         $filteredProject = null;
+        $filteredSubmission = null;
 
         if ($modelId) {
             $query['model_id'] = $modelId;
@@ -617,17 +620,52 @@ class ModelRequestsController extends Controller
             $filteredProject = Project::find($projectId);
         }
 
+        if ($submissionBatchId !== '' || $requestId) {
+            $submissionRequests = CheckoutRequest::requesterScopedQuery(auth()->user())
+                ->with('project')
+                ->when(
+                    $submissionBatchId !== '',
+                    fn ($submissionQuery) => $submissionQuery->where('submission_batch_id', $submissionBatchId),
+                    fn ($submissionQuery) => $submissionQuery->whereKey($requestId)
+                )
+                ->orderBy('id')
+                ->get();
+
+            abort_if($submissionRequests->isEmpty(), 404);
+
+            $firstRequest = $submissionRequests->first();
+            $summary = CheckoutRequest::summarizeRequests($submissionRequests);
+            $filteredSubmission = array_merge($summary, [
+                'reference' => '#'.$firstRequest->id,
+                'project' => $firstRequest->project?->name,
+                'needed_by_date' => optional($firstRequest->needed_by_date)->format('Y-m-d'),
+                'models_count' => $submissionRequests
+                    ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requestable_type.':'.$checkoutRequest->requestable_id)
+                    ->unique()
+                    ->count(),
+            ]);
+
+            if ($submissionBatchId !== '') {
+                $query['submission_batch_id'] = $submissionBatchId;
+            } else {
+                $query['request_id'] = $requestId;
+            }
+        }
+
         $projectSummary = $filteredProject
             ? CheckoutRequest::projectSummaryForUser(auth()->id(), $filteredProject->id)
             : null;
+        $showSubmissionBatches = ! $modelId && ! $projectId && ! $filteredSubmission;
 
         return view('account/requested', [
             'pageTitle' => 'Submitted Requests',
-            'dataUrl' => route('api.requests.index', $query),
+            'dataUrl' => route('api.requests.index', $showSubmissionBatches ? ['view' => 'batches'] : $query),
             'requestMode' => 'requester',
             'filteredModel' => $filteredModel,
             'filteredProject' => $filteredProject,
+            'filteredSubmission' => $filteredSubmission,
             'projectSummary' => $projectSummary,
+            'showSubmissionBatches' => $showSubmissionBatches,
         ]);
     }
 
