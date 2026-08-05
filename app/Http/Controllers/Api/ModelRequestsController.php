@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\CustomField;
+use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
@@ -137,9 +138,7 @@ class ModelRequestsController extends Controller
                 'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)
                     ? route('requests.index', ['model_id' => $checkoutRequest->requestable_id])
                     : null,
-                'project_requests_url' => $checkoutRequest->project_id
-                    ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
-                    : null,
+                'project_requests_url' => $this->projectRequestsUrl($checkoutRequest->project),
                 'request_detail_url' => route('hardware.index', $requestDetailQuery),
                 'reusable_now_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
                     'request_bucket' => 'reusable_now',
@@ -210,7 +209,7 @@ class ModelRequestsController extends Controller
                     'submission_batch_id' => $batchId,
                     'project' => $projectIds->count() === 1 ? e(optional($firstRequest->project)->name) : 'Multiple projects',
                     'project_requests_url' => $projectIds->count() === 1
-                        ? route('projects.show', ['project' => $projectIds->first(), 'tab' => 'requests'])
+                        ? $this->projectRequestsUrl($firstRequest->project)
                         : null,
                     'submitted_at' => Helper::getFormattedDateObject($batchRequests->max('updated_at'), 'datetime'),
                     'needed_by_date' => $neededByDates->count() === 1
@@ -258,5 +257,14 @@ class ModelRequestsController extends Controller
         }
 
         return optional(optional(optional($checkoutRequest->itemRequested())->model)->category)->name;
+    }
+
+    private function projectRequestsUrl(?Project $project): ?string
+    {
+        if (! $project || ! auth()->user()->can('view', $project)) {
+            return null;
+        }
+
+        return route('projects.show', ['project' => $project->id, 'tab' => 'requests']);
     }
 }

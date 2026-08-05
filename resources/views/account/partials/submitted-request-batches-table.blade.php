@@ -17,7 +17,6 @@
         <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
         <th data-field="submitted_at" data-sortable="true" data-formatter="dateDisplayFormatter">Submitted At</th>
         <th data-field="needed_by_date" data-sortable="true" data-formatter="dateDisplayFormatter">Needed By</th>
-        <th data-field="models_count" data-sortable="true">Models</th>
         <th data-field="total_quantity" data-sortable="true">Total Needed</th>
         <th data-field="reusable_quantity" data-sortable="true">Reusable Now</th>
         <th data-field="due_back_before_needed_by_quantity" data-sortable="true">Due Back</th>

@@ -381,6 +381,7 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->assertSame('#'.$firstRequest->id, $batchRow['submission_reference']);
         $this->assertSame('Grouped Submission Project', $batchRow['project']);
+        $this->assertNull($batchRow['project_requests_url']);
         $this->assertSame(2, $batchRow['models_count']);
         $this->assertSame(2, $batchRow['lines_count']);
         $this->assertSame(5, $batchRow['total_quantity']);
@@ -413,6 +414,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('userRequestSubmissions', false)
             ->assertSee('Each row is one cart submission')
             ->assertSee('view=batches', false)
+            ->assertDontSee('data-field="models_count"', false)
             ->assertDontSee('Reference Price');
 
         $this->actingAs($requester)
@@ -478,9 +480,28 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.reference_price_snapshot_formatted', '499.99')
             ->assertJsonPath('rows.0.reserved_count', 0)
             ->assertJsonPath('rows.0.reserved_by_other_rfqs_count', 0)
-            ->assertJsonPath('rows.0.project_requests_url', route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertJsonPath('rows.0.project_requests_url', null)
             ->assertJsonPath('rows.0.request_update_url', route('requests.update', $checkoutRequest))
             ->assertJsonPath('rows.0.request_cancel_url', route('requests.cancel', $checkoutRequest));
+    }
+
+    public function test_requested_assets_api_links_project_for_users_who_can_view_projects()
+    {
+        $requester = User::factory()->superuser()->requestAssetModels()->create();
+        $project = Project::factory()->create(['name' => 'Visible Project']);
+        $model = AssetModel::factory()->create();
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'project_id' => $project->id,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.requests.index'))
+            ->assertOk()
+            ->assertJsonPath('rows.0.project', 'Visible Project')
+            ->assertJsonPath('rows.0.project_requests_url', route('projects.show', ['project' => $project->id, 'tab' => 'requests']));
     }
 
     public function test_requested_assets_api_uses_live_reusable_quantity_for_same_model_across_disciplines()
