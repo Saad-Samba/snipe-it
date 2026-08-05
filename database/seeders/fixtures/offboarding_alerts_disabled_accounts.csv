@@ -1,0 +1,9 @@
+DateDisabled,LastLogon,Method,Type,SamAccountName,DisplayName,Email,Location,Department,Gecos,Manager,EmployeeID,Country,Region,Guid
+8/4/2026 8:00:00 AM,8/3/2026 5:00:00 PM,Manual,DIS,qa.offboarding.asset,"Leaver, Asset",qa.offboarding.asset@example.com,QA Offboarding Plant Alpha,Engineering,QAASSET,,QA-OFF-1001,MA,EMEA,00000000-0000-0000-0000-000000000001
+8/4/2026 8:05:00 AM,8/3/2026 5:00:00 PM,Manual,DIS,qa.offboarding.username,"Leaver, Username",source.username@example.com,QA Offboarding Plant Alpha,Engineering,QAUSER,,QA-OFF-SOURCE-2002,MA,EMEA,00000000-0000-0000-0000-000000000002
+8/4/2026 8:10:00 AM,8/3/2026 5:00:00 PM,Manual,DIS,source.email.alias,"Leaver, Email",qa.offboarding.email@example.com,QA Offboarding Plant Beta,Engineering,QAEMAIL,,QA-OFF-SOURCE-3003,MA,EMEA,00000000-0000-0000-0000-000000000003
+8/4/2026 8:15:00 AM,8/3/2026 5:00:00 PM,Manual,DIS,qa.offboarding.clean,"Leaver, Clean",qa.offboarding.clean@example.com,QA Offboarding Plant Alpha,Engineering,QACLEAN,,QA-OFF-4004,MA,EMEA,00000000-0000-0000-0000-000000000004
+8/4/2026 8:20:00 AM,8/3/2026 5:00:00 PM,Manual,DIS,qa.offboarding.missing,"Leaver, Missing",qa.offboarding.missing@example.com,QA Offboarding Plant Alpha,Engineering,QAMISS,,QA-OFF-5005,MA,EMEA,00000000-0000-0000-0000-000000000005
+8/4/2026 8:25:00 AM,8/3/2026 5:00:00 PM,Manual,DIS,qa.offboarding.username,"Leaver, Ambiguous",qa.offboarding.email@example.com,QA Offboarding Plant Beta,Engineering,QAAMB,,QA-OFF-1001,MA,EMEA,00000000-0000-0000-0000-000000000006
+8/4/2026 8:30:00 AM,,Manual,DIS,AdminQAOffboarding,"Admin, QA",,,,,QAADMIN,,,"Plant Site Administrators","Administrator Groups",00000000-0000-0000-0000-000000000007
+8/4/2026 8:35:00 AM,,Manual,,GMBX-QA-OFF,"Shared Mailbox, QA",qa-offboarding-mailbox@example.com,QA Offboarding Plant Alpha,,,,,MA,EMEA,00000000-0000-0000-0000-000000000008
