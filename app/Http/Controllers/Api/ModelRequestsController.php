@@ -74,7 +74,12 @@ class ModelRequestsController extends Controller
         }
 
         foreach ($checkoutRequests as $checkoutRequest) {
-            if (! $checkoutRequest || ! $checkoutRequest->itemRequested()) {
+            if (! $checkoutRequest) {
+                continue;
+            }
+
+            $requestedItem = $checkoutRequest->itemRequested();
+            if (! $requestedItem) {
                 continue;
             }
 
@@ -87,6 +92,10 @@ class ModelRequestsController extends Controller
                 'request_id' => $checkoutRequest->id,
                 'request_bucket' => 'reusable_now',
             ];
+            $requestedModel = (
+                $checkoutRequest->requestable_type === AssetModel::class
+                && $requestedItem instanceof AssetModel
+            ) ? $requestedItem : null;
 
             $assets = [
                 'request_id' => (int) $checkoutRequest->id,
@@ -139,7 +148,7 @@ class ModelRequestsController extends Controller
                 'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin, 'datetime'),
                 'request_date' => Helper::getFormattedDateObject($checkoutRequest->created_at, 'datetime'),
                 'updated_at' => Helper::getFormattedDateObject($checkoutRequest->updated_at, 'datetime'),
-                'model_show_url' => ($checkoutRequest->requestable_type === AssetModel::class)
+                'model_show_url' => $requestedModel && auth()->user()->can('view', $requestedModel)
                     ? route('models.show', $checkoutRequest->requestable_id)
                     : null,
                 'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)

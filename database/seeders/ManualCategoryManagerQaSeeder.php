@@ -84,7 +84,6 @@ class ManualCategoryManagerQaSeeder extends Seeder
                 'company_id' => null,
                 'locale' => 'en-US',
                 'permissions' => json_encode([
-                    'models.view' => '1',
                     'models.request' => '1',
                 ]),
                 'password' => bcrypt('password'),

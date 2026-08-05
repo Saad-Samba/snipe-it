@@ -1011,6 +1011,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->getJson(route('api.requests.index'))
             ->assertOk()
             ->assertJsonPath('rows.0.qty', 2)
+            ->assertJsonPath('rows.0.model_show_url', null)
             ->assertJsonPath('rows.0.request_detail_url', null)
             ->assertJsonPath('rows.0.reusable_now_url', null)
             ->assertJsonPath('rows.0.due_back_url', null)
@@ -1018,6 +1019,24 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.reserved_by_other_project_url', null)
             ->assertJsonPath('rows.0.request_update_url', route('requests.update', $checkoutRequest))
             ->assertJsonPath('rows.0.request_cancel_url', route('requests.cancel', $checkoutRequest));
+    }
+
+    public function test_requester_with_managed_model_view_permission_gets_model_link()
+    {
+        $requester = User::factory()->viewAssetModels()->requestAssetModels()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.requests.index'))
+            ->assertOk()
+            ->assertJsonPath('rows.0.model_show_url', route('models.show', $model->id));
     }
 
     public function test_request_bucket_filters_return_the_expected_assets()
