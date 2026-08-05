@@ -354,6 +354,7 @@ class ModelRequestWorkflowTest extends TestCase
             'project_id' => $project->id,
             'submission_batch_id' => $batchId,
             'quantity' => 2,
+            'rac_routing_status' => CheckoutRequest::RAC_ROUTING_UNROUTED,
         ]);
         CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
@@ -385,6 +386,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame(2, $batchRow['models_count']);
         $this->assertSame(2, $batchRow['lines_count']);
         $this->assertSame(5, $batchRow['total_quantity']);
+        $this->assertTrue($batchRow['has_rac_routing_gap']);
         $this->assertSame(route('requests.index', ['submission_batch_id' => $batchId]), $batchRow['details_url']);
         $this->assertSame('#'.$legacyRequest->id, $legacyRow['submission_reference']);
         $this->assertSame(route('requests.index', ['request_id' => $legacyRequest->id]), $legacyRow['details_url']);
@@ -415,6 +417,9 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('Each row is one cart submission')
             ->assertSee('view=batches', false)
             ->assertDontSee('data-field="models_count"', false)
+            ->assertDontSee('data-field="rac_routing_status"', false)
+            ->assertSee('requestRequesterStatusFormatter', false)
+            ->assertSee('Coordinator assignment pending', false)
             ->assertDontSee('Reference Price');
 
         $this->actingAs($requester)
@@ -453,6 +458,7 @@ class ModelRequestWorkflowTest extends TestCase
             'project_id' => $project->id,
             'reusable_quantity' => 1,
             'procurement_shortfall' => 1,
+            'rac_routing_status' => CheckoutRequest::RAC_ROUTING_UNROUTED,
             'estimated_savings' => 499.99,
             'reference_price_snapshot' => 499.99,
         ]);
@@ -468,6 +474,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.company_id', $destinationCompany->id)
             ->assertJsonPath('rows.0.company', 'API Destination')
             ->assertJsonPath('rows.0.status', 'Pending')
+            ->assertJsonPath('rows.0.has_rac_routing_gap', true)
             ->assertJsonPath('rows.0.project', 'Request Tracking Project')
             ->assertJsonPath('rows.0.reusable_quantity', 1)
             ->assertJsonPath('rows.0.due_back_before_needed_by_quantity', 0)

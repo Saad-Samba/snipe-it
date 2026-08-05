@@ -2242,6 +2242,19 @@
         return '<span class="label ' + labelClass + '">' + value + '</span>';
     }
 
+    function requestRequesterStatusFormatter(value, row) {
+        var status = requestStatusFormatter(value);
+
+        if (!row || !row.has_rac_routing_gap) {
+            return status;
+        }
+
+        return status
+            + '<div class="text-warning small" style="margin-top:6px;white-space:normal;">'
+            + 'Coordinator assignment pending &mdash; an administrator has been notified.'
+            + '</div>';
+    }
+
     function requestWorkflowActionsFormatter(value, row) {
         if (!row || !row.request_detail_url) {
             return '';

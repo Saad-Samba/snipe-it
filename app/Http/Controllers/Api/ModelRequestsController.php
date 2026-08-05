@@ -126,6 +126,10 @@ class ModelRequestsController extends Controller
                 'status_value' => e($statusValue),
                 'rac_routing_status' => e(ucfirst(str_replace('_', ' ', $checkoutRequest->rac_routing_status ?: 'not_evaluated'))),
                 'rac_routing_status_value' => e($checkoutRequest->rac_routing_status ?: 'not_evaluated'),
+                'has_rac_routing_gap' => in_array($checkoutRequest->rac_routing_status, [
+                    CheckoutRequest::RAC_ROUTING_UNROUTED,
+                    CheckoutRequest::RAC_ROUTING_PARTIALLY_ROUTED,
+                ], true),
                 'rac_unrouted_scopes' => $checkoutRequest->rac_unrouted_scopes ?? [],
                 'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,
                 'requested_by' => ($checkoutRequest->requestingUser()) ? e($checkoutRequest->requestingUser()->display_name) : null,
@@ -236,6 +240,12 @@ class ModelRequestsController extends Controller
                     'status_value' => e($statusValue),
                     'rac_routing_status' => e(ucfirst(str_replace('_', ' ', $routingValue))),
                     'rac_routing_status_value' => e($routingValue),
+                    'has_rac_routing_gap' => $batchRequests->contains(
+                        fn (CheckoutRequest $checkoutRequest) => in_array($checkoutRequest->rac_routing_status, [
+                            CheckoutRequest::RAC_ROUTING_UNROUTED,
+                            CheckoutRequest::RAC_ROUTING_PARTIALLY_ROUTED,
+                        ], true)
+                    ),
                     'details_url' => route('requests.index', $detailsQuery),
                 ];
             })
