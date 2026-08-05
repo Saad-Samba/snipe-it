@@ -2317,6 +2317,10 @@
         return value;
     }
 
+    function requestPageTotalLabelFormatter() {
+        return 'Page Total';
+    }
+
     function requestBatchLinkFormatter(value, row) {
         if (row && row.details_url) {
             return '<a href="' + row.details_url + '">' + value + '</a>';

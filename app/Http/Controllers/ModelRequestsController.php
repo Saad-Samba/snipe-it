@@ -634,16 +634,11 @@ class ModelRequestsController extends Controller
             abort_if($submissionRequests->isEmpty(), 404);
 
             $firstRequest = $submissionRequests->first();
-            $summary = CheckoutRequest::summarizeRequests($submissionRequests);
-            $filteredSubmission = array_merge($summary, [
+            $filteredSubmission = [
                 'reference' => '#'.$firstRequest->id,
                 'project' => $firstRequest->project?->name,
                 'needed_by_date' => optional($firstRequest->needed_by_date)->format('Y-m-d'),
-                'models_count' => $submissionRequests
-                    ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requestable_type.':'.$checkoutRequest->requestable_id)
-                    ->unique()
-                    ->count(),
-            ]);
+            ];
 
             if ($submissionBatchId !== '') {
                 $query['submission_batch_id'] = $submissionBatchId;

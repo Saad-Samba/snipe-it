@@ -441,6 +441,12 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('Drilldown Project')
             ->assertSee('Models in this submission')
             ->assertSee('userRequests', false)
+            ->assertSee('data-show-footer="true"', false)
+            ->assertSee('data-footer-formatter="requestPageTotalLabelFormatter"', false)
+            ->assertSee('data-footer-formatter="qtySumFormatter"', false)
+            ->assertSee('data-footer-formatter="sumFormatter"', false)
+            ->assertDontSee('<strong>Models</strong>', false)
+            ->assertDontSee('<strong>Model Lines</strong>', false)
             ->assertSee('Reference Price')
             ->assertSee('submission_batch_id='.$batchId, false);
     }
