@@ -2272,18 +2272,20 @@
     }
 
     function requestWorkflowActionsFormatter(value, row) {
-        if (!row || !row.request_detail_url) {
+        if (!row) {
             return '';
         }
 
         var actions = [];
-        var viewTitle = 'View request';
-        actions.push(
-            '<a href="' + row.request_detail_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="' + viewTitle + '">'
-            + '<i class="fas fa-eye" aria-hidden="true"></i>'
-            + '<span class="sr-only">' + viewTitle + '</span>'
-            + '</a>'
-        );
+        if (row.request_detail_url) {
+            var viewTitle = 'View request';
+            actions.push(
+                '<a href="' + row.request_detail_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="' + viewTitle + '">'
+                + '<i class="fas fa-eye" aria-hidden="true"></i>'
+                + '<span class="sr-only">' + viewTitle + '</span>'
+                + '</a>'
+            );
+        }
 
         if (row.request_update_url && row.model_id) {
             var modifyTitle = 'Modify request';

@@ -995,6 +995,31 @@ class ModelRequestWorkflowTest extends TestCase
             ]));
     }
 
+    public function test_requester_without_asset_view_permission_gets_model_metrics_without_asset_links()
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create();
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'project_id' => $project->id,
+            'quantity' => 2,
+        ]);
+
+        $this->actingAsForApi($requester)
+            ->getJson(route('api.requests.index'))
+            ->assertOk()
+            ->assertJsonPath('rows.0.qty', 2)
+            ->assertJsonPath('rows.0.request_detail_url', null)
+            ->assertJsonPath('rows.0.reusable_now_url', null)
+            ->assertJsonPath('rows.0.due_back_url', null)
+            ->assertJsonPath('rows.0.reserved_assets_url', null)
+            ->assertJsonPath('rows.0.reserved_by_other_project_url', null)
+            ->assertJsonPath('rows.0.request_update_url', route('requests.update', $checkoutRequest))
+            ->assertJsonPath('rows.0.request_cancel_url', route('requests.cancel', $checkoutRequest));
+    }
+
     public function test_request_bucket_filters_return_the_expected_assets()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();

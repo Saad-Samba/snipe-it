@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
+use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\CustomField;
@@ -64,6 +65,7 @@ class ModelRequestsController extends Controller
         $results = [];
         $results['total'] = $checkoutRequests->count();
         $showableFields = [];
+        $canViewAssets = auth()->user()->can('index', Asset::class);
 
         foreach (CustomField::all() as $field) {
             if (($field->field_encrypted == '0') && ($field->show_in_requestable_list == '1')) {
@@ -144,19 +146,19 @@ class ModelRequestsController extends Controller
                     ? route('requests.index', ['model_id' => $checkoutRequest->requestable_id])
                     : null,
                 'project_requests_url' => $this->projectRequestsUrl($checkoutRequest->project),
-                'request_detail_url' => route('hardware.index', $requestDetailQuery),
-                'reusable_now_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
-                    'request_bucket' => 'reusable_now',
-                ])),
-                'due_back_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
-                    'request_bucket' => 'due_back',
-                ])),
-                'reserved_assets_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
-                    'request_bucket' => 'reserved',
-                ])),
-                'reserved_by_other_project_url' => route('hardware.index', array_merge($requestAssetBucketBaseQuery, [
-                    'request_bucket' => 'reserved_other_project',
-                ])),
+                'request_detail_url' => $canViewAssets ? route('hardware.index', $requestDetailQuery) : null,
+                'reusable_now_url' => $canViewAssets
+                    ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reusable_now']))
+                    : null,
+                'due_back_url' => $canViewAssets
+                    ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'due_back']))
+                    : null,
+                'reserved_assets_url' => $canViewAssets
+                    ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved']))
+                    : null,
+                'reserved_by_other_project_url' => $canViewAssets
+                    ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved_other_project']))
+                    : null,
                 'request_update_url' => route('requests.update', $checkoutRequest),
                 'request_cancel_url' => route('requests.cancel', $checkoutRequest),
             ];
