@@ -386,6 +386,11 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame(2, $batchRow['models_count']);
         $this->assertSame(2, $batchRow['lines_count']);
         $this->assertSame(5, $batchRow['total_quantity']);
+        $this->assertSame(0, $batchRow['allocated_quantity']);
+        $this->assertSame(5, $batchRow['remaining_quantity']);
+        $this->assertFalse($batchRow['review_complete']);
+        $this->assertSame('In Progress', $batchRow['status']);
+        $this->assertNull($batchRow['amount_to_buy']);
         $this->assertTrue($batchRow['has_rac_routing_gap']);
         $this->assertSame(route('requests.index', ['submission_batch_id' => $batchId]), $batchRow['details_url']);
         $this->assertSame('#'.$legacyRequest->id, $legacyRow['submission_reference']);
@@ -420,6 +425,12 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertDontSee('data-field="rac_routing_status"', false)
             ->assertSee('requestRequesterStatusFormatter', false)
             ->assertSee('Coordinator assignment pending', false)
+            ->assertSee('Review Status')
+            ->assertSee('Allocated')
+            ->assertSee('Remaining')
+            ->assertDontSee('data-field="reusable_quantity"', false)
+            ->assertDontSee('data-field="due_back_before_needed_by_quantity"', false)
+            ->assertDontSee('data-field="estimated_savings"', false)
             ->assertDontSee('Reference Price');
 
         $this->actingAs($requester)
@@ -431,6 +442,70 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('userRequests', false)
             ->assertSee('Reference Price')
             ->assertSee('submission_batch_id='.$batchId, false);
+    }
+
+    public function test_completed_submission_reports_actual_allocation_outcome_and_pending_purchase_cost()
+    {
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create();
+        $coordinator = User::factory()->create();
+        $project = Project::factory()->create();
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Completed Review Discipline', 'created_by' => $requester->id]);
+        $batchId = (string) Str::uuid();
+        $modelA = AssetModel::factory()->create();
+        $modelB = AssetModel::factory()->create();
+
+        $requestA = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $modelA->id,
+            'project_id' => $project->id,
+            'submission_batch_id' => $batchId,
+            'quantity' => 2,
+            'reference_price_snapshot' => 100,
+            'rac_routing_status' => CheckoutRequest::RAC_ROUTING_ROUTED,
+        ]);
+        $requestB = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $modelB->id,
+            'project_id' => $project->id,
+            'submission_batch_id' => $batchId,
+            'quantity' => 3,
+            'reference_price_snapshot' => 200,
+            'rac_routing_status' => CheckoutRequest::RAC_ROUTING_ROUTED,
+        ]);
+
+        foreach ([$requestA, $requestB] as $checkoutRequest) {
+            $checkoutRequest->coordinatorTargets()->create([
+                'user_id' => $coordinator->id,
+                'company_id' => $company->id,
+                'discipline_id' => $discipline->id,
+                'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK,
+            ]);
+        }
+
+        $assetA = Asset::factory()->create(['model_id' => $modelA->id]);
+        $assetB1 = Asset::factory()->create(['model_id' => $modelB->id]);
+        $assetB2 = Asset::factory()->create(['model_id' => $modelB->id]);
+        $requestA->allocatedAssets()->attach($assetA->id, ['allocated_by' => $coordinator->id, 'allocated_at' => now()]);
+        $requestB->allocatedAssets()->attach([$assetB1->id, $assetB2->id], [
+            'allocated_by' => $coordinator->id,
+            'allocated_at' => now(),
+        ]);
+
+        $row = collect($this->actingAsForApi($requester)
+            ->getJson(route('api.requests.index', ['view' => 'batches']))
+            ->assertOk()
+            ->json('rows'))
+            ->firstWhere('submission_batch_id', $batchId);
+
+        $this->assertSame('Review Complete', $row['status']);
+        $this->assertSame('review_complete', $row['status_value']);
+        $this->assertTrue($row['review_complete']);
+        $this->assertSame(5, $row['total_quantity']);
+        $this->assertSame(3, $row['allocated_quantity']);
+        $this->assertSame(2, $row['remaining_quantity']);
+        $this->assertEquals(300.0, $row['amount_to_buy']);
+        $this->assertSame('300.00', $row['amount_to_buy_formatted']);
     }
 
     public function test_requested_assets_api_returns_project_and_booked_metadata_for_requester()

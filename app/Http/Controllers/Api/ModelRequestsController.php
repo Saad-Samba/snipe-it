@@ -26,6 +26,7 @@ class ModelRequestsController extends Controller
                 'company',
                 'requestedDiscipline',
                 'user',
+                'allocatedAssets',
             ])
         ;
 
@@ -179,10 +180,6 @@ class ModelRequestsController extends Controller
                 /** @var CheckoutRequest $firstRequest */
                 $firstRequest = $batchRequests->sortBy('id')->first();
                 $summary = CheckoutRequest::summarizeRequests($batchRequests);
-                $statusValues = $batchRequests
-                    ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requesterAllocationStatus())
-                    ->unique()
-                    ->values();
                 $routingValues = $batchRequests
                     ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->rac_routing_status ?: 'not_evaluated')
                     ->unique()
@@ -196,16 +193,50 @@ class ModelRequestsController extends Controller
                 $pricedRequests = $batchRequests->filter(
                     fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->reference_price_snapshot !== null
                 );
+                $allocatedByRequest = $batchRequests->mapWithKeys(
+                    fn (CheckoutRequest $checkoutRequest) => [
+                        $checkoutRequest->id => min(
+                            (int) $checkoutRequest->quantity,
+                            $checkoutRequest->allocatedAssets->count()
+                        ),
+                    ]
+                );
+                $remainingByRequest = $batchRequests->mapWithKeys(
+                    fn (CheckoutRequest $checkoutRequest) => [
+                        $checkoutRequest->id => max(
+                            (int) $checkoutRequest->quantity - (int) $allocatedByRequest[$checkoutRequest->id],
+                            0
+                        ),
+                    ]
+                );
+                $reviewComplete = ! $batchRequests->contains(
+                    fn (CheckoutRequest $checkoutRequest) => ! $checkoutRequest->canceled_at
+                        && (int) $remainingByRequest[$checkoutRequest->id] > 0
+                        && (! in_array($checkoutRequest->rac_routing_status, [
+                            CheckoutRequest::RAC_ROUTING_ROUTED,
+                            CheckoutRequest::RAC_ROUTING_NOT_REQUIRED,
+                        ], true) || ! $checkoutRequest->racHandlingComplete())
+                );
+                $unpricedRemainingRequestExists = $batchRequests->contains(
+                    fn (CheckoutRequest $checkoutRequest) => (int) $remainingByRequest[$checkoutRequest->id] > 0
+                        && $checkoutRequest->reference_price_snapshot === null
+                );
                 $batchId = $firstRequest->submission_batch_id;
                 $detailsQuery = $batchId
                     ? ['submission_batch_id' => $batchId]
                     : ['request_id' => $firstRequest->id];
-                $statusValue = $statusValues->count() === 1 ? $statusValues->first() : 'mixed';
+                $statusValue = $reviewComplete ? 'review_complete' : 'in_progress';
                 $routingValue = $routingValues->count() === 1 ? $routingValues->first() : 'mixed';
                 $totalNeedCost = $pricedRequests->isEmpty()
                     ? null
                     : round((float) $pricedRequests->sum(
                         fn (CheckoutRequest $checkoutRequest) => (float) $checkoutRequest->reference_price_snapshot * (int) $checkoutRequest->quantity
+                    ), 2);
+                $pendingToBuy = ! $reviewComplete || $unpricedRemainingRequestExists
+                    ? null
+                    : round((float) $batchRequests->sum(
+                        fn (CheckoutRequest $checkoutRequest) => (int) $remainingByRequest[$checkoutRequest->id]
+                            * (float) ($checkoutRequest->reference_price_snapshot ?? 0)
                     ), 2);
 
                 return [
@@ -225,18 +256,23 @@ class ModelRequestsController extends Controller
                         ->count(),
                     'lines_count' => $batchRequests->count(),
                     'total_quantity' => $summary['total_needed'],
+                    'allocated_quantity' => (int) $allocatedByRequest->sum(),
+                    'remaining_quantity' => (int) $remainingByRequest->sum(),
+                    'review_complete' => $reviewComplete,
                     'reusable_quantity' => $summary['reusable_now'],
                     'due_back_before_needed_by_quantity' => $summary['due_back_before_needed_by'],
                     'procurement_shortfall' => $summary['shortfall'],
                     'estimated_savings' => $summary['estimated_savings'],
                     'estimated_savings_formatted' => Helper::formatCurrencyOutput($summary['estimated_savings']),
-                    'amount_to_buy' => $summary['amount_to_buy'],
-                    'amount_to_buy_formatted' => Helper::formatCurrencyOutput($summary['amount_to_buy']),
+                    'amount_to_buy' => $pendingToBuy,
+                    'amount_to_buy_formatted' => $pendingToBuy !== null
+                        ? Helper::formatCurrencyOutput($pendingToBuy)
+                        : null,
                     'total_need_cost' => $totalNeedCost,
                     'total_need_cost_formatted' => $totalNeedCost !== null
                         ? Helper::formatCurrencyOutput($totalNeedCost)
                         : null,
-                    'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),
+                    'status' => $reviewComplete ? 'Review Complete' : 'In Progress',
                     'status_value' => e($statusValue),
                     'rac_routing_status' => e(ucfirst(str_replace('_', ' ', $routingValue))),
                     'rac_routing_status_value' => e($routingValue),

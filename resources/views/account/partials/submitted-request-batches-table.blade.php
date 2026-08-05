@@ -18,12 +18,10 @@
         <th data-field="submitted_at" data-sortable="true" data-formatter="dateDisplayFormatter">Submitted At</th>
         <th data-field="needed_by_date" data-sortable="true" data-formatter="dateDisplayFormatter">Needed By</th>
         <th data-field="total_quantity" data-sortable="true">Total Needed</th>
-        <th data-field="reusable_quantity" data-sortable="true">Reusable Now</th>
-        <th data-field="due_back_before_needed_by_quantity" data-sortable="true">Due Back</th>
-        <th data-field="procurement_shortfall" data-sortable="true">Shortfall</th>
-        <th data-field="estimated_savings" data-sortable="true" data-formatter="requestSavingsFormatter">Estimated Savings</th>
-        <th data-field="amount_to_buy" data-sortable="true" data-formatter="requestAmountToBuyFormatter">Pending to Buy</th>
-        <th data-field="status" data-sortable="true" data-formatter="requestRequesterStatusFormatter">Status</th>
+        <th data-field="allocated_quantity" data-sortable="true" data-formatter="requestSubmissionOutcomeFormatter">Allocated</th>
+        <th data-field="remaining_quantity" data-sortable="true" data-formatter="requestSubmissionOutcomeFormatter">Remaining</th>
+        <th data-field="amount_to_buy" data-sortable="true" data-formatter="requestSubmissionPendingToBuyFormatter">Pending to Buy</th>
+        <th data-field="status" data-sortable="true" data-formatter="requestRequesterStatusFormatter">Review Status</th>
         <th data-field="actions" data-switchable="false" data-searchable="false" data-sortable="false" data-formatter="requestBatchActionsFormatter">{{ trans('table.actions') }}</th>
     </tr>
     </thead>

@@ -2231,7 +2231,7 @@
             labelClass = 'label-warning';
         } else if (normalized === 'in progress' || normalized === 'under review') {
             labelClass = 'label-primary';
-        } else if (normalized === 'fully allocated' || normalized === 'closed' || normalized === 'fulfilled') {
+        } else if (normalized === 'fully allocated' || normalized === 'closed' || normalized === 'fulfilled' || normalized === 'review complete') {
             labelClass = 'label-success';
         } else if (normalized === 'partially allocated') {
             labelClass = 'label-info';
@@ -2253,6 +2253,26 @@
             + '<div class="text-warning small" style="margin-top:6px;white-space:normal;">'
             + 'Coordinator assignment pending &mdash; an administrator has been notified.'
             + '</div>';
+    }
+
+    function requestSubmissionOutcomeFormatter(value, row) {
+        if (!row || !row.review_complete) {
+            return '<span class="text-muted">&mdash;</span>';
+        }
+
+        return Number(value) || 0;
+    }
+
+    function requestSubmissionPendingToBuyFormatter(value, row) {
+        if (!row || !row.review_complete) {
+            return '<span class="text-muted">&mdash;</span>';
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '<span class="text-muted">Price unavailable</span>';
+        }
+
+        return requestAmountToBuyFormatter(value, row);
     }
 
     function requestWorkflowActionsFormatter(value, row) {
