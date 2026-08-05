@@ -393,6 +393,8 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertNull($batchRow['amount_to_buy']);
         $this->assertTrue($batchRow['has_rac_routing_gap']);
         $this->assertSame(route('requests.index', ['submission_batch_id' => $batchId]), $batchRow['details_url']);
+        $this->assertSame(route('request-submissions.update', $firstRequest), $batchRow['submission_update_url']);
+        $this->assertSame(route('request-submissions.cancel', $firstRequest), $batchRow['submission_cancel_url']);
         $this->assertSame('#'.$legacyRequest->id, $legacyRow['submission_reference']);
         $this->assertSame(route('requests.index', ['request_id' => $legacyRequest->id]), $legacyRow['details_url']);
     }
@@ -571,7 +573,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.reserved_by_other_rfqs_count', 0)
             ->assertJsonPath('rows.0.project_requests_url', null)
             ->assertJsonPath('rows.0.request_update_url', route('requests.update', $checkoutRequest))
-            ->assertJsonPath('rows.0.request_cancel_url', route('requests.cancel', $checkoutRequest));
+            ->assertJsonPath('rows.0.request_cancel_url', null);
     }
 
     public function test_requested_assets_api_links_project_for_users_who_can_view_projects()
@@ -1018,7 +1020,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.reserved_assets_url', null)
             ->assertJsonPath('rows.0.reserved_by_other_project_url', null)
             ->assertJsonPath('rows.0.request_update_url', route('requests.update', $checkoutRequest))
-            ->assertJsonPath('rows.0.request_cancel_url', route('requests.cancel', $checkoutRequest));
+            ->assertJsonPath('rows.0.request_cancel_url', null);
     }
 
     public function test_requester_with_managed_model_view_permission_gets_model_link()
@@ -1455,9 +1457,9 @@ class ModelRequestWorkflowTest extends TestCase
         $request->refresh();
 
         $this->assertSame(2, $request->quantity);
-        $this->assertSame($updatedProject->id, $request->project_id);
+        $this->assertSame($project->id, $request->project_id);
         $this->assertSame($updatedCompany->id, $request->company_id);
-        $this->assertSame('2026-07-01', optional($request->needed_by_date)->format('Y-m-d'));
+        $this->assertSame('2026-06-01', optional($request->needed_by_date)->format('Y-m-d'));
         $this->assertSame(1, $request->reusable_quantity);
         $this->assertSame(1, $request->procurement_shortfall);
         $this->assertSame(400.0, (float) $request->estimated_savings);
@@ -1486,6 +1488,98 @@ class ModelRequestWorkflowTest extends TestCase
                 'needed_by_date' => '2026-06-01',
             ])
             ->assertSessionHasErrors('company_id');
+    }
+
+    public function test_requester_updates_project_and_needed_by_date_for_entire_submission()
+    {
+        Notification::fake();
+        $requester = User::factory()->requestAssetModels()->create();
+        $originalProject = Project::factory()->create();
+        $updatedProject = Project::factory()->create();
+        $batchId = (string) Str::uuid();
+        $firstRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'project_id' => $originalProject->id,
+            'submission_batch_id' => $batchId,
+            'needed_by_date' => '2026-06-01',
+        ]);
+        $secondRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'project_id' => $originalProject->id,
+            'submission_batch_id' => $batchId,
+            'needed_by_date' => '2026-06-01',
+        ]);
+
+        $this->actingAs($requester)
+            ->post(route('request-submissions.update', $firstRequest), [
+                'project_id' => $updatedProject->id,
+                'needed_by_date' => '2026-08-15',
+            ])
+            ->assertRedirect();
+
+        foreach ([$firstRequest->fresh(), $secondRequest->fresh()] as $updatedRequest) {
+            $this->assertSame($updatedProject->id, $updatedRequest->project_id);
+            $this->assertSame('2026-08-15', optional($updatedRequest->needed_by_date)->format('Y-m-d'));
+        }
+    }
+
+    public function test_submission_context_and_cancel_actions_are_blocked_after_rac_processing_starts()
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $coordinator = User::factory()->create();
+        $project = Project::factory()->create();
+        $updatedProject = Project::factory()->create();
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'project_id' => $project->id,
+            'needed_by_date' => '2026-06-01',
+        ]);
+        $request->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_IN_PROGRESS,
+        ]);
+
+        $this->actingAs($requester)
+            ->from(route('requests.index'))
+            ->post(route('request-submissions.update', $request), [
+                'project_id' => $updatedProject->id,
+                'needed_by_date' => '2026-08-15',
+            ])
+            ->assertRedirect(route('requests.index'))
+            ->assertSessionHasErrors('submission');
+
+        $this->actingAs($requester)
+            ->from(route('requests.index'))
+            ->post(route('request-submissions.cancel', $request))
+            ->assertRedirect(route('requests.index'))
+            ->assertSessionHasErrors('submission');
+
+        $request->refresh();
+        $this->assertSame($project->id, $request->project_id);
+        $this->assertNull($request->canceled_at);
+    }
+
+    public function test_requester_can_cancel_entire_submission_without_hard_deleting_lines()
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $batchId = (string) Str::uuid();
+        $firstRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'submission_batch_id' => $batchId,
+        ]);
+        $secondRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'submission_batch_id' => $batchId,
+        ]);
+
+        $this->actingAs($requester)
+            ->post(route('request-submissions.cancel', $firstRequest))
+            ->assertRedirect();
+
+        foreach ([$firstRequest->fresh(), $secondRequest->fresh()] as $canceledRequest) {
+            $this->assertNotNull($canceledRequest->canceled_at);
+            $this->assertSame(CheckoutRequest::STATUS_CANCELED, $canceledRequest->status);
+        }
     }
 
     public function test_model_request_duplicate_detection_is_scoped_by_destination_company()

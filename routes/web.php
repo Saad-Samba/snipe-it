@@ -512,6 +512,12 @@ Route::group(['prefix' => 'requests', 'middleware' => ['auth']], function () {
     Route::post('{checkoutRequest}/cancel', [ModelRequestsController::class, 'cancelSubmittedRequest'])
         ->name('requests.cancel');
 
+    Route::post('submissions/{checkoutRequest}/update', [ModelRequestsController::class, 'updateSubmittedRequestSubmission'])
+        ->name('request-submissions.update');
+
+    Route::post('submissions/{checkoutRequest}/cancel', [ModelRequestsController::class, 'cancelSubmittedRequestSubmission'])
+        ->name('request-submissions.cancel');
+
 });
 
 Route::group(['middleware' => ['auth']], function () {

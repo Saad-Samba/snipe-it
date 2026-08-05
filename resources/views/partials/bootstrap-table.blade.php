@@ -1778,7 +1778,7 @@
             + '            <label for="model-request-modal-company">{{ trans('general.company') }}</label>'
             + '            <select name="company_id" id="model-request-modal-company" class="form-control" required>' + buildModelRequestCompanyOptions('') + '</select>'
             + '          </div>'
-            + '          <div class="form-group">'
+            + '          <div class="form-group" id="model-request-modal-project-group">'
             + '            <label for="model-request-modal-project">{{ trans('general.project') }}</label>'
             + '            <div class="input-group">'
             + '              <select name="project_id" id="model-request-modal-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
@@ -1787,7 +1787,7 @@
             + '              </span>'
             + '            </div>'
             + '          </div>'
-            + '          <div class="form-group">'
+            + '          <div class="form-group" id="model-request-modal-needed-by-group">'
             + '            <label for="model-request-modal-needed-by-date">Needed By</label>'
             + '            <input type="date" name="needed_by_date" id="model-request-modal-needed-by-date" class="form-control" required>'
             + '          </div>'
@@ -1820,6 +1820,63 @@
         $('#model-request-modal-create-project').on('click', function () {
             createProjectFromRequestModal('#model-request-modal-project', '#model-request-modal-error');
         });
+    }
+
+    function ensureRequestSubmissionModal() {
+        if (document.getElementById('request-submission-modal')) {
+            return;
+        }
+
+        var modalHtml = ''
+            + '<div class="modal fade" id="request-submission-modal" tabindex="-1" role="dialog" aria-hidden="true">'
+            + '  <div class="modal-dialog" role="document">'
+            + '    <div class="modal-content">'
+            + '      <form id="request-submission-modal-form" method="POST">'
+            + '        @csrf'
+            + '        <div class="modal-header">'
+            + '          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+            + '          <h4 class="modal-title">Modify submission</h4>'
+            + '        </div>'
+            + '        <div class="modal-body">'
+            + '          <div class="alert alert-info">Project and Needed By apply to every model line in this submission.</div>'
+            + '          <div class="alert alert-danger" id="request-submission-modal-error" style="display:none;"></div>'
+            + '          <div class="form-group">'
+            + '            <label for="request-submission-modal-project">{{ trans('general.project') }}</label>'
+            + '            <div class="input-group">'
+            + '              <select name="project_id" id="request-submission-modal-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
+            + '              <span class="input-group-btn">'
+            + '                <button type="button" class="btn btn-default" id="request-submission-modal-create-project" data-tooltip="true" title="Create project"><i class="fas fa-plus" aria-hidden="true"></i></button>'
+            + '              </span>'
+            + '            </div>'
+            + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="request-submission-modal-needed-by-date">Needed By</label>'
+            + '            <input type="date" name="needed_by_date" id="request-submission-modal-needed-by-date" class="form-control" required>'
+            + '          </div>'
+            + '        </div>'
+            + '        <div class="modal-footer">'
+            + '          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>'
+            + '          <button type="submit" class="btn btn-primary">Update submission</button>'
+            + '        </div>'
+            + '      </form>'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+
+        $('body').append(modalHtml);
+        $('#request-submission-modal-create-project').on('click', function () {
+            createProjectFromRequestModal('#request-submission-modal-project', '#request-submission-modal-error');
+        });
+    }
+
+    function openRequestSubmissionModal(updateUrl, projectId, neededByDate) {
+        ensureRequestSubmissionModal();
+        $('#request-submission-modal-form').attr('action', updateUrl);
+        $('#request-submission-modal-project').html(buildModelRequestProjectOptions(projectId || ''));
+        $('#request-submission-modal-project').val(String(projectId || ''));
+        $('#request-submission-modal-needed-by-date').val(neededByDate || '');
+        $('#request-submission-modal-error').hide().text('');
+        $('#request-submission-modal').modal('show');
     }
 
     function ensureModelRequestCartModal() {
@@ -1974,6 +2031,7 @@
         $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
         $('#model-request-modal-project').val(String(options.projectId || ''));
         $('#model-request-modal-needed-by-date').val(options.neededByDate || '');
+        $('#model-request-modal-project-group, #model-request-modal-needed-by-group').toggle(options.showSharedContext !== false);
         $('#model-request-modal-submit').text(options.submitLabel);
         resetModelRequestEstimateState();
         $('#model-request-modal').modal('show');
@@ -2291,7 +2349,7 @@
             var modifyTitle = 'Modify request';
             var estimateUrl = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.model_id);
             actions.push(
-                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', companyId: \'' + (row.company_id || '') + '\', projectId: \'' + (row.project_id || '') + '\', requestedDisciplineId: \'' + (row.requested_discipline_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
+                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', companyId: \'' + (row.company_id || '') + '\', projectId: \'' + (row.project_id || '') + '\', requestedDisciplineId: \'' + (row.requested_discipline_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', showSharedContext: false, title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
                 + '<i class="fas fa-pen" aria-hidden="true"></i>'
                 + '<span class="sr-only">' + modifyTitle + '</span>'
                 + '</button>'
@@ -2336,10 +2394,32 @@
             return '';
         }
 
-        return '<a href="' + row.details_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="Open submission">'
+        var actions = [
+            '<a href="' + row.details_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="Open submission">'
             + '<i class="fas fa-eye" aria-hidden="true"></i>'
             + '<span class="sr-only">Open submission</span>'
-            + '</a>';
+            + '</a>'
+        ];
+
+        if (row.submission_update_url) {
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="Modify submission" onclick="openRequestSubmissionModal(\'' + row.submission_update_url + '\', \'' + (row.project_id || '') + '\', \'' + (row.needed_by_date_value || '') + '\');">'
+                + '<i class="fas fa-pen" aria-hidden="true"></i>'
+                + '<span class="sr-only">Modify submission</span>'
+                + '</button>'
+            );
+        }
+
+        if (row.submission_cancel_url) {
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-danger" data-tooltip="true" title="Cancel submission" onclick="cancelSubmittedRequestRow(\'' + row.submission_cancel_url + '\', \'Cancel this entire submission?\');">'
+                + '<i class="fas fa-times" aria-hidden="true"></i>'
+                + '<span class="sr-only">Cancel submission</span>'
+                + '</button>'
+            );
+        }
+
+        return '<div style="display:flex;gap:6px;align-items:center;">' + actions.join('') + '</div>';
     }
 
     function requestModelLinkFormatter(value, row) {
@@ -2427,8 +2507,8 @@
         $('.snipe-table').on('post-header.bs.table load-success.bs.table', attachRequestTableHeaderTooltips);
     });
 
-    function cancelSubmittedRequestRow(url) {
-        if (!window.confirm('Cancel this request?')) {
+    function cancelSubmittedRequestRow(url, confirmationMessage) {
+        if (!window.confirm(confirmationMessage || 'Cancel this request?')) {
             return;
         }
 

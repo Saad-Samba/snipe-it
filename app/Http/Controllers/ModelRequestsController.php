@@ -30,6 +30,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -519,16 +520,17 @@ class ModelRequestsController extends Controller
     public function updateSubmittedRequest(Request $request, CheckoutRequest $checkoutRequest): RedirectResponse
     {
         $this->authorizeSubmittedRequestAccess($checkoutRequest);
+        $this->ensureSubmissionEditable($this->submittedRequestSubmission($checkoutRequest));
         if ($checkoutRequest->requestable_type !== AssetModel::class) {
             abort(404);
         }
 
         $validated = $this->validateModelRequestPayload($request);
         $quantity = (int) ($validated['request-quantity'] ?? 0);
-        $projectId = (int) ($validated['project_id'] ?? 0);
+        $projectId = (int) $checkoutRequest->project_id;
         $requestedDisciplineId = isset($validated['requested_discipline_id']) ? (int) $validated['requested_discipline_id'] : 0;
         $companyId = isset($validated['company_id']) ? (int) $validated['company_id'] : 0;
-        $neededByDate = $validated['needed_by_date'] ?? null;
+        $neededByDate = optional($checkoutRequest->needed_by_date)->format('Y-m-d');
 
         $item = $checkoutRequest->requestedItem;
         abort_if(! $item instanceof AssetModel, 404);
@@ -553,6 +555,93 @@ class ModelRequestsController extends Controller
         ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
 
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
+    }
+
+    public function updateSubmittedRequestSubmission(Request $request, CheckoutRequest $checkoutRequest): RedirectResponse
+    {
+        $this->authorizeSubmittedRequestAccess($checkoutRequest);
+        $validated = $request->validate([
+            'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
+            'needed_by_date' => ['required', 'date'],
+        ]);
+        $projectId = (int) $validated['project_id'];
+        $neededByDate = (string) $validated['needed_by_date'];
+        $routingResults = [];
+
+        /** @var Collection<int, CheckoutRequest> $updatedRequests */
+        $updatedRequests = DB::transaction(function () use ($checkoutRequest, $projectId, $neededByDate, &$routingResults) {
+            $submissionRequests = $this->submittedRequestSubmission($checkoutRequest, true);
+            $this->ensureSubmissionEditable($submissionRequests);
+            $this->ensureSubmissionProjectDoesNotConflict($submissionRequests, $projectId);
+
+            foreach ($submissionRequests as $submissionRequest) {
+                $model = $submissionRequest->requestedItem()->first();
+                abort_if(! $model instanceof AssetModel, 404);
+
+                $submissionRequest->project_id = $projectId;
+                $submissionRequest->needed_by_date = $neededByDate;
+                $submissionRequest->fill($this->estimateAssetModelRequest(
+                    $model,
+                    (int) $submissionRequest->quantity,
+                    $neededByDate
+                ));
+                $submissionRequest->status = CheckoutRequest::STATUS_PENDING;
+                $submissionRequest->resetAlternativeFollowUpNotification();
+                $submissionRequest->save();
+                $routingResults[$submissionRequest->id] = ResolveCheckoutRequestCoordinatorsAction::run(
+                    $submissionRequest,
+                    false
+                );
+            }
+
+            return $submissionRequests->each->refresh();
+        });
+
+        $project = Project::find($projectId);
+        $coordinatorNotificationBuckets = [];
+        $unroutedRacNotificationLines = [];
+        foreach ($updatedRequests as $updatedRequest) {
+            $routingResult = $routingResults[$updatedRequest->id];
+            $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
+                $coordinatorNotificationBuckets,
+                $updatedRequest,
+                auth()->user(),
+                $project,
+                now()->toDateTimeString(),
+                $routingResult->coordinatorMatches
+            );
+            $unroutedRacNotificationLines = $this->addUnroutedRacNotificationLine(
+                $unroutedRacNotificationLines,
+                $updatedRequest,
+                $routingResult
+            );
+        }
+
+        $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);
+        $this->sendUnroutedRacNotifications($unroutedRacNotificationLines);
+        SendAlternativeFollowUpNotificationAction::run($updatedRequests->first());
+
+        return redirect()->back()->with('success', 'Submission context updated.');
+    }
+
+    public function cancelSubmittedRequestSubmission(CheckoutRequest $checkoutRequest): RedirectResponse
+    {
+        $this->authorizeSubmittedRequestAccess($checkoutRequest);
+
+        DB::transaction(function () use ($checkoutRequest) {
+            $submissionRequests = $this->submittedRequestSubmission($checkoutRequest, true);
+            $this->ensureSubmissionEditable($submissionRequests);
+
+            foreach ($submissionRequests as $submissionRequest) {
+                $submissionRequest->forceFill([
+                    'canceled_at' => now(),
+                    'status' => CheckoutRequest::STATUS_CANCELED,
+                ])->save();
+                $submissionRequest->coordinatorTargets()->delete();
+            }
+        });
+
+        return redirect()->back()->with('success', 'Submission canceled.');
     }
 
     public function cancelSubmittedRequest(CheckoutRequest $checkoutRequest): RedirectResponse
@@ -971,6 +1060,82 @@ class ModelRequestsController extends Controller
         }
 
         abort_unless((int) $checkoutRequest->user_id === (int) auth()->id(), 403);
+    }
+
+    private function submittedRequestSubmission(CheckoutRequest $checkoutRequest, bool $lockForUpdate = false): Collection
+    {
+        $query = CheckoutRequest::query()
+            ->where('user_id', $checkoutRequest->user_id)
+            ->whereNull('canceled_at')
+            ->when(
+                $checkoutRequest->submission_batch_id,
+                fn ($submissionQuery) => $submissionQuery->where('submission_batch_id', $checkoutRequest->submission_batch_id),
+                fn ($submissionQuery) => $submissionQuery->whereKey($checkoutRequest->id)
+            )
+            ->orderBy('id');
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        $submissionRequests = $query->get();
+        abort_if($submissionRequests->isEmpty(), 404);
+
+        return $submissionRequests;
+    }
+
+    private function ensureSubmissionEditable(Collection $submissionRequests): void
+    {
+        $requestIds = $submissionRequests->pluck('id');
+        $hasAlternativeFollowUp = $submissionRequests->contains(
+            fn (CheckoutRequest $submissionRequest) => $submissionRequest->alternative_follow_up_notified_at !== null
+        );
+        $hasAllocations = DB::table('checkout_request_assets')
+            ->whereIn('checkout_request_id', $requestIds)
+            ->exists();
+        $hasRacActivity = CheckoutRequestCoordinator::query()
+            ->whereIn('checkout_request_id', $requestIds)
+            ->where(function ($activityQuery) {
+                $activityQuery
+                    ->whereNotNull('reviewed_at')
+                    ->orWhereNotNull('last_action_at')
+                    ->orWhere(function ($resolutionQuery) {
+                        $resolutionQuery
+                            ->whereNotNull('resolution_status')
+                            ->where('resolution_status', '!=', CheckoutRequestCoordinator::RESOLUTION_PENDING);
+                    });
+            })
+            ->exists();
+
+        if ($hasAlternativeFollowUp || $hasAllocations || $hasRacActivity) {
+            throw ValidationException::withMessages([
+                'submission' => 'This submission can no longer be changed because RAC processing has started.',
+            ]);
+        }
+    }
+
+    private function ensureSubmissionProjectDoesNotConflict(Collection $submissionRequests, int $projectId): void
+    {
+        $submissionRequestIds = $submissionRequests->pluck('id');
+
+        foreach ($submissionRequests as $submissionRequest) {
+            $duplicateExists = CheckoutRequest::query()
+                ->whereNotIn('id', $submissionRequestIds)
+                ->whereNull('canceled_at')
+                ->where('user_id', $submissionRequest->user_id)
+                ->where('requestable_type', $submissionRequest->requestable_type)
+                ->where('requestable_id', $submissionRequest->requestable_id)
+                ->where('project_id', $projectId)
+                ->where('requested_discipline_id', $submissionRequest->requested_discipline_id)
+                ->where('company_id', $submissionRequest->company_id)
+                ->exists();
+
+            if ($duplicateExists) {
+                throw ValidationException::withMessages([
+                    'project_id' => 'The selected project already has an active matching model request.',
+                ]);
+            }
+        }
     }
 
     private function ensureUniqueModelProjectRequest(AssetModel $item, User $user, int $projectId, int $disciplineId, int $companyId, ?int $ignoreRequestId = null): void

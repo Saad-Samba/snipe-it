@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\CheckoutRequestCoordinator;
 use App\Models\CustomField;
 use App\Models\Project;
 use Illuminate\Http\Request;
@@ -28,6 +29,7 @@ class ModelRequestsController extends Controller
                 'requestedDiscipline',
                 'user',
                 'allocatedAssets',
+                'coordinatorTargets',
             ])
         ;
 
@@ -57,6 +59,9 @@ class ModelRequestsController extends Controller
         }
 
         $checkoutRequests = $checkoutRequests->get();
+        $submissionEditable = $checkoutRequests
+            ->groupBy(fn (CheckoutRequest $checkoutRequest) => $this->submissionKey($checkoutRequest))
+            ->map(fn (Collection $submissionRequests) => $this->submissionIsEditable($submissionRequests));
 
         if ($request->input('view') === 'batches') {
             return $this->batchResults($checkoutRequests);
@@ -96,6 +101,7 @@ class ModelRequestsController extends Controller
                 $checkoutRequest->requestable_type === AssetModel::class
                 && $requestedItem instanceof AssetModel
             ) ? $requestedItem : null;
+            $canEditSubmission = (bool) ($submissionEditable[$this->submissionKey($checkoutRequest)] ?? false);
 
             $assets = [
                 'request_id' => (int) $checkoutRequest->id,
@@ -168,8 +174,8 @@ class ModelRequestsController extends Controller
                 'reserved_by_other_project_url' => $canViewAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved_other_project']))
                     : null,
-                'request_update_url' => route('requests.update', $checkoutRequest),
-                'request_cancel_url' => route('requests.cancel', $checkoutRequest),
+                'request_update_url' => $canEditSubmission ? route('requests.update', $checkoutRequest) : null,
+                'request_cancel_url' => null,
             ];
 
             $showField = [];
@@ -294,6 +300,14 @@ class ModelRequestsController extends Controller
                         ], true)
                     ),
                     'details_url' => route('requests.index', $detailsQuery),
+                    'project_id' => $projectIds->count() === 1 ? (int) $projectIds->first() : null,
+                    'needed_by_date_value' => $neededByDates->count() === 1 ? $neededByDates->first() : null,
+                    'submission_update_url' => $this->submissionIsEditable($batchRequests)
+                        ? route('request-submissions.update', $firstRequest)
+                        : null,
+                    'submission_cancel_url' => $this->submissionIsEditable($batchRequests)
+                        ? route('request-submissions.cancel', $firstRequest)
+                        : null,
                 ];
             })
             ->sortByDesc(function (array $row) {
@@ -323,5 +337,26 @@ class ModelRequestsController extends Controller
         }
 
         return route('projects.show', ['project' => $project->id, 'tab' => 'requests']);
+    }
+
+    private function submissionKey(CheckoutRequest $checkoutRequest): string
+    {
+        return $checkoutRequest->submission_batch_id ?: 'legacy-'.$checkoutRequest->id;
+    }
+
+    private function submissionIsEditable(Collection $submissionRequests): bool
+    {
+        return ! $submissionRequests->contains(function (CheckoutRequest $checkoutRequest) {
+            if ($checkoutRequest->alternative_follow_up_notified_at || $checkoutRequest->allocatedAssets->isNotEmpty()) {
+                return true;
+            }
+
+            return $checkoutRequest->coordinatorTargets->contains(
+                fn (CheckoutRequestCoordinator $target) => $target->reviewed_at
+                    || $target->last_action_at
+                    || ($target->resolution_status
+                        && $target->resolution_status !== CheckoutRequestCoordinator::RESOLUTION_PENDING)
+            );
+        });
     }
 }
