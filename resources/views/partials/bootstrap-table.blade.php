@@ -2256,16 +2256,12 @@
     }
 
     function requestSubmissionOutcomeFormatter(value, row) {
-        if (!row || !row.review_complete) {
-            return '<span class="text-muted">&mdash;</span>';
-        }
-
         return Number(value) || 0;
     }
 
     function requestSubmissionPendingToBuyFormatter(value, row) {
         if (!row || !row.review_complete) {
-            return '<span class="text-muted">&mdash;</span>';
+            return '<span class="text-muted">Pending review</span>';
         }
 
         if (value === null || value === undefined || value === '') {

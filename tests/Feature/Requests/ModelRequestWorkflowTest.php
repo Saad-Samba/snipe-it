@@ -428,6 +428,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('Review Status')
             ->assertSee('Allocated')
             ->assertSee('Remaining')
+            ->assertSee('Pending review')
             ->assertDontSee('data-field="reusable_quantity"', false)
             ->assertDontSee('data-field="due_back_before_needed_by_quantity"', false)
             ->assertDontSee('data-field="estimated_savings"', false)
