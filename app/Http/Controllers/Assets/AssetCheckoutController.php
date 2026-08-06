@@ -48,6 +48,14 @@ class AssetCheckoutController extends Controller
         if ($asset->availableForCheckout()) {
             if (request()->filled('request_id')) {
                 $requestContext = $this->resolveRequestContext((int) request()->input('request_id'));
+
+                request()->session()->flashInput([
+                    'selected_assets' => [$asset->id],
+                ]);
+
+                return redirect()->route('hardware.bulkcheckout.show', [
+                    'request_id' => $requestContext->id,
+                ]);
             }
 
             return view('hardware/checkout', compact('asset'))
@@ -158,8 +166,18 @@ class AssetCheckoutController extends Controller
         }
     }
 
-    protected function resolveRequestContext(int $requestId): ?CheckoutRequest
+    protected function resolveRequestContext(int $requestId): CheckoutRequest
     {
-        return CheckoutRequest::with(['project', 'requestedDiscipline'])->find($requestId);
+        $requestContext = CheckoutRequest::with(['project', 'requestedDiscipline'])->find($requestId);
+
+        abort_if(! $requestContext, 404);
+        abort_unless(
+            auth()->user()->isSuperUser()
+            || (int) $requestContext->user_id === (int) auth()->id()
+            || $requestContext->candidateCoordinators()->where('users.id', auth()->id())->exists(),
+            403
+        );
+
+        return $requestContext;
     }
 }

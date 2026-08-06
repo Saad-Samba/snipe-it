@@ -2695,6 +2695,59 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee($reservedStatus->name, false);
     }
 
+    public function test_request_row_checkout_uses_request_aware_checkout_with_only_that_asset_selected()
+    {
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $coordinator = User::factory()->viewAssets()->checkoutAssets()->create();
+        $project = Project::factory()->create();
+        $discipline = Discipline::create(['name' => 'Single Checkout Scope', 'created_by' => $requester->id]);
+        $company = Company::factory()->create();
+        $reservedStatus = Statuslabel::factory()->readyToDeploy()->create([
+            'name' => 'Reserved for RFQ',
+        ]);
+        $settings = Setting::getSettings();
+        $settings->rfq_reserved_statuslabel_id = $reservedStatus->id;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $request = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $company->id,
+            'project_id' => $project->id,
+            'quantity' => 2,
+            'needed_by_date' => '2026-07-15',
+        ]);
+        $request->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+        ]);
+        $selectedAsset = $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $otherAsset = $this->createEligibleAsset($model, $company->id, $discipline->id);
+
+        $response = $this->actingAs($coordinator)
+            ->get(route('hardware.checkout.create', [
+                'asset' => $selectedAsset->id,
+                'request_id' => $request->id,
+            ]))
+            ->assertRedirect(route('hardware.bulkcheckout.show', [
+                'request_id' => $request->id,
+            ]));
+
+        $this->followRedirects($response)
+            ->assertOk()
+            ->assertSee($selectedAsset->present()->fullName, false)
+            ->assertDontSee($otherAsset->present()->fullName, false)
+            ->assertSee($requester->present()->fullName)
+            ->assertSee('value="2026-07-15"', false)
+            ->assertSee($reservedStatus->name, false);
+    }
+
     public function test_candidate_rac_can_bulk_checkout_everything_from_request_review_flow()
     {
         $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
