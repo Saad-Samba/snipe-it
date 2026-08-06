@@ -17,6 +17,7 @@ use App\Models\Group;
 use App\Models\Labels\Label as LabelModel;
 use App\Models\Setting;
 use App\Models\Asset;
+use App\Models\Statuslabel;
 use App\Models\User;
 use App\Notifications\FirstAdminNotification;
 use App\Notifications\MailTest;
@@ -291,7 +292,14 @@ class SettingsController extends Controller
     public function getSettings() : View
     {
         $setting = Setting::getSettings();
-        return view('settings/general', compact('setting'));
+        $rfq_statuslabel_list = ['' => trans('admin/settings/general.rfq_reserved_status_none')]
+            + Statuslabel::deployable()
+                ->orderBy('default_label', 'desc')
+                ->orderBy('name')
+                ->pluck('name', 'id')
+                ->toArray();
+
+        return view('settings/general', compact('setting', 'rfq_statuslabel_list'));
     }
 
     /**
@@ -307,6 +315,17 @@ class SettingsController extends Controller
         if (is_null($setting = Setting::getSettings())) {
             return redirect()->to('admin')->with('error', trans('admin/settings/message.update.error'));
         }
+
+        $request->validate([
+            'rfq_reserved_statuslabel_id' => [
+                'nullable',
+                Rule::exists('status_labels', 'id')->where(fn ($query) => $query
+                    ->where('deployable', 1)
+                    ->where('pending', 0)
+                    ->where('archived', 0)
+                    ->whereNull('deleted_at')),
+            ],
+        ]);
 
         $setting->modellist_displays = '';
 
@@ -352,6 +371,9 @@ class SettingsController extends Controller
         $setting->profile_edit = $request->input('profile_edit', 0);
         $setting->require_checkinout_notes = $request->input('require_checkinout_notes', 0);
         $setting->manager_view_enabled = $request->input('manager_view_enabled', 0);
+        $setting->rfq_reserved_statuslabel_id = $request->filled('rfq_reserved_statuslabel_id')
+            ? (int) $request->input('rfq_reserved_statuslabel_id')
+            : null;
 
 
         if ($request->input('per_page') != '') {

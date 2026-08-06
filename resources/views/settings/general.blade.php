@@ -271,6 +271,25 @@
                                    </div>
                                </div>
 
+                           <!-- RFQ reservation status -->
+                           <div class="form-group {{ $errors->has('rfq_reserved_statuslabel_id') ? 'error' : '' }}">
+                               <label for="rfq_reserved_statuslabel_id" class="col-md-3 control-label">
+                                   {{ trans('admin/settings/general.rfq_reserved_status') }}
+                               </label>
+
+                               <div class="col-md-8">
+                                   <x-input.select
+                                       name="rfq_reserved_statuslabel_id"
+                                       :options="$rfq_statuslabel_list"
+                                       :selected="old('rfq_reserved_statuslabel_id', $setting->rfq_reserved_statuslabel_id)"
+                                       style="width: 100%"
+                                       aria-label="rfq_reserved_statuslabel_id"
+                                   />
+                                   {!! $errors->first('rfq_reserved_statuslabel_id', '<span class="alert-msg" aria-hidden="true">:message</span>') !!}
+                                   <p class="help-block">{{ trans('admin/settings/general.rfq_reserved_status_help') }}</p>
+                               </div>
+                           </div>
+
 
                        </fieldset>
 
