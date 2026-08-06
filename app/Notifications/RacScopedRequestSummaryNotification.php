@@ -11,7 +11,8 @@ class RacScopedRequestSummaryNotification extends Notification
 {
     public function __construct(
         private readonly array $summary,
-        private readonly bool $isReminder = false
+        private readonly bool $isReminder = false,
+        private readonly bool $isUpdate = false
     ) {
     }
 
@@ -33,16 +34,10 @@ class RacScopedRequestSummaryNotification extends Notification
             'lines' => $this->summary['lines'],
             'review_url' => $this->reviewUrl(),
             'is_reminder' => $this->isReminder,
-            'review_label' => $this->isReminder
-                ? trans('mail.rac_request_scope_match_reminder_cta')
-                : trans('mail.rac_request_scope_match_cta'),
+            'is_update' => $this->isUpdate,
+            'review_label' => trans($this->messageKey('cta')),
         ])
-            ->subject(trans(
-                $this->isReminder
-                    ? 'mail.rac_request_scope_match_reminder_subject'
-                    : 'mail.rac_request_scope_match_subject',
-                ['project' => $projectName]
-            ))
+            ->subject(trans($this->messageKey('subject'), ['project' => $projectName]))
             ->withSymfonyMessage(function (Email $message) {
                 $message->getHeaders()->addTextHeader(
                     'X-System-Sender', 'Snipe-IT'
@@ -76,5 +71,23 @@ class RacScopedRequestSummaryNotification extends Notification
     public function isReminder(): bool
     {
         return $this->isReminder;
+    }
+
+    public function isUpdate(): bool
+    {
+        return $this->isUpdate;
+    }
+
+    private function messageKey(string $suffix): string
+    {
+        if ($this->isReminder) {
+            return 'mail.rac_request_scope_match_reminder_'.$suffix;
+        }
+
+        if ($this->isUpdate) {
+            return 'mail.rac_request_scope_match_update_'.$suffix;
+        }
+
+        return 'mail.rac_request_scope_match_'.$suffix;
     }
 }

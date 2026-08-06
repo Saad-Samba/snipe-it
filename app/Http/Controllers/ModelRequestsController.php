@@ -21,6 +21,7 @@ use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\RacScopedRequestSummaryNotification;
+use App\Notifications\RacRequestRoutingRemovedNotification;
 use App\Notifications\RequestAssetCancelation;
 use App\Notifications\RequestAssetNotification;
 use App\Notifications\UnroutedRacRequestNotification;
@@ -534,6 +535,11 @@ class ModelRequestsController extends Controller
 
         $item = $checkoutRequest->requestedItem;
         abort_if(! $item instanceof AssetModel, 404);
+        $previousCoordinatorIds = $checkoutRequest->coordinatorTargets()
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
 
         $this->ensureModelRequestAuthorized($item);
         $this->ensureModelRequestProjectProvided($projectId);
@@ -552,7 +558,27 @@ class ModelRequestsController extends Controller
         $checkoutRequest->status = CheckoutRequest::STATUS_PENDING;
         $checkoutRequest->resetAlternativeFollowUpNotification();
         $checkoutRequest->save();
-        ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest);
+        $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, false);
+
+        $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
+            [],
+            $checkoutRequest,
+            auth()->user(),
+            $checkoutRequest->project,
+            now()->toDateTimeString(),
+            $routingResult->coordinatorMatches
+        );
+        $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets, true);
+        $this->sendUnroutedRacNotifications($this->addUnroutedRacNotificationLine(
+            [],
+            $checkoutRequest,
+            $routingResult
+        ));
+        $this->sendRemovedCoordinatorNotifications(
+            $previousCoordinatorIds->diff($routingResult->coordinatorMatches->pluck('user_id')),
+            $checkoutRequest
+        );
+        SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
 
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
@@ -567,14 +593,20 @@ class ModelRequestsController extends Controller
         $projectId = (int) $validated['project_id'];
         $neededByDate = (string) $validated['needed_by_date'];
         $routingResults = [];
+        $previousCoordinatorIds = [];
 
         /** @var Collection<int, CheckoutRequest> $updatedRequests */
-        $updatedRequests = DB::transaction(function () use ($checkoutRequest, $projectId, $neededByDate, &$routingResults) {
+        $updatedRequests = DB::transaction(function () use ($checkoutRequest, $projectId, $neededByDate, &$routingResults, &$previousCoordinatorIds) {
             $submissionRequests = $this->submittedRequestSubmission($checkoutRequest, true);
             $this->ensureSubmissionEditable($submissionRequests);
             $this->ensureSubmissionProjectDoesNotConflict($submissionRequests, $projectId);
 
             foreach ($submissionRequests as $submissionRequest) {
+                $previousCoordinatorIds[$submissionRequest->id] = $submissionRequest->coordinatorTargets()
+                    ->pluck('user_id')
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values();
                 $model = $submissionRequest->requestedItem()->first();
                 abort_if(! $model instanceof AssetModel, 404);
 
@@ -617,8 +649,15 @@ class ModelRequestsController extends Controller
             );
         }
 
-        $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);
+        $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets, true);
         $this->sendUnroutedRacNotifications($unroutedRacNotificationLines);
+        foreach ($updatedRequests as $updatedRequest) {
+            $this->sendRemovedCoordinatorNotifications(
+                ($previousCoordinatorIds[$updatedRequest->id] ?? collect())
+                    ->diff($routingResults[$updatedRequest->id]->coordinatorMatches->pluck('user_id')),
+                $updatedRequest
+            );
+        }
         SendAlternativeFollowUpNotificationAction::run($updatedRequests->first());
 
         return redirect()->back()->with('success', 'Submission context updated.');
@@ -925,10 +964,10 @@ class ModelRequestsController extends Controller
         return $buckets;
     }
 
-    private function sendCoordinatorSummaryNotifications(array $buckets): void
+    private function sendCoordinatorSummaryNotifications(array $buckets, bool $isUpdate = false): void
     {
         foreach ($buckets as $bucket) {
-            $bucket['rac_user']->notify(new RacScopedRequestSummaryNotification($bucket));
+            $bucket['rac_user']->notify(new RacScopedRequestSummaryNotification($bucket, false, $isUpdate));
 
             $requestIds = collect($bucket['lines'] ?? [])
                 ->pluck('request_id')
@@ -947,6 +986,24 @@ class ModelRequestsController extends Controller
                 ->whereNull('initial_notified_at')
                 ->update(['initial_notified_at' => now()]);
         }
+    }
+
+    private function sendRemovedCoordinatorNotifications(Collection $coordinatorIds, CheckoutRequest $checkoutRequest): void
+    {
+        if ($coordinatorIds->isEmpty()) {
+            return;
+        }
+
+        User::query()
+            ->whereIn('id', $coordinatorIds)
+            ->where('activated', 1)
+            ->get()
+            ->each(fn (User $coordinator) => $coordinator->notify(
+                new RacRequestRoutingRemovedNotification(
+                    $checkoutRequest->requestedItem()?->name ?? $checkoutRequest->name(),
+                    optional($checkoutRequest->project)->name
+                )
+            ));
     }
 
     private function addUnroutedRacNotificationLine(

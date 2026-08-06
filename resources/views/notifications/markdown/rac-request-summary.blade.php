@@ -1,7 +1,7 @@
 @component('mail::message')
 # {{ trans('mail.hello') }},
 
-{{ trans($is_reminder ? 'mail.rac_request_scope_match_reminder_intro' : 'mail.rac_request_scope_match_intro') }}
+{{ trans($is_reminder ? 'mail.rac_request_scope_match_reminder_intro' : ($is_update ? 'mail.rac_request_scope_match_update_intro' : 'mail.rac_request_scope_match_intro')) }}
 
 @if ($project_name)
 **{{ trans('general.project') }}:** {{ $project_name }}
@@ -11,9 +11,9 @@
 **Requestor:** {{ $requester->display_name }}
 @endif
 
-**{{ trans('general.requested') }}:** {{ $submitted_at }}
+**{{ trans($is_update ? 'mail.rac_request_updated_at' : 'general.requested') }}:** {{ $submitted_at }}
 
-{{ trans($is_reminder ? 'mail.rac_request_scope_match_reminder_action' : 'mail.rac_request_scope_match_action') }}
+{{ trans($is_reminder ? 'mail.rac_request_scope_match_reminder_action' : ($is_update ? 'mail.rac_request_scope_match_update_action' : 'mail.rac_request_scope_match_action')) }}
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; width:100%; margin-top:18px; margin-bottom:18px;">
     <thead>

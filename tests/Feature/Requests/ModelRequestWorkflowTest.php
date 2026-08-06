@@ -16,6 +16,7 @@ use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
 use App\Notifications\RacScopedRequestSummaryNotification;
+use App\Notifications\RacRequestRoutingRemovedNotification;
 use App\Notifications\RequestAssetNotification;
 use App\Notifications\UnroutedRacRequestNotification;
 use App\Notifications\RequestAlternativeFollowUpNotification;
@@ -1416,11 +1417,14 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_requester_can_modify_existing_submitted_request_by_exact_row()
     {
+        Notification::fake();
         $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $coordinator = User::factory()->create();
         $project = Project::factory()->create();
         $updatedProject = Project::factory()->create();
         $company = Company::factory()->create();
         $updatedCompany = Company::factory()->create();
+        $sourceCompany = Company::factory()->create();
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
             'reference_price' => 400,
@@ -1430,7 +1434,17 @@ class ModelRequestWorkflowTest extends TestCase
             'name' => 'Scoped Update',
             'created_by' => $requester->id,
         ]);
-        $this->createEligibleAsset($model, Company::factory()->create()->id, $discipline->id);
+        $updatedDiscipline = Discipline::create([
+            'name' => 'Updated Destination',
+            'created_by' => $requester->id,
+        ]);
+        $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
 
         $request = CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
@@ -1442,12 +1456,13 @@ class ModelRequestWorkflowTest extends TestCase
             'quantity' => 1,
             'needed_by_date' => '2026-06-01',
         ]);
+        ResolveCheckoutRequestCoordinatorsAction::run($request, false);
 
         $this->actingAs($requester)
             ->post(route('requests.update', $request), [
                 'request-action' => 'update',
                 'request-quantity' => 2,
-                'requested_discipline_id' => $discipline->id,
+                'requested_discipline_id' => $updatedDiscipline->id,
                 'company_id' => $updatedCompany->id,
                 'project_id' => $updatedProject->id,
                 'needed_by_date' => '2026-07-01',
@@ -1458,11 +1473,84 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->assertSame(2, $request->quantity);
         $this->assertSame($project->id, $request->project_id);
+        $this->assertSame($updatedDiscipline->id, $request->requested_discipline_id);
         $this->assertSame($updatedCompany->id, $request->company_id);
         $this->assertSame('2026-06-01', optional($request->needed_by_date)->format('Y-m-d'));
         $this->assertSame(1, $request->reusable_quantity);
         $this->assertSame(1, $request->procurement_shortfall);
         $this->assertSame(400.0, (float) $request->estimated_savings);
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class, function ($notification) use ($updatedCompany, $updatedDiscipline) {
+            return $notification->isUpdate()
+                && $notification->lines()[0]['requested_quantity'] === 2
+                && $notification->lines()[0]['company_name'] === $updatedCompany->name
+                && $notification->lines()[0]['discipline_name'] === $updatedDiscipline->name;
+        });
+    }
+
+    public function test_edit_notifies_racs_added_or_removed_when_inventory_routing_changes()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $oldCoordinator = User::factory()->create();
+        $newCoordinator = User::factory()->create();
+        $project = Project::factory()->create();
+        $destinationCompany = Company::factory()->create();
+        $oldSourceCompany = Company::factory()->create();
+        $newSourceCompany = Company::factory()->create();
+        $discipline = Discipline::create([
+            'name' => 'Routing Change',
+            'created_by' => $requester->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $oldAsset = $this->createEligibleAsset($model, $oldSourceCompany->id, $discipline->id);
+
+        foreach ([
+            [$oldCoordinator, $oldSourceCompany],
+            [$newCoordinator, $newSourceCompany],
+        ] as [$coordinator, $sourceCompany]) {
+            RegionalAssetCoordinatorAssignment::create([
+                'user_id' => $coordinator->id,
+                'company_id' => $sourceCompany->id,
+                'discipline_id' => $discipline->id,
+                'created_by' => $requester->id,
+            ]);
+        }
+
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $destinationCompany->id,
+            'project_id' => $project->id,
+            'quantity' => 1,
+            'needed_by_date' => '2026-06-01',
+        ]);
+        ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, false);
+        $this->assertSame([$oldCoordinator->id], $checkoutRequest->coordinatorTargets()->pluck('user_id')->all());
+
+        $oldAsset->delete();
+        $this->createEligibleAsset($model, $newSourceCompany->id, $discipline->id);
+
+        $this->actingAs($requester)
+            ->post(route('requests.update', $checkoutRequest), [
+                'request-action' => 'update',
+                'request-quantity' => 2,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $destinationCompany->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
+            ])
+            ->assertRedirect();
+
+        Notification::assertSentTo($newCoordinator, RacScopedRequestSummaryNotification::class, fn ($notification) => $notification->isUpdate());
+        Notification::assertSentTo($oldCoordinator, RacRequestRoutingRemovedNotification::class, function ($notification) use ($model, $project) {
+            return $notification->modelName() === $model->name
+                && $notification->projectName() === $project->name;
+        });
     }
 
     public function test_model_request_requires_company()
