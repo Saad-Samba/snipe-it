@@ -34,7 +34,10 @@ class SendRacRequestRemindersTest extends TestCase
         Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class, function ($notification) use ($request) {
             return $notification->isReminder()
                 && count($notification->lines()) === 1
-                && $notification->lines()[0]['request_id'] === $request->id;
+                && $notification->lines()[0]['request_id'] === $request->id
+                && $notification->lines()[0]['inventory_discipline_names'] === [
+                    $request->coordinatorTargets()->firstOrFail()->discipline->name,
+                ];
         });
 
         $this->assertDatabaseMissing('checkout_request_coordinators', [

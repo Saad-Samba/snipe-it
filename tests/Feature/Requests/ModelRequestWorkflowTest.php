@@ -117,14 +117,59 @@ class ModelRequestWorkflowTest extends TestCase
                 && count($notification->lines()) === 1
                 && $notification->lines()[0]['company_name'] === 'Receiving Site'
                 && $notification->lines()[0]['discipline_name'] === $disciplineA->name
+                && $notification->lines()[0]['inventory_discipline_names'] === [$disciplineA->name]
                 && $notification->lines()[0]['reusable_quantity'] === 1;
         });
-        Notification::assertSentTo($coordinatorB, RacScopedRequestSummaryNotification::class, function ($notification) use ($project, $disciplineA) {
+        Notification::assertSentTo($coordinatorB, RacScopedRequestSummaryNotification::class, function ($notification) use ($project, $disciplineA, $disciplineB) {
             return $notification->projectName() === $project->name
                 && count($notification->lines()) === 1
                 && $notification->lines()[0]['company_name'] === 'Receiving Site'
                 && $notification->lines()[0]['discipline_name'] === $disciplineA->name
+                && $notification->lines()[0]['inventory_discipline_names'] === [$disciplineB->name]
                 && $notification->lines()[0]['reusable_quantity'] === 1;
+        });
+    }
+
+    public function test_rac_email_groups_all_matched_inventory_disciplines_for_the_same_request()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $electrical = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
+        $mechanical = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
+        $coordinator = User::factory()->create();
+        $sourceCompany = Company::factory()->create();
+        $destinationCompany = Company::factory()->create();
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        $this->createEligibleAsset($model, $sourceCompany->id, $electrical->id);
+        $this->createEligibleAsset($model, $sourceCompany->id, $mechanical->id);
+
+        foreach ([$electrical, $mechanical] as $discipline) {
+            RegionalAssetCoordinatorAssignment::create([
+                'user_id' => $coordinator->id,
+                'company_id' => $sourceCompany->id,
+                'discipline_id' => $discipline->id,
+                'created_by' => $requester->id,
+            ]);
+        }
+
+        $this->actingAs($requester)
+            ->post(route('account/request-item', ['itemType' => 'asset_model', 'itemId' => $model->id]), [
+                'request-quantity' => 2,
+                'requested_discipline_id' => $electrical->id,
+                'company_id' => $destinationCompany->id,
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-06-01',
+            ])
+            ->assertRedirect();
+
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class, function ($notification) {
+            return count($notification->lines()) === 1
+                && $notification->lines()[0]['inventory_discipline_names'] === ['Electrical', 'Mechanical'];
         });
     }
 
@@ -2572,6 +2617,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'request_id' => $request->id,
                 'model_name' => $model->name,
                 'company_name' => $company->name,
+                'inventory_discipline_names' => [$discipline->name],
                 'requested_quantity' => 1,
                 'reusable_quantity' => 1,
                 'needed_by_date' => '2026-06-20',
@@ -2586,6 +2632,8 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->assertSame(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']), $notification->reviewUrl());
         $this->assertStringNotContainsString('Allocate everything', $renderedMail);
+        $this->assertStringContainsString('Inventory Discipline(s)', $renderedMail);
+        $this->assertStringContainsString($discipline->name, $renderedMail);
         $this->assertStringContainsString('Review request in Snipe-IT', $renderedMail);
         $this->assertStringContainsString('Please open the request in Snipe-IT', $renderedMail);
         $this->assertSame('Action required: reusable request for '.$project->name, $mailMessage->subject);

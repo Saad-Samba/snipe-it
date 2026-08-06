@@ -104,6 +104,13 @@ class ResolveCheckoutRequestCoordinatorsAction
                 return [
                     'user_id' => (int) $userId,
                     'coordinator' => $firstAssignment->coordinator,
+                    'inventory_discipline_names' => $userAssignments
+                        ->pluck('discipline.name')
+                        ->filter()
+                        ->unique()
+                        ->sort()
+                        ->values()
+                        ->all(),
                     'reusable_quantity' => $userAssignments->sum(
                         fn (RegionalAssetCoordinatorAssignment $assignment) => (int) ($reusableCountsByScope[self::makeScopeKey((int) $assignment->company_id, (int) $assignment->discipline_id)] ?? 0)
                     ),

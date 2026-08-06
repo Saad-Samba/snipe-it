@@ -950,6 +950,7 @@ class ModelRequestsController extends Controller
                 'project_name' => $project?->name ?: '-',
                 'company_name' => optional($checkoutRequest->company)->name ?: '-',
                 'discipline_name' => optional($checkoutRequest->requestedDiscipline)->name ?: '-',
+                'inventory_discipline_names' => $match['inventory_discipline_names'] ?? [],
                 'requested_quantity' => (int) $checkoutRequest->quantity,
                 'reusable_quantity' => $reusableQuantity,
                 'needed_by_date' => optional($checkoutRequest->needed_by_date)?->format('Y-m-d') ?: '-',

@@ -24,6 +24,7 @@ class SendRacRequestReminders extends Command
                 'checkoutRequest.project',
                 'checkoutRequest.user',
                 'coordinator',
+                'discipline',
             ])
             ->whereNotNull('initial_notified_at')
             ->get()
@@ -122,29 +123,40 @@ class SendRacRequestReminders extends Command
             'project_name' => $targets->pluck('checkoutRequest.project.name')->filter()->unique()->count() === 1
                 ? $targets->pluck('checkoutRequest.project.name')->filter()->first()
                 : null,
-            'lines' => $targets->map(function (CheckoutRequestCoordinator $target) {
-                $request = $target->checkoutRequest;
-                $liveMetrics = $request?->liveRequestMetrics() ?? [];
+            'lines' => $targets
+                ->groupBy('checkout_request_id')
+                ->map(function (Collection $requestTargets) {
+                    /** @var CheckoutRequestCoordinator $target */
+                    $target = $requestTargets->first();
+                    $request = $target->checkoutRequest;
+                    $liveMetrics = $request?->liveRequestMetrics() ?? [];
 
-                return [
-                    'request_id' => (int) $request->id,
-                    'model_name' => $request->requestedItem()?->name ?? $request->name(),
-                    'project_name' => optional($request->project)->name ?: '-',
-                    'company_name' => optional($request->company)->name ?: '-',
-                    'discipline_name' => optional($request->requestedDiscipline)->name ?: '-',
-                    'requested_quantity' => (int) $request->quantity,
-                    'reusable_quantity' => (int) ($liveMetrics['reusable_quantity'] ?? $request->reusable_quantity ?? 0),
-                    'needed_by_date' => optional($request->needed_by_date)?->format('Y-m-d') ?: '-',
-                    'model_show_url' => route('models.show', $request->requestable_id),
-                    'project_requests_url' => $request->project_id
-                        ? route('projects.show', ['project' => $request->project_id, 'tab' => 'requests'])
-                        : route('requests.index'),
-                    'request_detail_url' => route('hardware.index', [
-                        'request_id' => $request->id,
-                        'request_bucket' => 'reusable_now',
-                    ]),
-                ];
-            })->all(),
+                    return [
+                        'request_id' => (int) $request->id,
+                        'model_name' => $request->requestedItem()?->name ?? $request->name(),
+                        'project_name' => optional($request->project)->name ?: '-',
+                        'company_name' => optional($request->company)->name ?: '-',
+                        'discipline_name' => optional($request->requestedDiscipline)->name ?: '-',
+                        'inventory_discipline_names' => $requestTargets
+                            ->pluck('discipline.name')
+                            ->filter()
+                            ->unique()
+                            ->sort()
+                            ->values()
+                            ->all(),
+                        'requested_quantity' => (int) $request->quantity,
+                        'reusable_quantity' => (int) ($liveMetrics['reusable_quantity'] ?? $request->reusable_quantity ?? 0),
+                        'needed_by_date' => optional($request->needed_by_date)?->format('Y-m-d') ?: '-',
+                        'model_show_url' => route('models.show', $request->requestable_id),
+                        'project_requests_url' => $request->project_id
+                            ? route('projects.show', ['project' => $request->project_id, 'tab' => 'requests'])
+                            : route('requests.index'),
+                        'request_detail_url' => route('hardware.index', [
+                            'request_id' => $request->id,
+                            'request_bucket' => 'reusable_now',
+                        ]),
+                    ];
+                })->values()->all(),
         ];
     }
 }
