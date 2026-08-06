@@ -50,7 +50,7 @@ class ModelRequestsController extends Controller
 
                 if ($targetStatuses->isNotEmpty() && $targetStatuses->every(fn ($status) => in_array($status, $terminalStatuses, true))) {
                     $racStatus = $targetStatuses->every(fn ($status) => $status === CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK)
-                        ? 'No stock available'
+                        ? 'No more stock available'
                         : 'Completed';
                 } elseif ($targetStatuses->contains(CheckoutRequestCoordinator::RESOLUTION_IN_PROGRESS)) {
                     $racStatus = 'In progress';

@@ -104,4 +104,25 @@ class RacRequestInboxTest extends TestCase
         );
         $this->assertNotEmpty($result['rows'][0]['received_at']);
     }
+
+    public function test_received_requests_status_says_no_more_stock_available_after_rac_finishes_review(): void
+    {
+        $requester = User::factory()->create();
+        $rac = User::factory()->create();
+        $discipline = Discipline::create(['name' => 'No More Stock', 'created_by' => $requester->id]);
+        $company = Company::factory()->create();
+        $request = CheckoutRequest::factory()->forAssetModel()->create();
+
+        $target = $request->coordinatorTargets()->create([
+            'user_id' => $rac->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+        ]);
+        $target->markCompletedNoStock();
+
+        $this->actingAs($rac);
+        $result = app(ApiModelRequestsController::class)->received();
+
+        $this->assertSame('No more stock available', $result['rows'][0]['rac_status']);
+    }
 }
