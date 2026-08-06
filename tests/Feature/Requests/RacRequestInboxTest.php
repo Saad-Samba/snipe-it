@@ -38,7 +38,9 @@ class RacRequestInboxTest extends TestCase
             ->assertOk()
             ->assertSee('Received Requests')
             ->assertSee(route('api.rac-requests.index'), false)
-            ->assertSee('Inventory Discipline(s)');
+            ->assertSee('Inventory Discipline(s)')
+            ->assertSee('>Status</th>', false)
+            ->assertDontSee('RAC Status');
     }
 
     public function test_received_requests_inbox_is_scoped_to_the_rac_and_combines_inventory_disciplines()

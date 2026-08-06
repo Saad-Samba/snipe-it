@@ -37,7 +37,7 @@
                             <th data-field="qty" data-sortable="true">Quantity</th>
                             <th data-field="remaining_quantity" data-sortable="true">Remaining</th>
                             <th data-field="needed_by_date" data-sortable="true" data-formatter="dateDisplayFormatter">Needed By</th>
-                            <th data-field="rac_status" data-sortable="true" data-formatter="requestStatusFormatter">RAC Status</th>
+                            <th data-field="rac_status" data-sortable="true" data-formatter="requestStatusFormatter">Status</th>
                             <th data-field="received_at" data-sortable="true" data-formatter="dateDisplayFormatter">Received</th>
                             <th data-field="updated_at" data-sortable="true" data-formatter="dateDisplayFormatter">Updated</th>
                             <th data-field="actions" data-switchable="false" data-searchable="false" data-sortable="false" data-formatter="requestWorkflowActionsFormatter">{{ trans('table.actions') }}</th>
