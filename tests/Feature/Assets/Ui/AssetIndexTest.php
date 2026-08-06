@@ -35,10 +35,12 @@ class AssetIndexTest extends TestCase
             ->assertSeeText('Flags')
             ->assertSee('assignment=assigned', false)
             ->assertSee('assignment=unassigned', false)
-            ->assertDontSeeText('Pending')
-            ->assertDontSeeText('Un-deployable')
-            ->assertDontSeeText('BYOD')
-            ->assertDontSeeText('Archived');
+            ->assertDontSee('requestable-sidenav-option', false)
+            ->assertDontSee('hardware?status=Requestable', false)
+            ->assertDontSee('hardware?status=Pending', false)
+            ->assertDontSee('hardware?status=Undeployable', false)
+            ->assertDontSee('hardware?status=BYOD', false)
+            ->assertDontSee('hardware?status=Archived', false);
     }
 
     public function testAssetIndexPropagatesStackedAssignmentAndObsoleteFiltersToApiUrl()

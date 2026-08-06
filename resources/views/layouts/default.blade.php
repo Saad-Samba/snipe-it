@@ -507,12 +507,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                     <li class="sidebar-section-label">
                                         <span>{{ trans('general.flags') }}</span>
                                     </li>
-                                    <li id="requestable-sidenav-option"{!! (Request::query('status') == 'Requestable' ? ' class="active"' : '') !!}><a
-                                                href="{{ url('hardware?status=Requestable') }}">
-                                            <x-icon type="checkmark" class="text-blue fa-fw" />
-                                            {{ trans('admin/hardware/general.requestable') }}
-                                        </a>
-                                    </li>
 
                                     @can('audit', \App\Models\Asset::class)
                                         <li id="audit-due-sidenav-option"{!! (request()->is('hardware/audit/due') ? ' class="active"' : '') !!}>
