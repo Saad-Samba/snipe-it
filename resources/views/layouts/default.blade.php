@@ -543,10 +543,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                                 {{ trans('general.bulk_checkout') }}
                                             </a>
                                         </li>
-                                        <li{!! (request()->is('hardware/requested') ? ' class="active"' : '') !!}>
-                                            <a href="{{ route('assets.requested') }}">
-                                                {{ trans('general.requested') }}</a>
-                                        </li>
                                     @endcan
 
                                     @can('create', \App\Models\Asset::class)

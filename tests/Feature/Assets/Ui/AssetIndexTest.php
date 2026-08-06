@@ -37,6 +37,7 @@ class AssetIndexTest extends TestCase
             ->assertSee('assignment=unassigned', false)
             ->assertDontSee('requestable-sidenav-option', false)
             ->assertDontSee('hardware?status=Requestable', false)
+            ->assertDontSee(route('assets.requested'), false)
             ->assertDontSee('hardware?status=Pending', false)
             ->assertDontSee('hardware?status=Undeployable', false)
             ->assertDontSee('hardware?status=BYOD', false)
