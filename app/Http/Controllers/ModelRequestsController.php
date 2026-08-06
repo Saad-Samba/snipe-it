@@ -41,6 +41,22 @@ class ModelRequestsController extends Controller
 {
     private const MODEL_REQUEST_CART_SESSION_KEY = 'model_request_cart';
 
+    public function getReceivedRacRequests(): View
+    {
+        $user = auth()->user();
+
+        abort_unless(
+            $user && ($user->racAssignments()->exists() || $user->racRequestTargets()->exists()),
+            403,
+            'You are not authorized to view RAC requests.'
+        );
+
+        return view('account.received-rac-requests', [
+            'pageTitle' => 'Received Requests',
+            'dataUrl' => route('api.rac-requests.index'),
+        ]);
+    }
+
     public function getRequestableIndex(): View
     {
         if (! auth()->user()?->hasAccess('models.request')) {

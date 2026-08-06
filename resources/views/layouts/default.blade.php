@@ -825,7 +825,12 @@ dir="{{ Helper::determineLanguageDirection() }}">
                             </li>
                         @endcan
 
-                        @if (auth()->check() && auth()->user()->hasAccess('models.request'))
+                        @php
+                            $canRequestModels = auth()->check() && auth()->user()->hasAccess('models.request');
+                            $canViewRacRequests = auth()->check()
+                                && (auth()->user()->racAssignments()->exists() || auth()->user()->racRequestTargets()->exists());
+                        @endphp
+                        @if ($canRequestModels || $canViewRacRequests)
                             <li class="treeview{{ (request()->is('requests*') || request()->is('account/requestable-assets')) ? ' active' : '' }}">
                                 <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
@@ -834,16 +839,25 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                 </a>
 
                                 <ul class="treeview-menu">
-                                    <li{!! (request()->is('account/requestable-assets') ? ' class="active"' : '') !!}>
-                                        <a href="{{ route('requestable-assets') }}">
-                                            Request Models
-                                        </a>
-                                    </li>
-                                    <li{!! (request()->is('requests') ? ' class="active"' : '') !!}>
-                                        <a href="{{ route('requests.index') }}">
-                                            Submitted Requests
-                                        </a>
-                                    </li>
+                                    @if ($canRequestModels)
+                                        <li{!! (request()->is('account/requestable-assets') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('requestable-assets') }}">
+                                                Request Models
+                                            </a>
+                                        </li>
+                                        <li{!! (request()->is('requests') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('requests.index') }}">
+                                                Submitted Requests
+                                            </a>
+                                        </li>
+                                    @endif
+                                    @if ($canViewRacRequests)
+                                        <li{!! (request()->is('requests/received') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('rac-requests.index') }}">
+                                                Received Requests
+                                            </a>
+                                        </li>
+                                    @endif
                                 </ul>
                             </li>
                         @endif

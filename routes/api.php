@@ -45,6 +45,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
             ]
         )->name('api.requests.index');
 
+        Route::get('requests/received',
+            [
+                Api\ModelRequestsController::class,
+                'received'
+            ]
+        )->name('api.rac-requests.index');
+
         Route::get('eulas',
             [
                 Api\ProfileController::class,

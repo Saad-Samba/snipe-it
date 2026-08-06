@@ -499,6 +499,13 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
 });
 
 Route::group(['prefix' => 'requests', 'middleware' => ['auth']], function () {
+    Route::get('received', [ModelRequestsController::class, 'getReceivedRacRequests'])
+        ->name('rac-requests.index')
+        ->breadcrumbs(fn (Trail $trail) =>
+        $trail->parent('home')
+            ->push('Requests', route('rac-requests.index'))
+            ->push('Received Requests', route('rac-requests.index')));
+
     Route::get('/', [ModelRequestsController::class, 'getRequestedAssets'])
         ->name('requests.index')
         ->breadcrumbs(fn (Trail $trail) =>

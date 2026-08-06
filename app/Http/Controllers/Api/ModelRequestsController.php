@@ -15,6 +15,86 @@ use Illuminate\Support\Collection;
 
 class ModelRequestsController extends Controller
 {
+    public function received(): array
+    {
+        $user = auth()->user();
+
+        abort_unless(
+            $user && ($user->racAssignments()->exists() || $user->racRequestTargets()->exists()),
+            403,
+            'You are not authorized to view RAC requests.'
+        );
+
+        $checkoutRequests = CheckoutRequest::query()
+            ->whereNull('canceled_at')
+            ->whereHas('coordinatorTargets', fn ($query) => $query->where('user_id', $user->id))
+            ->with([
+                'requestedItem',
+                'project',
+                'company',
+                'user',
+                'allocatedAssets',
+                'coordinatorTargets' => fn ($query) => $query->where('user_id', $user->id),
+                'coordinatorTargets.discipline',
+            ])
+            ->latest('created_at')
+            ->get();
+        $canViewAssets = $user->can('index', Asset::class);
+
+        return [
+            'total' => $checkoutRequests->count(),
+            'rows' => $checkoutRequests->map(function (CheckoutRequest $checkoutRequest) use ($user, $canViewAssets) {
+                $targets = $checkoutRequest->coordinatorTargets;
+                $targetStatuses = $targets->map->resolvedStatus();
+                $terminalStatuses = CheckoutRequestCoordinator::terminalResolutionStatuses();
+
+                if ($targetStatuses->isNotEmpty() && $targetStatuses->every(fn ($status) => in_array($status, $terminalStatuses, true))) {
+                    $racStatus = $targetStatuses->every(fn ($status) => $status === CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK)
+                        ? 'No stock available'
+                        : 'Completed';
+                } elseif ($targetStatuses->contains(CheckoutRequestCoordinator::RESOLUTION_IN_PROGRESS)) {
+                    $racStatus = 'In progress';
+                } else {
+                    $racStatus = 'Pending';
+                }
+
+                $requestedItem = $checkoutRequest->requestedItem;
+                $requestDetailUrl = $canViewAssets && $checkoutRequest->canBeViewedBy($user)
+                    ? route('hardware.index', [
+                        'request_id' => $checkoutRequest->id,
+                        'request_bucket' => 'reusable_now',
+                    ])
+                    : null;
+
+                return [
+                    'request_id' => (int) $checkoutRequest->id,
+                    'name' => e($requestedItem?->name ?? $checkoutRequest->name()),
+                    'model_show_url' => $requestedItem && $user->can('view', $requestedItem)
+                        ? route('models.show', $checkoutRequest->requestable_id)
+                        : null,
+                    'project' => e(optional($checkoutRequest->project)->name),
+                    'project_requests_url' => $this->projectRequestsUrl($checkoutRequest->project),
+                    'requested_by' => e(optional($checkoutRequest->requestingUser())->display_name),
+                    'company' => e(optional($checkoutRequest->company)->name),
+                    'inventory_disciplines' => $targets
+                        ->pluck('discipline.name')
+                        ->filter()
+                        ->unique()
+                        ->sort()
+                        ->values()
+                        ->implode(', '),
+                    'qty' => (int) $checkoutRequest->quantity,
+                    'remaining_quantity' => $checkoutRequest->remainingAllocationQuantity(),
+                    'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
+                    'rac_status' => $racStatus,
+                    'received_at' => Helper::getFormattedDateObject($targets->min('created_at'), 'datetime'),
+                    'updated_at' => Helper::getFormattedDateObject($checkoutRequest->updated_at, 'datetime'),
+                    'request_detail_url' => $requestDetailUrl,
+                ];
+            })->values()->all(),
+        ];
+    }
+
     public function index(Request $request): array
     {
         if (! auth()->user()->hasAccess('models.request')) {
