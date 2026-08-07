@@ -394,13 +394,13 @@ class ManualCategoryManagerQaSeeder extends Seeder
 
         $this->upsertAsset(
             assetTag: 'QA-CAT-CROSS-002',
-            name: 'QA Cross-Site Rabat RTD 1',
+            name: 'QA Cross-Site Rabat Non-Reusable Control',
             modelId: $crossSiteModel->id,
-            statusId: $readyStatus->id,
+            statusId: $undeployableStatus->id,
             companyId: $rabatCompany->id,
             disciplineId: $powerDiscipline->id,
             createdBy: $admin->id,
-            requestable: true,
+            requestable: false,
             locationId: $rabatLocation->id,
             defaultLocationId: $rabatLocation->id
         );
@@ -534,7 +534,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $this->command?->line('Cross-site request demo model: QA Cross-Site Model');
         $this->command?->line('Cross-site request ID: #'.$crossSiteRequest->id);
         $this->command?->line('Cross-site source asset: QA-CAT-CROSS-001 (QA Casablanca Site)');
-        $this->command?->line('Cross-site destination/control asset: QA-CAT-CROSS-002 (QA Rabat Site)');
+        $this->command?->line('Cross-site non-reusable control: QA-CAT-CROSS-002 (QA Rabat Site)');
         $this->command?->line('Transfer status: In Transfer (pending/non-deployable)');
         $this->command?->line('FMCS and FMCS location scoping: enabled');
         $this->command?->line('Source location: QA Casablanca Reuse Store');
