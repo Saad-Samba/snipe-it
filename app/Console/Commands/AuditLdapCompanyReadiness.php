@@ -48,7 +48,13 @@ class AuditLdapCompanyReadiness extends Command
             array_values($attributeMap),
             ['c', 'company', 'physicaldeliveryofficename', 'distinguishedname', 'memberof', 'useraccountcontrol']
         ))));
-        $baseDn = trim((string) ($this->option('base_dn') ?: $settings->ldap_base_dn));
+        $baseDn = trim((string) ($this->option('base_dn') ?: $settings->ldap_basedn));
+        if ($baseDn === '') {
+            $this->error('The LDAP Base Bind DN is empty. Configure it under Settings > LDAP or pass --base_dn.');
+
+            return self::INVALID;
+        }
+
         $filter = $this->option('filter') !== null && $this->option('filter') !== ''
             ? (string) $this->option('filter')
             : null;
