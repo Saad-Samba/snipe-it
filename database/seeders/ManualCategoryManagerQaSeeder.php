@@ -11,8 +11,10 @@ use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\CustomFieldset;
 use App\Models\Discipline;
+use App\Models\Location;
 use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
+use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -108,6 +110,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
                     'assets.view' => '1',
                     'assets.checkout' => '1',
                     'assets.checkin' => '1',
+                    'assets.edit' => '1',
                 ]),
                 'password' => bcrypt('password'),
                 'notes' => 'Deterministic RAC for Casablanca-site discipline routing QA.',
@@ -131,6 +134,7 @@ class ManualCategoryManagerQaSeeder extends Seeder
                     'assets.view' => '1',
                     'assets.checkout' => '1',
                     'assets.checkin' => '1',
+                    'assets.edit' => '1',
                 ]),
                 'password' => bcrypt('password'),
                 'notes' => 'Deterministic RAC for Rabat-site discipline routing QA.',
@@ -147,6 +151,49 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ['name' => 'QA Rabat Site'],
             ['created_by' => $admin->id]
         );
+
+        $casablancaLocation = Location::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA Casablanca Reuse Store'],
+            [
+                'company_id' => $casablancaCompany->id,
+                'city' => 'Casablanca',
+                'country' => 'Morocco',
+                'created_by' => $admin->id,
+                'notes' => 'Source location for the deterministic FMCS transfer walkthrough.',
+            ]
+        );
+
+        $rabatLocation = Location::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA Rabat Receiving Store'],
+            [
+                'company_id' => $rabatCompany->id,
+                'city' => 'Rabat',
+                'country' => 'Morocco',
+                'created_by' => $admin->id,
+                'notes' => 'Destination location for the deterministic FMCS transfer walkthrough.',
+            ]
+        );
+
+        $eplRequester->forceFill([
+            'company_id' => $rabatCompany->id,
+            'location_id' => $rabatLocation->id,
+        ])->save();
+        $casablancaCoordinator->forceFill([
+            'company_id' => $casablancaCompany->id,
+            'location_id' => $casablancaLocation->id,
+        ])->save();
+        $rabatCoordinator->forceFill([
+            'company_id' => $rabatCompany->id,
+            'location_id' => $rabatLocation->id,
+        ])->save();
+
+        if ($settings = Setting::getSettings()) {
+            $settings->forceFill([
+                'full_multiple_companies_support' => 1,
+                'scope_locations_fmcs' => 1,
+            ])->save();
+            Setting::$_cache = $settings->fresh();
+        }
 
         $alphaProject = Project::withoutGlobalScopes()->updateOrCreate(
             ['name' => 'QA Alpha Project'],
@@ -207,6 +254,18 @@ class ManualCategoryManagerQaSeeder extends Seeder
                 'archived' => 0,
                 'default_label' => 0,
                 'created_by' => $admin->id,
+            ]
+        );
+
+        Statuslabel::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'In Transfer'],
+            [
+                'deployable' => 0,
+                'pending' => 1,
+                'archived' => 0,
+                'default_label' => 0,
+                'created_by' => $admin->id,
+                'notes' => 'Asset is moving between company scopes for a request-linked site transfer.',
             ]
         );
 
@@ -328,7 +387,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
             companyId: $casablancaCompany->id,
             disciplineId: $powerDiscipline->id,
             createdBy: $admin->id,
-            requestable: true
+            requestable: true,
+            locationId: $casablancaLocation->id,
+            defaultLocationId: $casablancaLocation->id
         );
 
         $this->upsertAsset(
@@ -339,7 +400,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
             companyId: $rabatCompany->id,
             disciplineId: $powerDiscipline->id,
             createdBy: $admin->id,
-            requestable: true
+            requestable: true,
+            locationId: $rabatLocation->id,
+            defaultLocationId: $rabatLocation->id
         );
 
         $this->upsertAsset(
@@ -397,6 +460,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
             [
                 'user_id' => $eplRequester->id,
                 'quantity' => 2,
+                'company_id' => $rabatCompany->id,
+                'requested_discipline_id' => $powerDiscipline->id,
+                'needed_by_date' => now()->addDays(30)->toDateString(),
                 'fulfilled_at' => null,
             ]
         );
@@ -411,6 +477,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
             [
                 'user_id' => $eplRequester->id,
                 'quantity' => 1,
+                'company_id' => $rabatCompany->id,
+                'requested_discipline_id' => $powerDiscipline->id,
+                'needed_by_date' => now()->addDays(30)->toDateString(),
                 'fulfilled_at' => null,
             ]
         );
@@ -424,9 +493,13 @@ class ManualCategoryManagerQaSeeder extends Seeder
             ],
             [
                 'user_id' => $eplRequester->id,
-                'quantity' => 2,
+                'quantity' => 1,
+                'company_id' => $rabatCompany->id,
+                'requested_discipline_id' => $powerDiscipline->id,
+                'needed_by_date' => now()->addDays(30)->toDateString(),
                 'status' => CheckoutRequest::STATUS_PENDING,
                 'fulfilled_at' => null,
+                'note' => 'Deterministic cross-company transfer walkthrough: Casablanca source to Rabat destination.',
             ]
         );
 
@@ -459,6 +532,13 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $this->command?->line('EPL request demo models: QA Alpha Model A, QA Alpha Model B');
         $this->command?->line('Inherited fieldset demo: QA Alpha Technical Details on QA Category Family Alpha');
         $this->command?->line('Cross-site request demo model: QA Cross-Site Model');
+        $this->command?->line('Cross-site request ID: #'.$crossSiteRequest->id);
+        $this->command?->line('Cross-site source asset: QA-CAT-CROSS-001 (QA Casablanca Site)');
+        $this->command?->line('Cross-site destination/control asset: QA-CAT-CROSS-002 (QA Rabat Site)');
+        $this->command?->line('Transfer status: In Transfer (pending/non-deployable)');
+        $this->command?->line('FMCS and FMCS location scoping: enabled');
+        $this->command?->line('Source location: QA Casablanca Reuse Store');
+        $this->command?->line('Destination location: QA Rabat Receiving Store');
         $this->command?->line('Seeded request projects: QA Alpha Project, QA Beta Project, QA Cross-Site Project');
         $this->command?->line('Routing companies: QA Casablanca Site, QA Rabat Site');
         $this->command?->line('Routing discipline on eligible assets: QA Power Discipline');
@@ -510,7 +590,9 @@ class ManualCategoryManagerQaSeeder extends Seeder
         int $createdBy,
         ?int $assignedTo = null,
         ?string $assignedType = null,
-        bool $requestable = false
+        bool $requestable = false,
+        ?int $locationId = null,
+        ?int $defaultLocationId = null
     ): Asset {
         $asset = Asset::withoutGlobalScopes()->firstOrNew(['asset_tag' => $assetTag]);
         $asset->name = $name;
@@ -522,6 +604,8 @@ class ManualCategoryManagerQaSeeder extends Seeder
         $asset->created_by = $createdBy;
         $asset->assigned_to = $assignedTo;
         $asset->assigned_type = $assignedType;
+        $asset->location_id = $locationId;
+        $asset->rtd_location_id = $defaultLocationId;
         $asset->requestable = $requestable;
         $asset->notes = 'Deterministic asset for category manager QA.';
         $asset->save();
