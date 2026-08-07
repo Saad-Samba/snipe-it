@@ -10,6 +10,7 @@ use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
+use App\Models\Location;
 use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\Setting;
@@ -2956,6 +2957,215 @@ class ModelRequestWorkflowTest extends TestCase
             ->get(route('hardware.index', ['request_id' => $request->id]))
             ->assertOk()
             ->assertDontSee('Allocate everything');
+    }
+
+    public function test_source_rac_can_start_a_request_linked_cross_company_transfer_under_fmcs()
+    {
+        $settings = Setting::getSettings();
+        $settings->full_multiple_companies_support = 1;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $sourceCompany = Company::factory()->create(['name' => 'Source Site']);
+        $destinationCompany = Company::factory()->create(['name' => 'Destination Site']);
+        $sourceLocation = Location::factory()->create(['company_id' => $sourceCompany->id]);
+        $sourceReturnLocation = Location::factory()->create(['company_id' => $sourceCompany->id]);
+        $requester = User::factory()->create(['company_id' => $destinationCompany->id]);
+        $coordinator = User::factory()->viewAssets()->editAssets()->create(['company_id' => $sourceCompany->id]);
+        $discipline = Discipline::create(['name' => 'Transfer Scope', 'created_by' => $coordinator->id]);
+        $model = AssetModel::factory()->create();
+        $inTransfer = Statuslabel::factory()->create([
+            'name' => 'In Transfer',
+            'deployable' => 0,
+            'pending' => 1,
+            'archived' => 0,
+        ]);
+        $asset = $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+        $asset->forceFill([
+            'location_id' => $sourceLocation->id,
+            'rtd_location_id' => $sourceReturnLocation->id,
+            'notes' => 'Existing note',
+        ])->save();
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'company_id' => $destinationCompany->id,
+            'requested_discipline_id' => $discipline->id,
+            'quantity' => 1,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ]);
+        $checkoutRequest->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAs($coordinator, 'web')
+            ->get(route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reusable_now',
+            ]))
+            ->assertOk();
+
+        $this->actingAsForApi($coordinator)
+            ->getJson(route('api.assets.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reusable_now',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('rows.0.available_actions.start_transfer', true);
+
+        $this->actingAs($coordinator, 'web')
+            ->post(route('hardware.requests.start-transfer', [
+                'assetId' => $asset->id,
+                'checkoutRequestId' => $checkoutRequest->id,
+            ]), ['request_bucket' => 'reusable_now'])
+            ->assertRedirect(route('hardware.index', [
+                'request_id' => $checkoutRequest->id,
+                'request_bucket' => 'reusable_now',
+            ]));
+
+        $transferredAsset = Asset::withoutGlobalScopes()->findOrFail($asset->id);
+        $checkoutRequest->refresh();
+
+        $this->assertSame($inTransfer->id, $transferredAsset->status_id);
+        $this->assertNull($transferredAsset->assigned_to);
+        $this->assertSame($sourceCompany->id, $transferredAsset->company_id);
+        $this->assertSame($sourceLocation->id, $transferredAsset->location_id);
+        $this->assertSame($sourceReturnLocation->id, $transferredAsset->rtd_location_id);
+        $this->assertStringContainsString('Existing note', $transferredAsset->notes);
+        $this->assertStringContainsString('request #'.$checkoutRequest->id, $transferredAsset->notes);
+        $this->assertStringContainsString($destinationCompany->name, $transferredAsset->notes);
+        $this->assertSame(CheckoutRequest::STATUS_IN_TRANSFER, $checkoutRequest->status);
+        $this->assertNull($checkoutRequest->fulfilled_at);
+        $this->assertDatabaseHas('checkout_request_assets', [
+            'checkout_request_id' => $checkoutRequest->id,
+            'asset_id' => $asset->id,
+            'allocated_by' => $coordinator->id,
+            'transfer_source_company_id' => $sourceCompany->id,
+            'transfer_destination_company_id' => $destinationCompany->id,
+            'transfer_completed_at' => null,
+        ]);
+        $this->assertDatabaseHas('checkout_request_coordinators', [
+            'checkout_request_id' => $checkoutRequest->id,
+            'user_id' => $coordinator->id,
+            'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_COMPLETED,
+        ]);
+    }
+
+    public function test_destination_checkout_completes_a_request_linked_transfer()
+    {
+        $settings = Setting::getSettings();
+        $settings->full_multiple_companies_support = 1;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $sourceCompany = Company::factory()->create();
+        $destinationCompany = Company::factory()->create();
+        $requester = User::factory()->create(['company_id' => $destinationCompany->id]);
+        $sourceCoordinator = User::factory()->viewAssets()->editAssets()->create(['company_id' => $sourceCompany->id]);
+        $destinationCoordinator = User::factory()->viewAssets()->checkoutAssets()->create(['company_id' => $destinationCompany->id]);
+        $discipline = Discipline::create(['name' => 'Destination Checkout Scope', 'created_by' => $sourceCoordinator->id]);
+        $model = AssetModel::factory()->create();
+        Statuslabel::factory()->create([
+            'name' => 'In Transfer',
+            'deployable' => 0,
+            'pending' => 1,
+            'archived' => 0,
+        ]);
+        $ready = Statuslabel::factory()->rtd()->create();
+        $asset = $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'company_id' => $destinationCompany->id,
+            'requested_discipline_id' => $discipline->id,
+            'quantity' => 1,
+        ]);
+        $checkoutRequest->coordinatorTargets()->create([
+            'user_id' => $sourceCoordinator->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAs($sourceCoordinator)->post(route('hardware.requests.start-transfer', [
+            'assetId' => $asset->id,
+            'checkoutRequestId' => $checkoutRequest->id,
+        ]))->assertRedirect();
+
+        Asset::withoutGlobalScopes()->findOrFail($asset->id)->forceFill([
+            'company_id' => $destinationCompany->id,
+            'location_id' => null,
+            'rtd_location_id' => null,
+            'status_id' => $ready->id,
+        ])->save();
+
+        $this->actingAs($destinationCoordinator)
+            ->post(route('hardware.checkout.store', $asset->id), [
+                'checkout_to_type' => 'user',
+                'assigned_user' => $requester->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
+            ])
+            ->assertRedirect();
+
+        $checkoutRequest->refresh();
+        $this->assertSame(CheckoutRequest::STATUS_FULLY_ALLOCATED, $checkoutRequest->status);
+        $this->assertNotNull($checkoutRequest->fulfilled_at);
+        $this->assertDatabaseMissing('checkout_request_assets', [
+            'checkout_request_id' => $checkoutRequest->id,
+            'asset_id' => $asset->id,
+            'transfer_completed_at' => null,
+        ]);
+    }
+
+    public function test_rac_cannot_start_transfer_for_an_asset_outside_their_routed_inventory_scope()
+    {
+        $settings = Setting::getSettings();
+        $settings->full_multiple_companies_support = 1;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $sourceCompany = Company::factory()->create();
+        $destinationCompany = Company::factory()->create();
+        $coordinator = User::factory()->viewAssets()->editAssets()->create(['company_id' => $sourceCompany->id]);
+        $assetDiscipline = Discipline::create(['name' => 'Asset Transfer Scope', 'created_by' => $coordinator->id]);
+        $otherDiscipline = Discipline::create(['name' => 'Other Transfer Scope', 'created_by' => $coordinator->id]);
+        $model = AssetModel::factory()->create();
+        Statuslabel::factory()->create([
+            'name' => 'In Transfer',
+            'deployable' => 0,
+            'pending' => 1,
+            'archived' => 0,
+        ]);
+        $asset = $this->createEligibleAsset($model, $sourceCompany->id, $assetDiscipline->id);
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => User::factory()->create(['company_id' => $destinationCompany->id])->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'company_id' => $destinationCompany->id,
+            'requested_discipline_id' => $assetDiscipline->id,
+            'quantity' => 1,
+        ]);
+        $checkoutRequest->coordinatorTargets()->create([
+            'user_id' => $coordinator->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $otherDiscipline->id,
+        ]);
+
+        $this->actingAs($coordinator)
+            ->post(route('hardware.requests.start-transfer', [
+                'assetId' => $asset->id,
+                'checkoutRequestId' => $checkoutRequest->id,
+            ]))
+            ->assertForbidden();
+
+        $this->assertSame(CheckoutRequest::STATUS_PENDING, $checkoutRequest->fresh()->status);
+        $this->assertDatabaseMissing('checkout_request_assets', [
+            'checkout_request_id' => $checkoutRequest->id,
+            'asset_id' => $asset->id,
+        ]);
     }
 
     private function createEligibleAsset(AssetModel $model, int $companyId, int $disciplineId): Asset

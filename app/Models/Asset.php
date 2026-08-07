@@ -235,7 +235,14 @@ class Asset extends Depreciable
     public function checkoutRequests()
     {
         return $this->belongsToMany(CheckoutRequest::class, 'checkout_request_assets')
-            ->withPivot(['allocated_by', 'allocated_at'])
+            ->withPivot([
+                'allocated_by',
+                'allocated_at',
+                'transfer_source_company_id',
+                'transfer_destination_company_id',
+                'transfer_started_at',
+                'transfer_completed_at',
+            ])
             ->withTimestamps();
     }
 

@@ -14,10 +14,16 @@ class CheckoutRequestAsset extends Model
         'asset_id',
         'allocated_by',
         'allocated_at',
+        'transfer_source_company_id',
+        'transfer_destination_company_id',
+        'transfer_started_at',
+        'transfer_completed_at',
     ];
 
     protected $casts = [
         'allocated_at' => 'datetime',
+        'transfer_started_at' => 'datetime',
+        'transfer_completed_at' => 'datetime',
     ];
 
     public function checkoutRequest()

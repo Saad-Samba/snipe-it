@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class CheckoutRequest extends Model
 {
@@ -18,6 +19,7 @@ class CheckoutRequest extends Model
     protected ?array $liveRequestMetricsCache = null;
 
     public const STATUS_PENDING = 'pending';
+    public const STATUS_IN_TRANSFER = 'in_transfer';
     public const STATUS_FULLY_ALLOCATED = 'fully_allocated';
     public const STATUS_PARTIALLY_ALLOCATED = 'partially_allocated';
     public const STATUS_NOT_ALLOCATED = 'not_allocated';
@@ -109,7 +111,14 @@ class CheckoutRequest extends Model
     {
         return $this->belongsToMany(Asset::class, 'checkout_request_assets')
             ->withoutGlobalScope(CompanyableScope::class)
-            ->withPivot(['allocated_by', 'allocated_at'])
+            ->withPivot([
+                'allocated_by',
+                'allocated_at',
+                'transfer_source_company_id',
+                'transfer_destination_company_id',
+                'transfer_started_at',
+                'transfer_completed_at',
+            ])
             ->withTimestamps();
     }
 
@@ -403,6 +412,7 @@ class CheckoutRequest extends Model
             self::STATUS_FULLY_ALLOCATED,
             self::STATUS_PARTIALLY_ALLOCATED,
             self::STATUS_NOT_ALLOCATED,
+            self::STATUS_IN_TRANSFER,
         ], true)) {
             return $resolvedStatus;
         }
@@ -473,6 +483,10 @@ class CheckoutRequest extends Model
 
     public function derivedAllocationStatus(): string
     {
+        if ($this->hasActiveTransfers()) {
+            return self::STATUS_IN_TRANSFER;
+        }
+
         $allocatedCount = $this->allocatedQuantity();
 
         if ($allocatedCount >= $this->quantity) {
@@ -484,6 +498,15 @@ class CheckoutRequest extends Model
         }
 
         return self::STATUS_NOT_ALLOCATED;
+    }
+
+    public function hasActiveTransfers(): bool
+    {
+        return DB::table('checkout_request_assets')
+            ->where('checkout_request_id', $this->id)
+            ->whereNotNull('transfer_started_at')
+            ->whereNull('transfer_completed_at')
+            ->exists();
     }
 
     public function syncAllocationStatus(bool $forceDerived = false): void
@@ -499,6 +522,7 @@ class CheckoutRequest extends Model
                 self::STATUS_NOT_ALLOCATED,
                 self::STATUS_FULFILLED,
                 self::STATUS_REJECTED,
+                self::STATUS_IN_TRANSFER,
             ], true);
 
         if (! $forceDerived && ! $hasFinalizedOutcome) {

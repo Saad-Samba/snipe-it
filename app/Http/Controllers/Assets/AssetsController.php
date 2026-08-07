@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Assets;
 
 use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
+use App\Actions\CheckoutRequests\StartCheckoutRequestTransferAction;
 use App\Events\CheckoutableCheckedIn;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
@@ -88,13 +89,9 @@ class AssetsController extends Controller
         }
 
         if ($request->filled('request_id')) {
-            $requestContext = CheckoutRequest::with(['requestedItem', 'user', 'project', 'company', 'requestedDiscipline', 'coordinatorTargets'])->find((int) $request->input('request_id'));
-
-            if (! $requestContext) {
-                $requestContext = CheckoutRequestCoordinator::with(['checkoutRequest.requestedItem', 'checkoutRequest.user', 'checkoutRequest.project', 'checkoutRequest.company', 'checkoutRequest.requestedDiscipline', 'checkoutRequest.coordinatorTargets'])
-                    ->find((int) $request->input('request_id'))
-                    ?->checkoutRequest;
-            }
+            $requestContext = CheckoutRequest::withoutGlobalScopes()
+                ->with(['requestedItem', 'user', 'project', 'company', 'requestedDiscipline', 'coordinatorTargets'])
+                ->find((int) $request->input('request_id'));
 
             abort_if(! $requestContext, 404);
             abort_unless(
@@ -142,6 +139,16 @@ class AssetsController extends Controller
             'request_id' => $checkoutRequest->id,
             'request_bucket' => $request->input('request_bucket'),
         ]))->with('success', 'Request review recorded. Reminder emails will stop unless more allocation work starts later.');
+    }
+
+    public function startRequestTransfer(Request $request, int $assetId, int $checkoutRequestId): RedirectResponse
+    {
+        StartCheckoutRequestTransferAction::run($checkoutRequestId, $assetId, auth()->user());
+
+        return redirect()->route('hardware.index', [
+            'request_id' => $checkoutRequestId,
+            'request_bucket' => $request->input('request_bucket', 'reusable_now'),
+        ])->with('success', 'Transfer started. The asset remains in the source company and locations until receipt is confirmed.');
     }
 
     /**

@@ -1574,6 +1574,14 @@
         return function (value, row) {
             var requestQuery = '{{ request()->filled('request_id') ? '?request_id=' . urlencode((string) request()->input('request_id')) : '' }}';
 
+            if (destination === 'hardware' && row.available_actions.start_transfer === true) {
+                return '<form method="POST" action="{{ config('app.url') }}/hardware/' + row.id + '/requests/{{ request()->integer('request_id') }}/start-transfer" style="display:inline;">'
+                    + '@csrf'
+                    + '<input type="hidden" name="request_bucket" value="{{ e(request()->input('request_bucket', 'reusable_now')) }}">'
+                    + '<button type="submit" class="btn btn-sm btn-primary" data-tooltip="true" title="Move this asset into the request-linked transfer process">Start transfer</button>'
+                    + '</form>';
+            }
+
             // The user is allowed to check items out, AND the item is deployable
             if ((row.available_actions.checkout == true) && (row.user_can_checkout == true) && ((!row.asset_id) && (!row.assigned_to))) {
 
@@ -2287,7 +2295,7 @@
 
         if (normalized === 'pending') {
             labelClass = 'label-warning';
-        } else if (normalized === 'in progress' || normalized === 'under review') {
+        } else if (normalized === 'in progress' || normalized === 'under review' || normalized === 'in transfer') {
             labelClass = 'label-primary';
         } else if (normalized === 'fully allocated' || normalized === 'closed' || normalized === 'fulfilled' || normalized === 'review complete') {
             labelClass = 'label-success';

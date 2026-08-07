@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Assets;
 
+use App\Actions\CheckoutRequests\CompleteCheckoutRequestTransferAction;
 use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
 use App\Helpers\Helper;
 use App\Http\Controllers\CheckInOutRequest;
@@ -919,6 +920,8 @@ class BulkAssetsController extends Controller
                         continue;
                     }
 
+                    CompleteCheckoutRequestTransferAction::run($asset, $target);
+
                     if ($requestContext) {
                         $requestContext->allocatedAssets()->syncWithoutDetaching([
                             $asset->id => [
@@ -964,7 +967,7 @@ class BulkAssetsController extends Controller
 
     protected function resolveAuthorizedRequestContext(int $requestId): ?CheckoutRequest
     {
-        $requestContext = CheckoutRequest::with(['user', 'project', 'requestedDiscipline'])->find($requestId);
+        $requestContext = CheckoutRequest::withoutGlobalScopes()->with(['user', 'project', 'requestedDiscipline'])->find($requestId);
 
         abort_if(! $requestContext, 404);
         abort_unless(

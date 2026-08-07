@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Assets;
 
+use App\Actions\CheckoutRequests\CompleteCheckoutRequestTransferAction;
 use App\Exceptions\CheckoutNotAllowed;
 use App\Helpers\Helper;
 use App\Http\Controllers\CheckInOutRequest;
@@ -149,6 +150,8 @@ class AssetCheckoutController extends Controller
             session()->put(['redirect_option' => $request->get('redirect_option'), 'checkout_to_type' => $request->get('checkout_to_type')]);
 
             if ($asset->checkOut($target, $admin, $checkout_at, $expected_checkin, $request->get('note'), $request->get('name'))) {
+                CompleteCheckoutRequestTransferAction::run($asset, $target);
+
                 if ($request->filled('request_id')) {
                     return redirect()->to(Session::get('back_url', route('hardware.index')))
                         ->with('success', trans('admin/hardware/message.checkout.success'));
@@ -168,7 +171,7 @@ class AssetCheckoutController extends Controller
 
     protected function resolveRequestContext(int $requestId): CheckoutRequest
     {
-        $requestContext = CheckoutRequest::with(['project', 'requestedDiscipline'])->find($requestId);
+        $requestContext = CheckoutRequest::withoutGlobalScopes()->with(['project', 'requestedDiscipline'])->find($requestId);
 
         abort_if(! $requestContext, 404);
         abort_unless(
