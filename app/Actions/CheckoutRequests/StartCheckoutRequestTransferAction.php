@@ -32,6 +32,7 @@ class StartCheckoutRequestTransferAction
             );
 
             $asset->status_id = $transferStatus->id;
+            $asset->location_id = null;
             $asset->notes = trim(collect([$asset->notes, $transferNote])->filter()->implode("\n"));
             $asset->save();
 

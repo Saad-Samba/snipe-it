@@ -3032,7 +3032,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame($inTransfer->id, $transferredAsset->status_id);
         $this->assertNull($transferredAsset->assigned_to);
         $this->assertSame($sourceCompany->id, $transferredAsset->company_id);
-        $this->assertSame($sourceLocation->id, $transferredAsset->location_id);
+        $this->assertNull($transferredAsset->location_id);
         $this->assertSame($sourceReturnLocation->id, $transferredAsset->rtd_location_id);
         $this->assertStringContainsString('Existing note', $transferredAsset->notes);
         $this->assertStringContainsString('request #'.$checkoutRequest->id, $transferredAsset->notes);

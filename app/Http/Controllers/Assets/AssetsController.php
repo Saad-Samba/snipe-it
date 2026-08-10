@@ -148,7 +148,7 @@ class AssetsController extends Controller
         return redirect()->route('hardware.index', [
             'request_id' => $checkoutRequestId,
             'request_bucket' => $request->input('request_bucket', 'reusable_now'),
-        ])->with('success', 'Transfer started. The asset remains in the source company and locations until receipt is confirmed.');
+        ])->with('success', 'Transfer started. Current Location was cleared for physical movement; the source Company and Default Location remain until receipt is confirmed.');
     }
 
     /**
