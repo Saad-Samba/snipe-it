@@ -105,6 +105,7 @@
                 paginationLastText: "{{ trans('general.last') }}",
                 paginationNextText: "{{ trans('general.next') }}",
                 paginationPreText: "{{ trans('general.previous') }}",
+                filterControl: data_with_default('filter-control', false),
                 search: data_with_default('search', true),
                 searchHighlight: data_with_default('search-highlight', true),
                 showColumns: data_with_default('show-columns', true),
