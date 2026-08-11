@@ -39,6 +39,15 @@
                             <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">View all submitted requests</a>
                         </div>
                     @endif
+                    @if (!empty($filteredLicense))
+                        <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                            <span>
+                                Showing requests for license:
+                                <strong>{{ $filteredLicense->name }}</strong>
+                            </span>
+                            <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">View all submitted requests</a>
+                        </div>
+                    @endif
                     @if (!empty($filteredProject))
                         <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                             <span>

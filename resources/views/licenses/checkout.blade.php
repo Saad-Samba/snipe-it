@@ -18,12 +18,23 @@
     <div class="col-md-8">
         <form class="form-horizontal" method="post" action="" autocomplete="off">
             {{csrf_field()}}
+            @if (!empty($requestContext))
+                <input type="hidden" name="request_id" value="{{ $requestContext->id }}">
+            @endif
 
             <div class="box box-default">
                 <div class="box-header with-border">
                     <h2 class="box-title"> {{ $license->name }} ({{ trans('admin/licenses/message.seats_available', ['seat_count' => $license->availCount()->count()]) }})</h2>
                 </div>
                 <div class="box-body">
+
+                    @if (!empty($requestContext))
+                        <div class="alert alert-info">
+                            Fulfilling request <strong>#{{ $requestContext->id }}</strong>
+                            for <strong>{{ $requestContext->requested_for_display }}</strong>.
+                            The checkout target must match this request.
+                        </div>
+                    @endif
 
 
                     <!-- License name -->
@@ -74,6 +85,19 @@
                     @include ('partials.forms.checkout-selector', ['user_select' => 'true','asset_select' => 'true', 'location_select' => 'false'])
                     @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.user'), 'fieldname' => 'assigned_to', 'style' => (session('checkout_to_type') ?: 'user') == 'user' ? '' : 'display: none;'])
                     @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.select_asset'), 'fieldname' => 'asset_id', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
+
+                    <div class="form-group {{ $errors->has('expected_release_date') ? 'error' : '' }}">
+                        <label for="expected_release_date" class="col-md-3 control-label">Expected Release Date</label>
+                        <div class="col-md-8">
+                            <input
+                                type="date"
+                                class="form-control"
+                                id="expected_release_date"
+                                name="expected_release_date"
+                                value="{{ old('expected_release_date') }}">
+                            {!! $errors->first('expected_release_date', '<span class="alert-msg"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+                        </div>
+                    </div>
 
                     <!-- Note -->
                     <div class="form-group {{ $errors->has('notes') ? 'error' : '' }}">

@@ -45,7 +45,7 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->hasAccess('models.request'))
+                    @if (auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request'))
                         <li class="{{ ($activeTab ?? 'assets') === 'requests' ? 'active' : '' }}">
                             <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">
                                 <span class="hidden-lg hidden-md">
@@ -107,7 +107,7 @@
                         </div>
                     @endif
 
-                    @if (auth()->user()->hasAccess('models.request'))
+                    @if (auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request'))
                         <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
                             @if (!empty($requestSummary))
                                 @include('account.partials.request-project-summary', ['summary' => $requestSummary])

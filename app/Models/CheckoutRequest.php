@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
+use App\Actions\CheckoutRequests\EstimateLicenseReuseAction;
 use App\Models\Company;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +38,9 @@ class CheckoutRequest extends Model
         'user_id',
         'requested_discipline_id',
         'company_id',
+        'requested_for_type',
+        'requested_for_id',
+        'requested_for_display',
         'project_id',
         'needed_by_date',
         'quantity',
@@ -102,6 +107,11 @@ class CheckoutRequest extends Model
         return $this->belongsTo(Project::class, 'project_id');
     }
 
+    public function requestedFor()
+    {
+        return $this->morphTo('requested_for');
+    }
+
     public function coordinatorTargets()
     {
         return $this->hasMany(CheckoutRequestCoordinator::class);
@@ -119,6 +129,14 @@ class CheckoutRequest extends Model
                 'transfer_started_at',
                 'transfer_completed_at',
             ])
+            ->withTimestamps();
+    }
+
+    public function allocatedLicenseSeats(): BelongsToMany
+    {
+        return $this->belongsToMany(LicenseSeat::class, 'checkout_request_license_seats')
+            ->withoutGlobalScope(CompanyableScope::class)
+            ->withPivot(['allocated_by', 'allocated_at'])
             ->withTimestamps();
     }
 
@@ -195,6 +213,10 @@ class CheckoutRequest extends Model
 
     public function allocatedQuantity(): int
     {
+        if ($this->requestable_type === License::class) {
+            return $this->allocatedLicenseSeats()->count();
+        }
+
         return $this->allocatedAssets()->count();
     }
 
@@ -225,7 +247,7 @@ class CheckoutRequest extends Model
 
     public function requiresAlternativeFollowUp(): bool
     {
-        return $this->requestable_type === AssetModel::class
+        return in_array($this->requestable_type, [AssetModel::class, License::class], true)
             && ! $this->canceled_at
             && $this->remainingAllocationQuantity() > 0
             && $this->racHandlingComplete();
@@ -322,7 +344,7 @@ class CheckoutRequest extends Model
             return $this->liveRequestMetricsCache;
         }
 
-        if ($this->requestable_type !== AssetModel::class) {
+        if (! in_array($this->requestable_type, [AssetModel::class, License::class], true)) {
             $referencePrice = $this->reference_price_snapshot !== null ? (float) $this->reference_price_snapshot : 0.0;
             $reusableQuantity = (int) ($this->reusable_quantity ?? 0);
             $dueBackQuantity = (int) ($this->due_back_before_needed_by_quantity ?? 0);
@@ -339,10 +361,9 @@ class CheckoutRequest extends Model
             ];
         }
 
-        /** @var AssetModel|null $model */
-        $model = $this->requestedItem()->first();
+        $requestedItem = $this->requestedItem()->first();
 
-        if (! $model) {
+        if (! $requestedItem) {
             return $this->liveRequestMetricsCache = [
                 'reusable_quantity' => 0,
                 'due_back_before_needed_by_quantity' => 0,
@@ -353,11 +374,17 @@ class CheckoutRequest extends Model
             ];
         }
 
-        $estimate = EstimateAssetModelReuseAction::run(
-            $model,
-            (int) $this->quantity,
-            optional($this->needed_by_date)?->format('Y-m-d')
-        );
+        $estimate = $this->requestable_type === AssetModel::class
+            ? EstimateAssetModelReuseAction::run(
+                $requestedItem,
+                (int) $this->quantity,
+                optional($this->needed_by_date)?->format('Y-m-d')
+            )
+            : EstimateLicenseReuseAction::run(
+                $requestedItem,
+                (int) $this->quantity,
+                optional($this->needed_by_date)?->format('Y-m-d')
+            );
 
         $referencePrice = $this->reference_price_snapshot !== null
             ? (float) $this->reference_price_snapshot
@@ -417,7 +444,9 @@ class CheckoutRequest extends Model
             return $resolvedStatus;
         }
 
-        $reservedCount = $this->reservedAssetsCount();
+        $reservedCount = $this->requestable_type === License::class
+            ? $this->allocatedQuantity()
+            : $this->reservedAssetsCount();
 
         if ($reservedCount >= $this->quantity) {
             return self::STATUS_FULLY_ALLOCATED;

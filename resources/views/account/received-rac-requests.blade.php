@@ -29,9 +29,10 @@
                         <thead>
                         <tr>
                             <th data-field="request_id" data-sortable="true" data-formatter="requestDetailLinkFormatter">ID</th>
-                            <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Model</th>
+                            <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Inventory</th>
                             <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
                             <th data-field="requested_by" data-sortable="true">Requestor</th>
+                            <th data-field="requested_for_display" data-sortable="true">Requested For</th>
                             <th data-field="company" data-sortable="true">Destination Company</th>
                             <th data-field="inventory_disciplines" data-sortable="true">Inventory Discipline(s)</th>
                             <th data-field="qty" data-sortable="true">Quantity</th>

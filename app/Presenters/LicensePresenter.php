@@ -138,6 +138,20 @@ class LicensePresenter extends Presenter
                 'class' => 'text-right text-padding-number-cell',
                 'footerFormatter' => 'qtySumFormatter',
             ], [
+                'field' => 'expected_release_count',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => 'Expected Release',
+                'class' => 'text-right text-padding-number-cell',
+                'footerFormatter' => 'qtySumFormatter',
+            ], [
+                'field' => 'potentially_coverable_count',
+                'searchable' => false,
+                'sortable' => true,
+                'title' => 'Potentially Coverable',
+                'class' => 'text-right text-padding-number-cell',
+                'footerFormatter' => 'qtySumFormatter',
+            ], [
                 'field' => 'purchase_date',
                 'searchable' => true,
                 'sortable' => true,
@@ -307,6 +321,14 @@ class LicensePresenter extends Presenter
                 'sortable' => true,
                 'visible' => false,
                 'title' => trans('general.updated_at'),
+                'formatter' => 'dateDisplayFormatter',
+            ],
+            [
+                'field' => 'expected_release_date',
+                'searchable' => false,
+                'sortable' => true,
+                'visible' => true,
+                'title' => 'Expected Release',
                 'formatter' => 'dateDisplayFormatter',
             ],
             [

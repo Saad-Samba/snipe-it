@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\CheckoutRequests\CancelCheckoutRequestAction;
 use App\Actions\CheckoutRequests\CreateCheckoutRequestAction;
 use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
+use App\Actions\CheckoutRequests\EstimateLicenseReuseAction;
 use App\Actions\CheckoutRequests\RacRoutingResult;
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
@@ -17,6 +18,7 @@ use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
+use App\Models\License;
 use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
@@ -40,6 +42,7 @@ use Illuminate\Validation\ValidationException;
 class ModelRequestsController extends Controller
 {
     private const MODEL_REQUEST_CART_SESSION_KEY = 'model_request_cart';
+    private const LICENSE_REQUEST_CART_SESSION_KEY = 'license_request_cart';
 
     public function getReceivedRacRequests(): View
     {
@@ -59,30 +62,74 @@ class ModelRequestsController extends Controller
 
     public function getRequestableIndex(): View
     {
-        if (! auth()->user()?->hasAccess('models.request')) {
-            throw new AuthorizationException('You are not authorized to request models.');
+        $user = auth()->user();
+        if (! $user || (! $user->hasAccess('models.request') && ! $user->hasAccess('licenses.request'))) {
+            throw new AuthorizationException('You are not authorized to submit reuse requests.');
         }
 
-        $models = AssetModel::with([
-            'category',
-        ])
-            ->withCount(['availableAssets as reusable_assets_count'])
-            ->RequestableModels()
-            ->orderBy('name')
-            ->get();
+        $models = $user->hasAccess('models.request')
+            ? AssetModel::with(['category'])
+                ->withCount(['availableAssets as reusable_assets_count'])
+                ->RequestableModels()
+                ->orderBy('name')
+                ->get()
+            : collect();
+        $licenses = $user->hasAccess('licenses.request')
+            ? License::with(['category', 'company', 'discipline'])
+                ->where('reassignable', true)
+                ->whereNotNull('company_id')
+                ->whereNotNull('discipline_id')
+                ->activeLicenses()
+                ->orderBy('name')
+                ->get()
+                ->filter(fn (License $license) => $license->isReusableForRequest())
+                ->values()
+            : collect();
         $companies = Company::orderBy('name')->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
+        $requestUsers = User::query()
+            ->where('activated', 1)
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name', 'username', 'company_id']);
+        $requestAssets = Asset::query()
+            ->whereNotNull('asset_tag')
+            ->orderBy('asset_tag')
+            ->get(['id', 'asset_tag', 'name', 'company_id', 'discipline_id']);
 
-        return view('account/requestable-assets', compact('companies', 'disciplines', 'models'));
+        return view('account/requestable-assets', compact(
+            'companies',
+            'disciplines',
+            'licenses',
+            'models',
+            'requestAssets',
+            'requestUsers'
+        ));
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse
     {
-        if ($itemType !== 'asset_model') {
+        if (! in_array($itemType, ['asset_model', 'license'], true)) {
             abort(404);
         }
 
         $validated = $this->validateModelRequestPayload($request);
+        if ($itemType === 'license') {
+            $license = License::findOrFail($itemId);
+            $this->ensureLicenseRequestAuthorized($license);
+            $this->ensureModelRequestProjectProvided($validated['project_id'] ?? null);
+            $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
+            $this->ensureModelRequestNeededByDateProvided($validated['needed_by_date'] ?? null);
+
+            return response()->json(
+                EstimateLicenseReuseAction::run(
+                    $license,
+                    (int) $validated['request-quantity'],
+                    $validated['needed_by_date'] ?? null
+                )
+            );
+        }
+
         $item = AssetModel::findOrFail($itemId);
         $this->ensureModelRequestAuthorized($item);
         $this->ensureModelRequestProjectProvided($validated['project_id'] ?? null);
@@ -510,10 +557,258 @@ class ModelRequestsController extends Controller
         return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
     }
 
+    public function addLicenseRequestCartItems(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'lines' => ['required', 'array', 'min:1'],
+            'lines.*.license_id' => ['required', 'integer', 'exists:licenses,id,deleted_at,NULL'],
+            'lines.*.quantity' => ['required', 'integer', 'min:1'],
+            'lines.*.discipline_id' => ['required', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
+            'lines.*.company_id' => ['required', 'integer', 'exists:companies,id'],
+            'lines.*.requested_for_type' => ['required', 'string', 'in:user,asset'],
+            'lines.*.requested_for_id' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $this->ensureLicenseRequestPermission();
+        $cart = $this->getLicenseRequestCart($request);
+
+        foreach ($validated['lines'] as $line) {
+            $license = License::findOrFail((int) $line['license_id']);
+            $this->ensureLicenseRequestAuthorized($license);
+            $target = $this->resolveLicenseRequestTarget(
+                (string) $line['requested_for_type'],
+                (int) $line['requested_for_id']
+            );
+            $this->ensureLicenseTargetScope(
+                $target,
+                (int) $line['company_id'],
+                (int) $line['discipline_id']
+            );
+
+            $key = $this->makeLicenseRequestCartKey(
+                (int) $license->id,
+                (int) $line['discipline_id'],
+                (int) $line['company_id'],
+                (string) $line['requested_for_type'],
+                (int) $line['requested_for_id']
+            );
+            $cart[$key] = [
+                'license_id' => (int) $license->id,
+                'quantity' => (int) $line['quantity'],
+                'discipline_id' => (int) $line['discipline_id'],
+                'company_id' => (int) $line['company_id'],
+                'requested_for_type' => (string) $line['requested_for_type'],
+                'requested_for_id' => (int) $line['requested_for_id'],
+            ];
+        }
+
+        $this->putLicenseRequestCart($request, $cart);
+
+        return response()->json(['status' => 'success', 'cart_count' => count($cart)]);
+    }
+
+    public function removeLicenseRequestCartItem(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'license_id' => ['required', 'integer'],
+            'discipline_id' => ['required', 'integer'],
+            'company_id' => ['required', 'integer'],
+            'requested_for_type' => ['required', 'string', 'in:user,asset'],
+            'requested_for_id' => ['required', 'integer'],
+        ]);
+
+        $cart = $this->getLicenseRequestCart($request);
+        unset($cart[$this->makeLicenseRequestCartKey(
+            (int) $validated['license_id'],
+            (int) $validated['discipline_id'],
+            (int) $validated['company_id'],
+            (string) $validated['requested_for_type'],
+            (int) $validated['requested_for_id']
+        )]);
+        $this->putLicenseRequestCart($request, $cart);
+
+        return response()->json(['status' => 'success', 'cart_count' => count($cart)]);
+    }
+
+    public function clearLicenseRequestCart(Request $request): JsonResponse
+    {
+        $request->session()->forget(self::LICENSE_REQUEST_CART_SESSION_KEY);
+
+        return response()->json(['status' => 'success', 'cart_count' => 0]);
+    }
+
+    public function previewLicenseRequestCart(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
+            'needed_by_date' => ['nullable', 'date'],
+        ]);
+        $this->ensureLicenseRequestPermission();
+
+        $neededByDate = $validated['needed_by_date'] ?? null;
+        $lines = [];
+        $totals = [
+            'quantity' => 0,
+            'reusable_quantity' => 0,
+            'due_back_before_needed_by_quantity' => 0,
+            'procurement_shortfall' => 0,
+            'estimated_savings' => 0.0,
+            'amount_to_buy' => 0.0,
+        ];
+
+        foreach ($this->getLicenseRequestCart($request) as $line) {
+            $license = License::findOrFail((int) $line['license_id']);
+            $this->ensureLicenseRequestAuthorized($license);
+            $target = $this->resolveLicenseRequestTarget(
+                (string) $line['requested_for_type'],
+                (int) $line['requested_for_id']
+            );
+            $estimate = $neededByDate
+                ? EstimateLicenseReuseAction::run($license, (int) $line['quantity'], $neededByDate)
+                : EstimateLicenseReuseAction::run($license, (int) $line['quantity']);
+            $amountToBuy = round(
+                ((float) $estimate['procurement_shortfall']) * ((float) ($estimate['reference_price_snapshot'] ?? 0)),
+                2
+            );
+            $previewLine = array_merge($line, [
+                'license_name' => $license->name,
+                'discipline_name' => optional(Discipline::find($line['discipline_id']))->name,
+                'company_name' => optional(Company::find($line['company_id']))->name,
+                'requested_for_display' => $this->licenseRequestTargetDisplay($target),
+                'reusable_quantity' => (int) $estimate['reusable_quantity'],
+                'due_back_before_needed_by_quantity' => (int) $estimate['due_back_before_needed_by_quantity'],
+                'procurement_shortfall' => (int) $estimate['procurement_shortfall'],
+                'estimated_savings' => (float) $estimate['estimated_savings'],
+                'amount_to_buy' => $amountToBuy,
+            ]);
+            $lines[] = $previewLine;
+
+            foreach (['quantity', 'reusable_quantity', 'due_back_before_needed_by_quantity', 'procurement_shortfall'] as $field) {
+                $totals[$field] += (int) $previewLine[$field];
+            }
+            $totals['estimated_savings'] += $previewLine['estimated_savings'];
+            $totals['amount_to_buy'] += $previewLine['amount_to_buy'];
+        }
+
+        $totals['estimated_savings'] = round($totals['estimated_savings'], 2);
+        $totals['amount_to_buy'] = round($totals['amount_to_buy'], 2);
+
+        return response()->json([
+            'status' => 'success',
+            'cart_count' => count($lines),
+            'lines' => $lines,
+            'totals' => $totals,
+            'totals_formatted' => [
+                'estimated_savings' => \App\Helpers\Helper::formatCurrencyOutput($totals['estimated_savings']),
+                'amount_to_buy' => \App\Helpers\Helper::formatCurrencyOutput($totals['amount_to_buy']),
+            ],
+        ]);
+    }
+
+    public function submitLicenseRequestCart(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
+            'needed_by_date' => ['required', 'date'],
+        ]);
+        $user = $this->ensureLicenseRequestPermission();
+        $cart = $this->getLicenseRequestCart($request);
+
+        if (empty($cart)) {
+            throw ValidationException::withMessages(['cart' => 'Add at least one license to the request cart.']);
+        }
+
+        $project = Project::findOrFail((int) $validated['project_id']);
+        $submittedAt = now()->toDateTimeString();
+        $submissionBatchId = (string) Str::uuid();
+        $coordinatorNotificationBuckets = [];
+        $unroutedRacNotificationLines = [];
+        $submittedRequestIds = [];
+
+        DB::transaction(function () use (
+            $cart,
+            $validated,
+            $user,
+            $project,
+            $submittedAt,
+            $submissionBatchId,
+            &$coordinatorNotificationBuckets,
+            &$unroutedRacNotificationLines,
+            &$submittedRequestIds
+        ) {
+            foreach ($cart as $line) {
+                $license = License::findOrFail((int) $line['license_id']);
+                $disciplineId = (int) $line['discipline_id'];
+                $companyId = (int) $line['company_id'];
+                $target = $this->resolveLicenseRequestTarget(
+                    (string) $line['requested_for_type'],
+                    (int) $line['requested_for_id']
+                );
+
+                $this->ensureLicenseRequestAuthorized($license);
+                $this->ensureModelRequestDisciplineProvided($disciplineId);
+                $this->ensureModelRequestCompanyProvided($companyId);
+                $this->ensureLicenseTargetScope($target, $companyId, $disciplineId);
+                $this->ensureUniqueLicenseProjectRequest(
+                    $license,
+                    $user,
+                    (int) $validated['project_id'],
+                    $disciplineId,
+                    $companyId,
+                    get_class($target),
+                    (int) $target->id
+                );
+
+                $requestAttributes = array_merge([
+                    'company_id' => $companyId,
+                    'project_id' => (int) $validated['project_id'],
+                    'needed_by_date' => $validated['needed_by_date'],
+                    'requested_discipline_id' => $disciplineId,
+                    'requested_for_type' => get_class($target),
+                    'requested_for_id' => (int) $target->id,
+                    'requested_for_display' => $this->licenseRequestTargetDisplay($target),
+                    'submission_batch_id' => $submissionBatchId,
+                ], EstimateLicenseReuseAction::run(
+                    $license,
+                    (int) $line['quantity'],
+                    $validated['needed_by_date']
+                ));
+
+                $checkoutRequest = $license->request((int) $line['quantity'], $requestAttributes);
+                $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, false);
+                $submittedRequestIds[] = (int) $checkoutRequest->id;
+                $coordinatorNotificationBuckets = $this->addCoordinatorSummaryLine(
+                    $coordinatorNotificationBuckets,
+                    $checkoutRequest,
+                    $user,
+                    $project,
+                    $submittedAt,
+                    $routingResult->coordinatorMatches
+                );
+                $unroutedRacNotificationLines = $this->addUnroutedRacNotificationLine(
+                    $unroutedRacNotificationLines,
+                    $checkoutRequest,
+                    $routingResult
+                );
+            }
+        });
+
+        CheckoutRequest::query()
+            ->whereIn('id', $submittedRequestIds)
+            ->get()
+            ->each(fn (CheckoutRequest $checkoutRequest) => SendAlternativeFollowUpNotificationAction::run($checkoutRequest));
+
+        $request->session()->forget(self::LICENSE_REQUEST_CART_SESSION_KEY);
+        $this->sendCoordinatorSummaryNotifications($coordinatorNotificationBuckets);
+        $this->sendUnroutedRacNotifications($unroutedRacNotificationLines);
+
+        return redirect()->back()->with('success', trans('admin/hardware/message.requests.success'));
+    }
+
     public function storeRequestProject(Request $request): JsonResponse
     {
         $user = auth()->user();
-        if (! $user || ! $user->hasAccess('models.request')) {
+        if (! $user || (! $user->hasAccess('models.request') && ! $user->hasAccess('licenses.request'))) {
             throw new AuthorizationException('You are not authorized to create request projects.');
         }
 
@@ -623,16 +918,24 @@ class ModelRequestsController extends Controller
                     ->map(fn ($id) => (int) $id)
                     ->unique()
                     ->values();
-                $model = $submissionRequest->requestedItem()->first();
-                abort_if(! $model instanceof AssetModel, 404);
+                $item = $submissionRequest->requestedItem()->first();
+                abort_if(! $item instanceof AssetModel && ! $item instanceof License, 404);
 
                 $submissionRequest->project_id = $projectId;
                 $submissionRequest->needed_by_date = $neededByDate;
-                $submissionRequest->fill($this->estimateAssetModelRequest(
-                    $model,
-                    (int) $submissionRequest->quantity,
-                    $neededByDate
-                ));
+                $submissionRequest->fill(
+                    $item instanceof License
+                        ? EstimateLicenseReuseAction::run(
+                            $item,
+                            (int) $submissionRequest->quantity,
+                            $neededByDate
+                        )
+                        : $this->estimateAssetModelRequest(
+                            $item,
+                            (int) $submissionRequest->quantity,
+                            $neededByDate
+                        )
+                );
                 $submissionRequest->status = CheckoutRequest::STATUS_PENDING;
                 $submissionRequest->resetAlternativeFollowUpNotification();
                 $submissionRequest->save();
@@ -741,22 +1044,29 @@ class ModelRequestsController extends Controller
 
     public function getRequestedAssets(Request $request): View
     {
-        if (! auth()->user()->hasAccess('models.request')) {
+        if (! auth()->user()->hasAccess('models.request') && ! auth()->user()->hasAccess('licenses.request')) {
             throw new AuthorizationException('You are not authorized to view submitted requests.');
         }
 
         $modelId = $request->integer('model_id');
+        $licenseId = $request->integer('license_id');
         $projectId = $request->integer('project_id');
         $requestId = $request->integer('request_id');
         $submissionBatchId = trim((string) $request->input('submission_batch_id'));
         $query = [];
         $filteredModel = null;
+        $filteredLicense = null;
         $filteredProject = null;
         $filteredSubmission = null;
 
         if ($modelId) {
             $query['model_id'] = $modelId;
             $filteredModel = AssetModel::find($modelId);
+        }
+
+        if ($licenseId) {
+            $query['license_id'] = $licenseId;
+            $filteredLicense = License::find($licenseId);
         }
 
         if ($projectId) {
@@ -794,13 +1104,14 @@ class ModelRequestsController extends Controller
         $projectSummary = $filteredProject
             ? CheckoutRequest::projectSummaryForUser(auth()->id(), $filteredProject->id)
             : null;
-        $showSubmissionBatches = ! $modelId && ! $projectId && ! $filteredSubmission;
+        $showSubmissionBatches = ! $modelId && ! $licenseId && ! $projectId && ! $filteredSubmission;
 
         return view('account/requested', [
             'pageTitle' => 'Submitted Requests',
             'dataUrl' => route('api.requests.index', $showSubmissionBatches ? ['view' => 'batches'] : $query),
             'requestMode' => 'requester',
             'filteredModel' => $filteredModel,
+            'filteredLicense' => $filteredLicense,
             'filteredProject' => $filteredProject,
             'filteredSubmission' => $filteredSubmission,
             'projectSummary' => $projectSummary,
@@ -939,6 +1250,126 @@ class ModelRequestsController extends Controller
         return $modelId.':'.$disciplineId.':'.$companyId;
     }
 
+    private function getLicenseRequestCart(Request $request): array
+    {
+        return $this->normalizeLicenseRequestCart(
+            $request->session()->get(self::LICENSE_REQUEST_CART_SESSION_KEY, [])
+        );
+    }
+
+    private function putLicenseRequestCart(Request $request, array $cart): void
+    {
+        $request->session()->put(
+            self::LICENSE_REQUEST_CART_SESSION_KEY,
+            $this->normalizeLicenseRequestCart($cart)
+        );
+    }
+
+    private function normalizeLicenseRequestCart(array $cart): array
+    {
+        $normalized = [];
+        foreach ($cart as $line) {
+            if (! is_array($line)) {
+                continue;
+            }
+
+            $licenseId = (int) ($line['license_id'] ?? 0);
+            $quantity = (int) ($line['quantity'] ?? 0);
+            $disciplineId = (int) ($line['discipline_id'] ?? 0);
+            $companyId = (int) ($line['company_id'] ?? 0);
+            $targetType = (string) ($line['requested_for_type'] ?? '');
+            $targetId = (int) ($line['requested_for_id'] ?? 0);
+
+            if ($licenseId < 1 || $quantity < 1 || $disciplineId < 1 || $companyId < 1
+                || ! in_array($targetType, ['user', 'asset'], true) || $targetId < 1) {
+                continue;
+            }
+
+            $normalized[$this->makeLicenseRequestCartKey(
+                $licenseId,
+                $disciplineId,
+                $companyId,
+                $targetType,
+                $targetId
+            )] = [
+                'license_id' => $licenseId,
+                'quantity' => $quantity,
+                'discipline_id' => $disciplineId,
+                'company_id' => $companyId,
+                'requested_for_type' => $targetType,
+                'requested_for_id' => $targetId,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function makeLicenseRequestCartKey(
+        int $licenseId,
+        int $disciplineId,
+        int $companyId,
+        string $targetType,
+        int $targetId
+    ): string {
+        return implode(':', [$licenseId, $disciplineId, $companyId, $targetType, $targetId]);
+    }
+
+    private function ensureLicenseRequestPermission(): User
+    {
+        $user = auth()->user();
+        if (! $user || ! $user->hasAccess('licenses.request')) {
+            throw new AuthorizationException('You are not authorized to request licenses.');
+        }
+
+        return $user;
+    }
+
+    private function ensureLicenseRequestAuthorized(License $license): void
+    {
+        $this->ensureLicenseRequestPermission();
+        if (! $license->isReusableForRequest()) {
+            throw new AuthorizationException('This license is not eligible for reuse requests.');
+        }
+    }
+
+    private function resolveLicenseRequestTarget(string $targetType, int $targetId)
+    {
+        $target = $targetType === 'user'
+            ? User::query()->where('activated', 1)->find($targetId)
+            : Asset::query()->find($targetId);
+
+        if (! $target) {
+            throw ValidationException::withMessages([
+                'requested_for_id' => 'The selected license target is unavailable.',
+            ]);
+        }
+
+        return $target;
+    }
+
+    private function ensureLicenseTargetScope($target, int $companyId, int $disciplineId): void
+    {
+        if ($target->company_id && (int) $target->company_id !== $companyId) {
+            throw ValidationException::withMessages([
+                'company_id' => 'The destination company must match the selected license target.',
+            ]);
+        }
+
+        if ($target instanceof Asset && $target->discipline_id
+            && (int) $target->discipline_id !== $disciplineId) {
+            throw ValidationException::withMessages([
+                'requested_discipline_id' => 'The discipline must match the selected asset.',
+            ]);
+        }
+    }
+
+    private function licenseRequestTargetDisplay($target): string
+    {
+        return $target instanceof User
+            ? $target->display_name
+            : trim($target->asset_tag.' '.($target->name ?: ''));
+    }
+
     private function addCoordinatorSummaryLine(array $buckets, CheckoutRequest $checkoutRequest, User $requester, ?Project $project, string $submittedAt, $coordinatorMatches): array
     {
         foreach ($coordinatorMatches as $match) {
@@ -965,12 +1396,15 @@ class ModelRequestsController extends Controller
                 'model_name' => $checkoutRequest->requestedItem()?->name ?? $checkoutRequest->name(),
                 'project_name' => $project?->name ?: '-',
                 'company_name' => optional($checkoutRequest->company)->name ?: '-',
+                'requested_for_display' => $checkoutRequest->requested_for_display ?: '-',
                 'discipline_name' => optional($checkoutRequest->requestedDiscipline)->name ?: '-',
                 'inventory_discipline_names' => $match['inventory_discipline_names'] ?? [],
                 'requested_quantity' => (int) $checkoutRequest->quantity,
                 'reusable_quantity' => $reusableQuantity,
                 'needed_by_date' => optional($checkoutRequest->needed_by_date)?->format('Y-m-d') ?: '-',
-                'model_show_url' => route('models.show', $checkoutRequest->requestable_id),
+                'model_show_url' => $checkoutRequest->requestable_type === License::class
+                    ? route('licenses.show', $checkoutRequest->requestable_id)
+                    : route('models.show', $checkoutRequest->requestable_id),
                 'project_requests_url' => $checkoutRequest->project_id
                     ? route('projects.show', ['project' => $checkoutRequest->project_id, 'tab' => 'requests'])
                     : route('requests.index'),
@@ -1075,6 +1509,13 @@ class ModelRequestsController extends Controller
 
     private function requestDetailUrlFor(CheckoutRequest $checkoutRequest): string
     {
+        if ($checkoutRequest->requestable_type === License::class) {
+            return route('licenses.checkout', [
+                'license' => $checkoutRequest->requestable_id,
+                'request_id' => $checkoutRequest->id,
+            ]);
+        }
+
         return route('hardware.index', [
             'request_id' => $checkoutRequest->id,
             'request_bucket' => 'reusable_now',
@@ -1129,7 +1570,10 @@ class ModelRequestsController extends Controller
 
     private function authorizeSubmittedRequestAccess(CheckoutRequest $checkoutRequest): void
     {
-        if (! auth()->user()->hasAccess('models.request')) {
+        $permission = $checkoutRequest->requestable_type === License::class
+            ? 'licenses.request'
+            : 'models.request';
+        if (! auth()->user()->hasAccess($permission)) {
             throw new AuthorizationException('You are not authorized to manage submitted requests.');
         }
 
@@ -1165,8 +1609,11 @@ class ModelRequestsController extends Controller
             fn (CheckoutRequest $submissionRequest) => $submissionRequest->alternative_follow_up_notified_at !== null
         );
         $hasAllocations = DB::table('checkout_request_assets')
-            ->whereIn('checkout_request_id', $requestIds)
-            ->exists();
+                ->whereIn('checkout_request_id', $requestIds)
+                ->exists()
+            || DB::table('checkout_request_license_seats')
+                ->whereIn('checkout_request_id', $requestIds)
+                ->exists();
         $hasRacActivity = CheckoutRequestCoordinator::query()
             ->whereIn('checkout_request_id', $requestIds)
             ->where(function ($activityQuery) {
@@ -1202,11 +1649,17 @@ class ModelRequestsController extends Controller
                 ->where('project_id', $projectId)
                 ->where('requested_discipline_id', $submissionRequest->requested_discipline_id)
                 ->where('company_id', $submissionRequest->company_id)
+                ->when(
+                    $submissionRequest->requestable_type === License::class,
+                    fn ($query) => $query
+                        ->where('requested_for_type', $submissionRequest->requested_for_type)
+                        ->where('requested_for_id', $submissionRequest->requested_for_id)
+                )
                 ->exists();
 
             if ($duplicateExists) {
                 throw ValidationException::withMessages([
-                    'project_id' => 'The selected project already has an active matching model request.',
+                    'project_id' => 'The selected project already has an active matching request.',
                 ]);
             }
         }
@@ -1228,6 +1681,36 @@ class ModelRequestsController extends Controller
         if ($duplicateQuery->exists()) {
             throw ValidationException::withMessages([
                 'project_id' => 'You already have an active request for this model, project, discipline, and company.',
+            ]);
+        }
+    }
+
+    private function ensureUniqueLicenseProjectRequest(
+        License $license,
+        User $user,
+        int $projectId,
+        int $disciplineId,
+        int $companyId,
+        string $targetType,
+        int $targetId,
+        ?int $ignoreRequestId = null
+    ): void {
+        $query = $license->requests()
+            ->where('user_id', $user->id)
+            ->where('project_id', $projectId)
+            ->where('requested_discipline_id', $disciplineId)
+            ->where('company_id', $companyId)
+            ->where('requested_for_type', $targetType)
+            ->where('requested_for_id', $targetId)
+            ->whereNull('canceled_at');
+
+        if ($ignoreRequestId) {
+            $query->where('id', '!=', $ignoreRequestId);
+        }
+
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'project_id' => 'An active request already exists for this license and target in the project.',
             ]);
         }
     }

@@ -136,6 +136,9 @@ class LicenseSeatsController extends Controller
 
         // 2. are they cleared? if yes then this is a checkin operation
         $is_checkin = ($assignmentTouched && $licenseSeat->assigned_to === null && $licenseSeat->asset_id === null);
+        if ($is_checkin) {
+            $licenseSeat->expected_release_date = null;
+        }
         $target = null;
 
         // the logging functions expect only one "target". if both asset and user are present in the request,

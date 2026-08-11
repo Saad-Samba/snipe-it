@@ -92,6 +92,7 @@ class LicenseCheckinController extends Controller
         // Update the asset data
         $licenseSeat->assigned_to = null;
         $licenseSeat->asset_id = null;
+        $licenseSeat->expected_release_date = null;
         $licenseSeat->notes = $request->input('notes');
         if (! $licenseSeat->license->reassignable) {
             $licenseSeat->unreassignable_seat = true;
@@ -138,6 +139,7 @@ class LicenseCheckinController extends Controller
         $license = $licenseSeatsByUser->first()?->license;
         foreach ($licenseSeatsByUser as $user_seat) {
             $user_seat->assigned_to = null;
+            $user_seat->expected_release_date = null;
             if ($license && ! $license->reassignable) {
                 $user_seat->unreassignable_seat = true;
             }
@@ -156,6 +158,7 @@ class LicenseCheckinController extends Controller
         $license = $licenseSeatsByAsset->first()?->license;
         foreach ($licenseSeatsByAsset as $asset_seat) {
             $asset_seat->asset_id = null;
+            $asset_seat->expected_release_date = null;
             if ($license && ! $license->reassignable) {
                 $asset_seat->unreassignable_seat = true;
             }

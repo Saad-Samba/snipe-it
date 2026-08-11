@@ -21,6 +21,8 @@ class LicensesTransformer
 
     public function transformLicense(License $license)
     {
+        $expectedReleaseCount = $license->expectedReleaseSeatCount();
+        $reusableSeatCount = $license->reusableFreeSeatsCount();
         $array = [
             'id' => (int) $license->id,
             'name' => e($license->name),
@@ -49,9 +51,13 @@ class LicensesTransformer
             'depreciation' => ($license->depreciation) ? ['id' => (int) $license->depreciation->id,'name'=> e($license->depreciation->name)] : null,
             'purchase_cost' => Helper::formatCurrencyOutput($license->purchase_cost),
             'purchase_cost_numeric' => $license->purchase_cost,
+            'unit_purchase_cost' => Helper::formatCurrencyOutput($license->unitPurchaseCost()),
+            'unit_purchase_cost_numeric' => $license->unitPurchaseCost(),
             'notes' => Helper::parseEscapedMarkedownInline($license->notes),
             'seats' => (int) $license->seats,
-            'free_seats_count' => (int) $license->free_seats_count - License::unReassignableCount($license),
+            'free_seats_count' => $reusableSeatCount,
+            'expected_release_count' => $expectedReleaseCount,
+            'potentially_coverable_count' => $reusableSeatCount + $expectedReleaseCount,
             'remaining' => (int) $license->free_seats_count,
             'min_amt' => ($license->min_amt) ? (int) ($license->min_amt) : null,
             'license_name' =>  ($license->license_name) ? e($license->license_name) : null,

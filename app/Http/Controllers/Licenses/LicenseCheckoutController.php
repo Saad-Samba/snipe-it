@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\LicenseCheckoutRequest;
 use App\Models\Accessory;
 use App\Models\Asset;
+use App\Models\CheckoutRequest;
 use App\Models\License;
 use App\Models\LicenseSeat;
 use App\Models\User;
@@ -31,6 +32,9 @@ class LicenseCheckoutController extends Controller
     public function create(License $license)
     {
         $this->authorize('checkout', $license);
+        $requestContext = request()->filled('request_id')
+            ? $this->resolveRequestContext((int) request()->input('request_id'), $license)
+            : null;
 
         if ($license->category) {
 
@@ -50,7 +54,7 @@ class LicenseCheckoutController extends Controller
             }
 
             // Return the checkout view
-            return view('licenses/checkout', compact('license'));
+            return view('licenses/checkout', compact('license', 'requestContext'));
         }
 
         // Invalid category
@@ -77,6 +81,13 @@ class LicenseCheckoutController extends Controller
 
 
         $this->authorize('checkout', $license);
+        $requestContext = $request->filled('request_id')
+            ? $this->resolveRequestContext((int) $request->input('request_id'), $license)
+            : null;
+
+        if ($requestContext) {
+            $this->ensureCheckoutMatchesRequestedTarget($request, $requestContext);
+        }
 
         // Make sure there is at least one available to checkout
         if ($license->availCount()->count() < 1) {
@@ -91,6 +102,9 @@ class LicenseCheckoutController extends Controller
         $licenseSeat = $this->findLicenseSeatToCheckout($license, $seatId);
         $licenseSeat->created_by = auth()->id();
         $licenseSeat->notes = $request->input('notes');
+        $licenseSeat->expected_release_date = $request->filled('expected_release_date')
+            ? $request->input('expected_release_date')
+            : null;
 
         if ($request->filled('asset_id')) {
             session()->put(['checkout_to_type' => 'asset']);
@@ -108,6 +122,18 @@ class LicenseCheckoutController extends Controller
 
 
         if ($checkoutTarget) {
+            if ($requestContext) {
+                $requestContext->allocatedLicenseSeats()->syncWithoutDetaching([
+                    $licenseSeat->id => [
+                        'allocated_by' => auth()->id(),
+                        'allocated_at' => now(),
+                    ],
+                ]);
+                $requestContext->syncAllocationStatus(true);
+
+                return redirect()->route('rac-requests.index')
+                    ->with('success', trans('admin/licenses/message.checkout.success'));
+            }
 
             return Helper::getRedirectOption($request, $license->id, 'Licenses')
                 ->with('success', trans('admin/licenses/message.checkout.success'));
@@ -136,6 +162,31 @@ class LicenseCheckoutController extends Controller
         }
 
         return $licenseSeat;
+    }
+
+    protected function resolveRequestContext(int $requestId, License $license): CheckoutRequest
+    {
+        $requestContext = CheckoutRequest::findOrFail($requestId);
+
+        abort_unless($requestContext->requestable_type === License::class, 404);
+        abort_unless((int) $requestContext->requestable_id === (int) $license->id, 404);
+        abort_unless($requestContext->canBeProcessedBy(auth()->user()), 409, 'This request can no longer be processed.');
+
+        return $requestContext;
+    }
+
+    protected function ensureCheckoutMatchesRequestedTarget(
+        LicenseCheckoutRequest $request,
+        CheckoutRequest $requestContext
+    ): void {
+        $requestedTargetId = (int) $requestContext->requested_for_id;
+        $matches = $requestContext->requested_for_type === User::class
+            ? (int) $request->input('assigned_to') === $requestedTargetId && ! $request->filled('asset_id')
+            : ($requestContext->requested_for_type === Asset::class
+                && (int) $request->input('asset_id') === $requestedTargetId
+                && ! $request->filled('assigned_to'));
+
+        abort_unless($matches, 422, 'The checkout target must match the license request target.');
     }
 
     protected function checkoutToAsset($licenseSeat)

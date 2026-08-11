@@ -9,6 +9,7 @@ use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\CustomField;
+use App\Models\License;
 use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -34,16 +35,18 @@ class ModelRequestsController extends Controller
                 'company',
                 'user',
                 'allocatedAssets',
+                'allocatedLicenseSeats',
                 'coordinatorTargets' => fn ($query) => $query->where('user_id', $user->id),
                 'coordinatorTargets.discipline',
             ])
             ->latest('created_at')
             ->get();
         $canViewAssets = $user->can('index', Asset::class);
+        $canCheckoutLicenses = $user->can('checkout', License::class);
 
         return [
             'total' => $checkoutRequests->count(),
-            'rows' => $checkoutRequests->map(function (CheckoutRequest $checkoutRequest) use ($user, $canViewAssets) {
+            'rows' => $checkoutRequests->map(function (CheckoutRequest $checkoutRequest) use ($user, $canViewAssets, $canCheckoutLicenses) {
                 $targets = $checkoutRequest->coordinatorTargets;
                 $targetStatuses = $targets->map->resolvedStatus();
                 $terminalStatuses = CheckoutRequestCoordinator::terminalResolutionStatuses();
@@ -59,22 +62,31 @@ class ModelRequestsController extends Controller
                 }
 
                 $requestedItem = $checkoutRequest->requestedItem;
-                $requestDetailUrl = $canViewAssets && $checkoutRequest->canBeViewedBy($user)
-                    ? route('hardware.index', [
-                        'request_id' => $checkoutRequest->id,
-                        'request_bucket' => 'reusable_now',
-                    ])
-                    : null;
+                $requestDetailUrl = null;
+                if ($checkoutRequest->canBeProcessedBy($user)) {
+                    $requestDetailUrl = $checkoutRequest->requestable_type === License::class
+                        ? ($canCheckoutLicenses ? route('licenses.checkout', [
+                            'license' => $checkoutRequest->requestable_id,
+                            'request_id' => $checkoutRequest->id,
+                        ]) : null)
+                        : ($canViewAssets ? route('hardware.index', [
+                            'request_id' => $checkoutRequest->id,
+                            'request_bucket' => 'reusable_now',
+                        ]) : null);
+                }
 
                 return [
                     'request_id' => (int) $checkoutRequest->id,
                     'name' => e($requestedItem?->name ?? $checkoutRequest->name()),
                     'model_show_url' => $requestedItem && $user->can('view', $requestedItem)
-                        ? route('models.show', $checkoutRequest->requestable_id)
+                        ? ($checkoutRequest->requestable_type === License::class
+                            ? route('licenses.show', $checkoutRequest->requestable_id)
+                            : route('models.show', $checkoutRequest->requestable_id))
                         : null,
                     'project' => e(optional($checkoutRequest->project)->name),
                     'project_requests_url' => $this->projectRequestsUrl($checkoutRequest->project),
                     'requested_by' => e(optional($checkoutRequest->requestingUser())->display_name),
+                    'requested_for_display' => e($checkoutRequest->requested_for_display),
                     'company' => e(optional($checkoutRequest->company)->name),
                     'inventory_disciplines' => $targets
                         ->pluck('discipline.name')
@@ -97,7 +109,7 @@ class ModelRequestsController extends Controller
 
     public function index(Request $request): array
     {
-        if (! auth()->user()->hasAccess('models.request')) {
+        if (! auth()->user()->hasAccess('models.request') && ! auth()->user()->hasAccess('licenses.request')) {
             abort(403, 'You are not authorized to view submitted requests.');
         }
 
@@ -109,6 +121,7 @@ class ModelRequestsController extends Controller
                 'requestedDiscipline',
                 'user',
                 'allocatedAssets',
+                'allocatedLicenseSeats',
                 'coordinatorTargets',
             ])
         ;
@@ -117,6 +130,12 @@ class ModelRequestsController extends Controller
             $checkoutRequests
                 ->where('requestable_type', AssetModel::class)
                 ->where('requestable_id', (int) $request->input('model_id'));
+        }
+
+        if ($request->filled('license_id')) {
+            $checkoutRequests
+                ->where('requestable_type', License::class)
+                ->where('requestable_id', (int) $request->input('license_id'));
         }
 
         if ($request->filled('project_id')) {
@@ -181,6 +200,10 @@ class ModelRequestsController extends Controller
                 $checkoutRequest->requestable_type === AssetModel::class
                 && $requestedItem instanceof AssetModel
             ) ? $requestedItem : null;
+            $requestedLicense = (
+                $checkoutRequest->requestable_type === License::class
+                && $requestedItem instanceof License
+            ) ? $requestedItem : null;
             $canEditSubmission = (bool) ($submissionEditable[$this->submissionKey($checkoutRequest)] ?? false);
 
             $assets = [
@@ -189,12 +212,16 @@ class ModelRequestsController extends Controller
                 'category' => e($this->categoryName($checkoutRequest)),
                 'name' => e($checkoutRequest->name()),
                 'model_id' => $checkoutRequest->requestable_type === AssetModel::class ? (int) $checkoutRequest->requestable_id : null,
+                'license_id' => $checkoutRequest->requestable_type === License::class ? (int) $checkoutRequest->requestable_id : null,
                 'type' => e($checkoutRequest->itemType()),
                 'qty' => (int) $checkoutRequest->quantity,
                 'requested_discipline_id' => $checkoutRequest->requested_discipline_id ? (int) $checkoutRequest->requested_discipline_id : null,
                 'requested_discipline' => e(optional($checkoutRequest->requestedDiscipline)->name),
                 'company_id' => $checkoutRequest->company_id ? (int) $checkoutRequest->company_id : null,
                 'company' => e(optional($checkoutRequest->company)->name),
+                'requested_for_type' => $checkoutRequest->requested_for_type ? class_basename($checkoutRequest->requested_for_type) : null,
+                'requested_for_id' => $checkoutRequest->requested_for_id ? (int) $checkoutRequest->requested_for_id : null,
+                'requested_for_display' => e($checkoutRequest->requested_for_display),
                 'project_id' => $checkoutRequest->project_id ? (int) $checkoutRequest->project_id : null,
                 'project' => e(optional($checkoutRequest->project)->name),
                 'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
@@ -231,17 +258,21 @@ class ModelRequestsController extends Controller
                 'rac_unrouted_scopes' => $checkoutRequest->rac_unrouted_scopes ?? [],
                 'location' => ($checkoutRequest->location()) ? e($checkoutRequest->location()->name) : null,
                 'requested_by' => ($checkoutRequest->requestingUser()) ? e($checkoutRequest->requestingUser()->display_name) : null,
-                'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin, 'datetime'),
+                'expected_checkin' => Helper::getFormattedDateObject($checkoutRequest->itemRequested()->expected_checkin ?? null, 'datetime'),
                 'request_date' => Helper::getFormattedDateObject($checkoutRequest->created_at, 'datetime'),
                 'updated_at' => Helper::getFormattedDateObject($checkoutRequest->updated_at, 'datetime'),
                 'model_show_url' => $requestedModel && auth()->user()->can('view', $requestedModel)
                     ? route('models.show', $checkoutRequest->requestable_id)
-                    : null,
+                    : ($requestedLicense && auth()->user()->can('view', $requestedLicense)
+                        ? route('licenses.show', $checkoutRequest->requestable_id)
+                        : null),
                 'model_requests_url' => ($checkoutRequest->requestable_type === AssetModel::class)
                     ? route('requests.index', ['model_id' => $checkoutRequest->requestable_id])
-                    : null,
+                    : route('requests.index', ['license_id' => $checkoutRequest->requestable_id]),
                 'project_requests_url' => $this->projectRequestsUrl($checkoutRequest->project),
-                'request_detail_url' => $canViewAssets ? route('hardware.index', $requestDetailQuery) : null,
+                'request_detail_url' => $checkoutRequest->requestable_type === License::class
+                    ? null
+                    : ($canViewAssets ? route('hardware.index', $requestDetailQuery) : null),
                 'reusable_now_url' => $canViewAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reusable_now']))
                     : null,
@@ -254,13 +285,17 @@ class ModelRequestsController extends Controller
                 'reserved_by_other_project_url' => $canViewAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved_other_project']))
                     : null,
-                'request_update_url' => $canEditSubmission ? route('requests.update', $checkoutRequest) : null,
+                'request_update_url' => $canEditSubmission && $checkoutRequest->requestable_type === AssetModel::class
+                    ? route('requests.update', $checkoutRequest)
+                    : null,
                 'request_cancel_url' => null,
             ];
 
             $showField = [];
             foreach ($showableFields as $showableFieldName) {
-                $showField['custom_fields.'.$showableFieldName] = $checkoutRequest->itemRequested()->{$showableFieldName};
+                $showField['custom_fields.'.$showableFieldName] = $checkoutRequest->requestable_type === AssetModel::class
+                    ? $checkoutRequest->itemRequested()->{$showableFieldName}
+                    : null;
             }
 
             $results['rows'][] = array_merge($assets, $showField);
@@ -294,7 +329,7 @@ class ModelRequestsController extends Controller
                     fn (CheckoutRequest $checkoutRequest) => [
                         $checkoutRequest->id => min(
                             (int) $checkoutRequest->quantity,
-                            $checkoutRequest->allocatedAssets->count()
+                            $checkoutRequest->allocatedQuantity()
                         ),
                     ]
                 );
@@ -403,7 +438,7 @@ class ModelRequestsController extends Controller
 
     private function categoryName(CheckoutRequest $checkoutRequest): ?string
     {
-        if ($checkoutRequest->requestable_type === AssetModel::class) {
+        if (in_array($checkoutRequest->requestable_type, [AssetModel::class, License::class], true)) {
             return optional(optional($checkoutRequest->itemRequested())->category)->name;
         }
 
@@ -427,7 +462,7 @@ class ModelRequestsController extends Controller
     private function submissionIsEditable(Collection $submissionRequests): bool
     {
         return ! $submissionRequests->contains(function (CheckoutRequest $checkoutRequest) {
-            if ($checkoutRequest->alternative_follow_up_notified_at || $checkoutRequest->allocatedAssets->isNotEmpty()) {
+            if ($checkoutRequest->alternative_follow_up_notified_at || $checkoutRequest->allocatedQuantity() > 0) {
                 return true;
             }
 

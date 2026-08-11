@@ -6,6 +6,7 @@ use App\Helpers\Helper;
 use App\Models\Traits\CompanyableTrait;
 use App\Models\Traits\HasUploads;
 use App\Models\Traits\Loggable;
+use App\Models\Traits\Requestable;
 use App\Models\Traits\Searchable;
 use App\Presenters\Presentable;
 use Carbon\Carbon;
@@ -20,6 +21,7 @@ use Watson\Validating\ValidatingTrait;
 class License extends Depreciable
 {
     use HasFactory;
+    use Requestable;
 
     protected $presenter = \App\Presenters\LicensePresenter::class;
 
@@ -214,6 +216,58 @@ class License extends Depreciable
     public function discipline()
     {
         return $this->belongsTo(Discipline::class, 'discipline_id');
+    }
+
+    public function availableReusableSeats()
+    {
+        return $this->licenseSeats()
+            ->whereNull('assigned_to')
+            ->whereNull('asset_id')
+            ->where('unreassignable_seat', false);
+    }
+
+    public function expectedReleaseSeatsByDate(?string $neededByDate = null)
+    {
+        $query = $this->licenseSeats()
+            ->where(function ($query) {
+                $query->whereNotNull('assigned_to')
+                    ->orWhereNotNull('asset_id');
+            })
+            ->whereNotNull('expected_release_date')
+            ->where('unreassignable_seat', false);
+
+        if ($neededByDate) {
+            $query->whereDate('expected_release_date', '<=', $neededByDate);
+        }
+
+        return $query;
+    }
+
+    public function expectedReleaseSeatCount(?string $neededByDate = null): int
+    {
+        return $this->expectedReleaseSeatsByDate($neededByDate)->count();
+    }
+
+    public function reusableFreeSeatsCount(): int
+    {
+        return $this->availableReusableSeats()->count();
+    }
+
+    public function isReusableForRequest(): bool
+    {
+        return ! $this->isInactive()
+            && (bool) $this->reassignable
+            && $this->company_id
+            && $this->discipline_id;
+    }
+
+    public function unitPurchaseCost(): float
+    {
+        if ($this->purchase_cost === null || (int) $this->seats < 1) {
+            return 0.0;
+        }
+
+        return round(((float) $this->purchase_cost) / (int) $this->seats, 2);
     }
 
 

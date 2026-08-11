@@ -1632,7 +1632,7 @@
     var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
     var modelRequestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name']));
     var modelRequestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name']));
-    var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
+    var canCreateProjectsForRequests = @json(auth()->check() && (auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request')));
     var createProjectForRequestsUrl = '{{ route('account.request-projects.store') }}';
     var modelRequestCartAddUrl = '{{ route('account.request-cart.items.add') }}';
     var modelRequestCartPreviewUrl = '{{ route('account.request-cart.preview') }}';

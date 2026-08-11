@@ -1,7 +1,7 @@
 @extends('layouts/default')
 
 @section('title0')
-    Request Models
+    Reuse Requests
 @stop
 
 @section('title')
@@ -18,13 +18,22 @@
                         <i class="fas fa-list" aria-hidden="true"></i>
                         Submitted Requests
                     </a>
-                    <button type="button" class="btn btn-primary" id="modelRequestCartButton">
-                        <i class="fas fa-shopping-cart" aria-hidden="true"></i>
-                        Request Cart
-                        <span class="badge" id="modelRequestCartCount">{{ count(session('model_request_cart', [])) }}</span>
-                    </button>
+                    @if (auth()->user()->hasAccess('models.request'))
+                        <button type="button" class="btn btn-primary" id="modelRequestCartButton">
+                            <i class="fas fa-shopping-cart" aria-hidden="true"></i>
+                            Model Cart
+                            <span class="badge" id="modelRequestCartCount">{{ count(session('model_request_cart', [])) }}</span>
+                        </button>
+                    @endif
+                    @if (auth()->user()->hasAccess('licenses.request'))
+                        <button type="button" class="btn btn-info" id="licenseRequestCartButton">
+                            <i class="fas fa-key" aria-hidden="true"></i>
+                            License Cart
+                            <span class="badge" id="licenseRequestCartCount">{{ count(session('license_request_cart', [])) }}</span>
+                        </button>
+                    @endif
                 </div>
-                <h2 class="box-title">Request Models</h2>
+                <h2 class="box-title">Request Reusable Inventory</h2>
                 <p class="help-block" style="margin-bottom:0;">
                     Enter the required quantity and destination scope, add one or several models to the cart, then submit the cart for one project and needed-by date.
                 </p>
@@ -146,6 +155,10 @@
         </div>
     </div>
 </div>
+
+@if (auth()->user()->hasAccess('licenses.request'))
+    @include('account.partials.requestable-licenses')
+@endif
 @stop
 
 @section('moar_scripts')
@@ -220,4 +233,8 @@
             return false;
         });
     </script>
+
+    @if (auth()->user()->hasAccess('licenses.request'))
+        @include('account.partials.license-request-cart-script')
+    @endif
 @stop

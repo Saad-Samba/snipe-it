@@ -180,6 +180,10 @@ return [
             'permission' => 'licenses.files',
             'display'    => true,
         ],
+        [
+            'permission' => 'licenses.request',
+            'display'    => true,
+        ],
     ],
 
 

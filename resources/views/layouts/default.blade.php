@@ -817,10 +817,11 @@ dir="{{ Helper::determineLanguageDirection() }}">
 
                         @php
                             $canRequestModels = auth()->check() && auth()->user()->hasAccess('models.request');
+                            $canRequestLicenses = auth()->check() && auth()->user()->hasAccess('licenses.request');
                             $canViewRacRequests = auth()->check()
                                 && (auth()->user()->racAssignments()->exists() || auth()->user()->racRequestTargets()->exists());
                         @endphp
-                        @if ($canRequestModels || $canViewRacRequests)
+                        @if ($canRequestModels || $canRequestLicenses || $canViewRacRequests)
                             <li class="treeview{{ (request()->is('requests*') || request()->is('account/requestable-assets')) ? ' active' : '' }}">
                                 <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
@@ -829,10 +830,10 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                 </a>
 
                                 <ul class="treeview-menu">
-                                    @if ($canRequestModels)
+                                    @if ($canRequestModels || $canRequestLicenses)
                                         <li{!! (request()->is('account/requestable-assets') ? ' class="active"' : '') !!}>
                                             <a href="{{ route('requestable-assets') }}">
-                                                Request Models
+                                                Request Reusable Inventory
                                             </a>
                                         </li>
                                         <li{!! (request()->is('requests') ? ' class="active"' : '') !!}>

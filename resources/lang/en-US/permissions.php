@@ -166,6 +166,10 @@ return array(
         'name' => 'Manage License Keys',
         'note' => 'Allows the user to view product keys associated with licenses.',
     ],
+    'licensesrequest' => [
+        'name' => 'Request Licenses',
+        'note' => 'Allows the user to request reusable license seats.',
+    ],
     'components'   => [
         'name' => 'Components',
         'note'       => 'Grants access to the Components section of the application.',

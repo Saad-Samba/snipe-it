@@ -49,14 +49,16 @@ class ProjectsController extends Controller
     {
         $activeTab = request()->query('tab', 'assets');
         $isRequestsTab = $activeTab === 'requests';
+        $canRequestInventory = auth()->user()->hasAccess('models.request')
+            || auth()->user()->hasAccess('licenses.request');
         $isRequesterProjectReview = ! auth()->user()->isSuperUser()
-            && auth()->user()->hasAccess('models.request')
+            && $canRequestInventory
             && $isRequestsTab;
         $requestSummary = null;
 
         if ($isRequesterProjectReview) {
             $requestSummary = $this->authorizeProjectRequestsAccess($project);
-        } elseif (! auth()->user()->isSuperUser() && auth()->user()->hasAccess('models.request')) {
+        } elseif (! auth()->user()->isSuperUser() && $canRequestInventory) {
             abort(403);
         } else {
             $this->authorize('view', $project);
@@ -64,7 +66,7 @@ class ProjectsController extends Controller
 
         $project->loadCount(['assets', 'licenses']);
 
-        if (auth()->user()->hasAccess('models.request') && ! $requestSummary) {
+        if ($canRequestInventory && ! $requestSummary) {
             $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
         }
 
@@ -111,7 +113,11 @@ class ProjectsController extends Controller
 
     private function authorizeProjectRequestsAccess(Project $project): ?array
     {
-        abort_unless(auth()->user()->hasAccess('models.request'), 403, 'You are not authorized to view submitted requests.');
+        abort_unless(
+            auth()->user()->hasAccess('models.request') || auth()->user()->hasAccess('licenses.request'),
+            403,
+            'You are not authorized to view submitted requests.'
+        );
 
         if (auth()->user()->isSuperUser()) {
             $this->authorize('view', $project);
