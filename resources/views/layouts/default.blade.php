@@ -824,7 +824,7 @@ dir="{{ Helper::determineLanguageDirection() }}">
                         @if ($canRequestModels || $canRequestLicenses || $canViewRacRequests)
                             <li class="treeview{{ (request()->is('requests*') || request()->is('account/requestable-assets')) ? ' active' : '' }}">
                                 <a href="#" class="dropdown-toggle">
-                                    <x-icon type="requestable" class="fa-fw" />
+                                    <x-icon type="requests" class="fa-fw" />
                                     <span>Requests</span>
                                     <x-icon type="angle-left" class="pull-right"/>
                                 </a>
@@ -833,7 +833,7 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                     @if ($canRequestModels || $canRequestLicenses)
                                         <li{!! (request()->is('account/requestable-assets') ? ' class="active"' : '') !!}>
                                             <a href="{{ route('requestable-assets') }}">
-                                                Request Reusable Inventory
+                                                New Request
                                             </a>
                                         </li>
                                         <li{!! (request()->is('requests') ? ' class="active"' : '') !!}>

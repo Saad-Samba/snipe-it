@@ -1,13 +1,15 @@
-<div class="row">
-    <div class="col-md-12">
-        <div class="box box-info">
-            <div class="box-header with-border">
-                <h2 class="box-title">Reusable License Seats</h2>
-                <p class="help-block" style="margin-bottom:0;">
-                    Choose a reusable license pool, its destination scope, and the actual user or asset that needs the seat.
-                </p>
-            </div>
-            <div class="box-body">
+<div class="clearfix" style="margin-bottom:10px;">
+    <div class="pull-right">
+        <button type="button" class="btn btn-info" id="licenseRequestCartButton">
+            <i class="fas fa-shopping-cart" aria-hidden="true"></i>
+            License Cart
+            <span class="badge" id="licenseRequestCartCount">{{ count(session('license_request_cart', [])) }}</span>
+        </button>
+    </div>
+    <h3 style="margin-top:5px;">Reusable License Seats</h3>
+    <p class="text-muted">Choose a license pool, destination scope, and the user or asset that needs the seat.</p>
+</div>
+
                 @if ($licenses->isEmpty())
                     <div class="alert alert-info" style="margin-bottom:0;">No reusable license pools are available.</div>
                 @else
@@ -98,10 +100,6 @@
                         </table>
                     </div>
                 @endif
-            </div>
-        </div>
-    </div>
-</div>
 
 <div class="modal fade" id="licenseRequestCartModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">

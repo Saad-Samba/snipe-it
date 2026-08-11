@@ -413,7 +413,7 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
         ->name('requestable-assets')
         ->breadcrumbs(fn (Trail $trail) =>
         $trail->parent('home')
-            ->push(trans('general.requestable_models'), route('requestable-assets')));
+            ->push('New Request', route('requestable-assets')));
 
 
     Route::post('request-asset/{asset}', [ModelRequestsController::class, 'store'])

@@ -1,7 +1,7 @@
 @extends('layouts/default')
 
 @section('title0')
-    Reuse Requests
+    New Request
 @stop
 
 @section('title')
@@ -9,6 +9,13 @@
 @stop
 
 @section('content')
+@php
+    $canRequestModels = auth()->user()->hasAccess('models.request');
+    $canRequestLicenses = auth()->user()->hasAccess('licenses.request');
+    $activeRequestType = request('type') === 'licenses' && $canRequestLicenses
+        ? 'licenses'
+        : ($canRequestModels ? 'models' : 'licenses');
+@endphp
 <div class="row">
     <div class="col-md-12">
         <div class="box box-default">
@@ -18,28 +25,48 @@
                         <i class="fas fa-list" aria-hidden="true"></i>
                         Submitted Requests
                     </a>
-                    @if (auth()->user()->hasAccess('models.request'))
-                        <button type="button" class="btn btn-primary" id="modelRequestCartButton">
-                            <i class="fas fa-shopping-cart" aria-hidden="true"></i>
-                            Model Cart
-                            <span class="badge" id="modelRequestCartCount">{{ count(session('model_request_cart', [])) }}</span>
-                        </button>
-                    @endif
-                    @if (auth()->user()->hasAccess('licenses.request'))
-                        <button type="button" class="btn btn-info" id="licenseRequestCartButton">
-                            <i class="fas fa-key" aria-hidden="true"></i>
-                            License Cart
-                            <span class="badge" id="licenseRequestCartCount">{{ count(session('license_request_cart', [])) }}</span>
-                        </button>
-                    @endif
                 </div>
-                <h2 class="box-title">Request Reusable Inventory</h2>
+                <h2 class="box-title">New Request</h2>
                 <p class="help-block" style="margin-bottom:0;">
-                    Enter the required quantity and destination scope, add one or several models to the cart, then submit the cart for one project and needed-by date.
+                    Request reusable asset models or license seats for a project and needed-by date.
                 </p>
             </div>
 
-            <div class="box-body">
+            <div class="box-body" style="padding:0;">
+                <ul class="nav nav-tabs" role="tablist" style="padding:10px 10px 0;">
+                    @if ($canRequestModels)
+                        <li role="presentation" class="{{ $activeRequestType === 'models' ? 'active' : '' }}">
+                            <a href="#modelRequests" aria-controls="modelRequests" role="tab" data-toggle="tab" data-request-type="models">
+                                <i class="fas fa-laptop" aria-hidden="true"></i>
+                                Models
+                            </a>
+                        </li>
+                    @endif
+                    @if ($canRequestLicenses)
+                        <li role="presentation" class="{{ $activeRequestType === 'licenses' ? 'active' : '' }}">
+                            <a href="#licenseRequests" aria-controls="licenseRequests" role="tab" data-toggle="tab" data-request-type="licenses">
+                                <i class="fas fa-key" aria-hidden="true"></i>
+                                Licenses
+                            </a>
+                        </li>
+                    @endif
+                </ul>
+
+                <div class="tab-content" style="padding:15px;">
+                    @if ($canRequestModels)
+                        <div role="tabpanel" class="tab-pane {{ $activeRequestType === 'models' ? 'active' : '' }}" id="modelRequests">
+                            <div class="clearfix" style="margin-bottom:10px;">
+                                <div class="pull-right">
+                                    <button type="button" class="btn btn-primary" id="modelRequestCartButton">
+                                        <i class="fas fa-shopping-cart" aria-hidden="true"></i>
+                                        Model Cart
+                                        <span class="badge" id="modelRequestCartCount">{{ count(session('model_request_cart', [])) }}</span>
+                                    </button>
+                                </div>
+                                <h3 style="margin-top:5px;">Reusable Asset Models</h3>
+                                <p class="text-muted">Select the quantity and destination scope for the physical inventory you need.</p>
+                            </div>
+
                 @if ($models->isEmpty())
                     <div class="alert alert-info fade in" style="margin-bottom:0;">
                         <i class="fas fa-info-circle" aria-hidden="true"></i>
@@ -151,14 +178,20 @@
                         </table>
                     </div>
                 @endif
+                        </div>
+                    @endif
+
+                    @if ($canRequestLicenses)
+                        <div role="tabpanel" class="tab-pane {{ $activeRequestType === 'licenses' ? 'active' : '' }}" id="licenseRequests">
+                            @include('account.partials.requestable-licenses')
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-@if (auth()->user()->hasAccess('licenses.request'))
-    @include('account.partials.requestable-licenses')
-@endif
 @stop
 
 @section('moar_scripts')
@@ -169,6 +202,12 @@
     ])
 
     <script nonce="{{ csrf_token() }}">
+        $('a[data-toggle="tab"][data-request-type]').on('shown.bs.tab', function (event) {
+            var url = new URL(window.location.href);
+            url.searchParams.set('type', $(event.target).data('request-type'));
+            window.history.replaceState({}, '', url.toString());
+        });
+
         function requestLineForModel(modelId) {
             var quantity = parseInt($('#model-booking-quantity-' + modelId).val(), 10);
             var disciplineId = parseInt($('#model-booking-discipline-' + modelId).val(), 10);

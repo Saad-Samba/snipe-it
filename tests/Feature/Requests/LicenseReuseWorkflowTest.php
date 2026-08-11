@@ -17,6 +17,25 @@ use Tests\TestCase;
 
 class LicenseReuseWorkflowTest extends TestCase
 {
+    public function test_new_request_page_uses_model_and_license_tabs(): void
+    {
+        $requester = User::factory()
+            ->requestAssetModels()
+            ->requestLicenses()
+            ->viewLicenses()
+            ->create();
+        $this->createReusableLicense();
+
+        $this->actingAs($requester)
+            ->get(route('requestable-assets', ['type' => 'licenses']))
+            ->assertOk()
+            ->assertSeeText('New Request')
+            ->assertSee('href="#modelRequests"', false)
+            ->assertSee('href="#licenseRequests"', false)
+            ->assertSee('class="tab-pane active" id="licenseRequests"', false)
+            ->assertSeeText('Reusable License Seats');
+    }
+
     public function test_estimate_counts_reusable_and_expected_release_seats_using_unit_cost(): void
     {
         $license = $this->createReusableLicense(['purchase_cost' => 900, 'seats' => 3]);

@@ -57,6 +57,8 @@ class ManualLicenseReuseQaSeeder extends Seeder
                 'License Requester',
                 $destinationCompany->id,
                 [
+                    'models.request' => '1',
+                    'models.view' => '1',
                     'licenses.request' => '1',
                     'licenses.view' => '1',
                     'projects.view' => '1',

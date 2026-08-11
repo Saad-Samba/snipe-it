@@ -87,6 +87,8 @@ class IconHelper
                 return 'far fa-save';
             case 'requestable':
                 return 'fas fa-laptop';
+            case 'requests':
+                return 'fas fa-clipboard-list';
             case 'reports':
                 return 'fas fa-chart-bar';
             case 'heart':

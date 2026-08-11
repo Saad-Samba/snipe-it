@@ -30,6 +30,7 @@ class ManualLicenseReuseQaSeederTest extends TestCase
         $this->assertSame($sourceCompany->id, $license->company_id);
         $this->assertSame($discipline->id, $license->discipline_id);
         $this->assertTrue($requester->hasAccess('licenses.request'));
+        $this->assertTrue($requester->hasAccess('models.request'));
         $this->assertTrue($coordinator->hasAccess('licenses.checkout'));
         $this->assertTrue(Project::query()->where('name', 'QA License Reuse Project')->exists());
         $this->assertTrue(RegionalAssetCoordinatorAssignment::query()
