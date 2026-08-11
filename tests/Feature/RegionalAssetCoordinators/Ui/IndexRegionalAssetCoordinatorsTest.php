@@ -21,6 +21,7 @@ class IndexRegionalAssetCoordinatorsTest extends TestCase
             ->get(route('account.regional-asset-coordinators.index'))
             ->assertOk()
             ->assertSeeText(trans('general.regional_asset_coordinators'))
+            ->assertSee('Recently released feature')
             ->assertSee(route('api.regional-asset-coordinators.index'));
     }
 }

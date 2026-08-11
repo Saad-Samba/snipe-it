@@ -37,6 +37,7 @@ class RacRequestInboxTest extends TestCase
             ->get(route('rac-requests.index'))
             ->assertOk()
             ->assertSee('Received Requests')
+            ->assertSee('Recently released feature')
             ->assertSee(route('api.rac-requests.index'), false)
             ->assertSee('Inventory Discipline(s)')
             ->assertSee('>Status</th>', false)

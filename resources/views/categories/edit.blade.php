@@ -37,7 +37,10 @@
 </div>
 
 <div class="form-group {{ $errors->has('fieldset_id') ? ' has-error' : '' }}">
-    <label for="fieldset_id" class="col-md-3 control-label">{{ trans('admin/models/general.fieldset') }}</label>
+    <label for="fieldset_id" class="col-md-3 control-label">
+        {{ trans('admin/models/general.fieldset') }}
+        <x-new-feature-label />
+    </label>
     <div class="col-md-7">
         <x-input.select
             name="fieldset_id"
@@ -64,10 +67,14 @@
         'fieldname' => 'manager_id',
         'field_id' => 'category_manager_select',
         'container_id' => 'category_manager',
+        'new_feature' => true,
     ])
 @elseif ($item->manager)
     <div class="form-group">
-        <label class="col-md-3 control-label">Category Manager</label>
+        <label class="col-md-3 control-label">
+            Category Manager
+            <x-new-feature-label />
+        </label>
         <div class="col-md-7">
             <p class="form-control-static">{{ $item->manager->display_name }}</p>
         </div>

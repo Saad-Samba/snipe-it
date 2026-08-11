@@ -26,6 +26,7 @@ class UpdateAssetModelsTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('models.edit', AssetModel::factory()->create()))
             ->assertOk()
+            ->assertSee('Recently released feature')
             ->assertDontSee('name="min_amt"', false);
     }
 

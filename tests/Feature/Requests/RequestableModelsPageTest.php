@@ -45,6 +45,7 @@ class RequestableModelsPageTest extends TestCase
             ->assertSeeText('Add to Request')
             ->assertSeeText('Add Selected to Cart')
             ->assertSeeText('Request Cart')
+            ->assertSee('Recently released feature')
             ->assertSeeText('Submitted Requests')
             ->assertSee('model-booking-quantity-'.$requestableModel->id, false)
             ->assertSee('model-booking-discipline-'.$requestableModel->id, false)

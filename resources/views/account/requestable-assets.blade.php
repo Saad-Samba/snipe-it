@@ -21,6 +21,7 @@
                     <button type="button" class="btn btn-primary" id="modelRequestCartButton">
                         <i class="fas fa-shopping-cart" aria-hidden="true"></i>
                         Request Cart
+                        <x-new-feature-label />
                         <span class="badge" id="modelRequestCartCount">{{ count(session('model_request_cart', [])) }}</span>
                     </button>
                 </div>

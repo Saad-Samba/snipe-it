@@ -1581,7 +1581,7 @@
                 return '<form method="POST" action="{{ config('app.url') }}/hardware/' + row.id + '/requests/{{ request()->integer('request_id') }}/start-transfer" style="display:inline;">'
                     + '@csrf'
                     + '<input type="hidden" name="request_bucket" value="{{ e(request()->input('request_bucket', 'reusable_now')) }}">'
-                    + '<button type="submit" class="btn btn-sm btn-primary" data-tooltip="true" title="Move this asset into the request-linked transfer process">Start transfer</button>'
+                    + '<button type="submit" class="btn btn-sm btn-primary" data-tooltip="true" title="Move this asset into the request-linked transfer process">Start transfer <span class="label label-info" title="Recently released feature">NEW</span></button>'
                     + '</form>';
             }
 

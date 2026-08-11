@@ -387,6 +387,7 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                             <a href="{{ route('account.regional-asset-coordinators.index') }}">
                                                 <x-icon type="users" class="fa-fw" />
                                                 {{ trans('general.regional_asset_coordinators') }}
+                                                <x-new-feature-label />
                                             </a>
                                         </li>
 
@@ -825,6 +826,7 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                 <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
                                     <span>Requests</span>
+                                    <x-new-feature-label />
                                     <x-icon type="angle-left" class="pull-right"/>
                                 </a>
 
@@ -845,6 +847,7 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         <li{!! (request()->is('requests/received') ? ' class="active"' : '') !!}>
                                             <a href="{{ route('rac-requests.index') }}">
                                                 Received Requests
+                                                <x-new-feature-label />
                                             </a>
                                         </li>
                                     @endif

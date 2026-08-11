@@ -3,6 +3,7 @@
         <div class="form-group">
             <label class="col-md-3 control-label">
                 {{ trans('admin/models/general.fieldset') }}
+                <x-new-feature-label />
             </label>
             <div class="col-md-5">
                 <p class="form-control-static">
@@ -34,6 +35,7 @@
     <div class="form-group{{ $errors->has('custom_fieldset') ? ' has-error' : '' }}">
         <label for="custom_fieldset" class="col-md-3 control-label">
             {{ trans('admin/models/general.fieldset') }}
+            <x-new-feature-label />
         </label>
         <div class="col-md-5">
              <x-input.select

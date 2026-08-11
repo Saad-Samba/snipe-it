@@ -25,7 +25,8 @@ class UpdateCategoriesTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('categories.edit', Category::factory()->create()))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('Recently released feature');
     }
 
     public function testUserCanCreateCategories()
