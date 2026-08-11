@@ -19,19 +19,6 @@
 <div class="row">
     <div class="col-md-12">
         <div class="box box-default">
-            <div class="box-header with-border">
-                <div class="pull-right">
-                    <a href="{{ route('requests.index') }}" class="btn btn-default">
-                        <i class="fas fa-list" aria-hidden="true"></i>
-                        Submitted Requests
-                    </a>
-                </div>
-                <h2 class="box-title">New Request</h2>
-                <p class="help-block" style="margin-bottom:0;">
-                    Request reusable asset models or license seats for a project and needed-by date.
-                </p>
-            </div>
-
             <div class="box-body" style="padding:0;">
                 <ul class="nav nav-tabs" role="tablist" style="padding:10px 10px 0;">
                     @if ($canRequestModels)

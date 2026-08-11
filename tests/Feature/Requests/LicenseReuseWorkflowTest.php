@@ -33,7 +33,17 @@ class LicenseReuseWorkflowTest extends TestCase
             ->assertSee('href="#modelRequests"', false)
             ->assertSee('href="#licenseRequests"', false)
             ->assertSee('class="tab-pane active" id="licenseRequests"', false)
-            ->assertSeeText('Reusable License Seats');
+            ->assertSeeText('Reusable License Seats')
+            ->assertDontSeeText('Request reusable asset models or license seats for a project and needed-by date.')
+            ->assertSee('id="requestableLicensesBulkForm"', false)
+            ->assertSeeText('Add Selected to Cart')
+            ->assertSeeText('Reusable Seats')
+            ->assertSeeText('Reference Price')
+            ->assertSeeText('Total Needed')
+            ->assertSeeText('Discipline')
+            ->assertSeeText('Company')
+            ->assertSeeText('Actions')
+            ->assertSeeText('Add to Request');
     }
 
     public function test_estimate_counts_reusable_and_expected_release_seats_using_unit_cost(): void

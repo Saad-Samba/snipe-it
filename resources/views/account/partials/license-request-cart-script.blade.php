@@ -53,6 +53,16 @@
             return line;
         }
 
+        function addLinesToLicenseRequestCart(lines) {
+            postJson(addUrl, {lines: lines}).done(function (response) {
+                updateCount(response.cart_count);
+            }).fail(function (xhr) {
+                window.alert(xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Unable to add the license request.');
+            });
+        }
+
         function previewCart() {
             $('#licenseRequestCartError').hide();
             return postJson(previewUrl, {
@@ -127,13 +137,34 @@
                 return;
             }
 
-            postJson(addUrl, {lines: [line]}).done(function (response) {
-                updateCount(response.cart_count);
-            }).fail(function (xhr) {
-                window.alert(xhr.responseJSON && xhr.responseJSON.message
-                    ? xhr.responseJSON.message
-                    : 'Unable to add the license request.');
-            });
+            addLinesToLicenseRequestCart([line]);
+        });
+
+        $('#requestableLicensesBulkForm').on('submit', function (event) {
+            event.preventDefault();
+
+            var rows = $('#requestableLicensesTable').bootstrapTable('getSelections');
+
+            if (!rows.length) {
+                window.alert('Select at least one license.');
+                return false;
+            }
+
+            var lines = [];
+
+            for (var i = 0; i < rows.length; i++) {
+                var row = $('#requestableLicensesTable tr[data-license-id="' + parseInt(rows[i].id, 10) + '"]');
+                var line = lineFromRow(row);
+
+                if (!line) {
+                    return false;
+                }
+
+                lines.push(line);
+            }
+
+            addLinesToLicenseRequestCart(lines);
+            return false;
         });
 
         $('#licenseRequestCartButton').on('click', function () {

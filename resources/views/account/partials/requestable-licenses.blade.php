@@ -1,6 +1,6 @@
 <div class="clearfix" style="margin-bottom:10px;">
     <div class="pull-right">
-        <button type="button" class="btn btn-info" id="licenseRequestCartButton">
+        <button type="button" class="btn btn-primary" id="licenseRequestCartButton">
             <i class="fas fa-shopping-cart" aria-hidden="true"></i>
             License Cart
             <span class="badge" id="licenseRequestCartCount">{{ count(session('license_request_cart', [])) }}</span>
@@ -13,31 +13,52 @@
                 @if ($licenses->isEmpty())
                     <div class="alert alert-info" style="margin-bottom:0;">No reusable license pools are available.</div>
                 @else
+                    <form id="requestableLicensesBulkForm" class="form-inline" style="margin-bottom:10px;">
+                        <button type="submit" class="btn btn-primary" id="requestableLicensesBulkAddButton" disabled>
+                            <i class="fas fa-cart-plus" aria-hidden="true"></i>
+                            Add Selected to Cart
+                        </button>
+                    </form>
+
                     <div class="table-responsive">
-                        <table class="table table-striped" id="requestableLicensesTable">
+                        <table
+                            id="requestableLicensesTable"
+                            class="table table-striped snipe-table"
+                            data-id-table="requestableLicensesTable"
+                            data-cookie-id-table="requestableLicensesTable"
+                            data-bulk-button-id="#requestableLicensesBulkAddButton"
+                            data-bulk-form-id="#requestableLicensesBulkForm"
+                            data-click-to-select="false"
+                            data-search="true"
+                            data-pagination="true">
                             <thead>
                                 <tr>
-                                    <th>License</th>
-                                    <th>Source</th>
-                                    <th>Available Now</th>
-                                    <th>Expected Release</th>
-                                    <th>Unit Cost</th>
-                                    <th>Needed</th>
-                                    <th>Destination Discipline</th>
-                                    <th>Destination Company</th>
-                                    <th>Target</th>
-                                    <th></th>
+                                    <th data-field="state" data-checkbox="true"></th>
+                                    <th data-field="id" data-visible="false">ID</th>
+                                    <th data-sortable="true">License</th>
+                                    <th data-sortable="true">{{ trans('general.category') }}</th>
+                                    <th data-sortable="true">Version</th>
+                                    <th data-sortable="true">Source Scope</th>
+                                    <th data-sortable="true">Reusable Seats</th>
+                                    <th data-sortable="true">Expected Release</th>
+                                    <th data-sortable="true">Reference Price</th>
+                                    <th data-sortable="false">Total Needed</th>
+                                    <th data-sortable="false">Discipline</th>
+                                    <th data-sortable="false">{{ trans('general.company') }}</th>
+                                    <th data-sortable="false">Target</th>
+                                    <th data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($licenses as $requestableLicense)
                                     <tr data-license-id="{{ $requestableLicense->id }}">
+                                        <td></td>
+                                        <td>{{ $requestableLicense->id }}</td>
                                         <td>
                                             <a href="{{ route('licenses.show', $requestableLicense->id) }}">{{ $requestableLicense->name }}</a>
-                                            @if ($requestableLicense->software_version)
-                                                <small class="text-muted">{{ $requestableLicense->software_version }}</small>
-                                            @endif
                                         </td>
+                                        <td>{{ $requestableLicense->category?->name }}</td>
+                                        <td>{{ $requestableLicense->software_version ?: '—' }}</td>
                                         <td>
                                             {{ $requestableLicense->company?->name ?: '—' }}<br>
                                             <small class="text-muted">{{ $requestableLicense->discipline?->name ?: '—' }}</small>
@@ -89,9 +110,10 @@
                                                 @endforeach
                                             </select>
                                         </td>
-                                        <td>
-                                            <button type="button" class="btn btn-info btn-sm add-license-to-request-cart">
-                                                <i class="fas fa-cart-plus" aria-hidden="true"></i> Add
+                                        <td class="text-right">
+                                            <button type="button" class="btn btn-primary btn-sm add-license-to-request-cart">
+                                                <i class="fas fa-cart-plus" aria-hidden="true"></i>
+                                                Add to Request
                                             </button>
                                         </td>
                                     </tr>
@@ -137,7 +159,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger pull-left" id="clearLicenseRequestCart">Clear Cart</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-info" id="submitLicenseRequestCart">Submit License Requests</button>
+                    <button type="submit" class="btn btn-primary" id="submitLicenseRequestCart">Submit License Requests</button>
                 </div>
             </div>
         </form>
