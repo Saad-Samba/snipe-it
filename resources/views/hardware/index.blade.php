@@ -141,6 +141,7 @@
                 data-cookie-id-table="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 data-id-table="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 data-side-pagination="server"
+                data-export-data-type="all"
                 data-show-footer="true"
                 data-sort-order="asc"
                 data-sort-name="name"
