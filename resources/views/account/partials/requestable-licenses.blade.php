@@ -6,19 +6,20 @@
             <span class="badge" id="licenseRequestCartCount">{{ count(session('license_request_cart', [])) }}</span>
         </button>
     </div>
-    <h3 style="margin-top:5px;">Reusable License Seats</h3>
-    <p class="text-muted">Choose a license pool, destination scope, and the user or asset that needs the seat.</p>
 </div>
 
                 @if ($licenses->isEmpty())
                     <div class="alert alert-info" style="margin-bottom:0;">No reusable license pools are available.</div>
                 @else
-                    <form id="requestableLicensesBulkForm" class="form-inline" style="margin-bottom:10px;">
-                        <button type="submit" class="btn btn-primary" id="requestableLicensesBulkAddButton" disabled>
-                            <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                            Add Selected to Cart
-                        </button>
-                    </form>
+                    <div id="requestableLicensesBulkToolbar">
+                        <form id="requestableLicensesBulkForm" class="form-inline">
+                            <label for="requestableLicensesBulkAction" class="sr-only">{{ trans('button.bulk_actions') }}</label>
+                            <select id="requestableLicensesBulkAction" name="bulk_actions" class="form-control select2" style="width:200px;" aria-label="bulk_actions">
+                                <option value="add_to_cart">Add Selected to Cart</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary" id="requestableLicensesBulkAddButton" disabled>{{ trans('button.go') }}</button>
+                        </form>
+                    </div>
 
                     <div class="table-responsive">
                         <table
@@ -28,6 +29,7 @@
                             data-cookie-id-table="requestableLicensesTable"
                             data-bulk-button-id="#requestableLicensesBulkAddButton"
                             data-bulk-form-id="#requestableLicensesBulkForm"
+                            data-toolbar="#requestableLicensesBulkToolbar"
                             data-click-to-select="false"
                             data-search="true"
                             data-pagination="true">
@@ -113,7 +115,7 @@
                                         <td class="text-right">
                                             <button type="button" class="btn btn-primary btn-sm add-license-to-request-cart">
                                                 <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                                                Add to Request
+                                                Add to Cart
                                             </button>
                                         </td>
                                     </tr>

@@ -18,30 +18,33 @@
 @endphp
 <div class="row">
     <div class="col-md-12">
-        <div class="box box-default">
-            <div class="box-body" style="padding:0;">
-                <ul class="nav nav-tabs" role="tablist" style="padding:10px 10px 0;">
+        <div class="nav-tabs-custom">
+                <ul class="nav nav-tabs hidden-print" role="tablist">
                     @if ($canRequestModels)
                         <li role="presentation" class="{{ $activeRequestType === 'models' ? 'active' : '' }}">
                             <a href="#modelRequests" aria-controls="modelRequests" role="tab" data-toggle="tab" data-request-type="models">
-                                <i class="fas fa-laptop" aria-hidden="true"></i>
-                                Models
+                                <span class="hidden-lg hidden-md">
+                                    <i class="fas fa-laptop fa-2x" aria-hidden="true"></i>
+                                </span>
+                                <span class="hidden-xs hidden-sm">Models</span>
                             </a>
                         </li>
                     @endif
                     @if ($canRequestLicenses)
                         <li role="presentation" class="{{ $activeRequestType === 'licenses' ? 'active' : '' }}">
                             <a href="#licenseRequests" aria-controls="licenseRequests" role="tab" data-toggle="tab" data-request-type="licenses">
-                                <i class="fas fa-key" aria-hidden="true"></i>
-                                Licenses
+                                <span class="hidden-lg hidden-md">
+                                    <i class="fas fa-key fa-2x" aria-hidden="true"></i>
+                                </span>
+                                <span class="hidden-xs hidden-sm">Licenses</span>
                             </a>
                         </li>
                     @endif
                 </ul>
 
-                <div class="tab-content" style="padding:15px;">
+                <div class="tab-content">
                     @if ($canRequestModels)
-                        <div role="tabpanel" class="tab-pane {{ $activeRequestType === 'models' ? 'active' : '' }}" id="modelRequests">
+                        <div role="tabpanel" class="tab-pane fade {{ $activeRequestType === 'models' ? 'in active' : '' }}" id="modelRequests">
                             <div class="clearfix" style="margin-bottom:10px;">
                                 <div class="pull-right">
                                     <button type="button" class="btn btn-primary" id="modelRequestCartButton">
@@ -50,8 +53,6 @@
                                         <span class="badge" id="modelRequestCartCount">{{ count(session('model_request_cart', [])) }}</span>
                                     </button>
                                 </div>
-                                <h3 style="margin-top:5px;">Reusable Asset Models</h3>
-                                <p class="text-muted">Select the quantity and destination scope for the physical inventory you need.</p>
                             </div>
 
                 @if ($models->isEmpty())
@@ -60,12 +61,15 @@
                         No models with reusable inventory are currently available.
                     </div>
                 @else
-                    <form id="requestableModelsBulkForm" class="form-inline" style="margin-bottom:10px;">
-                        <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>
-                            <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                            Add Selected to Cart
-                        </button>
-                    </form>
+                    <div id="requestableModelsBulkToolbar">
+                        <form id="requestableModelsBulkForm" class="form-inline">
+                            <label for="requestableModelsBulkAction" class="sr-only">{{ trans('button.bulk_actions') }}</label>
+                            <select id="requestableModelsBulkAction" name="bulk_actions" class="form-control select2" style="width:200px;" aria-label="bulk_actions">
+                                <option value="add_to_cart">Add Selected to Cart</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>{{ trans('button.go') }}</button>
+                        </form>
+                    </div>
 
                     <div class="table-responsive">
                         <table
@@ -75,6 +79,7 @@
                             data-cookie-id-table="requestableModelsTable"
                             data-bulk-button-id="#requestableModelsBulkAddButton"
                             data-bulk-form-id="#requestableModelsBulkForm"
+                            data-toolbar="#requestableModelsBulkToolbar"
                             data-click-to-select="false"
                             data-search="true"
                             data-pagination="true">
@@ -156,7 +161,7 @@
                                                 class="btn btn-primary btn-sm add-model-to-request-cart"
                                                 data-model-id="{{ $requestableModel->id }}">
                                                 <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                                                Add to Request
+                                                Add to Cart
                                             </button>
                                         </td>
                                     </tr>
@@ -169,12 +174,11 @@
                     @endif
 
                     @if ($canRequestLicenses)
-                        <div role="tabpanel" class="tab-pane {{ $activeRequestType === 'licenses' ? 'active' : '' }}" id="licenseRequests">
+                        <div role="tabpanel" class="tab-pane fade {{ $activeRequestType === 'licenses' ? 'in active' : '' }}" id="licenseRequests">
                             @include('account.partials.requestable-licenses')
                         </div>
                     @endif
                 </div>
-            </div>
         </div>
     </div>
 </div>
