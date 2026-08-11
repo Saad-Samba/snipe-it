@@ -34,7 +34,10 @@
 @include ('partials.forms.edit.manufacturer-select', ['translated_name' => trans('general.manufacturer'), 'fieldname' => 'manufacturer_id'])
 @include ('partials.forms.edit.model_number')
 <div class="form-group {{ $errors->has('reference_price') ? ' has-error' : '' }}">
-    <label for="reference_price" class="col-md-3 control-label">Reference Price</label>
+    <label for="reference_price" class="col-md-3 control-label">
+        Reference Price
+        <x-new-feature-label />
+    </label>
     <div class="col-md-7">
         <input class="form-control" type="number" name="reference_price" min="0.00" max="99999999999999999.99" step="0.01" aria-label="reference_price" id="reference_price" value="{{ old('reference_price', $item->reference_price) }}" />
         {!! $errors->first('reference_price', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}

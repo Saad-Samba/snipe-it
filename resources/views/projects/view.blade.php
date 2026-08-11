@@ -53,6 +53,7 @@
                                 </span>
                                 <span class="hidden-xs hidden-sm">
                                     Requests
+                                    <x-new-feature-label />
                                     {!! (!empty($requestSummary) && $requestSummary['requests_count'] > 0) ? '<span class="badge badge-secondary">'.number_format($requestSummary['requests_count']).'</span>' : '' !!}
                                 </span>
                             </a>

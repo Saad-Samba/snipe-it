@@ -64,11 +64,11 @@
                                     <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
                                     <th data-sortable="true">{{ trans('general.category') }}</th>
                                     <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
-                                    <th data-sortable="true">Reusable Assets</th>
-                                    <th data-sortable="true">Reference Price</th>
-                                    <th data-sortable="false">Total Needed</th>
-                                    <th data-sortable="false">Discipline</th>
-                                    <th data-sortable="false">{{ trans('general.company') }}</th>
+                                    <th data-sortable="true">Reusable Assets <x-new-feature-label /></th>
+                                    <th data-sortable="true">Reference Price <x-new-feature-label /></th>
+                                    <th data-sortable="false">Total Needed <x-new-feature-label /></th>
+                                    <th data-sortable="false">Discipline <x-new-feature-label /></th>
+                                    <th data-sortable="false">Destination Company <x-new-feature-label /></th>
                                     <th data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
                                 </tr>
                             </thead>

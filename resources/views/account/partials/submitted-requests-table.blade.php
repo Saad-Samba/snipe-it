@@ -1,3 +1,8 @@
+<div class="text-muted" style="margin-bottom:8px;">
+    <strong>Reuse planning fields</strong>
+    <x-new-feature-label />
+    <span class="small">Reusable Now, Due Back, Reserved, Estimated Savings, Shortfall, and Pending to Buy.</span>
+</div>
 <table
         data-cookie-id-table="{{ $tableId }}"
         data-id-table="{{ $tableId }}"

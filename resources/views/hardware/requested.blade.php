@@ -37,8 +37,8 @@
                         <th class="col-md-1">{{ trans('general.image') }}</th>
                         <th class="col-md-2">{{ trans('general.name') }}</th>
                         <th class="col-md-2" data-sortable="true">{{ trans('admin/hardware/table.location') }}</th>
-                        <th class="col-md-2" data-sortable="true">Candidate Companies</th>
-                        <th class="col-md-2" data-sortable="true">Candidate RACs</th>
+                        <th class="col-md-2" data-sortable="true">Candidate Companies <x-new-feature-label /></th>
+                        <th class="col-md-2" data-sortable="true">Candidate RACs <x-new-feature-label /></th>
                         <th class="col-md-2" data-sortable="true">{{ trans('general.qty') }}</th>
                         <th class="col-md-2" data-sortable="true">{{ trans('admin/hardware/form.expected_checkin') }}</th>
                         <th class="col-md-3" data-sortable="true">{{ trans('admin/hardware/table.requesting_user') }}</th>
@@ -86,6 +86,7 @@
                                 @if (in_array($request->rac_routing_status, [\App\Models\CheckoutRequest::RAC_ROUTING_UNROUTED, \App\Models\CheckoutRequest::RAC_ROUTING_PARTIALLY_ROUTED], true))
                                     <div class="text-danger">
                                         <strong>Unrouted — RAC missing</strong>
+                                        <x-new-feature-label />
                                         <ul class="list-unstyled">
                                             @foreach ($request->rac_unrouted_scopes ?? [] as $scope)
                                                 <li>

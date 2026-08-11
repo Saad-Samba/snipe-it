@@ -1,4 +1,8 @@
 <div class="well well-sm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px;">
+    <div style="grid-column:1/-1;">
+        <strong>Reuse Summary</strong>
+        <x-new-feature-label />
+    </div>
     @if (isset($summary['models_count']))
         <div><strong>Models</strong><br>{{ $summary['models_count'] }}</div>
     @endif
