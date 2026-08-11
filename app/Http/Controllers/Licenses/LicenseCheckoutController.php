@@ -123,6 +123,16 @@ class LicenseCheckoutController extends Controller
 
         if ($checkoutTarget) {
             if ($requestContext) {
+                if (! $requestContext->requested_for_type || ! $requestContext->requested_for_id) {
+                    $requestContext->forceFill([
+                        'requested_for_type' => get_class($checkoutTarget),
+                        'requested_for_id' => (int) $checkoutTarget->id,
+                        'requested_for_display' => $checkoutTarget instanceof User
+                            ? $checkoutTarget->display_name
+                            : trim($checkoutTarget->asset_tag.' '.($checkoutTarget->name ?: '')),
+                    ])->save();
+                }
+
                 $requestContext->allocatedLicenseSeats()->syncWithoutDetaching([
                     $licenseSeat->id => [
                         'allocated_by' => auth()->id(),
@@ -179,6 +189,10 @@ class LicenseCheckoutController extends Controller
         LicenseCheckoutRequest $request,
         CheckoutRequest $requestContext
     ): void {
+        if (! $requestContext->requested_for_type || ! $requestContext->requested_for_id) {
+            return;
+        }
+
         $requestedTargetId = (int) $requestContext->requested_for_id;
         $matches = $requestContext->requested_for_type === User::class
             ? (int) $request->input('assigned_to') === $requestedTargetId && ! $request->filled('asset_id')

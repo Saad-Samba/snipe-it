@@ -40,14 +40,12 @@
                                     <th data-sortable="true">License</th>
                                     <th data-sortable="true">{{ trans('general.category') }}</th>
                                     <th data-sortable="true">Version</th>
-                                    <th data-sortable="true">Source Scope</th>
                                     <th data-sortable="true">Reusable Seats</th>
                                     <th data-sortable="true">Expected Release</th>
                                     <th data-sortable="true">Reference Price</th>
                                     <th data-sortable="false">Total Needed</th>
                                     <th data-sortable="false">Discipline</th>
                                     <th data-sortable="false">{{ trans('general.company') }}</th>
-                                    <th data-sortable="false">Target</th>
                                     <th data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
                                 </tr>
                             </thead>
@@ -61,10 +59,6 @@
                                         </td>
                                         <td>{{ $requestableLicense->category?->name }}</td>
                                         <td>{{ $requestableLicense->software_version ?: '—' }}</td>
-                                        <td>
-                                            {{ $requestableLicense->company?->name ?: '—' }}<br>
-                                            <small class="text-muted">{{ $requestableLicense->discipline?->name ?: '—' }}</small>
-                                        </td>
                                         <td>{{ $requestableLicense->reusableFreeSeatsCount() }}</td>
                                         <td>{{ $requestableLicense->expectedReleaseSeatCount() }}</td>
                                         <td>{{ App\Helpers\Helper::formatCurrencyOutput($requestableLicense->unitPurchaseCost()) }}</td>
@@ -84,31 +78,6 @@
                                                 <option value="">{{ trans('general.select_company') }}</option>
                                                 @foreach ($companies as $company)
                                                     <option value="{{ $company->id }}">{{ $company->name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td style="min-width:210px;">
-                                            <select class="form-control input-sm license-request-target-type" style="margin-bottom:5px;">
-                                                <option value="user">User</option>
-                                                <option value="asset">Asset</option>
-                                            </select>
-                                            <select class="form-control input-sm license-request-user-target">
-                                                <option value="">Select user</option>
-                                                @foreach ($requestUsers as $requestUser)
-                                                    <option value="{{ $requestUser->id }}" data-company-id="{{ $requestUser->company_id }}">
-                                                        {{ $requestUser->display_name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                            <select class="form-control input-sm license-request-asset-target" style="display:none;">
-                                                <option value="">Select asset</option>
-                                                @foreach ($requestAssets as $requestAsset)
-                                                    <option
-                                                        value="{{ $requestAsset->id }}"
-                                                        data-company-id="{{ $requestAsset->company_id }}"
-                                                        data-discipline-id="{{ $requestAsset->discipline_id }}">
-                                                        {{ $requestAsset->asset_tag }} {{ $requestAsset->name }}
-                                                    </option>
                                                 @endforeach
                                             </select>
                                         </td>
@@ -132,36 +101,68 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">License Request Cart</h4>
+                    <h4 class="modal-title">Request Cart</h4>
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-danger" id="licenseRequestCartError" style="display:none;"></div>
                     <div class="row">
                         <div class="col-md-6">
-                            <label for="licenseRequestProject">{{ trans('general.project') }}</label>
-                            <select name="project_id" id="licenseRequestProject" class="form-control" required></select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="licenseRequestNeededBy">Needed By</label>
-                            <input type="date" name="needed_by_date" id="licenseRequestNeededBy" class="form-control" required>
+                            <div class="form-group">
+                                <label for="licenseRequestProject">{{ trans('general.project') }}</label>
+                                <div class="input-group">
+                                    <select name="project_id" id="licenseRequestProject" class="form-control" required></select>
+                                    <span class="input-group-btn">
+                                        <button type="button" class="btn btn-default" id="licenseRequestCreateProject" data-tooltip="true" title="Create project">
+                                            <i class="fas fa-plus" aria-hidden="true"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="table-responsive" style="margin-top:15px;">
-                        <table class="table table-condensed">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="licenseRequestNeededBy">Needed By</label>
+                                <input type="date" name="needed_by_date" id="licenseRequestNeededBy" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-condensed" style="margin-bottom:12px;">
                             <thead>
                                 <tr>
-                                    <th>License</th><th>Target</th><th>Needed</th><th>Now</th><th>Expected</th><th>Shortfall</th><th></th>
+                                    <th>License</th>
+                                    <th>Discipline</th>
+                                    <th>{{ trans('general.company') }}</th>
+                                    <th>Quantity</th>
+                                    <th>Reusable Now</th>
+                                    <th>Due Back</th>
+                                    <th>Shortfall</th>
+                                    <th>Estimated Savings</th>
+                                    <th>Amount to Buy</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody id="licenseRequestCartLines"></tbody>
                         </table>
                     </div>
-                    <div class="well well-sm" id="licenseRequestCartTotals"></div>
+                    <div class="well well-sm" style="margin-bottom:0;">
+                        <div style="font-weight:600;margin-bottom:8px;">Cart Totals</div>
+                        <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">
+                            <span>Total Needed</span><span id="licenseRequestCartTotalRequested">0</span>
+                            <span>Reusable Now</span><span id="licenseRequestCartTotalReusable">0</span>
+                            <span>Due Back</span><span id="licenseRequestCartTotalDueBack">0</span>
+                            <span>Shortfall</span><span id="licenseRequestCartTotalShortfall">0</span>
+                            <span>Estimated Savings</span><span id="licenseRequestCartTotalSavings">0.00</span>
+                            <span>Amount to Buy</span><span id="licenseRequestCartTotalBuy">0.00</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger pull-left" id="clearLicenseRequestCart">Clear Cart</button>
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary" id="submitLicenseRequestCart">Submit License Requests</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>
+                    <button type="submit" class="btn btn-primary" id="submitLicenseRequestCart">{{ trans('button.request') }}</button>
                 </div>
             </div>
         </form>

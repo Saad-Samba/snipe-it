@@ -47,7 +47,14 @@ class LicenseReuseWorkflowTest extends TestCase
             ->assertSeeText('Discipline')
             ->assertSeeText('Company')
             ->assertSeeText('Actions')
-            ->assertSeeText('Add to Cart');
+            ->assertSeeText('Add to Cart')
+            ->assertSeeText('Request Cart')
+            ->assertSeeText('Cart Totals')
+            ->assertSeeText('Amount to Buy')
+            ->assertDontSeeText('Source Scope')
+            ->assertDontSee('<th data-sortable="false">Target</th>', false)
+            ->assertDontSee('license-request-user-target', false)
+            ->assertDontSee('license-request-asset-target', false);
     }
 
     public function test_estimate_counts_reusable_and_expected_release_seats_using_unit_cost(): void
@@ -72,7 +79,7 @@ class LicenseReuseWorkflowTest extends TestCase
         $this->assertSame(600.0, $estimate['estimated_savings']);
     }
 
-    public function test_license_cart_persists_real_target_and_routes_to_source_inventory_rac(): void
+    public function test_license_cart_defers_target_selection_and_routes_to_source_inventory_rac(): void
     {
         Notification::fake();
         $requester = User::factory()->requestLicenses()->viewLicenses()->create();
@@ -109,8 +116,6 @@ class LicenseReuseWorkflowTest extends TestCase
                 'quantity' => 1,
                 'discipline_id' => $destinationDiscipline->id,
                 'company_id' => $destinationCompany->id,
-                'requested_for_type' => 'user',
-                'requested_for_id' => $target->id,
             ]],
         ])->assertOk()->assertJsonPath('cart_count', 1);
 
@@ -124,9 +129,9 @@ class LicenseReuseWorkflowTest extends TestCase
             ->where('requestable_id', $license->id)
             ->firstOrFail();
 
-        $this->assertSame(User::class, $checkoutRequest->requested_for_type);
-        $this->assertSame($target->id, $checkoutRequest->requested_for_id);
-        $this->assertSame($target->display_name, $checkoutRequest->requested_for_display);
+        $this->assertNull($checkoutRequest->requested_for_type);
+        $this->assertNull($checkoutRequest->requested_for_id);
+        $this->assertNull($checkoutRequest->requested_for_display);
         $this->assertDatabaseHas('checkout_request_coordinators', [
             'checkout_request_id' => $checkoutRequest->id,
             'user_id' => $sourceRac->id,
@@ -137,6 +142,17 @@ class LicenseReuseWorkflowTest extends TestCase
             'checkout_request_id' => $checkoutRequest->id,
             'user_id' => $destinationRac->id,
         ]);
+
+        $this->actingAs($sourceRac)->post(route('licenses.checkout', $license), [
+            'request_id' => $checkoutRequest->id,
+            'assigned_to' => $target->id,
+            'expected_release_date' => '2026-09-30',
+        ])->assertRedirect(route('rac-requests.index'));
+
+        $checkoutRequest->refresh();
+        $this->assertSame(User::class, $checkoutRequest->requested_for_type);
+        $this->assertSame($target->id, $checkoutRequest->requested_for_id);
+        $this->assertSame($target->display_name, $checkoutRequest->requested_for_display);
     }
 
     public function test_fulfillment_rejects_wrong_target_and_over_allocation(): void

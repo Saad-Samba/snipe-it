@@ -87,23 +87,12 @@ class ModelRequestsController extends Controller
             : collect();
         $companies = Company::orderBy('name')->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
-        $requestUsers = User::query()
-            ->where('activated', 1)
-            ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get(['id', 'first_name', 'last_name', 'username', 'company_id']);
-        $requestAssets = Asset::query()
-            ->whereNotNull('asset_tag')
-            ->orderBy('asset_tag')
-            ->get(['id', 'asset_tag', 'name', 'company_id', 'discipline_id']);
 
         return view('account/requestable-assets', compact(
             'companies',
             'disciplines',
             'licenses',
-            'models',
-            'requestAssets',
-            'requestUsers'
+            'models'
         ));
     }
 
@@ -565,8 +554,6 @@ class ModelRequestsController extends Controller
             'lines.*.quantity' => ['required', 'integer', 'min:1'],
             'lines.*.discipline_id' => ['required', 'integer', 'exists:disciplines,id,deleted_at,NULL'],
             'lines.*.company_id' => ['required', 'integer', 'exists:companies,id'],
-            'lines.*.requested_for_type' => ['required', 'string', 'in:user,asset'],
-            'lines.*.requested_for_id' => ['required', 'integer', 'min:1'],
         ]);
 
         $this->ensureLicenseRequestPermission();
@@ -575,30 +562,16 @@ class ModelRequestsController extends Controller
         foreach ($validated['lines'] as $line) {
             $license = License::findOrFail((int) $line['license_id']);
             $this->ensureLicenseRequestAuthorized($license);
-            $target = $this->resolveLicenseRequestTarget(
-                (string) $line['requested_for_type'],
-                (int) $line['requested_for_id']
-            );
-            $this->ensureLicenseTargetScope(
-                $target,
-                (int) $line['company_id'],
-                (int) $line['discipline_id']
-            );
-
             $key = $this->makeLicenseRequestCartKey(
                 (int) $license->id,
                 (int) $line['discipline_id'],
-                (int) $line['company_id'],
-                (string) $line['requested_for_type'],
-                (int) $line['requested_for_id']
+                (int) $line['company_id']
             );
             $cart[$key] = [
                 'license_id' => (int) $license->id,
                 'quantity' => (int) $line['quantity'],
                 'discipline_id' => (int) $line['discipline_id'],
                 'company_id' => (int) $line['company_id'],
-                'requested_for_type' => (string) $line['requested_for_type'],
-                'requested_for_id' => (int) $line['requested_for_id'],
             ];
         }
 
@@ -613,17 +586,13 @@ class ModelRequestsController extends Controller
             'license_id' => ['required', 'integer'],
             'discipline_id' => ['required', 'integer'],
             'company_id' => ['required', 'integer'],
-            'requested_for_type' => ['required', 'string', 'in:user,asset'],
-            'requested_for_id' => ['required', 'integer'],
         ]);
 
         $cart = $this->getLicenseRequestCart($request);
         unset($cart[$this->makeLicenseRequestCartKey(
             (int) $validated['license_id'],
             (int) $validated['discipline_id'],
-            (int) $validated['company_id'],
-            (string) $validated['requested_for_type'],
-            (int) $validated['requested_for_id']
+            (int) $validated['company_id']
         )]);
         $this->putLicenseRequestCart($request, $cart);
 
@@ -659,10 +628,6 @@ class ModelRequestsController extends Controller
         foreach ($this->getLicenseRequestCart($request) as $line) {
             $license = License::findOrFail((int) $line['license_id']);
             $this->ensureLicenseRequestAuthorized($license);
-            $target = $this->resolveLicenseRequestTarget(
-                (string) $line['requested_for_type'],
-                (int) $line['requested_for_id']
-            );
             $estimate = $neededByDate
                 ? EstimateLicenseReuseAction::run($license, (int) $line['quantity'], $neededByDate)
                 : EstimateLicenseReuseAction::run($license, (int) $line['quantity']);
@@ -674,12 +639,13 @@ class ModelRequestsController extends Controller
                 'license_name' => $license->name,
                 'discipline_name' => optional(Discipline::find($line['discipline_id']))->name,
                 'company_name' => optional(Company::find($line['company_id']))->name,
-                'requested_for_display' => $this->licenseRequestTargetDisplay($target),
                 'reusable_quantity' => (int) $estimate['reusable_quantity'],
                 'due_back_before_needed_by_quantity' => (int) $estimate['due_back_before_needed_by_quantity'],
                 'procurement_shortfall' => (int) $estimate['procurement_shortfall'],
                 'estimated_savings' => (float) $estimate['estimated_savings'],
+                'estimated_savings_formatted' => \App\Helpers\Helper::formatCurrencyOutput((float) $estimate['estimated_savings']),
                 'amount_to_buy' => $amountToBuy,
+                'amount_to_buy_formatted' => \App\Helpers\Helper::formatCurrencyOutput($amountToBuy),
             ]);
             $lines[] = $previewLine;
 
@@ -740,23 +706,15 @@ class ModelRequestsController extends Controller
                 $license = License::findOrFail((int) $line['license_id']);
                 $disciplineId = (int) $line['discipline_id'];
                 $companyId = (int) $line['company_id'];
-                $target = $this->resolveLicenseRequestTarget(
-                    (string) $line['requested_for_type'],
-                    (int) $line['requested_for_id']
-                );
-
                 $this->ensureLicenseRequestAuthorized($license);
                 $this->ensureModelRequestDisciplineProvided($disciplineId);
                 $this->ensureModelRequestCompanyProvided($companyId);
-                $this->ensureLicenseTargetScope($target, $companyId, $disciplineId);
                 $this->ensureUniqueLicenseProjectRequest(
                     $license,
                     $user,
                     (int) $validated['project_id'],
                     $disciplineId,
-                    $companyId,
-                    get_class($target),
-                    (int) $target->id
+                    $companyId
                 );
 
                 $requestAttributes = array_merge([
@@ -764,9 +722,6 @@ class ModelRequestsController extends Controller
                     'project_id' => (int) $validated['project_id'],
                     'needed_by_date' => $validated['needed_by_date'],
                     'requested_discipline_id' => $disciplineId,
-                    'requested_for_type' => get_class($target),
-                    'requested_for_id' => (int) $target->id,
-                    'requested_for_display' => $this->licenseRequestTargetDisplay($target),
                     'submission_batch_id' => $submissionBatchId,
                 ], EstimateLicenseReuseAction::run(
                     $license,
@@ -1277,27 +1232,19 @@ class ModelRequestsController extends Controller
             $quantity = (int) ($line['quantity'] ?? 0);
             $disciplineId = (int) ($line['discipline_id'] ?? 0);
             $companyId = (int) ($line['company_id'] ?? 0);
-            $targetType = (string) ($line['requested_for_type'] ?? '');
-            $targetId = (int) ($line['requested_for_id'] ?? 0);
-
-            if ($licenseId < 1 || $quantity < 1 || $disciplineId < 1 || $companyId < 1
-                || ! in_array($targetType, ['user', 'asset'], true) || $targetId < 1) {
+            if ($licenseId < 1 || $quantity < 1 || $disciplineId < 1 || $companyId < 1) {
                 continue;
             }
 
             $normalized[$this->makeLicenseRequestCartKey(
                 $licenseId,
                 $disciplineId,
-                $companyId,
-                $targetType,
-                $targetId
+                $companyId
             )] = [
                 'license_id' => $licenseId,
                 'quantity' => $quantity,
                 'discipline_id' => $disciplineId,
                 'company_id' => $companyId,
-                'requested_for_type' => $targetType,
-                'requested_for_id' => $targetId,
             ];
         }
 
@@ -1307,11 +1254,9 @@ class ModelRequestsController extends Controller
     private function makeLicenseRequestCartKey(
         int $licenseId,
         int $disciplineId,
-        int $companyId,
-        string $targetType,
-        int $targetId
+        int $companyId
     ): string {
-        return implode(':', [$licenseId, $disciplineId, $companyId, $targetType, $targetId]);
+        return implode(':', [$licenseId, $disciplineId, $companyId]);
     }
 
     private function ensureLicenseRequestPermission(): User
@@ -1330,44 +1275,6 @@ class ModelRequestsController extends Controller
         if (! $license->isReusableForRequest()) {
             throw new AuthorizationException('This license is not eligible for reuse requests.');
         }
-    }
-
-    private function resolveLicenseRequestTarget(string $targetType, int $targetId)
-    {
-        $target = $targetType === 'user'
-            ? User::query()->where('activated', 1)->find($targetId)
-            : Asset::query()->find($targetId);
-
-        if (! $target) {
-            throw ValidationException::withMessages([
-                'requested_for_id' => 'The selected license target is unavailable.',
-            ]);
-        }
-
-        return $target;
-    }
-
-    private function ensureLicenseTargetScope($target, int $companyId, int $disciplineId): void
-    {
-        if ($target->company_id && (int) $target->company_id !== $companyId) {
-            throw ValidationException::withMessages([
-                'company_id' => 'The destination company must match the selected license target.',
-            ]);
-        }
-
-        if ($target instanceof Asset && $target->discipline_id
-            && (int) $target->discipline_id !== $disciplineId) {
-            throw ValidationException::withMessages([
-                'requested_discipline_id' => 'The discipline must match the selected asset.',
-            ]);
-        }
-    }
-
-    private function licenseRequestTargetDisplay($target): string
-    {
-        return $target instanceof User
-            ? $target->display_name
-            : trim($target->asset_tag.' '.($target->name ?: ''));
     }
 
     private function addCoordinatorSummaryLine(array $buckets, CheckoutRequest $checkoutRequest, User $requester, ?Project $project, string $submittedAt, $coordinatorMatches): array
@@ -1649,12 +1556,6 @@ class ModelRequestsController extends Controller
                 ->where('project_id', $projectId)
                 ->where('requested_discipline_id', $submissionRequest->requested_discipline_id)
                 ->where('company_id', $submissionRequest->company_id)
-                ->when(
-                    $submissionRequest->requestable_type === License::class,
-                    fn ($query) => $query
-                        ->where('requested_for_type', $submissionRequest->requested_for_type)
-                        ->where('requested_for_id', $submissionRequest->requested_for_id)
-                )
                 ->exists();
 
             if ($duplicateExists) {
@@ -1691,8 +1592,6 @@ class ModelRequestsController extends Controller
         int $projectId,
         int $disciplineId,
         int $companyId,
-        string $targetType,
-        int $targetId,
         ?int $ignoreRequestId = null
     ): void {
         $query = $license->requests()
@@ -1700,8 +1599,6 @@ class ModelRequestsController extends Controller
             ->where('project_id', $projectId)
             ->where('requested_discipline_id', $disciplineId)
             ->where('company_id', $companyId)
-            ->where('requested_for_type', $targetType)
-            ->where('requested_for_id', $targetId)
             ->whereNull('canceled_at');
 
         if ($ignoreRequestId) {
@@ -1710,7 +1607,7 @@ class ModelRequestsController extends Controller
 
         if ($query->exists()) {
             throw ValidationException::withMessages([
-                'project_id' => 'An active request already exists for this license and target in the project.',
+                'project_id' => 'An active request already exists for this license, project, discipline, and company.',
             ]);
         }
     }

@@ -30,9 +30,13 @@
 
                     @if (!empty($requestContext))
                         <div class="alert alert-info">
-                            Fulfilling request <strong>#{{ $requestContext->id }}</strong>
-                            for <strong>{{ $requestContext->requested_for_display }}</strong>.
-                            The checkout target must match this request.
+                            Fulfilling request <strong>#{{ $requestContext->id }}</strong>.
+                            @if ($requestContext->requested_for_type && $requestContext->requested_for_id)
+                                Requested for <strong>{{ $requestContext->requested_for_display }}</strong>.
+                                The checkout target must match this request.
+                            @else
+                                Select the user or asset that should receive this license seat.
+                            @endif
                         </div>
                     @endif
 
