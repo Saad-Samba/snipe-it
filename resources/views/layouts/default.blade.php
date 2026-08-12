@@ -924,6 +924,8 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                     @yield('title')
                                 @endif
 
+                                @yield('breadcrumb_suffix')
+
                             </h1>
 
                                 @if (isset($helpText))

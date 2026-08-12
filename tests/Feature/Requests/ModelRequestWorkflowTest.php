@@ -372,6 +372,17 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_submitted_requests_page_marks_the_breadcrumb_as_new()
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+
+        $this->actingAs($requester)
+            ->get(route('requests.index'))
+            ->assertOk()
+            ->assertSeeText('Submitted Requests')
+            ->assertSee('Recently released feature');
+    }
+
     public function test_submitted_requests_api_requires_models_request_permission()
     {
         $requester = User::factory()->create();

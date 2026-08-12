@@ -5,6 +5,10 @@
    {{ $pageTitle ?? trans('general.requested_assets') }}
 @stop
 
+@section('breadcrumb_suffix')
+    <x-new-feature-label />
+@stop
+
 {{-- Account page content --}}
 @section('content')
 
