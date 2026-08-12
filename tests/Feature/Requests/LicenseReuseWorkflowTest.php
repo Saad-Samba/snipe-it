@@ -132,6 +132,22 @@ class LicenseReuseWorkflowTest extends TestCase
         $this->assertNull($checkoutRequest->requested_for_type);
         $this->assertNull($checkoutRequest->requested_for_id);
         $this->assertNull($checkoutRequest->requested_for_display);
+
+        $this->actingAs($requester);
+        $submittedRows = app(\App\Http\Controllers\Api\ModelRequestsController::class)->index(
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'submission_batch_id' => $checkoutRequest->submission_batch_id,
+            ])
+        );
+        $this->assertSame('License', $submittedRows['rows'][0]['item_type']);
+
+        $this->actingAs($requester)
+            ->get(route('requests.index', ['submission_batch_id' => $checkoutRequest->submission_batch_id]))
+            ->assertOk()
+            ->assertSeeText('Items in this submission')
+            ->assertSee('data-field="item_type"', false)
+            ->assertSeeText('Item Type');
+
         $this->assertDatabaseHas('checkout_request_coordinators', [
             'checkout_request_id' => $checkoutRequest->id,
             'user_id' => $sourceRac->id,

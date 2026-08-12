@@ -15,7 +15,7 @@
                 <div class="box-body">
                     @if ($showSubmissionBatches ?? false)
                         <div class="alert alert-info">
-                            Each row is one cart submission. Open a submission to review its models, then select an availability value to inspect the related assets.
+                            Each row is one cart submission. Open a submission to review its requested items and reuse details.
                         </div>
                     @endif
                     @if (!empty($filteredSubmission))
@@ -28,7 +28,7 @@
                             </span>
                             <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">Back to submissions</a>
                         </div>
-                        <h4 style="margin:0 0 12px;">Models in this submission</h4>
+                        <h4 style="margin:0 0 12px;">Items in this submission</h4>
                     @endif
                     @if (!empty($filteredModel))
                         <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">

@@ -208,12 +208,13 @@ class ModelRequestsController extends Controller
 
             $assets = [
                 'request_id' => (int) $checkoutRequest->id,
-                'image' => e($checkoutRequest->itemRequested()->present()->getImageUrl()),
+                'image' => $requestedModel ? e($requestedModel->present()->getImageUrl()) : null,
                 'category' => e($this->categoryName($checkoutRequest)),
                 'name' => e($checkoutRequest->name()),
                 'model_id' => $checkoutRequest->requestable_type === AssetModel::class ? (int) $checkoutRequest->requestable_id : null,
                 'license_id' => $checkoutRequest->requestable_type === License::class ? (int) $checkoutRequest->requestable_id : null,
                 'type' => e($checkoutRequest->itemType()),
+                'item_type' => $checkoutRequest->requestable_type === License::class ? 'License' : 'Model',
                 'qty' => (int) $checkoutRequest->quantity,
                 'requested_discipline_id' => $checkoutRequest->requested_discipline_id ? (int) $checkoutRequest->requested_discipline_id : null,
                 'requested_discipline' => e(optional($checkoutRequest->requestedDiscipline)->name),
@@ -273,16 +274,16 @@ class ModelRequestsController extends Controller
                 'request_detail_url' => $checkoutRequest->requestable_type === License::class
                     ? null
                     : ($canViewAssets ? route('hardware.index', $requestDetailQuery) : null),
-                'reusable_now_url' => $canViewAssets
+                'reusable_now_url' => $requestedModel && $canViewAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reusable_now']))
                     : null,
-                'due_back_url' => $canViewAssets
+                'due_back_url' => $requestedModel && $canViewAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'due_back']))
                     : null,
-                'reserved_assets_url' => $canViewAssets
+                'reserved_assets_url' => $requestedModel && $canViewAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved']))
                     : null,
-                'reserved_by_other_project_url' => $canViewAssets
+                'reserved_by_other_project_url' => $requestedModel && $canViewAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved_other_project']))
                     : null,
                 'request_update_url' => $canEditSubmission && $checkoutRequest->requestable_type === AssetModel::class
