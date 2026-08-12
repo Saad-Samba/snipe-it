@@ -31,11 +31,15 @@ class ReuseWorkflowDemoSeeder extends Seeder
         'DEMO-RF-VN-002',
         'DEMO-RF-VN-003',
         'DEMO-RF-VN-004',
+        'DEMO-RF-PCAN-001',
         'DEMO-RF-SCOPE-001',
         'DEMO-RF-SCOPE-002',
+        'DEMO-RF-KEYSCOPE-001',
         'DEMO-RF-JLINK-001',
+        'DEMO-RF-TRACE32-001',
         'DEMO-RF-PSU-001',
         'DEMO-RF-PSU-002',
+        'DEMO-RF-EAPSU-001',
     ];
 
     public function run(): void
@@ -70,6 +74,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
         );
         $this->seedPreparedTransferRequest($users, $companies, $projects, $models);
         $this->assertDemoAssetsExist();
+        $this->assertAfmCategoryCoverage($categories);
 
         $this->printManifest();
     }
@@ -453,6 +458,9 @@ class ReuseWorkflowDemoSeeder extends Seeder
             'tektronix' => Manufacturer::updateOrCreate(['name' => 'Tektronix']),
             'segger' => Manufacturer::updateOrCreate(['name' => 'SEGGER']),
             'keysight' => Manufacturer::updateOrCreate(['name' => 'Keysight Technologies']),
+            'peak' => Manufacturer::updateOrCreate(['name' => 'PEAK-System Technik']),
+            'lauterbach' => Manufacturer::updateOrCreate(['name' => 'Lauterbach']),
+            'ea' => Manufacturer::updateOrCreate(['name' => 'EA Elektro-Automatik']),
         ];
     }
 
@@ -467,12 +475,28 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $manufacturers['vector'],
                 $admin
             ),
+            'pcan_interface' => $this->upsertModel(
+                'PEAK PCAN-USB FD Interface',
+                'IPEH-004022',
+                490.00,
+                $categories['network'],
+                $manufacturers['peak'],
+                $admin
+            ),
             'oscilloscope' => $this->upsertModel(
                 'Tektronix MDO3024 Oscilloscope',
                 'MDO3024',
                 6900.00,
                 $categories['lab'],
                 $manufacturers['tektronix'],
+                $admin
+            ),
+            'keysight_scope' => $this->upsertModel(
+                'Keysight DSOX1204G Oscilloscope',
+                'DSOX1204G',
+                2400.00,
+                $categories['lab'],
+                $manufacturers['keysight'],
                 $admin
             ),
             'debug_probe' => $this->upsertModel(
@@ -483,12 +507,28 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $manufacturers['segger'],
                 $admin
             ),
+            'trace32_probe' => $this->upsertModel(
+                'Lauterbach TRACE32 Debug Probe',
+                'LA-3500',
+                4200.00,
+                $categories['embedded'],
+                $manufacturers['lauterbach'],
+                $admin
+            ),
             'power_supply' => $this->upsertModel(
                 'Keysight E36313A DC Power Supply',
                 'E36313A',
                 3100.00,
                 $categories['power'],
                 $manufacturers['keysight'],
+                $admin
+            ),
+            'ea_power_supply' => $this->upsertModel(
+                'EA-PS 9080-60 DC Power Supply',
+                'EA-PS-9080-60',
+                3600.00,
+                $categories['power'],
+                $manufacturers['ea'],
                 $admin
             ),
         ];
@@ -584,13 +624,17 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->upsertAsset('DEMO-RF-VN-002', 'VN1630A - Rabat Power Electronics', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
         $this->upsertAsset('DEMO-RF-VN-003', 'VN1630A - Rabat Uncovered Embedded Scope', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['embedded'], $admin);
         $this->upsertAsset('DEMO-RF-VN-004', 'VN1630A - Due Back Before Need', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin, $users['engineer'], '2026-09-15');
+        $this->upsertAsset('DEMO-RF-PCAN-001', 'PCAN-USB FD - Casablanca Validation', $models['pcan_interface'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['validation'], $admin);
 
         $this->upsertAsset('DEMO-RF-SCOPE-001', 'MDO3024 - Rabat Same Company', $models['oscilloscope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin);
         $this->upsertAsset('DEMO-RF-SCOPE-002', 'MDO3024 - Archived Control', $models['oscilloscope'], $statuses['archived'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin);
+        $this->upsertAsset('DEMO-RF-KEYSCOPE-001', 'DSOX1204G - Rabat Validation', $models['keysight_scope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin);
 
         $this->upsertAsset('DEMO-RF-JLINK-001', 'J-Link PRO - Available', $models['debug_probe'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['embedded'], $admin);
+        $this->upsertAsset('DEMO-RF-TRACE32-001', 'TRACE32 - Casablanca Embedded', $models['trace32_probe'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['embedded'], $admin);
         $this->upsertAsset('DEMO-RF-PSU-001', 'E36313A - Available', $models['power_supply'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
         $this->upsertAsset('DEMO-RF-PSU-002', 'E36313A - Out for Repair Control', $models['power_supply'], $statuses['repair'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
+        $this->upsertAsset('DEMO-RF-EAPSU-001', 'EA-PS 9080-60 - Rabat Power Lab', $models['ea_power_supply'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
     }
 
     private function seedPreparedTransferRequest(
@@ -697,6 +741,27 @@ class ReuseWorkflowDemoSeeder extends Seeder
             throw new \RuntimeException(
                 'Reuse workflow demo seeding is incomplete. Missing asset tags: '.$missingTags->implode(', ')
             );
+        }
+    }
+
+    private function assertAfmCategoryCoverage(array $categories): void
+    {
+        foreach ($categories as $category) {
+            $modelCount = AssetModel::withoutGlobalScopes()
+                ->where('category_id', $category->id)
+                ->count();
+            $assetCount = Asset::withoutGlobalScopes()
+                ->whereHas('model', fn ($query) => $query->where('category_id', $category->id))
+                ->count();
+
+            if ($modelCount < 2 || $assetCount < 2) {
+                throw new \RuntimeException(sprintf(
+                    'AFM demo category %s needs at least two models and two assets; found %d models and %d assets.',
+                    $category->name,
+                    $modelCount,
+                    $assetCount
+                ));
+            }
         }
     }
 
