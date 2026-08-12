@@ -92,11 +92,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 'Elena',
                 'Project Lead',
                 'demo-reuse-epl@example.com',
-                [
-                    'assets.view.requestable' => '1',
-                    'self.checkout_assets' => '1',
-                    'models.request' => '1',
-                ],
+                ['models.request' => '1'],
                 $admin->id
             ),
             'afm_network' => $this->upsertUser(
@@ -178,25 +174,23 @@ class ReuseWorkflowDemoSeeder extends Seeder
             'assets.checkin' => '1',
             'assets.checkout' => '1',
             'assets.audit' => '1',
-            'assets.view.requestable' => '1',
             'users.view' => '1',
             'models.view' => '1',
             'categories.view' => '1',
             'departments.view' => '1',
             'statuslabels.view' => '1',
             'customfields.view' => '1',
-            'suppliers.view' => '1',
-            'manufacturers.view' => '1',
             'locations.view' => '1',
         ];
     }
 
     private function afmPermissionOverrides(): array
     {
-        // Category-manager assignment derives the AFM permission set. These
-        // explicit denials keep it aligned with the authoritative Notion role,
-        // which does not include depreciation administration.
+        // Category-manager assignment derives the least-privilege AFM
+        // permission set. Keep explicit denials for sensitive capabilities
+        // that are deliberately outside the role.
         return [
+            'users.view' => '-1',
             'depreciations.view' => '-1',
             'depreciations.create' => '-1',
             'depreciations.edit' => '-1',

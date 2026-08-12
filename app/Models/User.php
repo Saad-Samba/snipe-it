@@ -44,7 +44,6 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
     private const ASSET_FAMILY_MANAGER_PERMISSIONS = [
         'reports.view',
         'assets.view',
-        'users.view',
         'models.view',
         'models.create',
         'models.edit',
@@ -57,9 +56,6 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
         'suppliers.view',
         'suppliers.create',
         'suppliers.edit',
-        'depreciations.view',
-        'depreciations.create',
-        'depreciations.edit',
         'locations.view',
         'companies.view',
         'departments.view',

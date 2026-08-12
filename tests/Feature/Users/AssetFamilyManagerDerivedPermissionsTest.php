@@ -27,7 +27,6 @@ class AssetFamilyManagerDerivedPermissionsTest extends TestCase
         foreach ([
             'reports.view',
             'assets.view',
-            'users.view',
             'models.view',
             'models.create',
             'models.edit',
@@ -40,9 +39,6 @@ class AssetFamilyManagerDerivedPermissionsTest extends TestCase
             'suppliers.view',
             'suppliers.create',
             'suppliers.edit',
-            'depreciations.view',
-            'depreciations.create',
-            'depreciations.edit',
             'locations.view',
             'companies.view',
             'departments.view',
@@ -58,6 +54,10 @@ class AssetFamilyManagerDerivedPermissionsTest extends TestCase
         $this->assertFalse($user->hasAccess('customfields.delete'));
         $this->assertFalse($user->hasAccess('models.delete'));
         $this->assertFalse($user->hasAccess('models.request'));
+        $this->assertFalse($user->hasAccess('users.view'));
+        $this->assertFalse($user->hasAccess('depreciations.view'));
+        $this->assertFalse($user->hasAccess('depreciations.create'));
+        $this->assertFalse($user->hasAccess('depreciations.edit'));
 
         $category->update(['manager_id' => null]);
 
