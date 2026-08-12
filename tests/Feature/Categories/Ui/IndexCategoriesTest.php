@@ -22,6 +22,7 @@ class IndexCategoriesTest extends TestCase
             ->assertOk()
             ->assertSee('Category Manager', false)
             ->assertSee('Reusable Inventory', false)
+            ->assertSee('Recently released feature', false)
             ->assertDontSee('&quot;title&quot;:&quot;Available Models&quot;', false)
             ->assertDontSee('&quot;title&quot;:&quot;Available Assets&quot;', false)
             ->assertDontSee('&quot;title&quot;:&quot;Send Email&quot;', false)

@@ -79,7 +79,10 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 'Elena',
                 'Project Lead',
                 'demo-reuse-epl@example.com',
-                ['models.request' => '1'],
+                [
+                    'assets.view.requestable' => '1',
+                    'self.checkout_assets' => '1',
+                ],
                 $admin->id
             ),
             'afm_network' => $this->upsertUser(
@@ -87,7 +90,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 'Amine',
                 'Network AFM',
                 'demo-reuse-afm-network@example.com',
-                [],
+                $this->afmPermissionOverrides(),
                 $admin->id
             ),
             'afm_lab' => $this->upsertUser(
@@ -95,7 +98,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 'Laura',
                 'Lab Equipment AFM',
                 'demo-reuse-afm-lab@example.com',
-                [],
+                $this->afmPermissionOverrides(),
                 $admin->id
             ),
             'rac_casablanca' => $this->upsertUser(
@@ -119,7 +122,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 'Karim',
                 'Validation Engineer',
                 'demo-reuse-engineer@example.com',
-                [],
+                ['assets.view.requestable' => '1'],
                 $admin->id
             ),
         ];
@@ -155,12 +158,34 @@ class ReuseWorkflowDemoSeeder extends Seeder
     private function racPermissions(): array
     {
         return [
-            'categories.view' => '1',
-            'models.view' => '1',
+            'reports.view' => '1',
             'assets.view' => '1',
-            'assets.checkout' => '1',
-            'assets.checkin' => '1',
             'assets.edit' => '1',
+            'assets.checkin' => '1',
+            'assets.checkout' => '1',
+            'assets.audit' => '1',
+            'assets.view.requestable' => '1',
+            'users.view' => '1',
+            'models.view' => '1',
+            'categories.view' => '1',
+            'departments.view' => '1',
+            'statuslabels.view' => '1',
+            'customfields.view' => '1',
+            'suppliers.view' => '1',
+            'manufacturers.view' => '1',
+            'locations.view' => '1',
+        ];
+    }
+
+    private function afmPermissionOverrides(): array
+    {
+        // Category-manager assignment derives the AFM permission set. These
+        // explicit denials keep it aligned with the authoritative Notion role,
+        // which does not include depreciation administration.
+        return [
+            'depreciations.view' => '-1',
+            'depreciations.create' => '-1',
+            'depreciations.edit' => '-1',
         ];
     }
 

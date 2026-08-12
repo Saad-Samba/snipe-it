@@ -64,7 +64,7 @@ class CategoryPresenter extends Presenter
                 'field' => 'available_models_count',
                 'searchable' => false,
                 'sortable' => true,
-                'title' => 'Reusable Inventory',
+                'title' => 'Reusable Inventory <span class="label label-info" data-tooltip="true" title="Recently released feature">NEW</span>',
                 'visible' => true,
                 'formatter' => 'categoryReusableInventoryFormatter',
             ], [
