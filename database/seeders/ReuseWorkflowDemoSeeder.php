@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Hash;
 
 class ReuseWorkflowDemoSeeder extends Seeder
 {
-    private const PASSWORD = 'DemoReuse2026!';
+    private const PASSWORD = 'password';
 
     public function run(): void
     {
