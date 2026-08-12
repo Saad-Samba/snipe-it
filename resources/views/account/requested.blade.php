@@ -32,7 +32,6 @@
                             </span>
                             <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">Back to submissions</a>
                         </div>
-                        <h4 style="margin:0 0 12px;">Models in this submission</h4>
                     @endif
                     @if (!empty($filteredModel))
                         <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
@@ -71,6 +70,7 @@
                             'dataUrl' => $dataUrl ?? route('api.requests.index'),
                             'exportFileName' => 'my-requested-assets-'.date('Y-m-d'),
                             'showFooter' => !empty($filteredSubmission),
+                            'showPlanningFieldsIntro' => empty($filteredSubmission),
                         ])
                     @endif
 
