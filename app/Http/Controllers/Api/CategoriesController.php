@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Transformers\CategoriesTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Category;
+use App\Models\CompanyableScope;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\ImageUploadRequest;
@@ -51,6 +52,22 @@ class CategoriesController extends Controller
             'notes',
         ];
 
+        $afmScoped = $requestingUser->hasCategoryOwnershipScope();
+        $inventoryCounts = $afmScoped
+            ? [
+                'models as models_count',
+                'models as available_models_count' => fn ($models) => $models->whereHas(
+                    'availableAssets',
+                    fn ($assets) => $assets->withoutGlobalScope(CompanyableScope::class)
+                ),
+                'reusableAssets as reusable_assets_count' => fn ($assets) => $assets->withoutGlobalScope(CompanyableScope::class),
+            ]
+            : [
+                'models as models_count',
+                'availableModels as available_models_count',
+                'reusableAssets as reusable_assets_count',
+            ];
+
         $categories = Category::select([
             'id',
             'created_by',
@@ -68,17 +85,15 @@ class CategoriesController extends Controller
             'notes',
             ])
             ->with('adminuser', 'fieldset', 'manager')
-            ->withCount(
+            ->withCount([
                 'accessories as accessories_count',
                 'consumables as consumables_count',
                 'components as components_count',
                 'licenses as licenses_count',
-                'models as models_count',
-                'availableModels as available_models_count',
-                'reusableAssets as reusable_assets_count'
-            );
+            ])
+            ->withCount($inventoryCounts);
 
-        if ($requestingUser->hasCategoryOwnershipScope()) {
+        if ($afmScoped) {
             $categories->managedBy($requestingUser);
         }
 
@@ -107,9 +122,17 @@ class CategoriesController extends Controller
          * @see \App\Models\Category::showableAssets()
          */
         if ($request->input('archived')=='true') {
-            $categories = $categories->withCount('assets as assets_count');
+            $categories = $categories->withCount([
+                'assets as assets_count' => fn ($assets) => $afmScoped
+                    ? $assets->withoutGlobalScope(CompanyableScope::class)
+                    : $assets,
+            ]);
         } else {
-            $categories = $categories->withCount('showableAssets as assets_count');
+            $categories = $categories->withCount([
+                'showableAssets as assets_count' => fn ($assets) => $afmScoped
+                    ? $assets->withoutGlobalScope(CompanyableScope::class)
+                    : $assets,
+            ]);
         }
 
         if ($request->filled('name')) {

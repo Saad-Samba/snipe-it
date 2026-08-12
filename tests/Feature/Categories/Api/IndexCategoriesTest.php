@@ -5,6 +5,8 @@ namespace Tests\Feature\Categories\Api;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\Company;
+use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Illuminate\Testing\Fluent\AssertableJson;
@@ -60,6 +62,39 @@ class IndexCategoriesTest extends TestCase
                 ->where('rows.0.id', $managedCategory->id)
                 ->missing('rows.1')
                 ->etc());
+    }
+
+    public function testAfmCategoryInventoryCountsSpanCompaniesUnderFmcs()
+    {
+        $settings = Setting::getSettings();
+        $settings->full_multiple_companies_support = 1;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $afm = User::factory()->create(['company_id' => null]);
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'Communication',
+            'manager_id' => $afm->id,
+        ]);
+        $modelA = AssetModel::factory()->create(['category_id' => $category->id]);
+        $modelB = AssetModel::factory()->create(['category_id' => $category->id]);
+        $ready = Statuslabel::factory()->readyToDeploy()->create();
+
+        foreach ([$modelA, $modelB] as $model) {
+            Asset::factory()->create([
+                'model_id' => $model->id,
+                'status_id' => $ready->id,
+                'company_id' => Company::factory()->create()->id,
+                'requestable' => true,
+            ]);
+        }
+
+        $this->actingAsForApi($afm)
+            ->getJson(route('api.categories.index', ['name' => 'Communication']))
+            ->assertOk()
+            ->assertJsonPath('rows.0.available_models_count', 2)
+            ->assertJsonPath('rows.0.assets_count', 2)
+            ->assertJsonPath('rows.0.reusable_assets_count', 2);
     }
 
     public function testUnassignedGlobalViewerIsNotTreatedAsAfm()
