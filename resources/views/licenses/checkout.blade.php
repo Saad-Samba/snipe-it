@@ -16,6 +16,26 @@
 <div class="row">
         <!-- left column -->
     <div class="col-md-8">
+        @if (!empty($requestContext))
+            <div class="alert alert-info">
+                <strong>Coordinator review</strong>
+                <p style="margin:8px 0 12px;">
+                    @if ($coordinatorTarget && $coordinatorTarget->resolvedStatus() === \App\Models\CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK)
+                        You marked this request as having no more reusable seats available in your scope.
+                    @else
+                        Allocate the reusable seats that are operationally available. When no further seats can be allocated, complete your review below.
+                    @endif
+                </p>
+                @if ($coordinatorTarget && $coordinatorTarget->resolvedStatus() !== \App\Models\CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK)
+                    <form method="POST" action="{{ route('licenses.requests.coordinator-resolution', ['license' => $license, 'checkoutRequest' => $requestContext]) }}" style="display:inline-block;">
+                        {{ csrf_field() }}
+                        <input type="hidden" name="resolution_status" value="{{ \App\Models\CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK }}">
+                        <button type="submit" class="btn btn-default">No more reusable seats available</button>
+                    </form>
+                @endif
+            </div>
+        @endif
+        @if ($license->availCount()->count() > 0)
         <form class="form-horizontal" method="post" action="" autocomplete="off">
             {{csrf_field()}}
             @if (!empty($requestContext))
@@ -145,6 +165,9 @@
                 />
             </div> <!-- /.box-->
         </form>
+        @else
+            <div class="alert alert-warning">There are currently no unassigned seats to allocate. Complete the coordinator review above if no further reuse is possible.</div>
+        @endif
     </div> <!-- /.col-md-7-->
 </div>
 

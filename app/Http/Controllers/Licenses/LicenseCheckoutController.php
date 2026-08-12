@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Licenses;
 
+use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
 use App\Events\CheckoutableCheckedOut;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
@@ -9,9 +10,12 @@ use App\Http\Requests\LicenseCheckoutRequest;
 use App\Models\Accessory;
 use App\Models\Asset;
 use App\Models\CheckoutRequest;
+use App\Models\CheckoutRequestCoordinator;
 use App\Models\License;
 use App\Models\LicenseSeat;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -35,11 +39,14 @@ class LicenseCheckoutController extends Controller
         $requestContext = request()->filled('request_id')
             ? $this->resolveRequestContext((int) request()->input('request_id'), $license)
             : null;
+        $coordinatorTarget = $requestContext
+            ? $requestContext->coordinatorTargets()->where('user_id', auth()->id())->first()
+            : null;
 
         if ($license->category) {
 
             // Make sure there is at least one available to checkout
-            if ($license->availCount()->count() < 1) {
+            if ($license->availCount()->count() < 1 && ! $requestContext) {
                 return redirect()->route('licenses.index')->with('error', trans('admin/licenses/message.checkout.not_enough_seats'));
             }
 
@@ -54,13 +61,37 @@ class LicenseCheckoutController extends Controller
             }
 
             // Return the checkout view
-            return view('licenses/checkout', compact('license', 'requestContext'));
+            return view('licenses/checkout', compact('license', 'requestContext', 'coordinatorTarget'));
         }
 
         // Invalid category
         return redirect()->route('licenses.edit', ['license' => $license->id])
             ->with('error', trans('general.invalid_item_category_single', ['type' => trans('general.license')]));
 
+    }
+
+    public function markRequestResolution(Request $request, License $license, CheckoutRequest $checkoutRequest): RedirectResponse
+    {
+        $resolutionStatus = $request->validate([
+            'resolution_status' => ['required', 'in:'.CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK],
+        ])['resolution_status'];
+
+        abort_unless($checkoutRequest->requestable_type === License::class, 404);
+        abort_unless((int) $checkoutRequest->requestable_id === (int) $license->id, 404);
+
+        $coordinatorTargets = $checkoutRequest->coordinatorTargets()
+            ->where('user_id', auth()->id())
+            ->get();
+        abort_if($coordinatorTargets->isEmpty(), 403);
+
+        if ($resolutionStatus === CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK) {
+            $coordinatorTargets->each->markCompletedNoStock();
+        }
+
+        SendAlternativeFollowUpNotificationAction::run($checkoutRequest);
+
+        return redirect()->route('rac-requests.index')
+            ->with('success', 'License request review recorded. No more reusable seats are available in your scope.');
     }
 
     /**

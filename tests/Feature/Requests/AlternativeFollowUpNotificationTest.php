@@ -62,7 +62,7 @@ class AlternativeFollowUpNotificationTest extends TestCase
             function (RequestAlternativeFollowUpNotification $notification) use ($requestor, $afm) {
                 $mail = $notification->toMail($requestor);
 
-                return $mail->subject === 'Alternative model follow-up for request #'.$notification->checkoutRequest()->id
+                return $mail->subject === 'Alternative item follow-up for request #'.$notification->checkoutRequest()->id
                     && $mail->cc === [[$afm->email, $afm->display_name]];
             }
         );
@@ -237,7 +237,7 @@ class AlternativeFollowUpNotificationTest extends TestCase
                 $mail = $notification->toMail($requestor);
 
                 return $notifiedRequestIds === collect([$firstRequest->id, $secondRequest->id])->sort()->values()->all()
-                    && $mail->subject === 'Alternative model follow-up for 2 requested models'
+                    && $mail->subject === 'Alternative item follow-up for 2 requested items'
                     && $mail->cc === [[$afm->email, $afm->display_name]];
             }
         );

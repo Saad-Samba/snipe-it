@@ -286,7 +286,7 @@ class ModelRequestsController extends Controller
                 'reserved_by_other_project_url' => $requestedModel && $canViewAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved_other_project']))
                     : null,
-                'request_update_url' => $canEditSubmission && $checkoutRequest->requestable_type === AssetModel::class
+                'request_update_url' => $canEditSubmission
                     ? route('requests.update', $checkoutRequest)
                     : null,
                 'request_cancel_url' => null,

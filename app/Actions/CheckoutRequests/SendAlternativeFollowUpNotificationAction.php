@@ -4,6 +4,7 @@ namespace App\Actions\CheckoutRequests;
 
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\License;
 use App\Models\User;
 use App\Notifications\RequestAlternativeFollowUpNotification;
 use Illuminate\Support\Collection;
@@ -21,7 +22,7 @@ class SendAlternativeFollowUpNotificationAction
         $checkoutRequest = DB::transaction(function () use ($checkoutRequest, &$requestor, &$afms, &$requestsToNotify, &$shouldNotify) {
             $requestQuery = CheckoutRequest::query()
                 ->where('user_id', $checkoutRequest->user_id)
-                ->where('requestable_type', AssetModel::class);
+                ->whereIn('requestable_type', [AssetModel::class, License::class]);
 
             if ($checkoutRequest->submission_batch_id) {
                 $requestQuery->where('submission_batch_id', $checkoutRequest->submission_batch_id);
@@ -36,13 +37,19 @@ class SendAlternativeFollowUpNotificationAction
                 ->get();
             $models = AssetModel::withoutGlobalScopes()
                 ->with('category.manager')
-                ->whereIn('id', $batchRequests->pluck('requestable_id'))
+                ->whereIn('id', $batchRequests->where('requestable_type', AssetModel::class)->pluck('requestable_id'))
+                ->get()
+                ->keyBy('id');
+            $licenses = License::withoutGlobalScopes()
+                ->with('category.manager')
+                ->whereIn('id', $batchRequests->where('requestable_type', License::class)->pluck('requestable_id'))
                 ->get()
                 ->keyBy('id');
             $batchRequests->each(
-                fn (CheckoutRequest $request) => $request->setRelation(
-                    'requestedItem',
-                    $models->get($request->requestable_id)
+                fn (CheckoutRequest $request) => $request->setRelation('requestedItem',
+                    $request->requestable_type === License::class
+                        ? $licenses->get($request->requestable_id)
+                        : $models->get($request->requestable_id)
                 )
             );
 

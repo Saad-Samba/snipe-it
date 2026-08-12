@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
+use App\Models\License;
 use App\Models\Setting;
 use App\Notifications\UnroutedRacRequestNotification;
 use Illuminate\Console\Command;
@@ -15,7 +16,7 @@ class ReconcileRacRouting extends Command
 {
     protected $signature = 'snipeit:reconcile-rac-routing';
 
-    protected $description = 'Reconcile RAC routing for active model requests and alert administrators about uncovered scopes.';
+    protected $description = 'Reconcile RAC routing for active reusable inventory requests and alert administrators about uncovered scopes.';
 
     public function handle(): int
     {
@@ -23,7 +24,7 @@ class ReconcileRacRouting extends Command
         $alertedCount = 0;
 
         CheckoutRequest::query()
-            ->where('requestable_type', AssetModel::class)
+            ->whereIn('requestable_type', [AssetModel::class, License::class])
             ->where('status', CheckoutRequest::STATUS_PENDING)
             ->whereNull('canceled_at')
             ->whereNull('fulfilled_at')

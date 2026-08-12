@@ -26,6 +26,11 @@ Route::group(['prefix' => 'licenses', 'middleware' => ['auth']], function () {
         [Licenses\LicenseCheckoutController::class, 'store']
     ); //name() would duplicate here, so we skip it.
 
+    Route::post(
+        '{license}/requests/{checkoutRequest}/resolution',
+        [Licenses\LicenseCheckoutController::class, 'markRequestResolution']
+    )->name('licenses.requests.coordinator-resolution');
+
     Route::get('{licenseSeat}/checkin/{backto?}', [Licenses\LicenseCheckinController::class, 'create'])
         ->name('licenses.checkin')
         ->breadcrumbs(fn (Trail $trail, LicenseSeat $licenseSeat) =>

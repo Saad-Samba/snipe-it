@@ -31,8 +31,8 @@ class RequestAlternativeFollowUpNotification extends Notification
         ]);
         $firstRequest = $requests->first();
         $subject = $requests->count() === 1
-            ? 'Alternative model follow-up for request #'.$firstRequest->id
-            : 'Alternative model follow-up for '.$requests->count().' requested models';
+            ? 'Alternative item follow-up for request #'.$firstRequest->id
+            : 'Alternative item follow-up for '.$requests->count().' requested items';
 
         $message = (new MailMessage)
             ->subject($subject)

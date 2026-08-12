@@ -788,9 +788,6 @@ class ModelRequestsController extends Controller
     {
         $this->authorizeSubmittedRequestAccess($checkoutRequest);
         $this->ensureSubmissionEditable($this->submittedRequestSubmission($checkoutRequest));
-        if ($checkoutRequest->requestable_type !== AssetModel::class) {
-            abort(404);
-        }
 
         $validated = $this->validateModelRequestPayload($request);
         $quantity = (int) ($validated['request-quantity'] ?? 0);
@@ -800,27 +797,39 @@ class ModelRequestsController extends Controller
         $neededByDate = optional($checkoutRequest->needed_by_date)->format('Y-m-d');
 
         $item = $checkoutRequest->requestedItem;
-        abort_if(! $item instanceof AssetModel, 404);
+        abort_if(! $item instanceof AssetModel && ! $item instanceof License, 404);
         $previousCoordinatorIds = $checkoutRequest->coordinatorTargets()
             ->pluck('user_id')
             ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
-        $this->ensureModelRequestAuthorized($item);
+        if ($item instanceof License) {
+            $this->ensureLicenseRequestAuthorized($item);
+        } else {
+            $this->ensureModelRequestAuthorized($item);
+        }
         $this->ensureModelRequestProjectProvided($projectId);
         $this->ensureModelRequestNeededByDateProvided($neededByDate);
         $this->ensureModelRequestQuantityProvided($quantity);
         $this->ensureModelRequestDisciplineProvided($requestedDisciplineId);
         $this->ensureModelRequestCompanyProvided($companyId);
-        $this->ensureUniqueModelProjectRequest($item, auth()->user(), $projectId, $requestedDisciplineId, $companyId, $checkoutRequest->id);
+        if ($item instanceof License) {
+            $this->ensureUniqueLicenseProjectRequest($item, auth()->user(), $projectId, $requestedDisciplineId, $companyId, $checkoutRequest->id);
+        } else {
+            $this->ensureUniqueModelProjectRequest($item, auth()->user(), $projectId, $requestedDisciplineId, $companyId, $checkoutRequest->id);
+        }
 
         $checkoutRequest->quantity = $quantity;
         $checkoutRequest->project_id = $projectId;
         $checkoutRequest->requested_discipline_id = $requestedDisciplineId;
         $checkoutRequest->company_id = $companyId;
         $checkoutRequest->needed_by_date = $neededByDate;
-        $checkoutRequest->fill($this->estimateAssetModelRequest($item, $quantity, $neededByDate));
+        $checkoutRequest->fill(
+            $item instanceof License
+                ? EstimateLicenseReuseAction::run($item, $quantity, $neededByDate)
+                : $this->estimateAssetModelRequest($item, $quantity, $neededByDate)
+        );
         $checkoutRequest->status = CheckoutRequest::STATUS_PENDING;
         $checkoutRequest->resetAlternativeFollowUpNotification();
         $checkoutRequest->save();

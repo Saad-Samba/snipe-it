@@ -2356,9 +2356,13 @@
             );
         }
 
-        if (row.request_update_url && row.model_id) {
+        if (row.request_update_url && (row.model_id || row.license_id)) {
             var modifyTitle = 'Modify request';
-            var estimateUrl = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.model_id);
+            var itemType = row.license_id ? 'license' : 'asset_model';
+            var itemId = row.license_id || row.model_id;
+            var estimateUrl = '{{ route('account.request-estimate', ['itemType' => '__ITEM_TYPE__', 'itemId' => '__ITEM_ID__']) }}'
+                .replace('__ITEM_TYPE__', itemType)
+                .replace('__ITEM_ID__', itemId);
             actions.push(
                 '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', companyId: \'' + (row.company_id || '') + '\', projectId: \'' + (row.project_id || '') + '\', requestedDisciplineId: \'' + (row.requested_discipline_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', showSharedContext: false, title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
                 + '<i class="fas fa-pen" aria-hidden="true"></i>'

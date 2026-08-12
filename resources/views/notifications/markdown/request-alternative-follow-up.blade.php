@@ -1,22 +1,22 @@
 @component('mail::message')
 # Reusable-stock review complete
 
-The RAC review is complete for the following requested models, but the requested quantities were not fully covered.
+The RAC review is complete for the following requested items, but the requested quantities were not fully covered.
 
 @component('mail::table')
-| Request | Model | Requested | Fulfilled | Remaining |
-|:--|:--|--:|--:|--:|
+| Request | Type | Item | Requested | Fulfilled | Remaining |
+|:--|:--|:--|--:|--:|--:|
 @foreach ($requests as $request)
-| #{{ $request->id }} | {{ optional($request->requestedItem)->name ?: '-' }} | {{ $request->quantity }} | {{ $request->allocatedQuantity() }} | {{ $request->remainingAllocationQuantity() }} |
+| #{{ $request->id }} | {{ class_basename($request->requestable_type) === 'License' ? 'License' : 'Model' }} | {{ optional($request->requestedItem)->name ?: '-' }} | {{ $request->quantity }} | {{ $request->allocatedQuantity() }} | {{ $request->remainingAllocationQuantity() }} |
 @endforeach
 @endcomponent
 
 @if ($afms->isNotEmpty())
-Please coordinate with the concerned Asset Family Managers copied on this email
+Please coordinate with the concerned catalogue managers copied on this email
 ({{ $afms->pluck('display_name')->join(', ') }})
-to determine whether alternative models are acceptable.
+to determine whether alternative items are acceptable.
 @else
-Please coordinate with the appropriate Asset Family Manager to determine whether alternative models are acceptable.
+Please coordinate with the appropriate catalogue manager to determine whether an alternative item is acceptable.
 @endif
 
 If alternatives are agreed, submit new requests for the remaining quantities and reference the corresponding original request numbers shown above.

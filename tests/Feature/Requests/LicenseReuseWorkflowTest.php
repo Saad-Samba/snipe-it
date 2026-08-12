@@ -6,12 +6,15 @@ use App\Actions\CheckoutRequests\EstimateLicenseReuseAction;
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Models\Category;
 use App\Models\CheckoutRequest;
+use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
 use App\Models\License;
 use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\User;
+use App\Notifications\RacScopedRequestSummaryNotification;
+use App\Notifications\RequestAlternativeFollowUpNotification;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -257,6 +260,137 @@ class LicenseReuseWorkflowTest extends TestCase
         )->assertOk();
 
         $this->assertNull($seat->fresh()->expected_release_date);
+    }
+
+    public function test_daily_reconciliation_routes_an_existing_uncovered_license_request(): void
+    {
+        $requester = User::factory()->requestLicenses()->viewLicenses()->create();
+        $sourceCompany = Company::factory()->create();
+        $sourceDiscipline = $this->createDiscipline('License Reconciliation', $requester);
+        $license = $this->createReusableLicense([
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $sourceDiscipline->id,
+        ]);
+        $request = $license->request(1, [
+            'user_id' => $requester->id,
+            'company_id' => Company::factory()->create()->id,
+            'project_id' => Project::factory()->create()->id,
+            'needed_by_date' => '2026-09-15',
+            'requested_discipline_id' => $this->createDiscipline('License Destination', $requester)->id,
+        ]);
+
+        ResolveCheckoutRequestCoordinatorsAction::run($request, false);
+        $this->assertSame(CheckoutRequest::RAC_ROUTING_UNROUTED, $request->fresh()->rac_routing_status);
+
+        $coordinator = User::factory()->checkoutLicenses()->create();
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $sourceDiscipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->artisan('snipeit:reconcile-rac-routing')->assertSuccessful();
+
+        $this->assertSame(CheckoutRequest::RAC_ROUTING_ROUTED, $request->fresh()->rac_routing_status);
+        $this->assertDatabaseHas('checkout_request_coordinators', [
+            'checkout_request_id' => $request->id,
+            'user_id' => $coordinator->id,
+        ]);
+    }
+
+    public function test_license_rac_can_complete_review_with_no_more_seats_and_trigger_follow_up(): void
+    {
+        Notification::fake();
+        $afm = User::factory()->create();
+        [$request, $license, , $coordinator] = $this->createRoutedLicenseRequest();
+        $license->category->forceFill(['manager_id' => $afm->id])->save();
+        $requester = $request->requestingUser();
+        $license->licenseSeats()->firstOrFail()->forceFill([
+            'assigned_to' => User::factory()->create()->id,
+        ])->save();
+
+        $this->actingAs($coordinator)
+            ->get(route('licenses.checkout', [
+                'license' => $license,
+                'request_id' => $request->id,
+            ]))
+            ->assertOk()
+            ->assertSeeText('No more reusable seats available');
+
+        $this->actingAs($coordinator)
+            ->post(route('licenses.requests.coordinator-resolution', [
+                'license' => $license,
+                'checkoutRequest' => $request,
+            ]), [
+                'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK,
+            ])
+            ->assertRedirect(route('rac-requests.index'));
+
+        $this->assertSame(
+            CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK,
+            $request->coordinatorTargets()->where('user_id', $coordinator->id)->firstOrFail()->resolvedStatus()
+        );
+        $this->assertNotNull($request->fresh()->alternative_follow_up_notified_at);
+        Notification::assertSentTo($requester, RequestAlternativeFollowUpNotification::class, function ($notification) use ($requester, $afm) {
+            $mail = $notification->toMail($requester);
+
+            return $mail->subject === 'Alternative item follow-up for request #'.$notification->checkoutRequest()->id
+                && $mail->cc === [[$afm->email, $afm->display_name]];
+        });
+    }
+
+    public function test_requester_can_edit_an_untouched_license_line_and_reroute_it(): void
+    {
+        Notification::fake();
+        [$request, $license, , $coordinator] = $this->createRoutedLicenseRequest();
+        $updatedCompany = Company::factory()->create();
+        $updatedDiscipline = $this->createDiscipline('Edited License Destination', $request->requestingUser());
+
+        $this->actingAs($request->requestingUser())
+            ->post(route('requests.update', $request), [
+                'request-action' => 'update',
+                'request-quantity' => 2,
+                'requested_discipline_id' => $updatedDiscipline->id,
+                'company_id' => $updatedCompany->id,
+            ])
+            ->assertRedirect();
+
+        $request->refresh();
+        $this->assertSame(2, $request->quantity);
+        $this->assertSame($updatedDiscipline->id, $request->requested_discipline_id);
+        $this->assertSame($updatedCompany->id, $request->company_id);
+        $this->assertSame(1, $request->reusable_quantity);
+        $this->assertSame(1, $request->procurement_shortfall);
+
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class, fn ($notification) => $notification->isUpdate());
+
+        $this->actingAs($request->requestingUser());
+        $rows = app(\App\Http\Controllers\Api\ModelRequestsController::class)->index(
+            \Illuminate\Http\Request::create('/', 'GET', ['license_id' => $license->id])
+        );
+        $this->assertSame(route('requests.update', $request), $rows['rows'][0]['request_update_url']);
+    }
+
+    public function test_license_line_editing_locks_after_rac_activity_starts(): void
+    {
+        [$request, $license, , $coordinator] = $this->createRoutedLicenseRequest();
+        $request->coordinatorTargets()->where('user_id', $coordinator->id)->firstOrFail()->markInProgress();
+
+        $this->actingAs($request->requestingUser());
+        $rows = app(\App\Http\Controllers\Api\ModelRequestsController::class)->index(
+            \Illuminate\Http\Request::create('/', 'GET', ['license_id' => $license->id])
+        );
+        $this->assertNull($rows['rows'][0]['request_update_url']);
+
+        $this->post(route('requests.update', $request), [
+            'request-action' => 'update',
+            'request-quantity' => 2,
+            'requested_discipline_id' => $request->requested_discipline_id,
+            'company_id' => $request->company_id,
+        ])->assertSessionHasErrors('submission');
+
+        $this->assertSame(1, $request->fresh()->quantity);
     }
 
     private function createRoutedLicenseRequest(): array
