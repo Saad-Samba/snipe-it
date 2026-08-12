@@ -1,12 +1,10 @@
 @push('css')
     <link rel="stylesheet" href="{{ url(mix('css/dist/bootstrap-table.css')) }}">
-    <link rel="stylesheet" href="{{ url('css/dist/bootstrap-table-filter-control.css') }}">
 @endpush
 
 @push('js')
 
 <script src="{{ url(mix('js/dist/bootstrap-table.js')) }}"></script>
-<script src="{{ url('js/dist/bootstrap-table-filter-control.js') }}"></script>
 <script src="{{ url(mix('js/dist/bootstrap-table-locale-all.min.js')) }}"></script>
 
 <!-- load english again here, even though it's in the all.js file, because if BS table doesn't have the translation, it otherwise defaults to chinese. See https://bootstrap-table.com/docs/api/table-options/#locale -->
@@ -107,7 +105,6 @@
                 paginationLastText: "{{ trans('general.last') }}",
                 paginationNextText: "{{ trans('general.next') }}",
                 paginationPreText: "{{ trans('general.previous') }}",
-                filterControl: data_with_default('filter-control', false),
                 search: data_with_default('search', true),
                 searchHighlight: data_with_default('search-highlight', true),
                 showColumns: data_with_default('show-columns', true),

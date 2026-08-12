@@ -146,8 +146,6 @@
                 data-sort-order="asc"
                 data-sort-name="name"
                 data-search-text="{{ Request::filled('request_id') ? '' : session()->get('search') }}"
-                data-filter-control="true"
-                data-filter-control-visible="true"
                 data-show-columns-search="true"
                 data-toolbar="#assetsBulkEditToolbar"
                 data-bulk-button-id="#bulkAssetEditButton"

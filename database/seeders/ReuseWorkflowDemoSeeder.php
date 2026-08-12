@@ -26,6 +26,18 @@ class ReuseWorkflowDemoSeeder extends Seeder
 {
     private const PASSWORD = 'password';
 
+    private const ASSET_TAGS = [
+        'DEMO-RF-VN-001',
+        'DEMO-RF-VN-002',
+        'DEMO-RF-VN-003',
+        'DEMO-RF-VN-004',
+        'DEMO-RF-SCOPE-001',
+        'DEMO-RF-SCOPE-002',
+        'DEMO-RF-JLINK-001',
+        'DEMO-RF-PSU-001',
+        'DEMO-RF-PSU-002',
+    ];
+
     public function run(): void
     {
         $users = $this->seedUsers();
@@ -57,6 +69,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
             $admin
         );
         $this->seedPreparedTransferRequest($users, $companies, $projects, $models);
+        $this->assertDemoAssetsExist();
 
         $this->printManifest();
     }
@@ -668,9 +681,29 @@ class ReuseWorkflowDemoSeeder extends Seeder
             'requestable' => 1,
             'notes' => 'Deterministic asset created by ReuseWorkflowDemoSeeder.',
         ]);
-        $asset->save();
+        if (! $asset->save()) {
+            throw new \RuntimeException(sprintf(
+                'Unable to seed demo asset %s: %s',
+                $tag,
+                implode('; ', $asset->getErrors()->all())
+            ));
+        }
 
         return $asset;
+    }
+
+    private function assertDemoAssetsExist(): void
+    {
+        $seededTags = Asset::withoutGlobalScopes()
+            ->whereIn('asset_tag', self::ASSET_TAGS)
+            ->pluck('asset_tag');
+        $missingTags = collect(self::ASSET_TAGS)->diff($seededTags);
+
+        if ($missingTags->isNotEmpty()) {
+            throw new \RuntimeException(
+                'Reuse workflow demo seeding is incomplete. Missing asset tags: '.$missingTags->implode(', ')
+            );
+        }
     }
 
     private function printManifest(): void
@@ -679,6 +712,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->command?->line('Run again safely with: php artisan db:seed --class=ReuseWorkflowDemoSeeder --force');
         $this->command?->newLine();
         $this->command?->line('Shared password: '.self::PASSWORD);
+        $this->command?->line('Seeded assets: '.count(self::ASSET_TAGS).' (search Hardware for DEMO-RF-)');
         $this->command?->line('EPL: demo-reuse-epl');
         $this->command?->line('AFM (Communication): demo-reuse-afm-network');
         $this->command?->line('AFM (Lab/Power): demo-reuse-afm-lab');

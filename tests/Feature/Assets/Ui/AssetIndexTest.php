@@ -15,7 +15,9 @@ class AssetIndexTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('hardware.index'))
             ->assertOk()
-            ->assertSee('data-export-data-type="all"', false);
+            ->assertSee('data-export-data-type="all"', false)
+            ->assertDontSee('data-filter-control', false)
+            ->assertDontSee('bootstrap-table-filter-control', false);
     }
 
     public function testSidebarGroupsStatusLabelsAndFlags()
