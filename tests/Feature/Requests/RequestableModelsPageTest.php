@@ -39,6 +39,7 @@ class RequestableModelsPageTest extends TestCase
             ->get(route('requestable-assets'))
             ->assertOk()
             ->assertSeeText('Request Models')
+            ->assertDontSeeText('Enter the required quantity and destination scope')
             ->assertSeeText('Industrial Ethernet Switch')
             ->assertSeeText('Communication')
             ->assertSeeText('Reusable Assets')

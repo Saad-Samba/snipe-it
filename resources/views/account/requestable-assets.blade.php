@@ -26,9 +26,6 @@
                     </button>
                 </div>
                 <h2 class="box-title">Request Models</h2>
-                <p class="help-block" style="margin-bottom:0;">
-                    Enter the required quantity and destination scope, add one or several models to the cart, then submit the cart for one project and needed-by date.
-                </p>
             </div>
 
             <div class="box-body">

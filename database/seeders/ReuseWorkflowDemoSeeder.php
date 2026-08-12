@@ -626,9 +626,9 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->upsertAsset('DEMO-RF-VN-004', 'VN1630A - Due Back Before Need', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin, $users['engineer'], '2026-09-15');
         $this->upsertAsset('DEMO-RF-PCAN-001', 'PCAN-USB FD - Casablanca Validation', $models['pcan_interface'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['validation'], $admin);
 
-        $this->upsertAsset('DEMO-RF-SCOPE-001', 'MDO3024 - Rabat Same Company', $models['oscilloscope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin);
-        $this->upsertAsset('DEMO-RF-SCOPE-002', 'MDO3024 - Archived Control', $models['oscilloscope'], $statuses['archived'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin);
-        $this->upsertAsset('DEMO-RF-KEYSCOPE-001', 'DSOX1204G - Rabat Validation', $models['keysight_scope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin);
+        $this->upsertAsset('DEMO-RF-SCOPE-001', 'MDO3024 - Rabat Power Electronics', $models['oscilloscope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
+        $this->upsertAsset('DEMO-RF-SCOPE-002', 'MDO3024 - Archived Control', $models['oscilloscope'], $statuses['archived'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
+        $this->upsertAsset('DEMO-RF-KEYSCOPE-001', 'DSOX1204G - Rabat Power Electronics', $models['keysight_scope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
 
         $this->upsertAsset('DEMO-RF-JLINK-001', 'J-Link PRO - Available', $models['debug_probe'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['embedded'], $admin);
         $this->upsertAsset('DEMO-RF-TRACE32-001', 'TRACE32 - Casablanca Embedded', $models['trace32_probe'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['embedded'], $admin);
@@ -783,8 +783,8 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->command?->line('Live request project: DEMO - Infotainment ECU Bench Expansion');
         $this->command?->line('Destination: LEAR Electronics Rabat');
         $this->command?->line('Needed by: 2026-09-30');
-        $this->command?->line('Vector VN1630A CAN/LIN Interface: quantity 5');
-        $this->command?->line('Tektronix MDO3024 Oscilloscope: quantity 1');
+        $this->command?->line('Vector VN1630A CAN/LIN Interface: quantity 5 / Electronics Validation');
+        $this->command?->line('Tektronix MDO3024 Oscilloscope: quantity 1 / Power Electronics');
         $this->command?->line('Intentional routing gap: LEAR Electronics Rabat / Embedded Systems');
         $this->command?->line('Prepared transfer: SEGGER J-Link PRO Debug Probe / DEMO - Cross-Site Debug Bench Transfer');
     }
