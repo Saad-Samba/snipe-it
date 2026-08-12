@@ -82,6 +82,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 [
                     'assets.view.requestable' => '1',
                     'self.checkout_assets' => '1',
+                    'models.request' => '1',
                 ],
                 $admin->id
             ),
