@@ -48,6 +48,41 @@ class Asset extends Depreciable
     use Acceptable;
 
     /**
+     * Limit an asset query to the records the given user may discover.
+     *
+     * Asset family managers are intentionally not assigned to one company. When
+     * FMCS is enabled, replace the normal company scope with their managed asset
+     * categories so they can inspect those assets across companies without seeing
+     * unrelated inventory.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if (! $user->hasCategoryOwnershipScope()) {
+            return $query;
+        }
+
+        return $query
+            ->withoutGlobalScope(CompanyableScope::class)
+            ->whereHas('model', function (Builder $modelQuery) use ($user) {
+                $modelQuery->managedBy($user);
+            });
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        return $this->model?->isManagedBy($user) ?? false;
+    }
+
+    public function resolveRouteBindingQuery($query, $value, $field = null)
+    {
+        if ($user = auth()->user()) {
+            $query = $query->visibleTo($user);
+        }
+
+        return parent::resolveRouteBindingQuery($query, $value, $field);
+    }
+
+    /**
      * Run after the checkout acceptance was declined by the user
      *
      * @param User   $acceptedBy

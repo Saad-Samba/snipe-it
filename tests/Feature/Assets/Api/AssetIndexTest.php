@@ -310,6 +310,42 @@ class AssetIndexTest extends TestCase
             ->assertResponseContainsInRows($assetB, 'asset_tag');
     }
 
+    public function testAssetFamilyManagerSeesOnlyAssetsInManagedCategoriesAcrossCompanies()
+    {
+        $this->settings->disableMultipleFullCompanySupport();
+
+        [$companyA, $companyB] = Company::factory()->count(2)->create();
+        $afm = User::factory()->create(['company_id' => null]);
+
+        $managedCategory = Category::factory()->assetLaptopCategory()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->assetLaptopCategory()->create();
+
+        $managedModel = AssetModel::factory()->create(['category_id' => $managedCategory->id]);
+        $unmanagedModel = AssetModel::factory()->create(['category_id' => $unmanagedCategory->id]);
+
+        $createAsset = fn (Company $company, AssetModel $model) => Asset::withoutEvents(
+            fn () => Asset::forceCreate(Asset::factory()->raw([
+                'company_id' => $company->id,
+                'model_id' => $model->id,
+            ]))
+        );
+
+        $managedAssetA = $createAsset($companyA, $managedModel);
+        $managedAssetB = $createAsset($companyB, $managedModel);
+        $unmanagedAsset = $createAsset($companyA, $unmanagedModel);
+
+        $this->settings->enableMultipleFullCompanySupport();
+
+        $this->actingAsForApi($afm)
+            ->getJson(route('api.assets.index'))
+            ->assertOk()
+            ->assertResponseContainsInRows($managedAssetA, 'asset_tag')
+            ->assertResponseContainsInRows($managedAssetB, 'asset_tag')
+            ->assertResponseDoesNotContainInRows($unmanagedAsset, 'asset_tag');
+    }
+
     public function testAssetApiIndexFiltersByOwnerId()
     {
         $ownerA = User::factory()->create();

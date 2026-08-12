@@ -161,7 +161,8 @@ class AssetsController extends Controller
 
         }
 
-        $assets = Asset::select('assets.*')
+        $assets = Asset::visibleTo($request->user())
+            ->select('assets.*')
             ->with(
                 'model',
                 'location',
@@ -678,7 +679,7 @@ class AssetsController extends Controller
      */
     public function show(Request $request, $id): JsonResponse | array
     {
-        if ($asset = Asset::with('assetstatus')
+        if ($asset = Asset::visibleTo($request->user())->with('assetstatus')
             ->with('assignedTo')->withTrashed()
             ->withCount('checkins as checkins_count', 'checkouts as checkouts_count', 'userRequests as user_requests_count')->find($id)
         ) {
