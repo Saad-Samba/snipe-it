@@ -82,63 +82,70 @@ class ReuseWorkflowDemoSeeder extends Seeder
     private function seedUsers(): array
     {
         $admin = $this->upsertUser(
-            username: 'demo-reuse-admin',
+            username: 'demo-GSA',
             firstName: 'Demo',
-            lastName: 'Administrator',
-            email: 'demo-reuse-admin@example.com',
+            lastName: 'GSA',
+            email: 'demo-gsa@example.com',
             permissions: ['superuser' => '1'],
-            createdBy: null
+            createdBy: null,
+            legacyUsername: 'demo-reuse-admin'
         );
 
         return [
             'admin' => $admin,
             'epl' => $this->upsertUser(
-                'demo-reuse-epl',
-                'Elena',
-                'Project Lead',
-                'demo-reuse-epl@example.com',
+                'demo-EPM',
+                'Demo',
+                'EPM',
+                'demo-epm@example.com',
                 ['models.request' => '1'],
-                $admin->id
+                $admin->id,
+                'demo-reuse-epl'
             ),
             'afm_network' => $this->upsertUser(
-                'demo-reuse-afm-network',
-                'Amine',
-                'Network AFM',
-                'demo-reuse-afm-network@example.com',
+                'demo-AFM-COMMUNICATION',
+                'Demo',
+                'AFM Communication',
+                'demo-afm-communication@example.com',
                 $this->afmPermissionOverrides(),
-                $admin->id
+                $admin->id,
+                'demo-reuse-afm-network'
             ),
             'afm_lab' => $this->upsertUser(
-                'demo-reuse-afm-lab',
-                'Laura',
-                'Lab Equipment AFM',
-                'demo-reuse-afm-lab@example.com',
+                'demo-AFM-LAB',
+                'Demo',
+                'AFM Lab',
+                'demo-afm-lab@example.com',
                 $this->afmPermissionOverrides(),
-                $admin->id
+                $admin->id,
+                'demo-reuse-afm-lab'
             ),
             'rac_casablanca' => $this->upsertUser(
-                'demo-reuse-rac-casablanca',
-                'Youssef',
-                'Casablanca RAC',
-                'demo-reuse-rac-casablanca@example.com',
+                'demo-RAC-CASABLANCA',
+                'Demo',
+                'RAC Casablanca',
+                'demo-rac-casablanca@example.com',
                 $this->racPermissions(),
-                $admin->id
+                $admin->id,
+                'demo-reuse-rac-casablanca'
             ),
             'rac_rabat' => $this->upsertUser(
-                'demo-reuse-rac-rabat',
-                'Nadia',
-                'Rabat RAC',
-                'demo-reuse-rac-rabat@example.com',
+                'demo-RAC-RABAT',
+                'Demo',
+                'RAC Rabat',
+                'demo-rac-rabat@example.com',
                 $this->racPermissions(),
-                $admin->id
+                $admin->id,
+                'demo-reuse-rac-rabat'
             ),
             'engineer' => $this->upsertUser(
-                'demo-reuse-engineer',
-                'Karim',
-                'Validation Engineer',
-                'demo-reuse-engineer@example.com',
+                'demo-REQUESTOR',
+                'Demo',
+                'Requestor',
+                'demo-requestor@example.com',
                 ['assets.view.requestable' => '1'],
-                $admin->id
+                $admin->id,
+                'demo-reuse-engineer'
             ),
         ];
     }
@@ -149,25 +156,40 @@ class ReuseWorkflowDemoSeeder extends Seeder
         string $lastName,
         string $email,
         array $permissions,
-        ?int $createdBy
+        ?int $createdBy,
+        ?string $legacyUsername = null
     ): User {
-        return User::withoutGlobalScopes()->updateOrCreate(
-            ['username' => $username],
-            [
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'display_name' => $firstName.' '.$lastName,
-                'email' => $email,
-                'activated' => 1,
-                'company_id' => null,
-                'location_id' => null,
-                'locale' => 'en-US',
-                'permissions' => json_encode($permissions),
-                'password' => Hash::make(self::PASSWORD),
-                'notes' => 'Isolated environment account created by ReuseWorkflowDemoSeeder.',
-                'created_by' => $createdBy,
-            ]
-        );
+        $user = User::withoutGlobalScopes()->where('username', $username)->first()
+            ?? ($legacyUsername
+                ? User::withoutGlobalScopes()->where('username', $legacyUsername)->first()
+                : null)
+            ?? new User();
+
+        $user->forceFill([
+            'username' => $username,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'display_name' => $username,
+            'email' => $email,
+            'activated' => 1,
+            'company_id' => null,
+            'location_id' => null,
+            'locale' => 'en-US',
+            'permissions' => json_encode($permissions),
+            'password' => Hash::make(self::PASSWORD),
+            'notes' => 'Isolated environment account created by ReuseWorkflowDemoSeeder.',
+            'created_by' => $createdBy,
+        ]);
+
+        if (! $user->save()) {
+            throw new \RuntimeException(sprintf(
+                'Unable to seed demo user %s: %s',
+                $username,
+                implode('; ', $user->getErrors()->all())
+            ));
+        }
+
+        return $user;
     }
 
     private function racPermissions(): array
@@ -311,21 +333,33 @@ class ReuseWorkflowDemoSeeder extends Seeder
     private function seedDisciplines(User $admin): array
     {
         return [
-            'validation' => $this->upsertDiscipline('Electronics Validation', $admin),
-            'embedded' => $this->upsertDiscipline('Embedded Systems', $admin),
-            'power' => $this->upsertDiscipline('Power Electronics', $admin),
+            'validation' => $this->upsertDiscipline('HARDWARE', 'Electronics Validation', $admin),
+            'embedded' => $this->upsertDiscipline('SOFTWARE', 'Embedded Systems', $admin),
+            'power' => $this->upsertDiscipline('SYSTEMS', 'Power Electronics', $admin),
         ];
     }
 
-    private function upsertDiscipline(string $name, User $admin): Discipline
+    private function upsertDiscipline(string $name, string $legacyName, User $admin): Discipline
     {
-        return Discipline::withoutGlobalScopes()->updateOrCreate(
-            ['name' => $name],
-            [
-                'notes' => 'Engineering discipline prepared for the reuse-first demo.',
-                'created_by' => $admin->id,
-            ]
-        );
+        $discipline = Discipline::withoutGlobalScopes()->where('name', $name)->first()
+            ?? Discipline::withoutGlobalScopes()->where('name', $legacyName)->first()
+            ?? new Discipline();
+
+        $discipline->forceFill([
+            'name' => $name,
+            'notes' => 'Engineering discipline prepared for the reuse-first demo.',
+            'created_by' => $admin->id,
+        ]);
+
+        if (! $discipline->save()) {
+            throw new \RuntimeException(sprintf(
+                'Unable to seed demo discipline %s: %s',
+                $name,
+                implode('; ', $discipline->getErrors()->all())
+            ));
+        }
+
+        return $discipline;
     }
 
     private function assignUserScopes(array $users, array $companies, array $locations): void
@@ -603,8 +637,8 @@ class ReuseWorkflowDemoSeeder extends Seeder
             );
         }
 
-        // Intentionally do not assign Rabat / Embedded Systems. The demo
-        // administrator can add demo-reuse-rac-rabat and reconcile the request.
+        // Intentionally do not assign Rabat / SOFTWARE. The demo
+        // administrator can add demo-RAC-RABAT and reconcile the request.
         RegionalAssetCoordinatorAssignment::withoutGlobalScopes()
             ->where('company_id', $companies['rabat']->id)
             ->where('discipline_id', $disciplines['embedded']->id)
@@ -620,21 +654,21 @@ class ReuseWorkflowDemoSeeder extends Seeder
         array $models,
         User $admin
     ): void {
-        $this->upsertAsset('DEMO-RF-VN-001', 'VN1630A - Rabat Validation', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin);
-        $this->upsertAsset('DEMO-RF-VN-002', 'VN1630A - Rabat Power Electronics', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
-        $this->upsertAsset('DEMO-RF-VN-003', 'VN1630A - Rabat Uncovered Embedded Scope', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['embedded'], $admin);
+        $this->upsertAsset('DEMO-RF-VN-001', 'VN1630A - Rabat Hardware', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin);
+        $this->upsertAsset('DEMO-RF-VN-002', 'VN1630A - Rabat Systems', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
+        $this->upsertAsset('DEMO-RF-VN-003', 'VN1630A - Rabat Uncovered Software Scope', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['embedded'], $admin);
         $this->upsertAsset('DEMO-RF-VN-004', 'VN1630A - Due Back Before Need', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin, $users['engineer'], '2026-09-15');
-        $this->upsertAsset('DEMO-RF-PCAN-001', 'PCAN-USB FD - Casablanca Validation', $models['pcan_interface'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['validation'], $admin);
+        $this->upsertAsset('DEMO-RF-PCAN-001', 'PCAN-USB FD - Casablanca Hardware', $models['pcan_interface'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['validation'], $admin);
 
-        $this->upsertAsset('DEMO-RF-SCOPE-001', 'MDO3024 - Rabat Power Electronics', $models['oscilloscope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
+        $this->upsertAsset('DEMO-RF-SCOPE-001', 'MDO3024 - Rabat Systems', $models['oscilloscope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
         $this->upsertAsset('DEMO-RF-SCOPE-002', 'MDO3024 - Archived Control', $models['oscilloscope'], $statuses['archived'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
-        $this->upsertAsset('DEMO-RF-KEYSCOPE-001', 'DSOX1204G - Rabat Power Electronics', $models['keysight_scope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
+        $this->upsertAsset('DEMO-RF-KEYSCOPE-001', 'DSOX1204G - Rabat Systems', $models['keysight_scope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
 
         $this->upsertAsset('DEMO-RF-JLINK-001', 'J-Link PRO - Available', $models['debug_probe'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['embedded'], $admin);
-        $this->upsertAsset('DEMO-RF-TRACE32-001', 'TRACE32 - Casablanca Embedded', $models['trace32_probe'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['embedded'], $admin);
+        $this->upsertAsset('DEMO-RF-TRACE32-001', 'TRACE32 - Casablanca Software', $models['trace32_probe'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['embedded'], $admin);
         $this->upsertAsset('DEMO-RF-PSU-001', 'E36313A - Available', $models['power_supply'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
         $this->upsertAsset('DEMO-RF-PSU-002', 'E36313A - Out for Repair Control', $models['power_supply'], $statuses['repair'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
-        $this->upsertAsset('DEMO-RF-EAPSU-001', 'EA-PS 9080-60 - Rabat Power Lab', $models['ea_power_supply'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
+        $this->upsertAsset('DEMO-RF-EAPSU-001', 'EA-PS 9080-60 - Rabat Systems', $models['ea_power_supply'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
     }
 
     private function seedPreparedTransferRequest(
@@ -772,20 +806,21 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->command?->newLine();
         $this->command?->line('Shared password: '.self::PASSWORD);
         $this->command?->line('Seeded assets: '.count(self::ASSET_TAGS).' (search Hardware for DEMO-RF-)');
-        $this->command?->line('EPL: demo-reuse-epl');
-        $this->command?->line('AFM (Communication): demo-reuse-afm-network');
-        $this->command?->line('AFM (Lab/Power): demo-reuse-afm-lab');
-        $this->command?->line('Source RAC: demo-reuse-rac-casablanca');
-        $this->command?->line('Receiving RAC: demo-reuse-rac-rabat');
-        $this->command?->line('RAC used to close the intentional gap: demo-reuse-rac-rabat');
-        $this->command?->line('GSA / Administrator: demo-reuse-admin');
+        $this->command?->line('EPM: demo-EPM');
+        $this->command?->line('AFM (Communication): demo-AFM-COMMUNICATION');
+        $this->command?->line('AFM (Lab/Power): demo-AFM-LAB');
+        $this->command?->line('Source RAC: demo-RAC-CASABLANCA');
+        $this->command?->line('Receiving RAC: demo-RAC-RABAT');
+        $this->command?->line('RAC used to close the intentional gap: demo-RAC-RABAT');
+        $this->command?->line('Requestor: demo-REQUESTOR');
+        $this->command?->line('GSA / Administrator: demo-GSA');
         $this->command?->newLine();
         $this->command?->line('Live request project: DEMO - Infotainment ECU Bench Expansion');
         $this->command?->line('Destination: LEAR Electronics Rabat');
         $this->command?->line('Needed by: 2026-09-30');
-        $this->command?->line('Vector VN1630A CAN/LIN Interface: quantity 5 / Electronics Validation');
-        $this->command?->line('Tektronix MDO3024 Oscilloscope: quantity 1 / Power Electronics');
-        $this->command?->line('Intentional routing gap: LEAR Electronics Rabat / Embedded Systems');
+        $this->command?->line('Vector VN1630A CAN/LIN Interface: quantity 5 / HARDWARE');
+        $this->command?->line('Tektronix MDO3024 Oscilloscope: quantity 1 / SYSTEMS');
+        $this->command?->line('Intentional routing gap: LEAR Electronics Rabat / SOFTWARE');
         $this->command?->line('Prepared transfer: SEGGER J-Link PRO Debug Probe / DEMO - Cross-Site Debug Bench Transfer');
     }
 }
