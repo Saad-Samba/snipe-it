@@ -69,4 +69,62 @@ class RequestableModelsPageTest extends TestCase
             ->get(route('requestable-assets'))
             ->assertForbidden();
     }
+
+    public function test_cross_company_catalogue_permission_shows_requestable_models_outside_the_epl_company_under_fmcs(): void
+    {
+        $this->settings->enableMultipleFullCompanySupport();
+
+        $eplCompany = Company::factory()->create();
+        $sourceCompany = Company::factory()->create();
+        $epl = User::factory()->create([
+            'company_id' => $eplCompany->id,
+            'permissions' => json_encode([
+                'models.request' => '1',
+                'models.request.all_companies' => '1',
+            ]),
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Cross-company reusable model',
+            'category_id' => Category::factory()->forAssets()->create()->id,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => $sourceCompany->id,
+            'status_id' => Statuslabel::factory()->readyToDeploy(),
+            'requestable' => true,
+        ]);
+
+        $this->actingAs($epl)
+            ->get(route('requestable-assets'))
+            ->assertOk()
+            ->assertSeeText('Cross-company reusable model');
+    }
+
+    public function test_regular_requester_remains_company_scoped_under_fmcs(): void
+    {
+        $this->settings->enableMultipleFullCompanySupport();
+
+        $requesterCompany = Company::factory()->create();
+        $otherCompany = Company::factory()->create();
+        $requester = User::factory()->requestAssetModels()->create([
+            'company_id' => $requesterCompany->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Other-company-only reusable model',
+            'category_id' => Category::factory()->forAssets()->create()->id,
+        ]);
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => $otherCompany->id,
+            'status_id' => Statuslabel::factory()->readyToDeploy(),
+            'requestable' => true,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('requestable-assets'))
+            ->assertOk()
+            ->assertDontSeeText('Other-company-only reusable model');
+    }
 }

@@ -399,9 +399,13 @@ class AssetModel extends SnipeModel
         return (int) $managerId === (int) $user->id;
     }
 
-    public function scopeRequestableModels($query)
+    public function scopeRequestableModels($query, bool $includeAllCompanies = false)
     {
-        return $query->whereHas('availableAssets');
+        return $query->whereHas('availableAssets', function (Builder $assetQuery) use ($includeAllCompanies) {
+            if ($includeAllCompanies) {
+                $assetQuery->withoutGlobalScope(CompanyableScope::class);
+            }
+        });
     }
 
     /**

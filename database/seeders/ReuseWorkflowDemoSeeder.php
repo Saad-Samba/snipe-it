@@ -94,13 +94,16 @@ class ReuseWorkflowDemoSeeder extends Seeder
         return [
             'admin' => $admin,
             'epl' => $this->upsertUser(
-                'demo-EPM',
+                'demo-EPL',
                 'Demo',
-                'EPM',
-                'demo-epm@example.com',
-                ['models.request' => '1'],
+                'EPL',
+                'demo-epl@example.com',
+                [
+                    'models.request' => '1',
+                    'models.request.all_companies' => '1',
+                ],
                 $admin->id,
-                'demo-reuse-epl'
+                'demo-EPM'
             ),
             'afm_network' => $this->upsertUser(
                 'demo-AFM-COMMUNICATION',
@@ -267,8 +270,8 @@ class ReuseWorkflowDemoSeeder extends Seeder
             'brand' => 2,
             'locale' => 'en-US',
             'default_currency' => 'EUR',
-            'full_multiple_companies_support' => 0,
-            'scope_locations_fmcs' => 0,
+            'full_multiple_companies_support' => 1,
+            'scope_locations_fmcs' => 1,
             'rfq_reserved_statuslabel_id' => $reservedStatus->id,
         ]);
         $settings->save();
@@ -612,8 +615,8 @@ class ReuseWorkflowDemoSeeder extends Seeder
 
     private function seedProjects(User $epl): array
     {
-        $live = $this->upsertProject('BCM', 'DEMO - Infotainment ECU Bench Expansion', 'Primary live request project for the reuse-first demonstration.', $epl);
-        $secondary = $this->upsertProject('C1A', 'DEMO - Power Electronics Validation Cell', 'Secondary project for filters and follow-up demonstrations.', $epl);
+        $live = $this->upsertProject('DEMO - BCM', 'BCM', 'Primary live request project for the reuse-first demonstration.', $epl);
+        $secondary = $this->upsertProject('DEMO - C1A', 'C1A', 'Secondary project for filters and follow-up demonstrations.', $epl);
 
         Project::withoutGlobalScopes()
             ->where('name', 'DEMO - Cross-Site Debug Bench Transfer')
@@ -778,7 +781,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->command?->newLine();
         $this->command?->line('Shared password: '.self::PASSWORD);
         $this->command?->line('Seeded assets: '.count(self::ASSET_TAGS).' (search Hardware for DEMO-RF-)');
-        $this->command?->line('EPM: demo-EPM');
+        $this->command?->line('EPL: demo-EPL');
         $this->command?->line('AFM (Communication): demo-AFM-COMMUNICATION');
         $this->command?->line('AFM (Lab/Power): demo-AFM-LAB');
         $this->command?->line('Source RAC: demo-RAC-VALLS');
@@ -788,9 +791,9 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->command?->line('GSA / Administrator: demo-GSA');
         $this->command?->newLine();
         $this->command?->line('No checkout requests are pre-created; submit the workflow live to trigger notifications.');
-        $this->command?->line('Projects: BCM (primary workflow), C1A (secondary)');
+        $this->command?->line('Projects: DEMO - BCM (primary workflow), DEMO - C1A (secondary)');
         $this->command?->line('Companies: Rabat, Valls, Pune');
-        $this->command?->line('FMCS and FMCS location scoping: disabled');
+        $this->command?->line('FMCS and FMCS location scoping: enabled');
         $this->command?->line('Destination: Rabat');
         $this->command?->line('Needed by: 2026-09-30');
         $this->command?->line('Vector VN1630A CAN/LIN Interface: quantity 5 / HARDWARE');

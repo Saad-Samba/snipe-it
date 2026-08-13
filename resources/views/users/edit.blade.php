@@ -318,6 +318,7 @@
                           'validation_name' => 'rac_discipline_ids',
                           'selected' => $user->racAssignments->pluck('discipline_id'),
                           'multiple' => 'true',
+                          'new_feature' => true,
                       ])
                   </div>
 

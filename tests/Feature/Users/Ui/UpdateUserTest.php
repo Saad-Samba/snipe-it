@@ -36,7 +36,9 @@ class UpdateUserTest extends TestCase
             ->get(route('users.edit', $user))
             ->assertOk()
             ->assertSee('rac_enabled', false)
-            ->assertSee(trans('admin/users/general.rac_enabled_label'));
+            ->assertSee(trans('admin/users/general.rac_enabled_label'))
+            ->assertSee(trans('admin/users/general.rac_discipline'))
+            ->assertSee('Recently released feature');
     }
 
     public function testCanViewEditPageForSoftDeletedUser()

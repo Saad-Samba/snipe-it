@@ -16,6 +16,7 @@ use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
+use App\Models\CompanyableScope;
 use App\Models\Discipline;
 use App\Models\Project;
 use App\Models\Setting;
@@ -59,15 +60,24 @@ class ModelRequestsController extends Controller
 
     public function getRequestableIndex(): View
     {
-        if (! auth()->user()?->hasAccess('models.request')) {
+        $user = auth()->user();
+        if (! $user?->hasAccess('models.request')) {
             throw new AuthorizationException('You are not authorized to request models.');
         }
+
+        $includeAllCompanies = $user->hasAccess('models.request.all_companies');
 
         $models = AssetModel::with([
             'category',
         ])
-            ->withCount(['availableAssets as reusable_assets_count'])
-            ->RequestableModels()
+            ->withCount([
+                'availableAssets as reusable_assets_count' => function ($assetQuery) use ($includeAllCompanies) {
+                    if ($includeAllCompanies) {
+                        $assetQuery->withoutGlobalScope(CompanyableScope::class);
+                    }
+                },
+            ])
+            ->RequestableModels($includeAllCompanies)
             ->orderBy('name')
             ->get();
         $companies = Company::orderBy('name')->get(['id', 'name']);

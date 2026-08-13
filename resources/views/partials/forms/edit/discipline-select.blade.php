@@ -9,7 +9,12 @@
 
 <div class="form-group{{ $errors->has($validationField) ? ' has-error' : '' }}">
 
-    <label for="{{ $fieldname }}" class="col-md-3 control-label">{{ $translated_name }}</label>
+    <label for="{{ $fieldname }}" class="col-md-3 control-label">
+        {{ $translated_name }}
+        @if (!empty($new_feature))
+            <x-new-feature-label />
+        @endif
+    </label>
 
     <div class="col-md-6">
         <select class="js-data-ajax" data-endpoint="disciplines" data-placeholder="{{ trans('general.select_discipline') }}" name="{{ $fieldname }}" style="width: 100%" id="discipline_select" aria-label="{{ $fieldname }}"{{ (isset($multiple) && ($multiple=='true')) ? " multiple='multiple'" : '' }}>
