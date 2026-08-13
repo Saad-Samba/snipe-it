@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
-use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
@@ -26,7 +24,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
 {
     private const PASSWORD = 'password';
 
-    private const WORKFLOW_SUBMISSION_BATCH_ID = '00000000-0000-4000-8000-000000000001';
+    private const LEGACY_PREPARED_SUBMISSION_BATCH_ID = '00000000-0000-4000-8000-000000000001';
 
     private const ASSET_TAGS = [
         'DEMO-RF-VN-001',
@@ -63,7 +61,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $manufacturers = $this->seedManufacturers();
         $models = $this->seedModels($categories, $manufacturers, $admin);
 
-        $projects = $this->seedProjects($users['epl']);
+        $this->seedProjects($users['epl']);
         $this->seedRacAssignments($users, $companies, $disciplines, $admin);
         $this->seedAssets(
             $users,
@@ -74,9 +72,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
             $models,
             $admin
         );
-        $this->seedPreparedTransferRequest($users, $companies, $disciplines, $projects, $models);
-        $this->seedPreparedRoutingGapRequest($users, $companies, $disciplines, $projects, $models);
-        $this->assertUnifiedWorkflowSubmission($users, $projects, $models);
+        $this->removeLegacyPreparedWorkflowSubmission();
         $this->assertDemoAssetsExist();
         $this->assertAfmCategoryCoverage($categories);
 
@@ -606,14 +602,6 @@ class ReuseWorkflowDemoSeeder extends Seeder
             ]
         );
 
-        $transfer = Project::withoutGlobalScopes()->updateOrCreate(
-            ['name' => 'DEMO - Cross-Site Debug Bench Transfer'],
-            [
-                'notes' => 'Prepared cross-company transfer request for the reuse-first demonstration.',
-                'created_by' => $epl->id,
-            ]
-        );
-
         $secondary = Project::withoutGlobalScopes()->updateOrCreate(
             ['name' => 'DEMO - Power Electronics Validation Cell'],
             [
@@ -622,7 +610,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
             ]
         );
 
-        return compact('live', 'transfer', 'secondary');
+        return compact('live', 'secondary');
     }
 
     private function seedRacAssignments(array $users, array $companies, array $disciplines, User $admin): void
@@ -675,122 +663,12 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->upsertAsset('DEMO-RF-EAPSU-001', 'EA-PS 9080-60 - Rabat Systems', $models['ea_power_supply'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
     }
 
-    private function seedPreparedTransferRequest(
-        array $users,
-        array $companies,
-        array $disciplines,
-        array $projects,
-        array $models
-    ): void {
-        $estimate = array_intersect_key(
-            EstimateAssetModelReuseAction::run(
-                $models['debug_probe'],
-                1,
-                '2026-09-30'
-            ),
-            array_flip([
-                'reusable_quantity',
-                'due_back_before_needed_by_quantity',
-                'potentially_coverable_quantity',
-                'procurement_shortfall',
-                'estimated_savings',
-                'reference_price_snapshot',
-            ])
-        );
-
-        $request = CheckoutRequest::withoutGlobalScopes()
-            ->where('requestable_id', $models['debug_probe']->id)
-            ->where('requestable_type', AssetModel::class)
-            ->where('user_id', $users['epl']->id)
-            ->whereIn('project_id', [$projects['live']->id, $projects['transfer']->id])
-            ->firstOrNew();
-
-        $request->forceFill(array_merge($estimate, [
-            'requestable_id' => $models['debug_probe']->id,
-            'requestable_type' => AssetModel::class,
-            'project_id' => $projects['live']->id,
-            'user_id' => $users['epl']->id,
-            'submission_batch_id' => self::WORKFLOW_SUBMISSION_BATCH_ID,
-            'quantity' => 1,
-            'requested_discipline_id' => $disciplines['embedded']->id,
-            'company_id' => $companies['rabat']->id,
-            'needed_by_date' => '2026-09-30',
-            'status' => CheckoutRequest::STATUS_PENDING,
-            'fulfilled_at' => null,
-            'canceled_at' => null,
-            'note' => 'Prepared transfer line in the unified reuse workflow submission.',
-        ]));
-        $request->save();
-
-        $request->allocatedAssets()->detach();
-        $request->coordinatorTargets()->delete();
-        $request->forceFill([
-            'rac_routing_status' => null,
-            'rac_unrouted_scopes' => null,
-            'rac_routing_alerted_at' => null,
-            'alternative_follow_up_notified_at' => null,
-        ])->save();
-
-        ResolveCheckoutRequestCoordinatorsAction::run($request, false);
-    }
-
-    private function seedPreparedRoutingGapRequest(
-        array $users,
-        array $companies,
-        array $disciplines,
-        array $projects,
-        array $models
-    ): void {
-        $estimate = array_intersect_key(
-            EstimateAssetModelReuseAction::run(
-                $models['network_interface'],
-                5,
-                '2026-09-30'
-            ),
-            array_flip([
-                'reusable_quantity',
-                'due_back_before_needed_by_quantity',
-                'potentially_coverable_quantity',
-                'procurement_shortfall',
-                'estimated_savings',
-                'reference_price_snapshot',
-            ])
-        );
-
-        $request = CheckoutRequest::withoutGlobalScopes()
-            ->where('requestable_id', $models['network_interface']->id)
-            ->where('requestable_type', AssetModel::class)
-            ->where('project_id', $projects['live']->id)
-            ->where('user_id', $users['epl']->id)
-            ->firstOrNew();
-
-        $request->forceFill(array_merge($estimate, [
-            'requestable_id' => $models['network_interface']->id,
-            'requestable_type' => AssetModel::class,
-            'project_id' => $projects['live']->id,
-            'user_id' => $users['epl']->id,
-            'submission_batch_id' => self::WORKFLOW_SUBMISSION_BATCH_ID,
-            'quantity' => 5,
-            'requested_discipline_id' => $disciplines['validation']->id,
-            'company_id' => $companies['rabat']->id,
-            'needed_by_date' => '2026-09-30',
-            'status' => CheckoutRequest::STATUS_PENDING,
-            'fulfilled_at' => null,
-            'canceled_at' => null,
-            'note' => 'Prepared direct-reuse and routing-gap line in the unified submission.',
-        ]));
-        $request->save();
-
-        $request->allocatedAssets()->detach();
-        $request->coordinatorTargets()->delete();
-        $request->forceFill([
-            'rac_routing_status' => null,
-            'rac_unrouted_scopes' => null,
-            'rac_routing_alerted_at' => null,
-            'alternative_follow_up_notified_at' => null,
-        ])->save();
-
-        ResolveCheckoutRequestCoordinatorsAction::run($request, false);
+    private function removeLegacyPreparedWorkflowSubmission(): void
+    {
+        CheckoutRequest::withoutGlobalScopes()
+            ->where('submission_batch_id', self::LEGACY_PREPARED_SUBMISSION_BATCH_ID)
+            ->get()
+            ->each->forceDelete();
     }
 
     private function upsertAsset(
@@ -848,31 +726,6 @@ class ReuseWorkflowDemoSeeder extends Seeder
         }
     }
 
-    private function assertUnifiedWorkflowSubmission(array $users, array $projects, array $models): void
-    {
-        $expectedModelIds = collect([
-            $models['network_interface']->id,
-            $models['debug_probe']->id,
-        ])->sort()->values();
-
-        $requests = CheckoutRequest::withoutGlobalScopes()
-            ->where('requestable_type', AssetModel::class)
-            ->where('user_id', $users['epl']->id)
-            ->whereIn('requestable_id', $expectedModelIds)
-            ->get();
-
-        if (
-            $requests->count() !== 2
-            || $requests->pluck('submission_batch_id')->unique()->values()->all() !== [self::WORKFLOW_SUBMISSION_BATCH_ID]
-            || $requests->pluck('project_id')->unique()->values()->all() !== [$projects['live']->id]
-            || $requests->pluck('requestable_id')->sort()->values()->all() !== $expectedModelIds->all()
-        ) {
-            throw new \RuntimeException(
-                'The demo EPM must have exactly one two-line submission containing the Vector and J-Link models.'
-            );
-        }
-    }
-
     private function assertAfmCategoryCoverage(array $categories): void
     {
         foreach ($categories as $category) {
@@ -910,15 +763,18 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->command?->line('Requestor: demo-REQUESTOR');
         $this->command?->line('GSA / Administrator: demo-GSA');
         $this->command?->newLine();
-        $this->command?->line('Unified submission: DEMO - Infotainment ECU Bench Expansion');
+        $this->command?->line('No checkout requests are pre-created; submit the workflow live to trigger notifications.');
+        $this->command?->line('Demo project: DEMO - Infotainment ECU Bench Expansion');
         $this->command?->line('Destination: LEAR Electronics Rabat');
         $this->command?->line('Needed by: 2026-09-30');
         $this->command?->line('Vector VN1630A CAN/LIN Interface: quantity 5 / HARDWARE');
         $this->command?->line('SEGGER J-Link PRO Debug Probe: quantity 1 / SOFTWARE');
         $this->command?->line('Intentional routing gap: LEAR Electronics Rabat / SOFTWARE');
         $this->command?->line('Gap alerts: enabled for demo-gsa@example.com');
-        $this->command?->line('Send the gap alert with: php artisan snipeit:reconcile-rac-routing');
+        $this->command?->line('Submitting the cart sends the initial RAC and routing-gap notifications.');
+        $this->command?->line('After assigning the missing RAC, reconcile with: php artisan snipeit:reconcile-rac-routing');
         $this->command?->line('Direct reuse line: Vector VN1630A CAN/LIN Interface');
         $this->command?->line('Cross-company transfer line: SEGGER J-Link PRO Debug Probe');
+        $this->command?->line('Expected emails after submitting both cart lines: demo-RAC-RABAT (Vector), demo-RAC-CASABLANCA (J-Link), and demo-gsa@example.com (Rabat / SOFTWARE gap).');
     }
 }
