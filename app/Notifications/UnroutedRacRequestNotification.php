@@ -28,7 +28,7 @@ class UnroutedRacRequestNotification extends Notification
                 'count' => count($this->lines),
             ]))
             ->withSymfonyMessage(function (Email $message) {
-                $message->getHeaders()->addTextHeader('X-System-Sender', 'Snipe-IT');
+                $message->getHeaders()->addTextHeader('X-System-Sender', 'LEAMS');
             });
 
         if ($replyToAddress = config('mail.reply_to.address')) {

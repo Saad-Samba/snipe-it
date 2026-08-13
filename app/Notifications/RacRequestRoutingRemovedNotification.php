@@ -33,7 +33,7 @@ class RacRequestRoutingRemovedNotification extends Notification
             ]))
             ->line(trans('mail.rac_request_routing_removed_action'))
             ->withSymfonyMessage(function (Email $message) {
-                $message->getHeaders()->addTextHeader('X-System-Sender', 'Snipe-IT');
+                $message->getHeaders()->addTextHeader('X-System-Sender', 'LEAMS');
             });
 
         if ($replyToAddress) {

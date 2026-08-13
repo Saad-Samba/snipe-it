@@ -123,7 +123,7 @@ class RequestAssetNotification extends Notification
             ->subject('👀 '.trans('mail.Item_Requested'))
             ->withSymfonyMessage(function (Email $message) {
                 $message->getHeaders()->addTextHeader(
-                    'X-System-Sender', 'Snipe-IT'
+                    'X-System-Sender', 'LEAMS'
                 );
             });
 

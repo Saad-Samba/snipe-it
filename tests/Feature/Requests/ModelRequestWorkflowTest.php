@@ -2650,8 +2650,8 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertStringNotContainsString('Allocate everything', $renderedMail);
         $this->assertStringContainsString('Inventory Discipline(s)', $renderedMail);
         $this->assertStringContainsString($discipline->name, $renderedMail);
-        $this->assertStringContainsString('Review request in Snipe-IT', $renderedMail);
-        $this->assertStringContainsString('Please open the request in Snipe-IT', $renderedMail);
+        $this->assertStringContainsString('Review request in LEAMS', $renderedMail);
+        $this->assertStringContainsString('Please open the request in LEAMS', $renderedMail);
         $this->assertSame('Action required: reusable request for '.$project->name, $mailMessage->subject);
     }
 

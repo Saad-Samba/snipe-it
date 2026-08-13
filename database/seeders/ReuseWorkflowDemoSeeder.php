@@ -73,6 +73,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
             $admin
         );
         $this->seedPreparedTransferRequest($users, $companies, $projects, $models);
+        $this->seedPreparedRoutingGapRequest($users, $companies, $projects, $models);
         $this->assertDemoAssetsExist();
         $this->assertAfmCategoryCoverage($categories);
 
@@ -259,11 +260,11 @@ class ReuseWorkflowDemoSeeder extends Seeder
     {
         $settings = Setting::query()->firstOrNew();
         $settings->forceFill([
-            'site_name' => 'LEAMS Reuse Workflow Demo',
+            'site_name' => 'LEAMS',
             'per_page' => 25,
             'auto_increment_assets' => 0,
-            'alert_email' => '',
-            'alerts_enabled' => 0,
+            'alert_email' => 'demo-gsa@example.com',
+            'alerts_enabled' => 1,
             'brand' => 2,
             'locale' => 'en-US',
             'default_currency' => 'EUR',
@@ -723,6 +724,58 @@ class ReuseWorkflowDemoSeeder extends Seeder
         ResolveCheckoutRequestCoordinatorsAction::run($request, false);
     }
 
+    private function seedPreparedRoutingGapRequest(
+        array $users,
+        array $companies,
+        array $projects,
+        array $models
+    ): void {
+        $estimate = array_intersect_key(
+            EstimateAssetModelReuseAction::run(
+                $models['network_interface'],
+                5,
+                '2026-09-30'
+            ),
+            array_flip([
+                'reusable_quantity',
+                'due_back_before_needed_by_quantity',
+                'potentially_coverable_quantity',
+                'procurement_shortfall',
+                'estimated_savings',
+                'reference_price_snapshot',
+            ])
+        );
+
+        $request = CheckoutRequest::withoutGlobalScopes()->updateOrCreate(
+            [
+                'requestable_id' => $models['network_interface']->id,
+                'requestable_type' => AssetModel::class,
+                'project_id' => $projects['live']->id,
+                'user_id' => $users['epl']->id,
+            ],
+            array_merge($estimate, [
+                'quantity' => 5,
+                'company_id' => $companies['rabat']->id,
+                'needed_by_date' => '2026-09-30',
+                'status' => CheckoutRequest::STATUS_PENDING,
+                'fulfilled_at' => null,
+                'canceled_at' => null,
+                'note' => 'Prepared routing-gap scenario for Rabat / SOFTWARE.',
+            ])
+        );
+
+        $request->allocatedAssets()->detach();
+        $request->coordinatorTargets()->delete();
+        $request->forceFill([
+            'rac_routing_status' => null,
+            'rac_unrouted_scopes' => null,
+            'rac_routing_alerted_at' => null,
+            'alternative_follow_up_notified_at' => null,
+        ])->save();
+
+        ResolveCheckoutRequestCoordinatorsAction::run($request, false);
+    }
+
     private function upsertAsset(
         string $tag,
         string $name,
@@ -821,6 +874,8 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->command?->line('Vector VN1630A CAN/LIN Interface: quantity 5 / HARDWARE');
         $this->command?->line('Tektronix MDO3024 Oscilloscope: quantity 1 / SYSTEMS');
         $this->command?->line('Intentional routing gap: LEAR Electronics Rabat / SOFTWARE');
+        $this->command?->line('Gap alerts: enabled for demo-gsa@example.com');
+        $this->command?->line('Send the gap alert with: php artisan snipeit:reconcile-rac-routing');
         $this->command?->line('Prepared transfer: SEGGER J-Link PRO Debug Probe / DEMO - Cross-Site Debug Bench Transfer');
     }
 }

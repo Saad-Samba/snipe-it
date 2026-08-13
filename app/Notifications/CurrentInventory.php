@@ -50,7 +50,7 @@ class CurrentInventory extends Notification
             ->subject(trans('mail.inventory_report'))
             ->withSymfonyMessage(function (Email $message) {
                 $message->getHeaders()->addTextHeader(
-                    'X-System-Sender', 'Snipe-IT'
+                    'X-System-Sender', 'LEAMS'
                 );
             });
 

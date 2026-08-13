@@ -40,7 +40,7 @@ class RacScopedRequestSummaryNotification extends Notification
             ->subject(trans($this->messageKey('subject'), ['project' => $projectName]))
             ->withSymfonyMessage(function (Email $message) {
                 $message->getHeaders()->addTextHeader(
-                    'X-System-Sender', 'Snipe-IT'
+                    'X-System-Sender', 'LEAMS'
                 );
             });
 
