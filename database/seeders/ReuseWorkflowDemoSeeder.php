@@ -120,14 +120,14 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $admin->id,
                 'demo-reuse-afm-lab'
             ),
-            'rac_casablanca' => $this->upsertUser(
-                'demo-RAC-CASABLANCA',
+            'rac_valls' => $this->upsertUser(
+                'demo-RAC-VALLS',
                 'Demo',
-                'RAC Casablanca',
-                'demo-rac-casablanca@example.com',
+                'RAC Valls',
+                'demo-rac-valls@example.com',
                 $this->racPermissions(),
                 $admin->id,
-                'demo-reuse-rac-casablanca'
+                'demo-RAC-CASABLANCA'
             ),
             'rac_rabat' => $this->upsertUser(
                 'demo-RAC-RABAT',
@@ -267,8 +267,8 @@ class ReuseWorkflowDemoSeeder extends Seeder
             'brand' => 2,
             'locale' => 'en-US',
             'default_currency' => 'EUR',
-            'full_multiple_companies_support' => 1,
-            'scope_locations_fmcs' => 1,
+            'full_multiple_companies_support' => 0,
+            'scope_locations_fmcs' => 0,
             'rfq_reserved_statuslabel_id' => $reservedStatus->id,
         ]);
         $settings->save();
@@ -278,28 +278,35 @@ class ReuseWorkflowDemoSeeder extends Seeder
     private function seedCompanies(User $admin): array
     {
         return [
-            'casablanca' => $this->upsertCompany('LEAR Electronics Casablanca', $admin),
-            'rabat' => $this->upsertCompany('LEAR Electronics Rabat', $admin),
-            'tangier' => $this->upsertCompany('LEAR Electronics Tangier', $admin),
+            'rabat' => $this->upsertCompany('Rabat', $admin, 'LEAR Electronics Rabat'),
+            'valls' => $this->upsertCompany('Valls', $admin, 'LEAR Electronics Casablanca'),
+            'pune' => $this->upsertCompany('Pune', $admin, 'LEAR Electronics Tangier'),
         ];
     }
 
-    private function upsertCompany(string $name, User $admin): Company
+    private function upsertCompany(string $name, User $admin, ?string $legacyName = null): Company
     {
-        return Company::withoutGlobalScopes()->updateOrCreate(
-            ['name' => $name],
-            ['created_by' => $admin->id]
-        );
+        $company = Company::withoutGlobalScopes()->where('name', $name)->first()
+            ?? ($legacyName ? Company::withoutGlobalScopes()->where('name', $legacyName)->first() : null)
+            ?? new Company();
+
+        $company->forceFill([
+            'name' => $name,
+            'created_by' => $admin->id,
+        ])->save();
+
+        return $company;
     }
 
     private function seedLocations(array $companies, User $admin): array
     {
         return [
-            'casablanca' => $this->upsertLocation(
-                'Casablanca Electronics Reuse Store',
-                'Casablanca',
-                $companies['casablanca'],
-                $admin
+            'valls' => $this->upsertLocation(
+                'Valls Electronics Reuse Store',
+                'Valls',
+                $companies['valls'],
+                $admin,
+                'Casablanca Electronics Reuse Store'
             ),
             'rabat' => $this->upsertLocation(
                 'Rabat Electronics Lab',
@@ -307,27 +314,38 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $companies['rabat'],
                 $admin
             ),
-            'tangier' => $this->upsertLocation(
-                'Tangier Validation Store',
-                'Tangier',
-                $companies['tangier'],
-                $admin
+            'pune' => $this->upsertLocation(
+                'Pune Validation Store',
+                'Pune',
+                $companies['pune'],
+                $admin,
+                'Tangier Validation Store'
             ),
         ];
     }
 
-    private function upsertLocation(string $name, string $city, Company $company, User $admin): Location
+    private function upsertLocation(
+        string $name,
+        string $city,
+        Company $company,
+        User $admin,
+        ?string $legacyName = null
+    ): Location
     {
-        return Location::withoutGlobalScopes()->updateOrCreate(
-            ['name' => $name],
-            [
-                'city' => $city,
-                'country' => 'Morocco',
-                'company_id' => $company->id,
-                'created_by' => $admin->id,
-                'notes' => 'Location prepared for the reuse-first demo.',
-            ]
-        );
+        $location = Location::withoutGlobalScopes()->where('name', $name)->first()
+            ?? ($legacyName ? Location::withoutGlobalScopes()->where('name', $legacyName)->first() : null)
+            ?? new Location();
+
+        $location->forceFill([
+            'name' => $name,
+            'city' => $city,
+            'country' => $city === 'Pune' ? 'India' : ($city === 'Valls' ? 'Spain' : 'Morocco'),
+            'company_id' => $company->id,
+            'created_by' => $admin->id,
+            'notes' => 'Location prepared for the reuse-first demo.',
+        ])->save();
+
+        return $location;
     }
 
     private function seedDisciplines(User $admin): array
@@ -366,7 +384,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
     {
         $scopes = [
             'epl' => ['rabat', 'rabat'],
-            'rac_casablanca' => ['casablanca', 'casablanca'],
+            'rac_valls' => ['valls', 'valls'],
             'rac_rabat' => ['rabat', 'rabat'],
             'engineer' => ['rabat', 'rabat'],
         ];
@@ -594,30 +612,36 @@ class ReuseWorkflowDemoSeeder extends Seeder
 
     private function seedProjects(User $epl): array
     {
-        $live = Project::withoutGlobalScopes()->updateOrCreate(
-            ['name' => 'DEMO - Infotainment ECU Bench Expansion'],
-            [
-                'notes' => 'Primary live request project for the reuse-first demonstration.',
-                'created_by' => $epl->id,
-            ]
-        );
+        $live = $this->upsertProject('BCM', 'DEMO - Infotainment ECU Bench Expansion', 'Primary live request project for the reuse-first demonstration.', $epl);
+        $secondary = $this->upsertProject('C1A', 'DEMO - Power Electronics Validation Cell', 'Secondary project for filters and follow-up demonstrations.', $epl);
 
-        $secondary = Project::withoutGlobalScopes()->updateOrCreate(
-            ['name' => 'DEMO - Power Electronics Validation Cell'],
-            [
-                'notes' => 'Secondary project for filters and follow-up demonstrations.',
-                'created_by' => $epl->id,
-            ]
-        );
+        Project::withoutGlobalScopes()
+            ->where('name', 'DEMO - Cross-Site Debug Bench Transfer')
+            ->delete();
 
         return compact('live', 'secondary');
+    }
+
+    private function upsertProject(string $name, string $legacyName, string $notes, User $creator): Project
+    {
+        $project = Project::withoutGlobalScopes()->where('name', $name)->first()
+            ?? Project::withoutGlobalScopes()->where('name', $legacyName)->first()
+            ?? new Project();
+
+        $project->forceFill([
+            'name' => $name,
+            'notes' => $notes,
+            'created_by' => $creator->id,
+        ])->save();
+
+        return $project;
     }
 
     private function seedRacAssignments(array $users, array $companies, array $disciplines, User $admin): void
     {
         $assignments = [
-            [$users['rac_casablanca'], $companies['casablanca'], $disciplines['validation']],
-            [$users['rac_casablanca'], $companies['casablanca'], $disciplines['embedded']],
+            [$users['rac_valls'], $companies['valls'], $disciplines['validation']],
+            [$users['rac_valls'], $companies['valls'], $disciplines['embedded']],
             [$users['rac_rabat'], $companies['rabat'], $disciplines['validation']],
             [$users['rac_rabat'], $companies['rabat'], $disciplines['power']],
         ];
@@ -650,14 +674,14 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->upsertAsset('DEMO-RF-VN-002', 'VN1630A - Rabat Systems', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
         $this->upsertAsset('DEMO-RF-VN-003', 'VN1630A - Rabat Uncovered Software Scope', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['embedded'], $admin);
         $this->upsertAsset('DEMO-RF-VN-004', 'VN1630A - Due Back Before Need', $models['network_interface'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['validation'], $admin, $users['engineer'], '2026-09-15');
-        $this->upsertAsset('DEMO-RF-PCAN-001', 'PCAN-USB FD - Casablanca Hardware', $models['pcan_interface'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['validation'], $admin);
+        $this->upsertAsset('DEMO-RF-PCAN-001', 'PCAN-USB FD - Valls Hardware', $models['pcan_interface'], $statuses['ready'], $companies['valls'], $locations['valls'], $disciplines['validation'], $admin);
 
         $this->upsertAsset('DEMO-RF-SCOPE-001', 'MDO3024 - Rabat Systems', $models['oscilloscope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
         $this->upsertAsset('DEMO-RF-SCOPE-002', 'MDO3024 - Archived Control', $models['oscilloscope'], $statuses['archived'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
         $this->upsertAsset('DEMO-RF-KEYSCOPE-001', 'DSOX1204G - Rabat Systems', $models['keysight_scope'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
 
-        $this->upsertAsset('DEMO-RF-JLINK-001', 'J-Link PRO - Available', $models['debug_probe'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['embedded'], $admin);
-        $this->upsertAsset('DEMO-RF-TRACE32-001', 'TRACE32 - Casablanca Software', $models['trace32_probe'], $statuses['ready'], $companies['casablanca'], $locations['casablanca'], $disciplines['embedded'], $admin);
+        $this->upsertAsset('DEMO-RF-JLINK-001', 'J-Link PRO - Available', $models['debug_probe'], $statuses['ready'], $companies['valls'], $locations['valls'], $disciplines['embedded'], $admin);
+        $this->upsertAsset('DEMO-RF-TRACE32-001', 'TRACE32 - Valls Software', $models['trace32_probe'], $statuses['ready'], $companies['valls'], $locations['valls'], $disciplines['embedded'], $admin);
         $this->upsertAsset('DEMO-RF-PSU-001', 'E36313A - Available', $models['power_supply'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
         $this->upsertAsset('DEMO-RF-PSU-002', 'E36313A - Out for Repair Control', $models['power_supply'], $statuses['repair'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
         $this->upsertAsset('DEMO-RF-EAPSU-001', 'EA-PS 9080-60 - Rabat Systems', $models['ea_power_supply'], $statuses['ready'], $companies['rabat'], $locations['rabat'], $disciplines['power'], $admin);
@@ -757,24 +781,26 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->command?->line('EPM: demo-EPM');
         $this->command?->line('AFM (Communication): demo-AFM-COMMUNICATION');
         $this->command?->line('AFM (Lab/Power): demo-AFM-LAB');
-        $this->command?->line('Source RAC: demo-RAC-CASABLANCA');
+        $this->command?->line('Source RAC: demo-RAC-VALLS');
         $this->command?->line('Receiving RAC: demo-RAC-RABAT');
         $this->command?->line('RAC used to close the intentional gap: demo-RAC-RABAT');
         $this->command?->line('Requestor: demo-REQUESTOR');
         $this->command?->line('GSA / Administrator: demo-GSA');
         $this->command?->newLine();
         $this->command?->line('No checkout requests are pre-created; submit the workflow live to trigger notifications.');
-        $this->command?->line('Demo project: DEMO - Infotainment ECU Bench Expansion');
-        $this->command?->line('Destination: LEAR Electronics Rabat');
+        $this->command?->line('Projects: BCM (primary workflow), C1A (secondary)');
+        $this->command?->line('Companies: Rabat, Valls, Pune');
+        $this->command?->line('FMCS and FMCS location scoping: disabled');
+        $this->command?->line('Destination: Rabat');
         $this->command?->line('Needed by: 2026-09-30');
         $this->command?->line('Vector VN1630A CAN/LIN Interface: quantity 5 / HARDWARE');
         $this->command?->line('SEGGER J-Link PRO Debug Probe: quantity 1 / SOFTWARE');
-        $this->command?->line('Intentional routing gap: LEAR Electronics Rabat / SOFTWARE');
+        $this->command?->line('Intentional routing gap: Rabat / SOFTWARE');
         $this->command?->line('Gap alerts: enabled for demo-gsa@example.com');
         $this->command?->line('Submitting the cart sends the initial RAC and routing-gap notifications.');
         $this->command?->line('After assigning the missing RAC, reconcile with: php artisan snipeit:reconcile-rac-routing');
         $this->command?->line('Direct reuse line: Vector VN1630A CAN/LIN Interface');
         $this->command?->line('Cross-company transfer line: SEGGER J-Link PRO Debug Probe');
-        $this->command?->line('Expected emails after submitting both cart lines: demo-RAC-RABAT (Vector), demo-RAC-CASABLANCA (J-Link), and demo-gsa@example.com (Rabat / SOFTWARE gap).');
+        $this->command?->line('Expected emails after submitting both cart lines: demo-RAC-RABAT (Vector), demo-RAC-VALLS (J-Link), and demo-gsa@example.com (Rabat / SOFTWARE gap).');
     }
 }
