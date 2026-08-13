@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
+use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\Setting;
@@ -21,19 +22,27 @@ class ReconcileRacRouting extends Command
     {
         $reconciledCount = 0;
         $alertedCount = 0;
+        $followUpRequestIds = [];
 
         CheckoutRequest::query()
             ->where('requestable_type', AssetModel::class)
-            ->where('status', CheckoutRequest::STATUS_PENDING)
+            ->whereIn('status', [
+                CheckoutRequest::STATUS_PENDING,
+                CheckoutRequest::STATUS_PARTIALLY_ALLOCATED,
+                CheckoutRequest::STATUS_NOT_ALLOCATED,
+                CheckoutRequest::STATUS_IN_TRANSFER,
+            ])
             ->whereNull('canceled_at')
             ->whereNull('fulfilled_at')
             ->with(['requestedItem', 'project'])
-            ->chunkById(200, function (Collection $checkoutRequests) use (&$reconciledCount, &$alertedCount) {
+            ->chunkById(200, function (Collection $checkoutRequests) use (&$reconciledCount, &$alertedCount, &$followUpRequestIds) {
                 $lines = [];
 
                 foreach ($checkoutRequests as $checkoutRequest) {
                     $routingResult = ResolveCheckoutRequestCoordinatorsAction::run($checkoutRequest, false);
                     $reconciledCount++;
+                    $submissionKey = $checkoutRequest->submission_batch_id ?: 'request-'.$checkoutRequest->id;
+                    $followUpRequestIds[$submissionKey] = $checkoutRequest->id;
 
                     if (! $routingResult->shouldAlert || empty($routingResult->unroutedScopes)) {
                         continue;
@@ -50,6 +59,16 @@ class ReconcileRacRouting extends Command
 
                 $alertedCount += $this->sendAlerts($lines);
             });
+
+        if (! empty($followUpRequestIds)) {
+            CheckoutRequest::query()
+                ->whereIn('id', array_values($followUpRequestIds))
+                ->get()
+                ->each(
+                    fn (CheckoutRequest $checkoutRequest) =>
+                        SendAlternativeFollowUpNotificationAction::run($checkoutRequest)
+                );
+        }
 
         $this->info(sprintf(
             '%d active requests reconciled; %d unrouted requests included in administrator alerts.',

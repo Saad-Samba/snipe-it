@@ -320,6 +320,65 @@ class ModelRequestWorkflowTest extends TestCase
         Notification::assertSentOnDemand(UnroutedRacRequestNotification::class);
     }
 
+    public function test_scheduled_reconciliation_sends_alternative_follow_up_when_routing_repair_completes_review()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->create(['email' => 'reconciliation-requester@example.com']);
+        $afm = User::factory()->create(['email' => 'reconciliation-afm@example.com']);
+        $rac = User::factory()->create();
+        $discipline = Discipline::create(['name' => 'Reconciled Review', 'created_by' => $requester->id]);
+        $sourceCompany = Company::factory()->create();
+        $category = Category::factory()->forAssets()->create(['manager_id' => $afm->id]);
+        $model = AssetModel::factory()->create(['category_id' => $category->id]);
+        $allocatedAsset = $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $rac->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $checkoutRequest = CheckoutRequest::factory()
+            ->forAssetModel()
+            ->create([
+                'requestable_id' => $model->id,
+                'user_id' => $requester->id,
+                'requested_discipline_id' => $discipline->id,
+                'company_id' => $sourceCompany->id,
+                'quantity' => 3,
+                'status' => CheckoutRequest::STATUS_PARTIALLY_ALLOCATED,
+                'rac_routing_status' => CheckoutRequest::RAC_ROUTING_PARTIALLY_ROUTED,
+                'rac_unrouted_scopes' => [[
+                    'company_id' => $sourceCompany->id,
+                    'discipline_id' => $discipline->id,
+                    'reusable_quantity' => 1,
+                ]],
+            ]);
+        $checkoutRequest->coordinatorTargets()->create([
+            'user_id' => $rac->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $discipline->id,
+            'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_COMPLETED_NO_STOCK,
+        ]);
+        $checkoutRequest->allocatedAssets()->attach($allocatedAsset->id, [
+            'allocated_by' => $rac->id,
+            'allocated_at' => now(),
+        ]);
+
+        $this->assertSame(2, $checkoutRequest->remainingAllocationQuantity());
+
+        $this->artisan('snipeit:reconcile-rac-routing')
+            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts.')
+            ->assertSuccessful();
+
+        $checkoutRequest->refresh();
+        $this->assertSame(CheckoutRequest::RAC_ROUTING_ROUTED, $checkoutRequest->rac_routing_status);
+        $this->assertNotNull($checkoutRequest->alternative_follow_up_notified_at);
+        Notification::assertSentTo($requester, RequestAlternativeFollowUpNotification::class);
+    }
+
     public function test_category_assignment_does_not_grant_models_request_capability()
     {
         $requester = User::factory()->create();
