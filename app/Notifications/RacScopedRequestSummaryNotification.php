@@ -63,9 +63,7 @@ class RacScopedRequestSummaryNotification extends Notification
 
     public function reviewUrl(): ?string
     {
-        return $this->summary['lines'][0]['request_detail_url']
-            ?? $this->summary['lines'][0]['project_requests_url']
-            ?? null;
+        return route('rac-requests.index');
     }
 
     public function isReminder(): bool

@@ -2589,7 +2589,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('Total Need Cost', false);
     }
 
-    public function test_rac_notification_points_reviewers_to_the_request_in_the_app()
+    public function test_rac_notification_points_reviewers_to_received_requests()
     {
         $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
         $coordinator = User::factory()->create(['first_name' => 'Mail', 'last_name' => 'RAC']);
@@ -2646,7 +2646,7 @@ class ModelRequestWorkflowTest extends TestCase
         $renderedMail = $notification->toMail($coordinator)->render();
         $mailMessage = $notification->toMail($coordinator);
 
-        $this->assertSame(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']), $notification->reviewUrl());
+        $this->assertSame(route('rac-requests.index'), $notification->reviewUrl());
         $this->assertStringNotContainsString('Allocate everything', $renderedMail);
         $this->assertStringContainsString('Inventory Discipline(s)', $renderedMail);
         $this->assertStringContainsString($discipline->name, $renderedMail);
