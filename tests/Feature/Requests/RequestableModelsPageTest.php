@@ -7,6 +7,7 @@ use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Discipline;
+use App\Models\Group;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Tests\TestCase;
@@ -126,5 +127,40 @@ class RequestableModelsPageTest extends TestCase
             ->get(route('requestable-assets'))
             ->assertOk()
             ->assertDontSeeText('Other-company-only reusable model');
+    }
+
+    public function test_group_permission_shows_requestable_models_across_companies_under_fmcs(): void
+    {
+        $this->settings->enableMultipleFullCompanySupport();
+
+        $eplCompany = Company::factory()->create();
+        $sourceCompany = Company::factory()->create();
+        $epl = User::factory()->create(['company_id' => $eplCompany->id]);
+        $eplGroup = Group::factory()->create([
+            'permissions' => json_encode([
+                'models.request' => '1',
+                'models.request.all_companies' => '1',
+            ]),
+        ]);
+        $epl->groups()->attach($eplGroup);
+
+        $model = AssetModel::factory()->create([
+            'name' => 'Group-visible cross-company model',
+            'category_id' => Category::factory()->forAssets()->create()->id,
+        ]);
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'company_id' => $sourceCompany->id,
+            'status_id' => Statuslabel::factory()->readyToDeploy(),
+            'requestable' => true,
+        ]);
+
+        $this->assertTrue($epl->hasAccess('models.request'));
+        $this->assertTrue($epl->hasAccess('models.request.all_companies'));
+
+        $this->actingAs($epl)
+            ->get(route('requestable-assets'))
+            ->assertOk()
+            ->assertSeeText('Group-visible cross-company model');
     }
 }

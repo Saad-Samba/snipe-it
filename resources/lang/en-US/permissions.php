@@ -247,6 +247,10 @@ return array(
         'name' => 'Request Models',
         'note' => 'Allows the user to submit and manage model requests from the Models page.',
     ],
+    'modelsrequestall-companies' => [
+        'name' => 'Request Models Across All Companies',
+        'note' => 'Allows the user to see requestable models and reusable inventory counts across company boundaries when full multiple company support is enabled.',
+    ],
     'categories'   => [
         'name' => 'Categories',
         'note'       => 'Grants access to the Categories section of the application.',

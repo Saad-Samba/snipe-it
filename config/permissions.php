@@ -275,6 +275,10 @@ return [
             'permission' => 'models.request',
             'display'    => true,
         ],
+        [
+            'permission' => 'models.request.all_companies',
+            'display'    => true,
+        ],
 
     ],
 
