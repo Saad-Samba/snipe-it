@@ -82,7 +82,7 @@ class CheckinAccessoryNotification extends Notification
         }
 
         if ($item->company) {
-            $fields[trans('general.company')] = $item->company->name;
+            $fields[trans(trans()->hasForLocale('mail.company') ? 'mail.company' : 'general.company')] = $item->company->name;
         }
 
         return (new SlackMessage)

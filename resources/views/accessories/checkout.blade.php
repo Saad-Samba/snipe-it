@@ -80,9 +80,9 @@
           <!-- checkout selector -->
 
              @include ('partials.forms.checkout-selector', ['user_select' => 'true','asset_select' => 'true', 'location_select' => 'true'])
-             @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.user'), 'company_id' => $accessory->company_id, 'fieldname' => 'assigned_user', 'style' => (session('checkout_to_type') ?: 'user') == 'user' ? '' : 'display: none;'])
-             @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.asset'), 'asset_selector_div_id' => 'assigned_asset', 'company_id' => $accessory->company_id, 'fieldname' => 'assigned_asset', 'unselect' => 'true', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
-             @include ('partials.forms.edit.location-select', ['translated_name' => trans('general.location'), 'fieldname' => 'assigned_location', 'company_id' => $accessory->company_id, 'style' => session('checkout_to_type') == 'location' ? '' : 'display: none;'])
+             @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.assign_to_user'), 'company_id' => $accessory->company_id, 'fieldname' => 'assigned_user', 'style' => (session('checkout_to_type') ?: 'user') == 'user' ? '' : 'display: none;'])
+             @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.assign_to_asset'), 'asset_selector_div_id' => 'assigned_asset', 'company_id' => $accessory->company_id, 'fieldname' => 'assigned_asset', 'unselect' => 'true', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
+             @include ('partials.forms.edit.location-select', ['translated_name' => trans('general.assign_to_location'), 'fieldname' => 'assigned_location', 'company_id' => $accessory->company_id, 'style' => session('checkout_to_type') == 'location' ? '' : 'display: none;'])
 
 
 
@@ -125,7 +125,7 @@
              @endif
           <!-- Note -->
           <div class="form-group {{ $errors->has('note') ? 'error' : '' }}">
-            <label for="note" class="col-md-3 control-label">{{ trans('admin/hardware/form.notes') }}</label>
+            <label for="note" class="col-md-3 control-label">{{ trans('general.checkout_note') }}</label>
             <div class="col-md-7">
               <textarea class="col-md-6 form-control" id="note" name="note">{{ old('note', $accessory->note) }}</textarea>
               {!! $errors->first('note', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -134,7 +134,7 @@
        </div>
           <x-redirect_submit_options
                   index_route="accessories.index"
-                  :button_label="trans('general.checkout')"
+                  :button_label="trans('admin/accessories/general.checkout')"
                   :options="[
                         'index' => trans('admin/hardware/form.redirect_to_all', ['type' => trans('general.accessories')]),
                         'item' => trans('admin/hardware/form.redirect_to_type', ['type' => trans('general.accessory')]),

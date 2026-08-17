@@ -79,7 +79,7 @@
 
 
           <!-- User -->
-            @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.select_user'), 'fieldname' => 'assigned_to', 'required'=> 'true'])
+            @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.assign_to_user'), 'fieldname' => 'assigned_to', 'required'=> 'true'])
 
 
             @if ($consumable->requireAcceptance() || $consumable->getEula() || ($snipeSettings->webhook_endpoint!=''))
@@ -121,7 +121,7 @@
           
           <!-- Note -->
           <div class="form-group {{ $errors->has('note') ? 'error' : '' }}">
-            <label for="note" class="col-md-3 control-label">{{ trans('admin/hardware/form.notes') }}</label>
+            <label for="note" class="col-md-3 control-label">{{ trans('general.checkout_note') }}</label>
             <div class="col-md-7">
               <textarea class="col-md-6 form-control" name="note">{{ old('note') }}</textarea>
               {!! $errors->first('note', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -130,7 +130,7 @@
         </div> <!-- .box-body -->
             <x-redirect_submit_options
                     index_route="consumables.index"
-                    :button_label="trans('general.checkout')"
+                    :button_label="trans('general.issue')"
                     :options="[
                                 'index' => trans('admin/hardware/form.redirect_to_all', ['type' => trans('general.consumables')]),
                                 'item' => trans('admin/hardware/form.redirect_to_type', ['type' => trans('general.consumable')]),

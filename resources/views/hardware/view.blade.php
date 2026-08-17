@@ -1073,7 +1073,7 @@
                                             <div class="row">
                                                 <div class="col-md-3">
                                                     <strong>
-                                                        {{ trans('general.location') }}
+                                                        {{ trans('general.current_location') }}
                                                     </strong>
                                                 </div>
                                                 <div class="col-md-9">

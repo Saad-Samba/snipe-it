@@ -252,7 +252,7 @@
                                         @if ($setting->qr_code == 1)
                                             <input
                                                 class="form-control"
-                                                placeholder="Property of Your Company"
+                                                placeholder="Property of Your Organization"
                                                 rel="txtTooltip"
                                                 title="Extra text that you would like to display on your labels."
                                                 data-toggle="tooltip"
@@ -266,7 +266,7 @@
                                             <input
                                                 class="form-control"
                                                 disabled="disabled"
-                                                placeholder="Property of Your Company"
+                                                placeholder="Property of Your Organization"
                                                 name="qr_text"
                                                 type="text"
                                                 id="qr_text"

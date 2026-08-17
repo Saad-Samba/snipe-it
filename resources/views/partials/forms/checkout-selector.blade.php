@@ -1,5 +1,5 @@
 <div class="form-group" id="assignto_selector"{!!  (isset($style)) ? ' style="'.e($style).'"' : ''  !!}>
-    <label for="checkout_to_type" class="col-md-3 control-label">{{ trans('admin/hardware/form.checkout_to') }}</label>
+    <label for="checkout_to_type" class="col-md-3 control-label">{{ $translated_name ?? trans('general.assign_to') }}</label>
     <div class="col-md-8">
 
         <div class="btn-group" data-toggle="buttons">

@@ -48,7 +48,7 @@
             @endif
 
           <!-- Asset -->
-            @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.select_asset'), 'fieldname' => 'asset_id', 'company_id' => $component->company_id, 'required' => 'true', 'value' => old('asset_id')])
+            @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.assign_to_asset'), 'fieldname' => 'asset_id', 'company_id' => $component->company_id, 'required' => 'true', 'value' => old('asset_id')])
 
             <div class="form-group {{ $errors->has('assigned_qty') ? ' has-error' : '' }}">
               <label for="assigned_qty" class="col-md-3 control-label">
@@ -91,7 +91,7 @@
 
             <!-- Note -->
             <div class="form-group{{ $errors->has('note') ? ' error' : '' }}">
-              <label for="note" class="col-md-3 control-label">{{ trans('admin/hardware/form.notes') }}</label>
+              <label for="note" class="col-md-3 control-label">{{ trans('general.checkout_note') }}</label>
               <div class="col-md-7">
                 <textarea class="col-md-6 form-control" id="note" name="note">{{ old('note', $component->note) }}</textarea>
                 {!! $errors->first('note', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -102,7 +102,7 @@
         </div> <!-- .BOX-BODY-->
           <x-redirect_submit_options
                   index_route="components.index"
-                  :button_label="trans('general.checkout')"
+                  :button_label="trans('admin/components/general.checkout')"
                   :options="[
                                 'index' => trans('admin/hardware/form.redirect_to_all', ['type' => trans('general.components')]),
                                 'item' => trans('admin/hardware/form.redirect_to_type', ['type' => trans('general.component')]),

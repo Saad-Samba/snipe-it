@@ -57,7 +57,7 @@
           <!-- Note -->
           <div class="form-group {{ $errors->has('note') ? 'error' : '' }}">
               <label for="note" class="col-md-3 control-label">
-                  {{ trans('general.notes') }}
+                  {{ trans('general.checkout_note') }}
               </label>
             <div class="col-md-8">
               <textarea class="col-md-6 form-control" id="note" name="note">{{ old('note') }}</textarea>
@@ -68,7 +68,7 @@
       </div> <!--./box-body-->
       <div class="box-footer">
         <a class="btn btn-link" href="{{ route('kits.index') }}"> {{ trans('button.cancel') }}</a>
-        <button type="submit" class="btn btn-success pull-right"><x-icon type="checkmark" /> {{ trans('general.checkout') }}</button>
+        <button type="submit" class="btn btn-success pull-right"><x-icon type="checkmark" /> {{ trans('admin/kits/general.checkout') }}</button>
       </div>
     </div>
       </form>

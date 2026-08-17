@@ -70,7 +70,7 @@
                                 <div class=" col-md-9 col-md-offset-3">
                                     <label class="form-control">
                                         <input type="checkbox" name="null_company_id" value="1" />
-                                        {{ trans_choice('general.set_users_field_to_null', count($users), ['field' => trans('general.company'), 'user_count' => count($users)]) }}
+                                        {{ trans('general.clear_site') }}
                                     </label>
                                 </div>
                             </div>

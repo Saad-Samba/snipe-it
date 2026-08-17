@@ -72,8 +72,8 @@
                     @endcan
 
                     @include ('partials.forms.checkout-selector', ['user_select' => 'true','asset_select' => 'true', 'location_select' => 'false'])
-                    @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.user'), 'fieldname' => 'assigned_to', 'style' => (session('checkout_to_type') ?: 'user') == 'user' ? '' : 'display: none;'])
-                    @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.select_asset'), 'fieldname' => 'asset_id', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
+                    @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.assign_to_user'), 'fieldname' => 'assigned_to', 'style' => (session('checkout_to_type') ?: 'user') == 'user' ? '' : 'display: none;'])
+                    @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.assign_to_asset'), 'fieldname' => 'asset_id', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
 
                     <!-- Note -->
                     <div class="form-group {{ $errors->has('notes') ? 'error' : '' }}">
@@ -120,7 +120,7 @@
 
                 <x-redirect_submit_options
                         index_route="licenses.index"
-                        :button_label="trans('general.checkout')"
+                        :button_label="trans('admin/licenses/general.checkout')"
                         :options="[
                                 'index' => trans('admin/hardware/form.redirect_to_all', ['type' => trans('general.licenses')]),
                                 'item' => trans('admin/hardware/form.redirect_to_type', ['type' => trans('general.license')]),

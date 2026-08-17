@@ -103,11 +103,11 @@ class CheckoutAssetNotification extends Notification
         }
 
         if ($item->company) {
-            $fields[trans('general.company')] = $item->company->name;
+            $fields[trans(trans()->hasForLocale('mail.company') ? 'mail.company' : 'general.company')] = $item->company->name;
         }
 
         if (($this->expected_checkin) && ($this->expected_checkin !== '')) {
-            $fields[trans('general.expected_checkin')] = $this->expected_checkin;
+            $fields[trans(trans()->hasForLocale('mail.expected_checkin') ? 'mail.expected_checkin' : 'general.expected_checkin')] = $this->expected_checkin;
         }
 
         return (new SlackMessage)

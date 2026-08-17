@@ -50,7 +50,7 @@
 
                         <!-- Note -->
                         <div class="form-group {{ $errors->has('note') ? 'error' : '' }}">
-                            <label for="note" class="col-md-2 control-label">{{ trans('admin/hardware/form.notes') }}</label>
+                            <label for="note" class="col-md-2 control-label">{{ trans('general.checkin_note') }}</label>
                             <div class="col-md-7">
                                 <textarea class="col-md-6 form-control" id="note" name="note">{{ old('note', $component->note) }}</textarea>
                                 {!! $errors->first('note', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -58,7 +58,7 @@
                         </div>
                         <x-redirect_submit_options
                                 index_route="components.index"
-                                :button_label="trans('general.checkin')"
+                                :button_label="trans('admin/components/general.checkin')"
                                 :options="[
                                 'index' => trans('admin/hardware/form.redirect_to_all', ['type' => trans('general.components')]),
                                 'item' => trans('admin/hardware/form.redirect_to_type', ['type' => trans('general.component')]),

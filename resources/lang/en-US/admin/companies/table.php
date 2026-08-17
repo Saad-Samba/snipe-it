@@ -1,11 +1,11 @@
 <?php
 return array(
-    'companies' => 'Companies',
-    'create'    => 'Create Company',
-    'email'     => 'Company Email',
-    'title'     => 'Company',
-    'phone'     => 'Company Phone',
-    'update'    => 'Update Company',
-    'name'      => 'Company Name',
+    'companies' => 'Sites',
+    'create'    => 'Create Site',
+    'email'     => 'Site Email',
+    'title'     => 'Site',
+    'phone'     => 'Site Phone',
+    'update'    => 'Update Site',
+    'name'      => 'Site Name',
     'id'        => 'ID',
 );

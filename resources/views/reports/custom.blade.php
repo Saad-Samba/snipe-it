@@ -184,7 +184,7 @@
 
                 <label class="form-control">
                     <input type="checkbox" name="location" value="1" @checked($template->checkmarkValue('location')) />
-                    {{ trans('general.location') }}
+                    {{ trans('general.current_location') }}
                 </label>
 
               <label class="form-control" style="margin-left: 25px;">
@@ -358,7 +358,7 @@
                     'selected' => $template->selectValues('by_company_id', \App\Models\Company::class),
             ])
             @include ('partials.forms.edit.location-select', [
-                    'translated_name' => trans('general.location'),
+                    'translated_name' => trans('general.current_location'),
                     'fieldname' => 'by_location_id[]',
                     'multiple' => 'true',
                     'hide_new' => 'true',
@@ -479,7 +479,7 @@
 
           <!-- Checkout Date -->
           <div class="form-group checkout-range{{ ($errors->has('checkout_date_start') || $errors->has('checkout_date_end')) ? ' has-error' : '' }}">
-              <label for="checkout_date" class="col-md-3 control-label">{{ trans('general.checkout') }} </label>
+              <label for="checkout_date" class="col-md-3 control-label">{{ trans('general.assignment_date_range') }}</label>
               <div class="input-daterange input-group col-md-7" id="checkout-range-datepicker">
                   <input type="text" placeholder="{{ trans('general.select_date') }}"  class="form-control" name="checkout_date_start" aria-label="checkout_date_start" value="{{ $template->textValue('checkout_date_start', old('checkout_date_start')) }}">
                   <span class="input-group-addon"> - </span>
@@ -497,7 +497,7 @@
 
           <!-- Last Checkin Date -->
           <div class="form-group checkin-range{{ ($errors->has('checkin_date_start') || $errors->has('checkin_date_end')) ? ' has-error' : '' }}">
-              <label for="checkin_date" class="col-md-3 control-label">{{ trans('admin/hardware/table.last_checkin_date') }}</label>
+              <label for="checkin_date" class="col-md-3 control-label">{{ trans('general.return_date_range') }}</label>
               <div class="input-daterange input-group col-md-7" id="checkin-range-datepicker">
                   <input type="text" placeholder="{{ trans('general.select_date') }}" class="form-control" name="checkin_date_start" aria-label="checkin_date_start" value="{{ $template->textValue('checkin_date_start', old('checkin_date_start')) }}">
                   <span class="input-group-addon"> - </span>
@@ -514,7 +514,7 @@
 
             <!-- Expected Checkin Date -->
             <div class="form-group expected_checkin-range{{ ($errors->has('expected_checkin_start') || $errors->has('expected_checkin_end')) ? ' has-error' : '' }}">
-              <label for="expected_checkin_start" class="col-md-3 control-label">{{ trans('admin/hardware/form.expected_checkin') }}</label>
+              <label for="expected_checkin_start" class="col-md-3 control-label">{{ trans('general.expected_return_date_range') }}</label>
               <div class="input-daterange input-group col-md-7" id="expected_checkin-range-datepicker">
                   <input type="text" placeholder="{{ trans('general.select_date') }}" class="form-control" name="expected_checkin_start" aria-label="expected_checkin_start" value="{{ $template->textValue('expected_checkin_start', old('expected_checkin_start')) }}">
                   <span class="input-group-addon"> - </span>
@@ -549,7 +549,7 @@
 
               <!-- Last Audit Date -->
               <div class="form-group last_audit-range{{ ($errors->has('last_audit_start') || $errors->has('last_audit_end')) ? ' has-error' : '' }}">
-                  <label for="last_audit_start" class="col-md-3 control-label">{{ trans('general.last_audit') }}</label>
+                  <label for="last_audit_start" class="col-md-3 control-label">{{ trans('general.last_verification_date_range') }}</label>
                   <div class="input-daterange input-group col-md-7" id="last_audit-range-datepicker">
                       <input type="text" placeholder="{{ trans('general.select_date') }}"  class="form-control" name="last_audit_start" aria-label="last_audit_start" value="{{ $template->textValue('last_audit_start', old('last_audit_start')) }}">
                       <span class="input-group-addon"> - </span>
@@ -566,7 +566,7 @@
 
               <!-- Next Audit Date -->
               <div class="form-group next_audit-range{{ ($errors->has('next_audit_start') || $errors->has('next_audit_end')) ? ' has-error' : '' }}">
-                  <label for="next_audit_start" class="col-md-3 control-label">{{ trans('general.next_audit_date') }}</label>
+                  <label for="next_audit_start" class="col-md-3 control-label">{{ trans('general.next_verification_due_date_range') }}</label>
                   <div class="input-daterange input-group col-md-7" id="next_audit-range-datepicker">
                       <input type="text" placeholder="{{ trans('general.select_date') }}"  class="form-control" name="next_audit_start" aria-label="next_audit_start" value="{{ $template->textValue('next_audit_start', old('next_audit_start')) }}">
                       <span class="input-group-addon"> - </span>

@@ -59,7 +59,7 @@ class AuditNotification extends Notification
         $channel = ($this->settings->webhook_channel) ? $this->settings->webhook_channel : '';
         return (new SlackMessage)
             ->success()
-            ->content(class_basename(get_class($this->params['item'])).' '.trans('general.audited'))
+            ->content(class_basename(get_class($this->params['item'])).' '.trans(trans()->hasForLocale('mail.audited') ? 'mail.audited' : 'general.audited'))
             ->from(($this->settings->webhook_botname) ? $this->settings->webhook_botname : 'Snipe-Bot')
             ->to($channel)
             ->attachment(function ($attachment) {
@@ -88,7 +88,7 @@ class AuditNotification extends Notification
             return MicrosoftTeamsMessage::create()
                 ->to($setting->webhook_endpoint)
                 ->type('success')
-                ->title(class_basename(get_class($params['item'])) .' '.trans('general.audited'))
+                ->title(class_basename(get_class($params['item'])) .' '.trans(trans()->hasForLocale('mail.audited') ? 'mail.audited' : 'general.audited'))
                 ->addStartGroupToSection('activityText')
                 ->fact(trans('mail.asset'), $item)
                 ->fact(trans('general.administrator'), $admin_user->present()->viewUrl() . '|' . $admin_user->display_name);
