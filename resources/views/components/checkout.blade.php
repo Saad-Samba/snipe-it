@@ -102,7 +102,7 @@
         </div> <!-- .BOX-BODY-->
           <x-redirect_submit_options
                   index_route="components.index"
-                  :button_label="trans('admin/components/general.checkout')"
+                  :button_label="trans('general.checkout')"
                   :options="[
                                 'index' => trans('admin/hardware/form.redirect_to_all', ['type' => trans('general.components')]),
                                 'item' => trans('admin/hardware/form.redirect_to_type', ['type' => trans('general.component')]),

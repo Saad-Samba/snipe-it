@@ -134,7 +134,7 @@
        </div>
           <x-redirect_submit_options
                   index_route="accessories.index"
-                  :button_label="trans('admin/accessories/general.checkout')"
+                  :button_label="trans('general.checkout')"
                   :options="[
                         'index' => trans('admin/hardware/form.redirect_to_all', ['type' => trans('general.accessories')]),
                         'item' => trans('admin/hardware/form.redirect_to_type', ['type' => trans('general.accessory')]),

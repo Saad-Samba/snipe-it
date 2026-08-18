@@ -81,7 +81,7 @@
             </div>
                         <x-redirect_submit_options
                                 index_route="licenses.index"
-                                :button_label="trans('admin/licenses/general.checkin')"
+                                :button_label="trans('general.checkin')"
                                 :options="[
                                 'index' => trans('admin/hardware/form.redirect_to_all', ['type' => trans('general.licenses')]),
                                 'item' => trans('admin/hardware/form.redirect_to_type', ['type' => trans('general.license')]),
