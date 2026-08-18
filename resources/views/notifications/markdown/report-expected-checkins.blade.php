@@ -1,10 +1,10 @@
 @component('mail::message')
 # {{ trans('mail.hello') }},
 
-{{ trans(trans()->hasForLocale('mail.due_to_checkin') ? 'mail.due_to_checkin' : 'general.due_to_checkin', ['count' => $assets->count()]) }}
+{{ trans('general.due_to_checkin', ['count' => $assets->count()]) }}
 
 @component('mail::table')
-| {{ trans('general.assets') }} | {{ trans(trans()->hasForLocale('mail.checked_out_to') ? 'mail.checked_out_to' : 'general.checked_out_to') }} | {{ trans(trans()->hasForLocale('mail.expected_checkin') ? 'mail.expected_checkin' : 'general.expected_checkin') }} |
+| {{ trans('general.assets') }} | {{ trans('general.checked_out_to') }} | {{ trans('general.expected_checkin') }} |
 | ------------- | ------------- | ------------- |
 @foreach ($assets as $asset)
 @php

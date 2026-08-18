@@ -90,11 +90,11 @@ class CheckoutConsumableNotification extends Notification
         }
 
         if ($item->company) {
-            $fields[trans(trans()->hasForLocale('mail.company') ? 'mail.company' : 'general.company')] = $item->company->name;
+            $fields[trans('general.company')] = $item->company->name;
         }
 
         return (new SlackMessage)
-            ->content(':arrow_up: :paperclip: Consumable Checked Out')
+            ->content(':arrow_up: :paperclip: Consumable Issued')
             ->from($botname)
             ->to($channel)
             ->attachment(function ($attachment) use ($item, $note, $admin, $fields) {

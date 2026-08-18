@@ -1,6 +1,6 @@
 @component('mail::message')
 
-{{ trans(trans()->hasForLocale('mail.reminder_checked_out_items') ? 'mail.reminder_checked_out_items' : 'general.reminder_checked_out_items', ['reply_to_name' => config('mail.reply_to.name'), 'reply_to_address' => config('mail.reply_to.address')]) }}
+{{ trans('general.reminder_checked_out_items', ['reply_to_name' => config('mail.reply_to.name'), 'reply_to_address' => config('mail.reply_to.address')]) }}
 
 @component('mail::table')
 

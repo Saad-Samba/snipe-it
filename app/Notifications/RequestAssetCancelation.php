@@ -85,7 +85,7 @@ class RequestAssetCancelation extends Notification
         ];
 
         if (($this->expected_checkin) && ($this->expected_checkin != '')) {
-            $fields['Expected Checkin'] = $this->expected_checkin;
+            $fields['Expected Return Date'] = $this->expected_checkin;
         }
 
         return (new SlackMessage)
