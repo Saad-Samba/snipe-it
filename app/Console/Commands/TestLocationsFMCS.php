@@ -19,14 +19,14 @@ class TestLocationsFMCS extends Command
      *
      * @var string
      */
-    protected $description = 'Test for company ID inconsistencies if FullMultipleCompanySupport with scoped locations will be used.';
+    protected $description = 'Test for site ID inconsistencies if Full Multiple Site Support with scoped locations will be used.';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $this->info('This script checks for company ID inconsistencies if Full Multiple Company Support with scoped locations will be used.');
+        $this->info('This script checks for site ID inconsistencies if Full Multiple Site Support with scoped locations will be used.');
         $this->info('This could take a few moments if have a very large dataset.');
         $this->newLine();
 
@@ -39,9 +39,9 @@ class TestLocationsFMCS extends Command
         $mismatched = Helper::test_locations_fmcs(true, $location_id);
         $this->warn(trans_choice('admin/settings/message.location_scoping.mismatch', count($mismatched)));
         $this->newLine();
-        $this->info('Edit your locations to associate them with the correct company.');
+        $this->info('Edit your locations to associate them with the correct site.');
 
-        $header = ['Type', 'ID', 'Name', 'Checkout Type',  'Company ID', 'Item Company', 'Item Location', 'Location Company', 'Location Company ID'];
+        $header = ['Type', 'ID', 'Name', 'Assignment Type', 'Site ID', 'Item Site', 'Item Location', 'Location Site', 'Location Site ID'];
         sort($mismatched);
 
         $this->table($header, $mismatched);

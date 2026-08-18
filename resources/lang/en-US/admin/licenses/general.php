@@ -29,7 +29,7 @@ return array(
                 'disabled_tooltip'  => 'This is disabled because there are no seats currently assigned',
                 'disabled_tooltip_reassignable'  => 'This is disabled because the License is not reassignable',
                 'success'           => 'License returned successfully! | All licenses were returned successfully!',
-                'log_msg'           => 'Checked in via bulk license checkin in license GUI',
+                'log_msg'           => 'Returned via bulk license return in license GUI',
             ],
 
             'checkout_all'              => [
@@ -41,7 +41,7 @@ return array(
                 'error_no_seats'    => 'There are no remaining seats left for this license.',
                 'warn_not_enough_seats'    => ':count users were assigned this license, but we ran out of available license seats.',
                 'warn_no_avail_users'    => 'Nothing to do. There are no users who do not already have this license assigned to them.',
-                'log_msg'           => 'Checked out via bulk license checkout in license GUI',
+                'log_msg'           => 'Assigned via bulk license assignment in license GUI',
 
 
             ],

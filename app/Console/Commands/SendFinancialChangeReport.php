@@ -20,7 +20,7 @@ class SendFinancialChangeReport extends Command
 {
     protected $signature = 'snipeit:financial-change-report {--force : Bypass the 14-day cadence check for a manual run}';
 
-    protected $description = 'Send company-scoped finance reports for asset status and company changes.';
+    protected $description = 'Send site-scoped finance reports for asset status and site changes.';
 
     public function handle(): int
     {
@@ -233,7 +233,7 @@ class SendFinancialChangeReport extends Command
                 $user = $users->first();
 
                 if (empty($user->company_id)) {
-                    $issues->push(['email' => $email, 'reason' => 'User has no company scope.']);
+                    $issues->push(['email' => $email, 'reason' => 'User has no site scope.']);
                     return;
                 }
 

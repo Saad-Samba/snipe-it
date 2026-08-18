@@ -58,7 +58,7 @@ class SyncAssetLocations extends Command
         }
 
         $assigned_user_assets = Asset::where('assigned_type', \App\Models\User::class)->whereNotNull('assigned_to')->whereNull('deleted_at')->get();
-        $output['info'][] = 'There are '.$assigned_user_assets->count().' assets checked out to users.';
+        $output['info'][] = 'There are '.$assigned_user_assets->count().' assets assigned to users.';
         foreach ($assigned_user_assets as $assigned_user_asset) {
             if (($assigned_user_asset->assignedTo) && ($assigned_user_asset->assignedTo->userLoc)) {
                 $new_location = $assigned_user_asset->assignedTo->userLoc->id;
@@ -75,12 +75,12 @@ class SyncAssetLocations extends Command
 
         $assigned_location_assets = Asset::where('assigned_type', \App\Models\Location::class)
             ->whereNotNull('assigned_to')->whereNull('deleted_at')->get();
-        $output['info'][] = 'There are '.$assigned_location_assets->count().' assets checked out to locations.';
+        $output['info'][] = 'There are '.$assigned_location_assets->count().' assets assigned to locations.';
 
         foreach ($assigned_location_assets as $assigned_location_asset) {
             if ($assigned_location_asset->assignedTo) {
                 $assigned_location_asset->location_id = $assigned_location_asset->assignedTo->id;
-                $output['info'][] = 'Setting Location Assigned  asset '.$assigned_location_asset->id.' ('.$assigned_location_asset->asset_tag.') that is checked out to '.$assigned_location_asset->assignedTo->name.' (#'.$assigned_location_asset->assignedTo->id.') to location: '.$assigned_location_asset->assetLoc()->id;
+                $output['info'][] = 'Setting Location Assigned asset '.$assigned_location_asset->id.' ('.$assigned_location_asset->asset_tag.') that is assigned to '.$assigned_location_asset->assignedTo->name.' (#'.$assigned_location_asset->assignedTo->id.') to location: '.$assigned_location_asset->assetLoc()->id;
                 $assigned_location_asset->unsetEventDispatcher();
                 $assigned_location_asset->save();
             } else {

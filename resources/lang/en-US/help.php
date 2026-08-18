@@ -21,7 +21,7 @@ return [
 
     'categories' => 'Categories help you organize your items. Some example categories might be &quot;Desktops&quot;, &quot;Laptops&quot;, &quot;Mobile Phones&quot;, &quot;Tablets&quot;, and so on, but you can use categories any way that makes sense for you.',
 
-    'accessories' => 'Accessories are anything you issue to users but that do not have a serial number (or you do not care about tracking them uniquely). For example, computer mice or keyboards.',
+    'accessories' => 'Accessories are anything you assign to users but that do not have a serial number (or you do not care about tracking them uniquely). For example, computer mice or keyboards.',
 
     'companies'     => 'Sites identify organizational scopes such as offices or centers. They can also limit visibility of assets, users, and locations when Full Site Support is enabled in Admin Settings.',
 

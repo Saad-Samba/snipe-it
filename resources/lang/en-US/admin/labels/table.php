@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'example_company'    => 'Test Company Limited',
+    'example_company'    => 'Test Site',
     'example_defaultloc' => 'Building 1',
     'example_category'   => 'Test Category',
     'example_location'   => 'Building 2',

@@ -757,7 +757,7 @@ class AssetsController extends Controller
                 $target = Location::find(request('assigned_location'));
             }
             if (isset($target)) {
-                $asset->checkOut($target, auth()->user(), date('Y-m-d H:i:s'), '', 'Checked out on asset creation', e($request->get('name')));
+                $asset->checkOut($target, auth()->user(), date('Y-m-d H:i:s'), '', 'Assigned on asset creation', e($request->get('name')));
             }
 
             if ($asset->image) {
@@ -846,7 +846,7 @@ class AssetsController extends Controller
             }
 
             if (isset($target)) {
-                $asset->checkOut($target, auth()->user(), date('Y-m-d H:i:s'), '', 'Checked out on asset update', e($request->get('name')), $location);
+                $asset->checkOut($target, auth()->user(), date('Y-m-d H:i:s'), '', 'Assigned on asset update', e($request->get('name')), $location);
             }
 
             if ($asset->image) {
@@ -886,7 +886,7 @@ class AssetsController extends Controller
                 $target = $asset->assignedTo;
                 $checkin_at = date('Y-m-d H:i:s');
                 $originalValues = $asset->getRawOriginal();
-                event(new CheckoutableCheckedIn($asset, $target, auth()->user(), 'Checkin on delete', $checkin_at, $originalValues));
+                event(new CheckoutableCheckedIn($asset, $target, auth()->user(), 'Returned on delete', $checkin_at, $originalValues));
                 DB::table('assets')
                     ->where('id', $asset->id)
                     ->update(['assigned_to' => null]);
@@ -994,7 +994,7 @@ class AssetsController extends Controller
         }
 
         if (! isset($target)) {
-            return response()->json(Helper::formatStandardApiResponse('error', $error_payload, 'Checkout target for asset ' . e($asset->asset_tag) . ' is invalid - ' . $error_payload['target_type'] . ' does not exist.'));
+            return response()->json(Helper::formatStandardApiResponse('error', $error_payload, 'Assignment target for asset ' . e($asset->asset_tag) . ' is invalid - ' . $error_payload['target_type'] . ' does not exist.'));
         }
 
         $checkout_at = request('checkout_at', date('Y-m-d H:i:s'));

@@ -21,7 +21,7 @@ class FixBulkAccessoryCheckinActionLogEntries extends Command
      *
      * @var string
      */
-    protected $description = 'This script attempts to fix timestamps and missing created_by values for bulk checkin entries in the log table';
+    protected $description = 'This script attempts to fix timestamps and missing created_by values for bulk return entries in the log table';
 
     private bool $dryrun = false;
     private bool $skipBackup = false;
@@ -40,10 +40,10 @@ class FixBulkAccessoryCheckinActionLogEntries extends Command
         }
 
         $logs = Actionlog::query()
-            // only look for accessory checkin logs
+            // only look for accessory return logs
             ->where('item_type', Accessory::class)
-            // that were part of a bulk checkin
-            ->where('note', 'Bulk checkin items')
+            // Include the legacy note so existing records remain repairable.
+            ->whereIn('note', ['Bulk checkin items', 'Bulk return items'])
             // logs that were improperly timestamped should have created_at in the 1970s
             ->whereYear('created_at', '1970')
             ->get();
@@ -85,8 +85,8 @@ class FixBulkAccessoryCheckinActionLogEntries extends Command
             $this->newLine();
             $this->info('Processing log id:' . $log->id);
 
-            // created_by was not being set for accessory bulk checkins
-            // so let's see if there was another bulk checkin log
+            // created_by was not being set for accessory bulk returns
+            // so let's see if there was another bulk return log
             // with the same timestamp and a created_by value we can use.
             if (is_null($log->created_by)) {
                 $createdByFromSimilarLog = $this->getCreatedByAttributeFromSimilarLog($log);
@@ -123,23 +123,21 @@ class FixBulkAccessoryCheckinActionLogEntries extends Command
     }
 
     /**
-     * Hopefully the bulk checkin included other items like assets or licenses
+     * Hopefully the bulk return included other items like assets or licenses
      * so we can use one of those logs to get the correct created_by value.
      *
-     * This method attempts to find a bulk check in log that was
+     * This method attempts to find a bulk return log that was
      * created at the same time as the log passed in.
      */
     private function getCreatedByAttributeFromSimilarLog(Actionlog $log): null|int
     {
         $similarLog = Actionlog::query()
             ->whereNotNull('created_by')
-            ->where([
-                'action_type' => 'checkin from',
-                'note' => 'Bulk checkin items',
-                'target_id' => $log->target_id,
-                'target_type' => $log->target_type,
-                'created_at' => $log->updated_at,
-            ])
+            ->where('action_type', 'checkin from')
+            ->whereIn('note', ['Bulk checkin items', 'Bulk return items'])
+            ->where('target_id', $log->target_id)
+            ->where('target_type', $log->target_type)
+            ->where('created_at', $log->updated_at)
             ->first();
 
         if ($similarLog) {

@@ -245,7 +245,7 @@ class AssetsController extends Controller
                 }
 
                 if (isset($target)) {
-                    $asset->checkOut($target, auth()->user(), date('Y-m-d H:i:s'), $request->input('expected_checkin', null), 'Checked out on asset creation', $request->get('name'), $location);
+                    $asset->checkOut($target, auth()->user(), date('Y-m-d H:i:s'), $request->input('expected_checkin', null), 'Assigned on asset creation', $request->get('name'), $location);
                 }
 
                 $successes[] = "<a href='" . route('hardware.show', $asset) . "' style='color: white;'>" . e($asset->asset_tag) . "</a>";
@@ -402,7 +402,7 @@ class AssetsController extends Controller
             $asset->assigned_type = null;
             $asset->accepted = null;
             $asset->last_checkin = now();
-            event(new CheckoutableCheckedIn($asset, $target, auth()->user(), 'Checkin on asset update with '.$status->getStatuslabelType().' status', date('Y-m-d H:i:s'), $originalValues));
+            event(new CheckoutableCheckedIn($asset, $target, auth()->user(), 'Returned on asset update with '.$status->getStatuslabelType().' status', date('Y-m-d H:i:s'), $originalValues));
         }
 
         if ($request->filled('image_delete')) {
@@ -514,7 +514,7 @@ class AssetsController extends Controller
             $target = $asset->assignedTo;
             $checkin_at = date('Y-m-d H:i:s');
             $originalValues = $asset->getRawOriginal();
-            event(new CheckoutableCheckedIn($asset, $target, auth()->user(), 'Checkin on delete', $checkin_at, $originalValues));
+            event(new CheckoutableCheckedIn($asset, $target, auth()->user(), 'Returned on delete', $checkin_at, $originalValues));
             DB::table('assets')
                 ->where('id', $asset->id)
                 ->update(['assigned_to' => null, 'assigned_type' => null]);
@@ -828,7 +828,7 @@ class AssetsController extends Controller
                             'item_id' => $asset->id,
                             'item_type' => Asset::class,
                             'created_by' =>  auth()->id(),
-                            'note' => 'Checkout imported by '.auth()->user()->display_name.' from history importer',
+                            'note' => 'Assignment imported by '.auth()->user()->display_name.' from history importer',
                             'target_id' => $item[$asset_tag][$batch_counter]['user_id'],
                             'target_type' => User::class,
                             'created_at' =>  $item[$asset_tag][$batch_counter]['checkout_date'],
@@ -856,7 +856,7 @@ class AssetsController extends Controller
                                 'item_id' => $item[$asset_tag][$batch_counter]['asset_id'],
                                 'item_type' => Asset::class,
                                 'created_by' => auth()->id(),
-                                'note' => 'Checkin imported by '.auth()->user()->display_name.' from history importer',
+                                'note' => 'Return imported by '.auth()->user()->display_name.' from history importer',
                                 'target_id' => null,
                                 'created_at' => $checkin_date,
                                 'action_type' => 'checkin',
@@ -870,7 +870,7 @@ class AssetsController extends Controller
                         }
                     } else {
                         $item[$asset_tag][$batch_counter]['user_id'] = null;
-                        $status['error'][]['user'][Helper::array_smart_fetch($row, 'name')]['msg'] = 'User does not exist so no checkin log was created.';
+                        $status['error'][]['user'][Helper::array_smart_fetch($row, 'name')]['msg'] = 'User does not exist, so no return log was created.';
                     }
                 } else {
                     $item[$asset_tag][$batch_counter]['asset_id'] = null;

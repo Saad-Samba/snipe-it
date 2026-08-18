@@ -22,7 +22,7 @@ class CheckinLicensesFromAllUsers extends Command
      *
      * @var string
      */
-    protected $description = 'Checks in licenses from all users';
+    protected $description = 'Returns licenses from all users';
 
     /**
      * Create a new command instance.
@@ -56,14 +56,14 @@ class CheckinLicensesFromAllUsers extends Command
             return false;
         }
 
-        $this->info('Checking in ALL seats for '.$license->name);
+        $this->info('Returning ALL seats for '.$license->name);
 
         $licenseSeats = LicenseSeat::where('license_id', '=', $license_id)
             ->whereNotNull('assigned_to')
             ->with('user')
             ->get();
 
-        $this->info(' There are '.$licenseSeats->count().' seats checked out: ');
+        $this->info(' There are '.$licenseSeats->count().' seats assigned: ');
 
         if (! $notify) {
             $this->info('No mail will be sent.');
@@ -81,7 +81,7 @@ class CheckinLicensesFromAllUsers extends Command
                 }
 
                 // Log the checkin
-                $seat->logCheckin($seat->user, 'Checked in via cli tool');
+                $seat->logCheckin($seat->user, 'Returned via CLI tool');
             }
         }
     }
