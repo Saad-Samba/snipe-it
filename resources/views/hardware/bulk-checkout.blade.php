@@ -118,7 +118,7 @@
           <!-- Note -->
           <div class="form-group {{ $errors->has('note') ? 'error' : '' }}">
               <label for="note" class="col-sm-3 control-label">
-                  {{ trans('general.checkout_note') }}
+                  {{ trans('general.notes') }}
               </label>
             <div class="col-md-8">
               <textarea class="col-md-6 form-control" id="note" name="note">{{ old('note') }}</textarea>

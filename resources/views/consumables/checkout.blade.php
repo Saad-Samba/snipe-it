@@ -79,7 +79,7 @@
 
 
           <!-- User -->
-            @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.user'), 'fieldname' => 'assigned_to', 'required'=> 'true'])
+            @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.select_user'), 'fieldname' => 'assigned_to', 'required'=> 'true'])
 
 
             @if ($consumable->requireAcceptance() || $consumable->getEula() || ($snipeSettings->webhook_endpoint!=''))
@@ -121,7 +121,7 @@
           
           <!-- Note -->
           <div class="form-group {{ $errors->has('note') ? 'error' : '' }}">
-            <label for="note" class="col-md-3 control-label">{{ trans('general.checkout_note') }}</label>
+            <label for="note" class="col-md-3 control-label">{{ trans('admin/hardware/form.notes') }}</label>
             <div class="col-md-7">
               <textarea class="col-md-6 form-control" name="note">{{ old('note') }}</textarea>
               {!! $errors->first('note', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
