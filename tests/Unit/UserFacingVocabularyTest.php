@@ -21,6 +21,7 @@ class UserFacingVocabularyTest extends TestCase
         $this->assertSame('Assign', $general['checkout']);
         $this->assertSame('Assign To', $general['assign_to']);
         $this->assertSame('Assignment Type', $general['assignment_type']);
+        $this->assertSame('Note', $general['checkout_note']);
         $this->assertSame('Return', $general['checkin']);
         $this->assertSame('Assigned To', $general['checked_out_to']);
         $this->assertSame('Assignment Date', $hardwareForm['checkout_date']);

@@ -48,7 +48,7 @@
             @endif
 
           <!-- Asset -->
-            @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.assign_to_asset'), 'fieldname' => 'asset_id', 'company_id' => $component->company_id, 'required' => 'true', 'value' => old('asset_id')])
+            @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.asset'), 'fieldname' => 'asset_id', 'company_id' => $component->company_id, 'required' => 'true', 'value' => old('asset_id')])
 
             <div class="form-group {{ $errors->has('assigned_qty') ? ' has-error' : '' }}">
               <label for="assigned_qty" class="col-md-3 control-label">
