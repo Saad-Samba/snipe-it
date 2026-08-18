@@ -1,7 +1,7 @@
 @component('mail::message')
 # {{ trans('mail.hello') }},
 
-{{ trans('general.due_to_checkin', ['count' => $assets->count()]) }}
+{{ trans('general.due_to_checkin', array('count' => $assets->count())) }}
 
 @component('mail::table')
 | {{ trans('general.assets') }} | {{ trans('general.checked_out_to') }} | {{ trans('general.expected_checkin') }} |

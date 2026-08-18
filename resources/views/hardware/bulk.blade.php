@@ -86,7 +86,7 @@
               <div class="col-md-5">
                 <label class="form-control">
                   <input type="checkbox" name="null_expected_checkin_date" value="1">
-                  {{ trans('general.clear_expected_return_date') }}
+                  {{ trans_choice('general.set_to_null', count($assets), ['selection_count' => count($assets)]) }}
                 </label>
               </div>
           </div>
@@ -235,7 +235,7 @@
             <div class="col-md-5">
               <label class="form-control">
                 <input type="checkbox" name="null_next_audit_date" value="1">
-                {{ trans('general.clear_next_verification_due_date') }}
+                {{ trans_choice('general.set_to_null', count($assets), ['selection_count' => count($assets)]) }}
               </label>
             </div>
             <div class="col-md-8 col-md-offset-3">
