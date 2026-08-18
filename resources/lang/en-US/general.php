@@ -83,8 +83,6 @@ return [
     'checkin_note'  		=> 'Note',
     'checkout_note'  		=> 'Note',
     'checkout'  			=> 'Assign',
-    'issue'                 => 'Issue',
-    'issue_tooltip'         => 'Issue this consumable to a user',
     'checkouts_count'       => 'Assignments',
     'checkins_count'        => 'Returns',
     'checkin_and_delete'  	=> 'Return and Delete',

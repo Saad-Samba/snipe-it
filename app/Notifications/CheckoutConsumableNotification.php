@@ -94,7 +94,7 @@ class CheckoutConsumableNotification extends Notification
         }
 
         return (new SlackMessage)
-            ->content(':arrow_up: :paperclip: Consumable Issued')
+            ->content(':arrow_up: :paperclip: Consumable Assigned')
             ->from($botname)
             ->to($channel)
             ->attachment(function ($attachment) use ($item, $note, $admin, $fields) {

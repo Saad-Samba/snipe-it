@@ -22,10 +22,10 @@ return array(
     ),
 
      'checkout' => array(
-        'error'   		=> 'Consumable was not issued. Please try again.',
-        'success' 		=> 'Consumable issued successfully.',
+        'error'   		=> 'Consumable was not assigned. Please try again.',
+        'success' 		=> 'Consumable assigned successfully.',
         'user_does_not_exist' => 'That user is invalid. Please try again.',
-         'unavailable'      => 'There are not enough consumables for this issue. Check the quantity remaining.',
+         'unavailable'      => 'There are not enough consumables for this assignment. Check the quantity remaining.',
     ),
 
     'checkin' => array(

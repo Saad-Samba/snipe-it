@@ -130,7 +130,7 @@
         </div> <!-- .box-body -->
             <x-redirect_submit_options
                     index_route="consumables.index"
-                    :button_label="trans('general.issue')"
+                    :button_label="trans('general.checkout')"
                     :options="[
                                 'index' => trans('admin/hardware/form.redirect_to_all', ['type' => trans('general.consumables')]),
                                 'item' => trans('admin/hardware/form.redirect_to_type', ['type' => trans('general.consumable')]),

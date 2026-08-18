@@ -14,7 +14,7 @@ return [
     'Confirm_consumable_delivery' => 'Consumable delivery confirmation',
     'Confirm_component_delivery' => 'Component delivery confirmation',
     'Confirm_license_delivery' => 'License delivery confirmation',
-    'Consumable_checkout_notification' => 'Consumable issued',
+    'Consumable_checkout_notification' => 'Consumable assigned',
     'Component_checkout_notification' => 'Component assigned',
     'Component_checkin_notification' => 'Component returned',
     'Days' => 'Days',

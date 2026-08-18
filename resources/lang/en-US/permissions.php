@@ -127,8 +127,8 @@ return array(
         'name' => 'Delete Consumables',
     ],
     'consumablescheckout' => [
-        'name' => 'Issue Consumables',
-        'note' => 'Issue available consumables to users.',
+        'name' => 'Assign Consumables',
+        'note' => 'Assign available consumables to users.',
     ],
     'consumablesfiles' => [
         'name' => 'Manage Consumable Files',

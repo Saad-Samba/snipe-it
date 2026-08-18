@@ -11,7 +11,7 @@ return [
     'update_success'                    => 'Kit was successfully updated.',
     'none_models'                       => 'There are not enough available assets to assign :model. :qty are required.',
     'none_licenses'                     => 'There are not enough available seats to assign :license. :qty are required.',
-    'none_consumables'                  => 'There are not enough available units to issue :consumable. :qty are required.',
+    'none_consumables'                  => 'There are not enough available units to assign :consumable. :qty are required.',
     'none_accessory'                    => 'There are not enough available units to assign :accessory. :qty are required.',
     'append_accessory'                  => 'Append Accessory',
     'update_appended_accessory'         => 'Update appended Accessory',
