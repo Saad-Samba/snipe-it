@@ -23,7 +23,7 @@ class SendUpcomingAuditReport extends Command
      *
      * @var string
      */
-    protected $description = 'Send email/slack notifications for upcoming asset verifications.';
+    protected $description = 'Send email/slack notifications for upcoming asset audits.';
 
     /**
      * Create a new command instance.
@@ -49,7 +49,7 @@ class SendUpcomingAuditReport extends Command
 
         $assets_query = Asset::whereNull('deleted_at')->dueOrOverdueForAudit($settings)->orderBy('assets.next_audit_date', 'asc')->with('supplier');
         $asset_count = $assets_query->count();
-        $this->info(number_format($asset_count) . ' assets must be verified on or before ' . $interval_date);
+        $this->info(number_format($asset_count) . ' assets must be audited on or before ' . $interval_date);
         if (!$this->option('with-output')) {
             $this->info('Run this command with the --with-output option to see the full list in the console.');
         }
@@ -68,7 +68,7 @@ class SendUpcomingAuditReport extends Command
                     ->all();
 
                 Mail::to($recipients)->send(new SendUpcomingAuditMail($assets_for_email, $settings->audit_warning_days, $asset_count));
-                $this->info('Asset verification notification sent to: ' . $settings->alert_email);
+                $this->info('Audit notification sent to: ' . $settings->alert_email);
 
             } else {
                 $this->info('There is no admin alert email set so no email will be sent.');
@@ -106,7 +106,7 @@ class SendUpcomingAuditReport extends Command
             }
 
         } else {
-            $this->info('There are no assets due for verification in the next ' . $interval . ' days.');
+            $this->info('There are no assets due for audit in the next ' . $interval . ' days.');
         }
 
 

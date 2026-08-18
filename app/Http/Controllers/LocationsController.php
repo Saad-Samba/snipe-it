@@ -91,7 +91,7 @@ class LocationsController extends Controller
             $location->company_id = Company::getIdForCurrentUser($request->input('company_id'));
             // check if parent is set and has a different company
             if ($location->parent_id && Location::find($location->parent_id)->company_id != $location->company_id) {
-                return redirect()->back()->withInput()->withInput()->with('error', 'The location must use the same site as its parent location.');
+                return redirect()->back()->withInput()->withInput()->with('error', 'different company than parent');
             }                
         } else {
             $location->company_id = $request->input('company_id');

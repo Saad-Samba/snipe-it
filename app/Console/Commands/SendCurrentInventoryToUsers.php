@@ -20,7 +20,7 @@ class SendCurrentInventoryToUsers extends Command
      *
      * @var string
      */
-    protected $description = 'This will send users a report of all items currently assigned to them.';
+    protected $description = 'This will send users a report of all of the items currently checked out to them.';
 
     /**
      * Create a new command instance.

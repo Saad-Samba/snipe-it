@@ -203,7 +203,7 @@ class LocationsController extends Controller
             $location->company_id = Company::getIdForCurrentUser($request->get('company_id'));
             // check if parent is set and has a different company
             if ($location->parent_id && Location::find($location->parent_id)->company_id != $location->company_id) {
-                response()->json(Helper::formatStandardApiResponse('error', null, 'The location must use the same site as its parent location.'));
+                response()->json(Helper::formatStandardApiResponse('error', null, 'different company than parent'));
             }    
         }
 

@@ -24,7 +24,7 @@ return array(
     'use_default_eula_disabled'			=> '<del>Use the primary default EULA instead.</del> No primary default EULA is set. Please add one in Settings.',
     'use_default_eula_column'			=> 'Use default EULA',
     'import_require_acceptance'         => 'Require Acceptance',
-    'import_checkin_email'              => 'Send Return Email',
+    'import_checkin_email'              => 'Send Checkin Email',
     'import_eula_text'                  => 'EULA text',
     'import_category_type'              => 'Category Type',
 

@@ -186,7 +186,7 @@ class BulkDeleteUsersTest extends TestCase
             'action_type' => 'checkin from',
             'target_id' => $userA->id,
             'target_type' => User::class,
-            'note' => 'Bulk return items',
+            'note' => 'Bulk checkin items',
             'item_type' => License::class,
             'item_id' => $licenseSeatForUserA->license->id,
         ]);
@@ -195,7 +195,7 @@ class BulkDeleteUsersTest extends TestCase
             'action_type' => 'checkin from',
             'target_id' => $userC->id,
             'target_type' => User::class,
-            'note' => 'Bulk return items',
+            'note' => 'Bulk checkin items',
             'item_type' => License::class,
             'item_id' => $licenseSeatForUserC->license->id,
         ]);
@@ -251,7 +251,7 @@ class BulkDeleteUsersTest extends TestCase
             'action_type' => 'checkin from',
             'target_id' => $user->id,
             'target_type' => User::class,
-            'note' => 'Bulk return items',
+            'note' => 'Bulk checkin items',
             'item_type' => get_class($model),
             'item_id' => $model->id,
         ]);
@@ -263,7 +263,7 @@ class BulkDeleteUsersTest extends TestCase
             'action_type' => 'checkin from',
             'target_id' => $user->id,
             'target_type' => User::class,
-            'note' => 'Bulk return items',
+            'note' => 'Bulk checkin items',
             'item_type' => get_class($model),
             'item_id' => $model->id,
         ]);

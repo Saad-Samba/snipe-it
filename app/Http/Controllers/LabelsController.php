@@ -60,7 +60,7 @@ class LabelsController extends Controller
         $exampleAsset->model->manufacturer->support_email = 'support@test.com';
         $exampleAsset->model->manufacturer->support_phone = '1-555-555-5555';
         $exampleAsset->model->manufacturer->support_url = 'https://example.com';
-        $exampleAsset->supplier = new Supplier(['name' => trans('admin/labels/table.example_supplier')]);
+        $exampleAsset->supplier = new Supplier(['name' => trans('admin/labels/table.example_company')]);
         $exampleAsset->model->category = new Category();
         $exampleAsset->model->category->id = 999999;
         $exampleAsset->model->category->name = trans('admin/labels/table.example_category');

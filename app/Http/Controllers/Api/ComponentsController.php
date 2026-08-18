@@ -352,7 +352,7 @@ class ComponentsController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json(Helper::formatStandardApiResponse('error', null, 'Return quantity must be between 1 and ' . $max_to_checkin));
+                return response()->json(Helper::formatStandardApiResponse('error', null, 'Checkin quantity must be between 1 and ' . $max_to_checkin));
             }
 
             // Validation passed, so let's figure out what we have to do here.
@@ -379,7 +379,7 @@ class ComponentsController extends Controller
             return response()->json(Helper::formatStandardApiResponse('success', null,  trans('admin/components/message.checkin.success')));
         }
 
-        return response()->json(Helper::formatStandardApiResponse('error', null, 'No matching assignments for that component record'));
+        return response()->json(Helper::formatStandardApiResponse('error', null, 'No matching checkouts for that component join record'));
     }
 
 }

@@ -147,7 +147,7 @@
                                     </span>
                                 </div>
                                 <div class="col-md-8 col-md-offset-3">
-                                    <p class="help-block">Enter internal user email addresses. Each recipient only receives events for that user&apos;s site.</p>
+                                    <p class="help-block">Enter internal user email addresses. Each recipient only receives events for that user&apos;s company.</p>
                                     {!! $errors->first('finance_report_email', '<span class="alert-msg" aria-hidden="true">:message</span><br>') !!}
                                 </div>
                             </div>

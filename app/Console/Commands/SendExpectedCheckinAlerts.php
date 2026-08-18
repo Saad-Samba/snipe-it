@@ -26,7 +26,7 @@ class SendExpectedCheckinAlerts extends Command
      *
      * @var string
      */
-    protected $description = 'Check for overdue or upcoming expected returns.';
+    protected $description = 'Check for overdue or upcoming expected checkins.';
 
     /**
      * Create a new command instance.
@@ -55,7 +55,7 @@ class SendExpectedCheckinAlerts extends Command
 
         $assets = Asset::whereNull('deleted_at')->DueOrOverdueForCheckin($settings)->orderBy('assets.expected_checkin', 'desc')->get();
 
-        $this->info($assets->count().' assets must be returned on or before '.Helper::getFormattedDateObject($interval_date, 'date', false));
+        $this->info($assets->count().' assets must be checked on or before '.Helper::getFormattedDateObject($interval_date, 'date', false));
 
 
         foreach ($assets as $asset) {
@@ -97,7 +97,7 @@ class SendExpectedCheckinAlerts extends Command
 
         }
         
-        $this->info('Sent return reminders to '.$count.' users.');
+        $this->info('Sent checkin reminders to to '.$count.' users.');
 
     }
 }

@@ -22,7 +22,7 @@ class CheckoutLicenseToAllUsers extends Command
      *
      * @var string
      */
-    protected $description = 'Assigns licenses to all users';
+    protected $description = 'Checks out licenses to all users';
 
     /**
      * Create a new command instance.
@@ -59,10 +59,10 @@ class CheckoutLicenseToAllUsers extends Command
         $users = User::whereNull('deleted_at')->where('autoassign_licenses', '=', 1)->with('licenses')->get();
 
         if ($users->count() > $license->getAvailSeatsCountAttribute()) {
-            $this->info('You do not have enough free seats to complete this task, so we will assign as many as we can. ');
+            $this->info('You do not have enough free seats to complete this task, so we will check out as many as we can. ');
         }
 
-        $this->info('Assigning '.$users->count().' of '.$license->getAvailSeatsCountAttribute().' seats for '.$license->name);
+        $this->info('Checking out '.$users->count().' of '.$license->getAvailSeatsCountAttribute().' seats for '.$license->name);
 
         if (! $notify) {
             $this->info('No mail will be sent.');
@@ -74,7 +74,7 @@ class CheckoutLicenseToAllUsers extends Command
             // to them
 
             if ($user->licenses->where('id', '=', $license_id)->count()) {
-                $this->info($user->username.' already has this license assigned to them. Skipping... ');
+                $this->info($user->username.' already has this license checked out to them. Skipping... ');
                 continue;
             }
 
@@ -99,8 +99,8 @@ class CheckoutLicenseToAllUsers extends Command
                 }
 
                 // Log the checkout
-                $licenseSeat->logCheckout('Assigned via CLI tool', $user);
-                $this->info('License '.$license_id.' seat '.$licenseSeat->id.' assigned to '.$user->username);
+                $licenseSeat->logCheckout('Checked out via cli tool', $user);
+                $this->info('License '.$license_id.' seat '.$licenseSeat->id.' checked out to '.$user->username);
             }
         }
     }
