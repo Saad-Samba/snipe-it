@@ -17,7 +17,7 @@ class UserFacingVocabularyTest extends TestCase
         $this->assertSame('Site', $general['company']);
         $this->assertSame('Sites', $general['companies']);
         $this->assertSame('Default Location', $hardwareForm['default_location']);
-        $this->assertSame('Current Location', $hardwareTable['location']);
+        $this->assertSame('Location', $hardwareTable['location']);
         $this->assertSame('Assign', $general['checkout']);
         $this->assertSame('Assign To', $general['assign_to']);
         $this->assertSame('Assignment Type', $general['assignment_type']);

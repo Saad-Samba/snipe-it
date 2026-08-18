@@ -184,7 +184,7 @@
 
                 <label class="form-control">
                     <input type="checkbox" name="location" value="1" @checked($template->checkmarkValue('location')) />
-                    {{ trans('general.current_location') }}
+                    {{ trans('general.location') }}
                 </label>
 
               <label class="form-control" style="margin-left: 25px;">
@@ -358,7 +358,7 @@
                     'selected' => $template->selectValues('by_company_id', \App\Models\Company::class),
             ])
             @include ('partials.forms.edit.location-select', [
-                    'translated_name' => trans('general.current_location'),
+                    'translated_name' => trans('general.location'),
                     'fieldname' => 'by_location_id[]',
                     'multiple' => 'true',
                     'hide_new' => 'true',

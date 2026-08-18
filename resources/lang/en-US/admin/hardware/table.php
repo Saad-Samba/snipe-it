@@ -16,7 +16,7 @@ return [
     'eol' 			=> 'EOL',
     'id'      		=> 'ID',
     'last_checkin_date' => 'Last Return Date',
-    'location' 		=> 'Current Location',
+    'location' 		=> 'Location',
     'purchase_cost'	=> 'Cost',
     'purchase_date'	=> 'Purchased',
     'serial'   		=> 'Serial',

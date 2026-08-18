@@ -120,7 +120,6 @@ return [
     'currency'  			=> '$', // this is deprecated
     'currency_text'  		=> 'Currency', //
     'current'  				=> 'Current',
-    'current_location'      => 'Current Location',
     'current_password'      => 'Current Password',
     'customize_report'      => 'Customize Report',
     'custom_report'         => 'Custom Asset Report',
