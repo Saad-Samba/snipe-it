@@ -2,13 +2,13 @@
 # Financial Asset Change Report
 
 @if($company)
-Company: **{{ $company->name }}**
+{{ trans('general.company') }}: **{{ $company->name }}**
 @endif
 
 This report covers **{{ $totalEventCount }}** financial change event(s).
 
 - Financially relevant status changes: **{{ $statusEventCount }}**
-- Company changes: **{{ $companyEventCount }}**
+- {{ trans('general.company') }} changes: **{{ $companyEventCount }}**
 
 The detailed event export is attached as a CSV file.
 

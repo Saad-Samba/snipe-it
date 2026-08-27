@@ -11,7 +11,7 @@
 @endif
 
 @foreach ($line['unrouted_scopes'] as $scope)
-- {{ $scope['company_name'] ?: 'Company #'.$scope['company_id'] }} / {{ $scope['discipline_name'] ?: 'Discipline #'.$scope['discipline_id'] }} ({{ $scope['reusable_quantity'] }} reusable)
+- {{ $scope['company_name'] ?: 'Site #'.$scope['company_id'] }} / {{ $scope['discipline_name'] ?: 'Discipline #'.$scope['discipline_id'] }} ({{ $scope['reusable_quantity'] }} reusable)
 @endforeach
 
 @endforeach

@@ -2,8 +2,8 @@
 
 return array(
     'component_name'                  => 'Component Name',
-    'checkin'                             => 'Checkin Component',
-    'checkout'                             => 'Checkout Component',
+    'checkin'                             => 'Return Component',
+    'checkout'                             => 'Assign Component',
     'cost'				=> 'Purchase Cost',
     'create'                             => 'Create Component',
     'edit'                             => 'Edit Component',
@@ -12,5 +12,5 @@ return array(
     'remaining' 			             => 'Remaining',
     'total' 			                 => 'Total',
     'update'                            => 'Update Component',
-    'checkin_limit'            => 'Amount checked in must be equal to or less than :assigned_qty'
+    'checkin_limit'            => 'Return quantity must be equal to or less than :assigned_qty'
 );

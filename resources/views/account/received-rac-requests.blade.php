@@ -11,7 +11,7 @@
                 <div class="box-body">
                     <div class="alert alert-info">
                         <x-new-feature-label />
-                        These requests were routed to you because reusable inventory falls within one or more of your company-and-discipline RAC scopes. Open a request to review and allocate the matching inventory.
+                        These requests were routed to you because reusable inventory falls within one or more of your site-and-discipline RAC scopes. Open a request to review and allocate the matching inventory.
                     </div>
 
                     <table
@@ -33,7 +33,7 @@
                             <th data-field="name" data-sortable="true" data-formatter="requestModelLinkFormatter">Model</th>
                             <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
                             <th data-field="requested_by" data-sortable="true">Requestor</th>
-                            <th data-field="company" data-sortable="true">Destination Company <x-new-feature-label /></th>
+                            <th data-field="company" data-sortable="true">Destination Site <x-new-feature-label /></th>
                             <th data-field="inventory_disciplines" data-sortable="true">Inventory Discipline(s) <x-new-feature-label /></th>
                             <th data-field="qty" data-sortable="true">Quantity</th>
                             <th data-field="remaining_quantity" data-sortable="true">Remaining</th>

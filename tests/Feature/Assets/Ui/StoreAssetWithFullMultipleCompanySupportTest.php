@@ -31,7 +31,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
 
         if (is_null($actor->company_id) && (! $actor->isSuperUser())) {
             $response->assertSessionHasErrors([
-                'company_id' => 'You cannot complete this action because your account is not assigned to a company.',
+                'company_id' => 'You cannot complete this action because your account is not assigned to a site.',
             ]);
             $this->assertDatabaseMissing('assets', [
                 'asset_tag' => '1234',
@@ -61,7 +61,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
 
         $response->assertRedirect(route('hardware.create'));
         $response->assertSessionHasErrors([
-            'company_id' => 'You cannot complete this action because your account is not assigned to a company.',
+            'company_id' => 'You cannot complete this action because your account is not assigned to a site.',
         ]);
 
         $this->assertDatabaseMissing('assets', [

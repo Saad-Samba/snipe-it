@@ -95,7 +95,7 @@ class SaveUserRequest extends FormRequest
             }
 
             if (! $companyId) {
-                $validator->errors()->add('company_id', 'The company field is required when the user acts as a RAC.');
+                $validator->errors()->add('company_id', 'The site field is required when the user acts as a RAC.');
             }
 
             if (! empty($disciplineIds) && $companyId) {
@@ -112,7 +112,7 @@ class SaveUserRequest extends FormRequest
                     $assignee = $conflictingAssignment->coordinator?->display_name
                         ?: $conflictingAssignment->coordinator?->username
                         ?: 'another user';
-                    $companyName = $conflictingAssignment->company?->name ?: 'this company';
+                    $companyName = $conflictingAssignment->company?->name ?: 'this site';
                     $disciplineName = $conflictingAssignment->discipline?->name ?: 'this discipline';
 
                     $validator->errors()->add(

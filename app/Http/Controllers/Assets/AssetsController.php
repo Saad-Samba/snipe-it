@@ -148,7 +148,7 @@ class AssetsController extends Controller
         return redirect()->route('hardware.index', [
             'request_id' => $checkoutRequestId,
             'request_bucket' => $request->input('request_bucket', 'reusable_now'),
-        ])->with('success', 'Transfer started. Current Location was cleared for physical movement; the source Company and Default Location remain until receipt is confirmed.');
+        ])->with('success', 'Transfer started. Current Location was cleared for physical movement; the source Site and Default Location remain until receipt is confirmed.');
     }
 
     /**
@@ -1173,7 +1173,7 @@ class AssetsController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->withErrors([
-                    'company_id' => 'You cannot complete this action because your account is not assigned to a company.',
+                    'company_id' => 'You cannot complete this action because your account is not assigned to a site.',
                 ]);
         }
 
@@ -1181,7 +1181,7 @@ class AssetsController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->withErrors([
-                    'company_id' => 'The company field is required.',
+                    'company_id' => 'The site field is required.',
                 ]);
         }
 

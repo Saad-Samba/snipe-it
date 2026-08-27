@@ -65,7 +65,7 @@
                                     <th data-sortable="true">Reference Price <x-new-feature-label /></th>
                                     <th data-sortable="false">Total Needed <x-new-feature-label /></th>
                                     <th data-sortable="false">Discipline <x-new-feature-label /></th>
-                                    <th data-sortable="false">Destination Company <x-new-feature-label /></th>
+                                    <th data-sortable="false">Destination Site <x-new-feature-label /></th>
                                     <th data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
                                 </tr>
                             </thead>
@@ -170,7 +170,7 @@
             }
 
             if (!companyId) {
-                window.alert('Select a company for each model.');
+                window.alert('Select a site for each model.');
                 return null;
             }
 

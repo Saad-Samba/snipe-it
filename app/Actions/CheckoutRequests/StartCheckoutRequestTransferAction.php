@@ -27,7 +27,7 @@ class StartCheckoutRequestTransferAction
             $transferNote = sprintf(
                 'Transfer for request #%d to %s started on %s.',
                 $checkoutRequest->id,
-                $destinationCompany?->name ?: 'company #'.$checkoutRequest->company_id,
+                $destinationCompany?->name ?: 'site #'.$checkoutRequest->company_id,
                 now()->toDateString()
             );
 
@@ -89,7 +89,7 @@ class StartCheckoutRequestTransferAction
         }
 
         if (! $checkoutRequest->company_id || ! $asset->company_id || (int) $checkoutRequest->company_id === (int) $asset->company_id) {
-            throw ValidationException::withMessages(['asset' => 'Start transfer is only available for an asset in a different company from the requester.']);
+            throw ValidationException::withMessages(['asset' => 'Start transfer is only available for an asset in a different site from the requester.']);
         }
 
         if ($checkoutRequest->remainingAllocationQuantity() < 1) {

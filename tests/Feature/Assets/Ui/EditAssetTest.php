@@ -196,7 +196,7 @@ class EditAssetTest extends TestCase
 
         $response->assertRedirect(route('hardware.edit', $asset));
         $response->assertSessionHasErrors([
-            'company_id' => 'The company field is required.',
+            'company_id' => 'The site field is required.',
         ]);
 
         $asset->refresh();

@@ -40,7 +40,7 @@ class RacRequestInboxTest extends TestCase
             ->assertSee('Recently released feature')
             ->assertSee(route('api.rac-requests.index'), false)
             ->assertSee('Inventory Discipline(s)')
-            ->assertSee('Destination Company')
+            ->assertSee('Destination Site')
             ->assertSee('>Status</th>', false)
             ->assertDontSee('RAC Status');
     }

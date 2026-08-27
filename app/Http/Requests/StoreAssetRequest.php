@@ -48,13 +48,13 @@ class StoreAssetRequest extends ImageUploadRequest
 
         $validator->after(function (Validator $validator) {
             if (Company::currentUserLacksCompanyAssignmentForFullMultipleCompanySupport()) {
-                $validator->errors()->add('company_id', 'You cannot complete this action because your account is not assigned to a company.');
+                $validator->errors()->add('company_id', 'You cannot complete this action because your account is not assigned to a site.');
 
                 return;
             }
 
             if (is_null($this->input('company_id'))) {
-                $validator->errors()->add('company_id', 'The company field is required.');
+                $validator->errors()->add('company_id', 'The site field is required.');
             }
         });
     }

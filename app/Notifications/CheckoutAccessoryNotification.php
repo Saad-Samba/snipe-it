@@ -115,7 +115,7 @@ class CheckoutAccessoryNotification extends Notification
         }
 
         return (new SlackMessage)
-            ->content(':arrow_up: :keyboard: Accessory Checked Out')
+            ->content(':arrow_up: :keyboard: Accessory Assigned')
             ->from($botname)
             ->to($channel)
             ->attachment(function ($attachment) use ($item, $note, $admin, $fields) {

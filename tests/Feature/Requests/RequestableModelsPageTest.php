@@ -44,7 +44,7 @@ class RequestableModelsPageTest extends TestCase
             ->assertSeeText('Industrial Ethernet Switch')
             ->assertSeeText('Communication')
             ->assertSeeText('Reusable Assets')
-            ->assertSeeText('Destination Company')
+            ->assertSeeText('Destination Site')
             ->assertSeeText('Add to Request')
             ->assertSeeText('Add Selected to Cart')
             ->assertSeeText('Request Cart')

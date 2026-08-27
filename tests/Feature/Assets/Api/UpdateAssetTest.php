@@ -129,7 +129,7 @@ class UpdateAssetTest extends TestCase
                 'name' => 'test',
             ])
             ->assertStatusMessageIs('error')
-            ->assertJsonPath('messages.company_id.0', 'The company field is required.');
+            ->assertJsonPath('messages.company_id.0', 'The site field is required.');
 
         $asset->refresh();
         $this->assertNotEquals('test', $asset->name);

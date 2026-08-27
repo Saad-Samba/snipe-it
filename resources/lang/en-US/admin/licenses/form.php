@@ -3,7 +3,7 @@
 return array(
 
     'asset'             => 'Asset',
-    'checkin'           => 'Checkin',
+    'checkin'           => 'Return',
     'create'            => 'Create License',
     'expiration'        => 'Expiration Date',
     'license_key'       => 'Product Key',
@@ -23,5 +23,5 @@ return array(
     'to_email'          => 'Licensed to Email',
     'to_name'           => 'Licensed to Name',
     'update'            => 'Update License',
-    'checkout_help'     => 'You must check a license out to a hardware asset or a person. You can select both, but the owner of the asset must match the person you\'re checking the asset out to.'
+    'checkout_help'     => 'Assign the license to a hardware asset or a person. You can select both, but the asset owner must match the selected person.'
 );

@@ -35,7 +35,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
         if (is_null($actor->company_id) && (! $actor->isSuperUser())) {
             $response
                 ->assertStatusMessageIs('error')
-                ->assertJsonPath('messages.company_id.0', 'You cannot complete this action because your account is not assigned to a company.');
+                ->assertJsonPath('messages.company_id.0', 'You cannot complete this action because your account is not assigned to a site.');
 
             $this->assertDatabaseMissing('assets', [
                 'asset_tag' => 'random_string',
@@ -67,7 +67,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
         if (is_null($actor->company_id) && (! $actor->isSuperUser())) {
             $response
                 ->assertStatusMessageIs('error')
-                ->assertJsonPath('messages.company_id.0', 'You cannot complete this action because your account is not assigned to a company.');
+                ->assertJsonPath('messages.company_id.0', 'You cannot complete this action because your account is not assigned to a site.');
 
             $this->assertDatabaseMissing('assets', [
                 'asset_tag' => 'random_string',
@@ -94,7 +94,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
             ])
             ->assertStatusMessageIs('error')
-            ->assertJsonPath('messages.company_id.0', 'You cannot complete this action because your account is not assigned to a company.');
+            ->assertJsonPath('messages.company_id.0', 'You cannot complete this action because your account is not assigned to a site.');
 
         $this->assertDatabaseMissing('assets', [
             'asset_tag' => 'random_string',

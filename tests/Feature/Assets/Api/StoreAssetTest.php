@@ -136,7 +136,7 @@ class StoreAssetTest extends TestCase
             ])
             ->assertStatusMessageIs('error');
 
-        $response->assertJsonPath('messages.company_id.0', 'The company field is required.');
+        $response->assertJsonPath('messages.company_id.0', 'The site field is required.');
 
         $this->assertDatabaseMissing('assets', [
             'asset_tag' => '1234',
@@ -153,7 +153,7 @@ class StoreAssetTest extends TestCase
             ])
             ->assertStatusMessageIs('error');
 
-        $response->assertJsonPath('messages.company_id.0', 'The company field is required.');
+        $response->assertJsonPath('messages.company_id.0', 'The site field is required.');
 
         $this->assertDatabaseMissing('assets', [
             'asset_tag' => '1235',

@@ -91,7 +91,7 @@ class StoreAssetsTest extends TestCase
 
         $response->assertRedirect(route('hardware.create'));
         $response->assertSessionHasErrors([
-            'company_id' => 'The company field is required.',
+            'company_id' => 'The site field is required.',
         ]);
 
         $this->assertDatabaseMissing('assets', [
@@ -112,7 +112,7 @@ class StoreAssetsTest extends TestCase
 
         $response->assertRedirect(route('hardware.create'));
         $response->assertSessionHasErrors([
-            'company_id' => 'The company field is required.',
+            'company_id' => 'The site field is required.',
         ]);
 
         $this->assertDatabaseMissing('assets', [

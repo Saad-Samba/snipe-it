@@ -176,7 +176,7 @@ class ModelRequestsController extends Controller
             && $existingRequest
         ) {
             throw ValidationException::withMessages([
-                'project_id' => 'You already have an active request for this model, project, discipline, and company.',
+                'project_id' => 'You already have an active request for this model, project, discipline, and site.',
             ]);
         }
 
@@ -871,7 +871,7 @@ class ModelRequestsController extends Controller
     private function ensureModelRequestCompanyProvided(?int $companyId): void
     {
         if (! $companyId) {
-            throw ValidationException::withMessages(['company_id' => 'Company is required for model requests.']);
+            throw ValidationException::withMessages(['company_id' => 'Site is required for model requests.']);
         }
     }
 
@@ -1237,7 +1237,7 @@ class ModelRequestsController extends Controller
 
         if ($duplicateQuery->exists()) {
             throw ValidationException::withMessages([
-                'project_id' => 'You already have an active request for this model, project, discipline, and company.',
+                'project_id' => 'You already have an active request for this model, project, discipline, and site.',
             ]);
         }
     }
