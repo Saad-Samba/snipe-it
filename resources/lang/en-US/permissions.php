@@ -21,7 +21,7 @@ return array(
     ],
     'admin' => [
         'name' => 'Admin Access',
-        'note'       => 'Determines whether the user has access to most aspects of the system EXCEPT the System Admin Settings. These users will be able to manage users, locations, categories, etc, but ARE constrained by Full Multiple Company Support if it is enabled.',
+        'note'       => 'Determines whether the user has access to most aspects of the system EXCEPT System Admin Settings. These users can manage users, locations, categories, etc., but are constrained by Full Multiple Site Support if it is enabled.',
     ],
 
     'import' => [
@@ -57,18 +57,18 @@ return array(
     ],
 
     'assetscheckin' => [
-        'name' => 'Check In',
-        'note' => 'Check assets back into inventory that are currently checked out.',
+        'name' => 'Return Assets',
+        'note' => 'Return assigned assets to inventory.',
     ],
 
     'assetscheckout' => [
-        'name' => 'Check Out',
-        'note' => 'Assign assets in inventory by checking them out.',
+        'name' => 'Assign Assets',
+        'note' => 'Assign available assets to users, assets, or locations.',
     ],
 
     'assetsaudit' => [
-        'name' => 'Audit Assets',
-        'note' => 'Allows the user to mark an asset as physically inventoried.',
+        'name' => 'Verify Assets',
+        'note' => 'Allows the user to physically verify an asset and record the result.',
     ],
 
     'assetsviewrequestable' => [
@@ -99,12 +99,12 @@ return array(
         'name' => 'Delete Accessories',
     ],
     'accessoriescheckout' => [
-        'name' => 'Check Out Accessories',
-        'note' => 'Assign accessories in inventory by checking them out.',
+        'name' => 'Assign Accessories',
+        'note' => 'Assign available accessories to users.',
     ],
     'accessoriescheckin' => [
-        'name' => 'Check In Accessories',
-        'note' => 'Check accessories back into inventory that are currently checked out.',
+        'name' => 'Return Accessories',
+        'note' => 'Return assigned accessories to inventory.',
     ],
     'accessoriesfiles' => [
         'name' => 'Manage Accessory Files',
@@ -127,8 +127,8 @@ return array(
         'name' => 'Delete Consumables',
     ],
     'consumablescheckout' => [
-        'name' => 'Check Out Consumables',
-        'note' => 'Assign consumables in inventory by checking them out.',
+        'name' => 'Assign Consumables',
+        'note' => 'Assign available consumables to users.',
     ],
     'consumablesfiles' => [
         'name' => 'Manage Consumable Files',
@@ -155,8 +155,8 @@ return array(
         'note' => 'Allows the user to assign licenses to assets or users.',
         ],
     'licensescheckin' => [
-        'name' => 'Unassign Licenses',
-        'note' => 'Allows the user to unassign licenses from assets or users.',
+        'name' => 'Return Licenses',
+        'note' => 'Allows the user to return license seats assigned to assets or users.',
     ],
     'licensesfiles' => [
         'name' => 'Manage License Files',
@@ -187,12 +187,12 @@ return array(
         'note' => 'Allows the user to upload, download, and delete files associated with components.',
     ],
     'componentscheckout' => [
-        'name' => 'Check Out Components',
-        'note' => 'Assign components in inventory by checking them out.',
+        'name' => 'Assign Components',
+        'note' => 'Assign available components to assets.',
     ],
     'componentscheckin' => [
-        'name' => 'Check In Components',
-        'note' => 'Check components back into inventory that are currently checked out.',
+        'name' => 'Return Components',
+        'note' => 'Return assigned components to inventory.',
     ],
     'kits'   => [
         'name' => 'Predefined Kits',
@@ -372,20 +372,20 @@ return array(
         'name' => 'Delete Manufacturers',
     ],
     'companies'   => [
-        'name' => 'Companies',
-        'note'       => 'Grants access to the Companies section of the application.',
+        'name' => 'Sites',
+        'note'       => 'Grants access to the Sites section of the application.',
     ],
     'companiesview' => [
-        'name' => 'View Companies',
+        'name' => 'View Sites',
     ],
     'companiescreate' => [
-        'name' => 'Create New Companies',
+        'name' => 'Create New Sites',
     ],
     'companiesedit' => [
-        'name' => 'Edit Companies',
+        'name' => 'Edit Sites',
     ],
     'companiesdelete' => [
-        'name' => 'Delete Companies',
+        'name' => 'Delete Sites',
     ],
     'user-self-accounts' => [
         'name' => 'User Self Accounts',
@@ -404,8 +404,8 @@ return array(
         'note'       => 'Allows users to edit the location associated with their own user account.',
     ],
     'selfcheckout-assets' => [
-        'name' => 'Self Check Out Assets',
-        'note'       => 'Allows users to check out assets to themselves without admin intervention.',
+        'name' => 'Self-Assign Assets',
+        'note'       => 'Allows users to assign assets to themselves without admin intervention.',
     ],
     'selfview-purchase-cost' => [
         'name' => 'View Purchase Cost',

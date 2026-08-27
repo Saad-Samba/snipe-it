@@ -15,7 +15,7 @@ return [
 
     'more_info_title' => 'More Info',
 
-    'audit_help' => 'Checking this box will edit the asset record to reflect this new location. Leaving it unchecked will simply note the location in the audit log.<br><br>Note that if this asset is checked out, it will not change the location of the person, asset or location it is checked out to.',
+    'audit_help' => 'Checking this box updates the asset\'s current location. Leaving it unchecked records the location only in the asset verification history.<br><br>If the asset is assigned, this will not change the location of the user, asset, or location it is assigned to.',
 
     'assets' => 'Assets are items tracked by serial number or asset tag.  They tend to be higher value items where identifying a specific item matters.',
 
@@ -23,7 +23,7 @@ return [
 
     'accessories' => 'Accessories are anything you issue to users but that do not have a serial number (or you do not care about tracking them uniquely). For example, computer mice or keyboards.',
 
-    'companies'     => 'Companies can be used as a simple identifier field, or can be used to limit visibility of assets, users, etc if full company support is enabled in your Admin settings.',
+    'companies'     => 'Sites identify organizational scopes such as offices or centers. They can also limit visibility of assets, users, and locations when Full Site Support is enabled in Admin Settings.',
 
     'components'    => 'Components are items that are part of an asset, for example HDD, RAM, etc.',
 

@@ -4,7 +4,7 @@ return [
     'actions' 	                => 'Actions',
     'add'    	                => 'Add New',
     'cancel'                    => 'Cancel',
-    'checkin_and_delete'  	    => 'Checkin All / Delete User',
+    'checkin_and_delete'  	    => 'Return All / Delete User',
     'delete'  	                => 'Delete',
     'edit'    	                => 'Edit',
     'clone'    	                => 'Clone',
@@ -29,7 +29,7 @@ return [
         'delete'    => 'Delete :item_type',
         'restore'   => 'Restore :item_type',
         'create'    => 'Create New :item_type',
-        'checkout'  => 'Checkout :item_type',
-        'checkin'   => 'Checkin :item_type',
+        'checkout'  => 'Assign :item_type',
+        'checkin'   => 'Return :item_type',
     ]
 ];

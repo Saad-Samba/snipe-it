@@ -93,7 +93,7 @@ class AuditNotification extends Notification
                 ->fact(trans('mail.asset'), $item)
                 ->fact(trans('general.administrator'), $admin_user->present()->viewUrl() . '|' . $admin_user->display_name);
         }
-            $message = class_basename(get_class($params['item'])) . ' Audited By '.$admin_user->display_name;
+            $message = class_basename(get_class($params['item'])) . ' Verified By '.$admin_user->display_name;
             $details = [
                 trans('mail.asset') => htmlspecialchars_decode($item->display_name),
                 trans('mail.notes') => $note ?: '',

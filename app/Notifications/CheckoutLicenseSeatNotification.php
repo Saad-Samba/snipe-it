@@ -92,7 +92,7 @@ class CheckoutLicenseSeatNotification extends Notification
         }
 
         return (new SlackMessage)
-            ->content(':arrow_up: :floppy_disk: License Checked Out')
+            ->content(':arrow_up: :floppy_disk: License Assigned')
             ->from($botname)
             ->to($channel)
             ->attachment(function ($attachment) use ($item, $note, $admin, $fields) {

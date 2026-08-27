@@ -3,7 +3,7 @@
 return array(
 
     'assigned_to'   	=> 'Assigned To',
-    'checkout'   		=> 'In/Out',
+    'checkout'   		=> 'Assignment Status',
     'deleted_at'        => 'Deleted at',
     'id'      			=> 'ID',
     'license_email'   	=> 'License Email',

@@ -4,7 +4,7 @@ return array(
 
     'does_not_exist' => 'The accessory [:id] does not exist.',
     'not_found' => 'That accessory was not found.',
-    'assoc_users'	 => 'This accessory currently has :count items checked out to users. Please check in the accessories and and try again. ',
+    'assoc_users'	 => 'This accessory currently has :count items assigned to users. Please return the accessories and try again.',
 
     'create' => array(
         'error'   => 'The accessory was not created, please try again.',
@@ -23,19 +23,19 @@ return array(
     ),
 
      'checkout' => array(
-        'error'   		=> 'Accessory was not checked out, please try again',
-        'success' 		=> 'Accessory checked out successfully.',
-        'unavailable'   => 'Accessory is not available for checkout. Check quantity available',
+        'error'   		=> 'Accessory was not assigned. Please try again.',
+        'success' 		=> 'Accessory assigned successfully.',
+        'unavailable'   => 'Accessory is not available for assignment. Check the available quantity.',
         'user_does_not_exist' => 'That user is invalid. Please try again.',
          'checkout_qty' => array(
-            'lte'  => 'There is currently only one available accessory of this type, and you are trying to check out :checkout_qty. Please adjust the checkout quantity or the total stock of this accessory and try again.|There are :number_currently_remaining total available accessories, and you are trying to check out :checkout_qty. Please adjust the checkout quantity or the total stock of this accessory and try again.',
+            'lte'  => 'There is currently only one available accessory of this type, and you are trying to assign :checkout_qty. Adjust the assignment quantity or total stock and try again.|There are :number_currently_remaining available accessories, and you are trying to assign :checkout_qty. Adjust the assignment quantity or total stock and try again.',
             ),
            
     ),
 
     'checkin' => array(
-        'error'   		=> 'Accessory was not checked in, please try again',
-        'success' 		=> 'Accessory checked in successfully.',
+        'error'   		=> 'Accessory was not returned. Please try again.',
+        'success' 		=> 'Accessory returned successfully.',
         'user_does_not_exist' => 'That user is invalid. Please try again.'
     )
 

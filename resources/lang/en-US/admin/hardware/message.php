@@ -2,13 +2,13 @@
 
 return [
 
-    'undeployable' 		 => 'The following assets cannot be deployed and have been removed from checkout: :asset_tags',
+    'undeployable' 		 => 'The following assets cannot be deployed and have been removed from the assignment: :asset_tags',
     'does_not_exist' 	 => 'Asset does not exist.',
     'does_not_exist_var' => 'Asset with tag :asset_tag not found.',
     'no_tag' 	         => 'No asset tag provided.',
     'does_not_exist_or_not_requestable' => 'That asset does not exist or is not requestable.',
-    'assoc_users'	 	 => 'This asset is currently checked out to a user and cannot be deleted. Please check the asset in first, and then try deleting again. ',
-    'warning_audit_date_mismatch' 	=> 'This asset\'s next audit date (:next_audit_date) is before the last audit date (:last_audit_date). Please update the next audit date.',
+    'assoc_users'	 	 => 'This asset is currently assigned to a user and cannot be deleted. Return the asset first, then try again.',
+    'warning_audit_date_mismatch' 	=> 'This asset\'s next verification due date (:next_audit_date) is before its last verification date (:last_audit_date). Update the next verification due date.',
     'labels_generated'   => 'Labels were successfully generated.',
     'error_generating_labels' => 'Error while generating labels.',
     'no_assets_selected' => 'No assets selected.',
@@ -43,8 +43,8 @@ return [
     ],
 
     'audit' => [
-        'error'   		=> 'Asset audit unsuccessful: :error ',
-        'success' 		=> 'Asset audit successfully logged.',
+        'error'   		=> 'Asset verification was unsuccessful: :error',
+        'success' 		=> 'Asset verification logged successfully.',
     ],
 
 
@@ -78,36 +78,36 @@ return [
     'delete' => [
         'confirm'   	=> 'Are you sure you wish to delete this asset?',
         'error'   		=> 'There was an issue deleting the asset. Please try again.',
-        'assigned_to_error' => '{1}Asset Tag: :asset_tag is currently checked out. Check in this device before deletion.|[2,*]Asset Tags: :asset_tag are currently checked out. Check in these devices before deletion.',
+        'assigned_to_error' => '{1}Asset Tag: :asset_tag is currently assigned. Return this device before deletion.|[2,*]Asset Tags: :asset_tag are currently assigned. Return these devices before deletion.',
         'nothing_updated'   => 'No assets were selected, so nothing was deleted.',
         'success' 		=> 'The asset was deleted successfully.',
     ],
 
     'checkout' => [
-        'error'   		=> 'Asset was not checked out, please try again',
-        'success' 		=> 'Asset checked out successfully.',
+        'error'   		=> 'Asset was not assigned. Please try again.',
+        'success' 		=> 'Asset assigned successfully.',
         'user_does_not_exist' => 'That user is invalid. Please try again.',
-        'not_available' => 'That asset is not available for checkout!',
+        'not_available' => 'That asset is not available for assignment!',
         'no_assets_selected' => 'You must select at least one asset from the list',
     ],
 
     'multi-checkout' => [
-        'error'   => 'Asset was not checked out, please try again|Assets were not checked out, please try again',
-        'success' => 'Asset checked out successfully.|Assets checked out successfully.',
+        'error'   => 'Asset was not assigned. Please try again.|Assets were not assigned. Please try again.',
+        'success' => 'Asset assigned successfully.|Assets assigned successfully.',
     ],
 
     'checkin' => [
-        'error'   		=> 'Asset was not checked in, please try again',
-        'success' 		=> 'Asset checked in successfully.',
+        'error'   		=> 'Asset was not returned. Please try again.',
+        'success' 		=> 'Asset returned successfully.',
         'user_does_not_exist' => 'That user is invalid. Please try again.',
-        'already_checked_in'  => 'That asset is already checked in.',
+        'already_checked_in'  => 'That asset is already returned.',
 
     ],
     'bulk_checkin' => [
-        'error' => 'No assets were checked in.',
-        'success' => 'Asset checked in successfully.|:count assets checked in successfully.',
-        'already_checked_in' => 'Asset already checked in: :asset_tags.|Assets already checked in: :asset_tags.',
-        'failed' => 'Asset could not be checked in: :asset_tags.|Assets could not be checked in: :asset_tags.',
+        'error' => 'No assets were returned.',
+        'success' => 'Asset returned successfully.|:count assets returned successfully.',
+        'already_checked_in' => 'Asset already returned: :asset_tags.|Assets already returned: :asset_tags.',
+        'failed' => 'Asset could not be returned: :asset_tags.|Assets could not be returned: :asset_tags.',
     ],
 
     'requests' => [
