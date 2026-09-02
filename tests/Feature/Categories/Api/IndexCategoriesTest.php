@@ -204,6 +204,74 @@ class IndexCategoriesTest extends TestCase
                 ->etc());
     }
 
+    public function testCategoryIndexPreservesInventoryCountsWhenSortingByManager()
+    {
+        $manager = User::factory()->create([
+            'first_name' => 'Category',
+            'last_name' => 'Manager',
+        ]);
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'Manager-sorted inventory category',
+            'manager_id' => $manager->id,
+        ]);
+        $model = AssetModel::factory()->create(['category_id' => $category->id]);
+        $ready = Statuslabel::factory()->readyToDeploy()->create();
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $ready->id,
+            'requestable' => true,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.categories.index', [
+                'name' => $category->name,
+                'sort' => 'manager',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('rows.0.id', $category->id)
+            ->assertJsonPath('rows.0.available_models_count', 1)
+            ->assertJsonPath('rows.0.assets_count', 1)
+            ->assertJsonPath('rows.0.reusable_assets_count', 1);
+    }
+
+    public function testCategoryIndexPreservesInventoryCountsWhenSortingByCreator()
+    {
+        $creator = User::factory()->create([
+            'first_name' => 'Category',
+            'last_name' => 'Creator',
+        ]);
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'Creator-sorted inventory category',
+            'created_by' => $creator->id,
+        ]);
+        $model = AssetModel::factory()->create(['category_id' => $category->id]);
+        $ready = Statuslabel::factory()->readyToDeploy()->create();
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $ready->id,
+            'requestable' => true,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.categories.index', [
+                'name' => $category->name,
+                'sort' => 'created_by',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('rows.0.id', $category->id)
+            ->assertJsonPath('rows.0.available_models_count', 1)
+            ->assertJsonPath('rows.0.assets_count', 1)
+            ->assertJsonPath('rows.0.reusable_assets_count', 1);
+    }
+
     public function testCategoryIndexCanFilterByManager()
     {
         $manager = User::factory()->create();

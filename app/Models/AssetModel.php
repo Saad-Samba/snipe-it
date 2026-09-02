@@ -486,7 +486,18 @@ class AssetModel extends SnipeModel
      */
     public function scopeOrderByCreatedByName($query, $order)
     {
-        return $query->leftJoin('users as admin_sort', 'models.created_by', '=', 'admin_sort.id')->select('models.*')->orderBy('admin_sort.first_name', $order)->orderBy('admin_sort.last_name', $order);
+        $creatorNames = User::withTrashed()->select([
+            'id as model_creator_id',
+            'first_name as model_creator_first_name',
+            'last_name as model_creator_last_name',
+        ]);
+
+        return $query
+            ->leftJoinSub($creatorNames, 'admin_sort', function ($join) {
+                $join->on('models.created_by', '=', 'admin_sort.model_creator_id');
+            })
+            ->orderBy('admin_sort.model_creator_first_name', $order)
+            ->orderBy('admin_sort.model_creator_last_name', $order);
     }
 
 }

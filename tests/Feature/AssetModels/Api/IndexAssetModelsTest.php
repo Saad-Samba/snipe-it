@@ -442,4 +442,37 @@ class IndexAssetModelsTest extends TestCase
                 ->etc());
     }
 
+    public function testAssetModelIndexPreservesInventoryCountsWhenSortingByCreator()
+    {
+        $creator = User::factory()->create([
+            'first_name' => 'Model',
+            'last_name' => 'Creator',
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Creator-sorted inventory model',
+            'created_by' => $creator->id,
+        ]);
+        $ready = Statuslabel::factory()->readyToDeploy()->create();
+
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $ready->id,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.models.index', [
+                'name' => $model->name,
+                'sort' => 'created_by',
+                'order' => 'asc',
+                'offset' => '0',
+                'limit' => '20',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('rows.0.id', $model->id)
+            ->assertJsonPath('rows.0.assets_count', 1)
+            ->assertJsonPath('rows.0.remaining', 1)
+            ->assertJsonPath('rows.0.assets_assigned_count', 0)
+            ->assertJsonPath('rows.0.assets_archived_count', 0);
+    }
+
 }

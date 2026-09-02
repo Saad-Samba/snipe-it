@@ -308,11 +308,18 @@ class Category extends SnipeModel
 
     public function scopeOrderManager($query, $order)
     {
+        $managerNames = User::withTrashed()->select([
+            'id as category_manager_id',
+            'first_name as category_manager_first_name',
+            'last_name as category_manager_last_name',
+        ]);
+
         return $query
-            ->leftJoin('users as category_manager', 'categories.manager_id', '=', 'category_manager.id')
-            ->select('categories.*')
-            ->orderBy('category_manager.first_name', $order)
-            ->orderBy('category_manager.last_name', $order);
+            ->leftJoinSub($managerNames, 'category_manager', function ($join) {
+                $join->on('categories.manager_id', '=', 'category_manager.category_manager_id');
+            })
+            ->orderBy('category_manager.category_manager_first_name', $order)
+            ->orderBy('category_manager.category_manager_last_name', $order);
     }
 
     public function fieldset()
@@ -415,6 +422,17 @@ class Category extends SnipeModel
 
     public function scopeOrderByCreatedBy($query, $order)
     {
-        return $query->leftJoin('users as admin_sort', 'categories.created_by', '=', 'admin_sort.id')->select('categories.*')->orderBy('admin_sort.first_name', $order)->orderBy('admin_sort.last_name', $order);
+        $creatorNames = User::withTrashed()->select([
+            'id as category_creator_id',
+            'first_name as category_creator_first_name',
+            'last_name as category_creator_last_name',
+        ]);
+
+        return $query
+            ->leftJoinSub($creatorNames, 'admin_sort', function ($join) {
+                $join->on('categories.created_by', '=', 'admin_sort.category_creator_id');
+            })
+            ->orderBy('admin_sort.category_creator_first_name', $order)
+            ->orderBy('admin_sort.category_creator_last_name', $order);
     }
 }
