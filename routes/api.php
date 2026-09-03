@@ -152,6 +152,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
       * Categories API routes
       */
       Route::group(['prefix' => 'categories'], function () {
+
+        Route::get('distribution',
+            [
+                Api\CategoriesController::class,
+                'distribution'
+            ]
+        )->name('api.categories.distribution');
         
         Route::get('{item_type}/selectlist',
             [

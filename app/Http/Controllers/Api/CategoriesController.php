@@ -8,6 +8,7 @@ use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Transformers\CategoriesTransformer;
 use App\Http\Transformers\SelectlistTransformer;
+use App\Models\Asset;
 use App\Models\Category;
 use App\Models\CompanyableScope;
 use Illuminate\Http\Request;
@@ -17,6 +18,110 @@ use Illuminate\Support\Facades\Storage;
 
 class CategoriesController extends Controller
 {
+    /**
+     * Return portfolio-level category totals grouped by site or discipline.
+     */
+    public function distribution(Request $request): JsonResponse
+    {
+        $this->authorize('view', Category::class);
+
+        $dimension = $request->input('dimension', 'site');
+        abort_unless(in_array($dimension, ['site', 'discipline'], true), 422);
+
+        $requestingUser = $request->user();
+        $dimensionConfig = $dimension === 'discipline'
+            ? [
+                'table' => 'disciplines',
+                'foreign_key' => 'assets.discipline_id',
+                'filter' => 'discipline_id',
+            ]
+            : [
+                'table' => 'companies',
+                'foreign_key' => 'assets.company_id',
+                'filter' => 'company_id',
+            ];
+
+        $rows = Asset::query()
+            ->visibleTo($requestingUser)
+            ->AssetsForShow()
+            ->join('models as distribution_models', 'assets.model_id', '=', 'distribution_models.id')
+            ->join('categories as distribution_categories', 'distribution_models.category_id', '=', 'distribution_categories.id')
+            ->leftJoin(
+                $dimensionConfig['table'].' as distribution_dimension',
+                $dimensionConfig['foreign_key'],
+                '=',
+                'distribution_dimension.id'
+            )
+            ->where('distribution_categories.category_type', 'asset')
+            ->whereNull('distribution_categories.deleted_at')
+            ->whereNull('distribution_models.deleted_at')
+            ->select([
+                'distribution_categories.id as category_id',
+                'distribution_categories.name as category_name',
+                'distribution_dimension.id as dimension_id',
+                'distribution_dimension.name as dimension_name',
+            ])
+            ->selectRaw('COUNT(assets.id) as asset_count')
+            ->groupBy([
+                'distribution_categories.id',
+                'distribution_categories.name',
+                'distribution_dimension.id',
+                'distribution_dimension.name',
+            ])
+            ->get();
+
+        $total = (int) $rows->sum('asset_count');
+        $categories = $rows
+            ->groupBy('category_id')
+            ->map(function ($categoryRows) use ($dimensionConfig, $total) {
+                $first = $categoryRows->first();
+                $categoryTotal = (int) $categoryRows->sum('asset_count');
+
+                return [
+                    'id' => (int) $first->category_id,
+                    'name' => $first->category_name,
+                    'asset_count' => $categoryTotal,
+                    'percentage' => $this->distributionPercentage($categoryTotal, $total),
+                    'assets_url' => route('hardware.index', ['category_id' => $first->category_id]),
+                    'children' => $categoryRows
+                        ->map(function ($row) use ($dimensionConfig, $total) {
+                            $count = (int) $row->asset_count;
+                            $dimensionId = $row->dimension_id ? (int) $row->dimension_id : null;
+
+                            return [
+                                'id' => $dimensionId,
+                                'name' => $row->dimension_name ?: trans('admin/categories/general.undefined'),
+                                'asset_count' => $count,
+                                'percentage' => $this->distributionPercentage($count, $total),
+                                'assets_url' => $dimensionId
+                                    ? route('hardware.index', [
+                                        'category_id' => $row->category_id,
+                                        $dimensionConfig['filter'] => $dimensionId,
+                                    ])
+                                    : null,
+                            ];
+                        })
+                        ->sortByDesc('asset_count')
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->sortByDesc('asset_count')
+            ->values();
+
+        return response()->json([
+            'dimension' => $dimension,
+            'total_assets' => $total,
+            'category_count' => $categories->count(),
+            'categories' => $categories->all(),
+        ]);
+    }
+
+    private function distributionPercentage(int $count, int $total): float
+    {
+        return $total > 0 ? round(($count / $total) * 100, 2) : 0.0;
+    }
+
     /**
      * Display a listing of the resource.
      *

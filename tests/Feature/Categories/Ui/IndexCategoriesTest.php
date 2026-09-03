@@ -42,4 +42,27 @@ class IndexCategoriesTest extends TestCase
             ->assertOk()
             ->assertDontSee('My Categories', false);
     }
+
+    public function testIndexIncludesCategoryDistributionControls(): void
+    {
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('categories.index'))
+            ->assertOk()
+            ->assertSee('Categories')
+            ->assertSee('Distribution')
+            ->assertSee('By Site')
+            ->assertSee('By Discipline')
+            ->assertSee('api\/v1\/categories\/distribution', false);
+    }
+
+    public function testAfmCanOpenDistributionPageForManagedCategory(): void
+    {
+        $afm = User::factory()->create();
+        Category::factory()->forAssets()->create(['manager_id' => $afm->id]);
+
+        $this->actingAs($afm)
+            ->get(route('categories.index'))
+            ->assertOk()
+            ->assertSee('Distribution');
+    }
 }

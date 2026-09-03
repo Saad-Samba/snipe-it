@@ -2,6 +2,16 @@
 
 return array(
     'asset_categories' 					=> 'Asset Categories',
+    'distribution'                     => 'Distribution',
+    'distribution_intro'               => 'Compare each category across the managed portfolio.',
+    'by_site'                          => 'By Site',
+    'by_discipline'                    => 'By Discipline',
+    'managed_assets'                   => 'managed assets',
+    'managed_categories'               => 'managed categories',
+    'portfolio_percentage'             => '% of managed portfolio',
+    'undefined'                        => 'Undefined',
+    'distribution_empty'               => 'No assets are available in this portfolio.',
+    'distribution_error'               => 'The distribution could not be loaded. Please try again.',
     'category_name'  					=> 'Category Name',
     'email_to_user_upon_checkin' => 'Email User on Return',
     'email_to_user_upon_checkin_and_checkout' => 'Email User on Assignment and Return',
