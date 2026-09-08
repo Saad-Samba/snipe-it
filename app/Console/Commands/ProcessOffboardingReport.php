@@ -44,15 +44,15 @@ class ProcessOffboardingReport extends Command
             return self::FAILURE;
         }
 
-        $run = OffboardingReportRun::query()->updateOrCreate(
-            ['source_hash' => $sourceHash],
-            [
-                'source_filename' => basename($csvPath),
-                'status' => OffboardingReportRun::STATUS_REVIEWED,
-                'summary' => $result['summary'],
-                'processed_at' => now(),
-            ]
-        );
+        $run = OffboardingReportRun::query()->firstOrNew(['source_hash' => $sourceHash]);
+        if (! $run->exists) {
+            $run->status = OffboardingReportRun::STATUS_REVIEWED;
+        }
+        $run->fill([
+            'source_filename' => basename($csvPath),
+            'summary' => $result['summary'],
+            'processed_at' => now(),
+        ])->save();
 
         $this->renderSummary($result);
 

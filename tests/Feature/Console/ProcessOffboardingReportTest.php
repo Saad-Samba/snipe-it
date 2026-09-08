@@ -90,6 +90,14 @@ class ProcessOffboardingReportTest extends TestCase
 
         $this->assertSame(1, OffboardingReportDelivery::query()->count());
         $this->assertSame(1, OffboardingReportRun::query()->count());
+
+        $this->artisan('snipeit:process-offboarding-report', ['csv' => $csv])
+            ->assertExitCode(0);
+
+        $this->assertSame(
+            OffboardingReportRun::STATUS_TEST_SENT,
+            OffboardingReportRun::query()->firstOrFail()->status
+        );
     }
 
     public function test_conflicting_identifiers_are_not_notified(): void
