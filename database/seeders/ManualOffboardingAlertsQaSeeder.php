@@ -183,8 +183,8 @@ class ManualOffboardingAlertsQaSeeder extends Seeder
         $this->command?->info('Manual offboarding-alert QA dataset is ready.');
         $this->command?->line('Admin login: qa-offboarding-admin / password');
         $this->command?->line('Input CSV: database/seeders/fixtures/offboarding_alerts_disabled_accounts.csv');
-        $this->command?->line('Expected: matched=4, not_found=1, ambiguous=1, skipped=2, obligations=4.');
-        $this->command?->line('Expected routed obligations=3; Beta consumable has a multiple-RAC warning.');
+        $this->command?->line('Expected: matched=4, not_found=1, ambiguous=1, skipped=2, obligations=2.');
+        $this->command?->line('Expected routed obligations=2; accessories and consumables are intentionally ignored.');
     }
 
     private function upsertUser(string $username, array $attributes): User
