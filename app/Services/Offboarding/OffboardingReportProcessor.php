@@ -5,6 +5,7 @@ namespace App\Services\Offboarding;
 use App\Models\Asset;
 use App\Models\LicenseSeat;
 use App\Models\RegionalAssetCoordinatorAssignment;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
@@ -26,12 +27,7 @@ class OffboardingReportProcessor
         [$accounts, $skipped] = $this->readAccounts($csvPath);
         [$usersById, $identityIndexes] = $this->buildUserIndexes();
         [$racsByScope, $racsByCompany] = $this->buildRacIndexes();
-        $fallbackRecipients = collect(config('offboarding.fallback_recipients', []))
-            ->map(fn ($email) => trim((string) $email))
-            ->filter(fn (string $email) => filter_var($email, FILTER_VALIDATE_EMAIL) !== false)
-            ->unique()
-            ->values()
-            ->all();
+        $administratorRecipients = $this->administratorAlertRecipients();
 
         $reviews = [];
         $notifications = [];
@@ -76,7 +72,7 @@ class OffboardingReportProcessor
 
                 if ($warning !== '') {
                     $review['routing_warnings'][] = $warning;
-                    $recipients = $fallbackRecipients;
+                    $recipients = $administratorRecipients;
                 }
 
                 if (! empty($recipients)) {
@@ -90,6 +86,7 @@ class OffboardingReportProcessor
                         'user_name' => $user->display_name ?: $user->getFullNameAttribute(),
                         'username' => $user->username,
                         'date_disabled' => $account['date_disabled'],
+                        'routing_warning' => $warning ?: null,
                         ...$obligation,
                     ];
                 }
@@ -361,6 +358,21 @@ class OffboardingReportProcessor
         }
 
         return [$byScope, $byCompany];
+    }
+
+    private function administratorAlertRecipients(): array
+    {
+        $settings = Setting::getSettings();
+        if (! $settings?->alerts_enabled || empty($settings->alert_email) || config('app.lock_passwords')) {
+            return [];
+        }
+
+        return collect(explode(',', $settings->alert_email))
+            ->map(fn (string $email) => trim($email))
+            ->filter(fn (string $email) => filter_var($email, FILTER_VALIDATE_EMAIL) !== false)
+            ->unique(fn (string $email) => $this->normalize($email))
+            ->values()
+            ->all();
     }
 
     private function routeObligation(array $obligation, array $byScope, array $byCompany): array

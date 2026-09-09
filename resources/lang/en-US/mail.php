@@ -115,6 +115,7 @@ return [
     'offboarding_assignments_subject' => 'Action required: :count disabled AD account still has LEAMS assignments|Action required: :count disabled AD accounts still have LEAMS assignments',
     'offboarding_discipline' => 'Discipline',
     'offboarding_review_item' => 'Review in LEAMS',
+    'offboarding_routing_warning' => 'RAC routing warning',
     'offboarding_test_delivery' => 'Test delivery for intended recipient',
     'offboarding_user' => 'User',
     'password' => 'Password',

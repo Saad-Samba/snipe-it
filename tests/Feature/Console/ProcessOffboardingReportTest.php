@@ -10,6 +10,7 @@ use App\Models\LicenseSeat;
 use App\Models\OffboardingReportDelivery;
 use App\Models\OffboardingReportRun;
 use App\Models\RegionalAssetCoordinatorAssignment;
+use App\Models\Setting;
 use App\Models\User;
 use App\Notifications\OffboardingAssignmentsNotification;
 use Illuminate\Support\Facades\Notification;
@@ -132,6 +133,59 @@ class ProcessOffboardingReportTest extends TestCase
 
         Notification::assertNothingSent();
         $this->assertSame(1, OffboardingReportRun::query()->firstOrFail()->summary['unresolved_users']);
+    }
+
+    public function test_unrouted_assignments_use_existing_administrator_alert_recipients(): void
+    {
+        Notification::fake();
+        $settings = Setting::getSettings();
+        $settings->forceFill([
+            'alerts_enabled' => 1,
+            'alert_email' => 'asset-admin@example.com, invalid-address, ASSET-ADMIN@example.com',
+        ])->save();
+
+        $company = Company::factory()->create(['name' => 'Unrouted QA Plant']);
+        $creator = User::factory()->superuser()->create();
+        $discipline = Discipline::create([
+            'name' => 'Unrouted QA Engineering',
+            'created_by' => $creator->id,
+        ]);
+        $user = User::factory()->create([
+            'username' => 'qa.offboarding.unrouted',
+            'email' => 'qa.offboarding.unrouted@example.com',
+            'employee_num' => 'QA-OFF-UNROUTED',
+            'company_id' => $company->id,
+        ]);
+        Asset::factory()->create([
+            'asset_tag' => 'QA-OFF-UNROUTED-001',
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'assigned_to' => $user->id,
+            'assigned_type' => User::class,
+        ]);
+        $csv = $this->makeCsv([$this->csvRow($user)]);
+
+        $this->artisan('snipeit:process-offboarding-report', [
+            'csv' => $csv,
+            '--send' => true,
+            '--recipient-override' => 'reviewer@example.com',
+        ])->assertExitCode(0);
+
+        Notification::assertSentOnDemand(
+            OffboardingAssignmentsNotification::class,
+            function (OffboardingAssignmentsNotification $notification, array $channels, object $notifiable) {
+                $renderedMail = $notification->toMail($notifiable)->render();
+
+                return $notification->intendedRecipient() === 'asset-admin@example.com'
+                    && count($notification->lines()) === 1
+                    && str_contains($renderedMail, 'RAC routing warning')
+                    && str_contains($renderedMail, 'no active RAC for Unrouted QA Plant / Unrouted QA Engineering');
+            }
+        );
+
+        $summary = OffboardingReportRun::query()->firstOrFail()->summary;
+        $this->assertSame(1, $summary['routing_warnings']);
+        $this->assertSame(1, $summary['notification_recipients']);
     }
 
     private function createRoutedAssignments(): array

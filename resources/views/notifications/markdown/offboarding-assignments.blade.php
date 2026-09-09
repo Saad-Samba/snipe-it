@@ -29,7 +29,12 @@
                 <a href="{{ $line['item_url'] }}">{{ $line['item_name'] }}</a><br><small>{{ $line['item_reference'] }}</small>
             </td>
             <td align="left" style="padding:12px 12px 12px 0; border-bottom:1px solid #f1f3f4;">{{ $line['company_name'] ?: '-' }}</td>
-            <td align="left" style="padding:12px 12px 12px 0; border-bottom:1px solid #f1f3f4;">{{ $line['discipline_name'] ?: '-' }}</td>
+            <td align="left" style="padding:12px 12px 12px 0; border-bottom:1px solid #f1f3f4;">
+                {{ $line['discipline_name'] ?: '-' }}
+                @if($line['routing_warning'] ?? null)
+                    <br><small><strong>{{ trans('mail.offboarding_routing_warning') }}:</strong> {{ $line['routing_warning'] }}</small>
+                @endif
+            </td>
             <td align="left" style="padding:12px 0; border-bottom:1px solid #f1f3f4;"><a href="{{ $line['item_url'] }}">{{ trans('mail.offboarding_review_item') }}</a></td>
         </tr>
     @endforeach
