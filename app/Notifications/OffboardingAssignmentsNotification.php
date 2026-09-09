@@ -23,6 +23,13 @@ class OffboardingAssignmentsNotification extends Notification
     public function toMail($notifiable): MailMessage
     {
         $userCount = collect($this->lines)->pluck('user_id')->unique()->count();
+        $lines = collect($this->lines)->map(function (array $line) {
+            $route = $line['kind'] === 'asset' ? 'hardware.show' : 'licenses.show';
+
+            return array_merge($line, [
+                'item_url' => route($route, $line['item_id']),
+            ]);
+        })->all();
         $subject = trans_choice(
             'mail.offboarding_assignments_subject',
             $userCount,
@@ -34,10 +41,9 @@ class OffboardingAssignmentsNotification extends Notification
 
         return (new MailMessage)
             ->markdown('notifications.markdown.offboarding-assignments', [
-                'lines' => $this->lines,
+                'lines' => $lines,
                 'intended_recipient' => $this->intendedRecipient,
                 'test_mode' => $this->testMode,
-                'review_url' => route('users.index'),
             ])
             ->subject($subject)
             ->withSymfonyMessage(function (Email $message) {

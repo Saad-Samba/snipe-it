@@ -54,4 +54,7 @@ The command is a dry run unless `--send` is present. It reads the application's
 existing mail configuration. A repeated send of the same CSV and recipient mode
 is skipped unless `--force` is supplied.
 
+Each notification links directly to the affected asset or licence. The RAC does
+not need access to the Users index to act on the assignments.
+
 The seeded administrator is `qa-offboarding-admin` with password `password`.

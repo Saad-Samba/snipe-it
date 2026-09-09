@@ -56,7 +56,7 @@ class ProcessOffboardingReportTest extends TestCase
     public function test_send_with_override_uses_native_notification_and_prevents_duplicate_delivery(): void
     {
         Notification::fake();
-        [$user, $coordinator] = $this->createRoutedAssignments();
+        [$user, $coordinator, $asset, $license] = $this->createRoutedAssignments();
         $csv = $this->makeCsv([$this->csvRow($user)]);
         $arguments = [
             'csv' => $csv,
@@ -70,11 +70,16 @@ class ProcessOffboardingReportTest extends TestCase
 
         Notification::assertSentOnDemand(
             OffboardingAssignmentsNotification::class,
-            function (OffboardingAssignmentsNotification $notification, array $channels, object $notifiable) use ($coordinator) {
+            function (OffboardingAssignmentsNotification $notification, array $channels, object $notifiable) use ($asset, $coordinator, $license) {
+                $renderedMail = $notification->toMail($notifiable)->render();
+
                 return $notifiable->routes['mail'] === 'reviewer@example.com'
                     && $notification->intendedRecipient() === $coordinator->email
                     && $notification->isTestMode()
-                    && count($notification->lines()) === 2;
+                    && count($notification->lines()) === 2
+                    && str_contains($renderedMail, route('hardware.show', $asset->id))
+                    && str_contains($renderedMail, route('licenses.show', $license->id))
+                    && ! str_contains($renderedMail, route('users.index'));
             }
         );
         $this->assertDatabaseHas('offboarding_report_deliveries', [
@@ -155,7 +160,7 @@ class ProcessOffboardingReportTest extends TestCase
             'employee_num' => 'QA-OFF-1001',
             'company_id' => $company->id,
         ]);
-        Asset::factory()->create([
+        $asset = Asset::factory()->create([
             'name' => 'QA Assigned Laptop',
             'asset_tag' => 'QA-OFF-ASSET-001',
             'company_id' => $company->id,
@@ -174,7 +179,7 @@ class ProcessOffboardingReportTest extends TestCase
             'assigned_to' => $user->id,
         ]);
 
-        return [$user, $coordinator];
+        return [$user, $coordinator, $asset, $license];
     }
 
     private function makeCsv(array $rows): string

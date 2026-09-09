@@ -14,7 +14,8 @@
         <th align="left" style="padding:0 12px 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368;">{{ trans('general.type') }}</th>
         <th align="left" style="padding:0 12px 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368;">{{ trans('mail.item') }}</th>
         <th align="left" style="padding:0 12px 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368;">{{ trans('general.company') }}</th>
-        <th align="left" style="padding:0 0 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368;">{{ trans('mail.offboarding_discipline') }}</th>
+        <th align="left" style="padding:0 12px 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368;">{{ trans('mail.offboarding_discipline') }}</th>
+        <th align="left" style="padding:0 0 10px 0; border-bottom:1px solid #e8eaed; font-weight:700; color:#5f6368;">{{ trans('general.action') }}</th>
     </tr>
     </thead>
     <tbody>
@@ -25,20 +26,17 @@
             </td>
             <td align="left" style="padding:12px 12px 12px 0; border-bottom:1px solid #f1f3f4;">{{ ucfirst($line['kind']) }}</td>
             <td align="left" style="padding:12px 12px 12px 0; border-bottom:1px solid #f1f3f4;">
-                {{ $line['item_name'] }}<br><small>{{ $line['item_reference'] }}</small>
+                <a href="{{ $line['item_url'] }}">{{ $line['item_name'] }}</a><br><small>{{ $line['item_reference'] }}</small>
             </td>
             <td align="left" style="padding:12px 12px 12px 0; border-bottom:1px solid #f1f3f4;">{{ $line['company_name'] ?: '-' }}</td>
-            <td align="left" style="padding:12px 0; border-bottom:1px solid #f1f3f4;">{{ $line['discipline_name'] ?: '-' }}</td>
+            <td align="left" style="padding:12px 12px 12px 0; border-bottom:1px solid #f1f3f4;">{{ $line['discipline_name'] ?: '-' }}</td>
+            <td align="left" style="padding:12px 0; border-bottom:1px solid #f1f3f4;"><a href="{{ $line['item_url'] }}">{{ trans('mail.offboarding_review_item') }}</a></td>
         </tr>
     @endforeach
     </tbody>
 </table>
 
 {{ trans('mail.offboarding_assignments_action') }}
-
-@component('mail::button', ['url' => $review_url])
-{{ trans('mail.offboarding_assignments_cta') }}
-@endcomponent
 
 {{ trans('mail.best_regards') }}
 
