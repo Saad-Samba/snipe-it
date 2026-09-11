@@ -106,6 +106,24 @@ class ProcessOffboardingReportTest extends TestCase
         );
     }
 
+    public function test_dry_run_includes_company_owned_license_seats_when_fmcs_is_enabled(): void
+    {
+        Notification::fake();
+        $settings = Setting::getSettings();
+        $settings->full_multiple_companies_support = 1;
+        $settings->save();
+
+        [$user] = $this->createRoutedAssignments();
+        $csv = $this->makeCsv([$this->csvRow($user)]);
+
+        $this->artisan('snipeit:process-offboarding-report', ['csv' => $csv])
+            ->assertExitCode(0);
+
+        $summary = OffboardingReportRun::query()->firstOrFail()->summary;
+        $this->assertSame(2, $summary['obligations']);
+        $this->assertSame(1, $summary['notification_recipients']);
+    }
+
     public function test_conflicting_identifiers_are_not_notified(): void
     {
         Notification::fake();
