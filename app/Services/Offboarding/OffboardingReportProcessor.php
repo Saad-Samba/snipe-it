@@ -3,6 +3,7 @@
 namespace App\Services\Offboarding;
 
 use App\Models\Asset;
+use App\Models\CompanyableChildScope;
 use App\Models\LicenseSeat;
 use App\Models\RegionalAssetCoordinatorAssignment;
 use App\Models\Setting;
@@ -306,7 +307,7 @@ class OffboardingReportProcessor
             ];
         }
 
-        $seats = LicenseSeat::query()
+        $seats = LicenseSeat::withoutGlobalScope(CompanyableChildScope::class)
             ->where('assigned_to', $user->id)
             ->with(['license.company', 'license.discipline'])
             ->get();
