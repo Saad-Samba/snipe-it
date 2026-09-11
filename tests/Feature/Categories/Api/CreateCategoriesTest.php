@@ -19,6 +19,28 @@ class CreateCategoriesTest extends TestCase
             ->assertForbidden();
     }
 
+    public function testAfmCannotCreateCategoryEvenWithCreatePermission()
+    {
+        $afm = User::factory()->create([
+            'permissions' => json_encode(['categories.create' => 1]),
+        ]);
+        Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+
+        $this->actingAsForApi($afm)
+            ->postJson(route('api.categories.store'), [
+                'name' => 'Self Assigned Category',
+                'category_type' => 'asset',
+                'manager_id' => $afm->id,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('categories', [
+            'name' => 'Self Assigned Category',
+        ]);
+    }
+
     public function testCanCreateCategoryWithValidCategoryType()
     {
         $fieldset = CustomFieldset::factory()->create();
@@ -32,6 +54,7 @@ class CreateCategoriesTest extends TestCase
                 'notes' => 'Test Note',
                 'require_acceptance' => true,
                 'alert_on_response' => true,
+                'checkin_email' => false,
             ])
             ->assertOk()
             ->assertStatusMessageIs('success')
@@ -42,12 +65,13 @@ class CreateCategoriesTest extends TestCase
 
         $category = Category::find($response['payload']['id']);
         $this->assertEquals('Test Category', $category->name);
-        $this->assertEquals('Test EULA', $category->eula_text);
+        $this->assertNull($category->eula_text);
         $this->assertEquals('Test Note', $category->notes);
         $this->assertEquals('asset', $category->category_type);
         $this->assertEquals($fieldset->id, $category->fieldset_id);
-        $this->assertEquals(1, $category->require_acceptance);
-        $this->assertEquals(1, $category->alert_on_response);
+        $this->assertEquals(0, $category->require_acceptance);
+        $this->assertFalse($category->alert_on_response);
+        $this->assertTrue($category->checkin_email);
     }
 
     public function testCannotCreateCategoryWithoutCategoryType()

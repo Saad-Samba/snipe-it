@@ -93,7 +93,7 @@ class RequestAssetCancelation extends Notification
             ->from($botname)
             ->to($channel)
             ->attachment(function ($attachment) use ($item, $note, $fields) {
-                $attachment->title(htmlspecialchars_decode($item->display_name), $item->present()->viewUrl())
+                $attachment->title(htmlspecialchars_decode($item->display_name ?? $item->name), $item->present()->viewUrl())
                     ->fields($fields)
                     ->content($note);
             });
@@ -129,7 +129,7 @@ class RequestAssetCancelation extends Notification
             ->subject('⚠️ '.trans('general.request_canceled'))
             ->withSymfonyMessage(function (Email $message) {
                 $message->getHeaders()->addTextHeader(
-                    'X-System-Sender', 'Snipe-IT'
+                    'X-System-Sender', 'LEAMS'
                 );
             });
 

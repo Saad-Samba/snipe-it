@@ -7,7 +7,8 @@ app/storage/logs/*
 app/storage/views/*
 vendor/*
 storage/framework/cache/*
+storage/oauth-private.key
+storage/oauth-public.key
 node_modules
 .vagrant
 .idea
-

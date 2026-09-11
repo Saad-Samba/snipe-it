@@ -161,13 +161,6 @@
                         </li>
                     @endif
 
-                    @if ($model->min_amt)
-                        <li>
-                            <strong>{{ trans('general.min_amt') }}</strong>:
-                           {{$model->min_amt }}
-                        </li>
-                    @endif
-
                     @if ($model->manufacturer)
                         <li>
                             <strong>{{ trans('general.manufacturer') }}</strong>:
@@ -210,13 +203,6 @@
                         <li>
                             <strong>{{ trans('general.model_no') }}</strong>:
                             {{ $model->model_number }}
-                        </li>
-                    @endif
-
-                    @if ($model->depreciation)
-                        <li>
-                            <strong>{{ trans('general.depreciation') }}</strong>:
-                            {{ $model->depreciation->name }} ({{ $model->depreciation->months.' '.trans('general.months')}})
                         </li>
                     @endif
 

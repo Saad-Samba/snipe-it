@@ -126,11 +126,21 @@
                 paginationVAlign: 'both',
                 queryParams: function (params) {
                     var newParams = {};
+                    var bootstrapTableInstance = $(table).data('bootstrap.table');
+                    var advancedFilters = (bootstrapTableInstance && bootstrapTableInstance.filterColumnsPartial) || {};
+
                     for (var i in params) {
                         if (!keyBlocked(i)) { // only send the field if it's not in blockedFields
                             newParams[i] = params[i];
                         }
                     }
+
+                    for (var filterKey in advancedFilters) {
+                        if (advancedFilters[filterKey] !== undefined && advancedFilters[filterKey] !== null && advancedFilters[filterKey] !== '') {
+                            newParams[filterKey] = advancedFilters[filterKey];
+                        }
+                    }
+
                     return newParams;
                 },
                 formatLoadingMessage: function () {
@@ -865,10 +875,12 @@
     });
     @endcan
 
-    @can('create', \App\Models\Category::class)
     // Custom Field table buttons
-    window.categoryButtons = () => ({
-        btnAdd: {
+    window.categoryButtons = () => {
+        const buttons = {};
+
+        @can('create', \App\Models\Category::class)
+        buttons.btnAdd = {
             text: '{{ trans('general.create') }}',
             icon: 'fa fa-plus',
             event () {
@@ -881,9 +893,11 @@
                 accesskey: 'n'
                 @endif
             }
-        },
-    });
-    @endcan
+        };
+        @endcan
+
+        return buttons;
+    };
 
     // Custom Field table buttons
     window.modelButtons = () => ({
@@ -1109,6 +1123,10 @@
 
     });
 
+    $('.snipe-table').on('click mousedown touchstart focus', '.model-request-inline-control', function (event) {
+        event.stopPropagation();
+    });
+
     // Initialize sort-order for bulk actions (label-generation) for snipe-tables
     $('.snipe-table').each(function (i, table) {
         table_cookie_segment = $(table).data('cookie-id-table');
@@ -1190,8 +1208,6 @@
             }
         };
     }
-
-
 
     // This is a special formatter that will indicate whether a user is an admin or superadmin
     function usernameRoleLinkFormatter(value, row) {
@@ -1278,6 +1294,20 @@
                 return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a>' + obsoleteIndicator + '</nobr>';
             }
         };
+    }
+
+    function companiesCenterMatchObjFormatter(value, row) {
+        var formattedValue = genericColumnObjLinkFormatter('companies')(value, row);
+
+        if (!formattedValue) {
+            return formattedValue;
+        }
+
+        if (row && row.is_closest_match) {
+            return '<span style="white-space: nowrap;">' + formattedValue + ' <span class="label label-success" data-tooltip="true" title="Reusable asset from the same center">Same center</span></span>';
+        }
+
+        return formattedValue;
     }
 
 
@@ -1442,6 +1472,44 @@
         }
     }
 
+    function categoryReusableInventoryFormatter(value, row) {
+        if (!row || row.category_type_raw !== 'asset') {
+            return '&mdash;';
+        }
+
+        var models = Number(value) || 0;
+        var assets = Number(row.reusable_assets_count) || 0;
+        var modelsLabel = models === 1 ? 'Model' : 'Models';
+        var assetsLabel = assets === 1 ? 'Asset' : 'Assets';
+        var modelMetric = '<span style="display:inline-block; min-width:52px; text-align:left; vertical-align:middle;">'
+            + '<strong style="display:block; font-size:inherit; line-height:inherit; font-weight:600;">' + models + '</strong>'
+            + '<span class="text-muted" style="font-size:inherit; line-height:inherit;">' + modelsLabel + '</span>'
+            + '</span>';
+        var assetMetric = '<span style="display:inline-block; min-width:52px; padding-left:10px; border-left:1px solid #ddd; text-align:left; vertical-align:middle;">'
+            + '<strong style="display:block; font-size:inherit; line-height:inherit; font-weight:600; color:#333;">' + assets + '</strong>'
+            + '<span class="text-muted" style="font-size:inherit; line-height:inherit;">' + assetsLabel + '</span>'
+            + '</span>';
+
+        if (models > 0) {
+            modelMetric = '<a href="{{ route('models.index') }}?category_id=' + row.id + '&available_models=1" style="display:inline-block; min-width:52px; text-align:left; vertical-align:middle;">'
+                + '<strong style="display:block; font-size:inherit; line-height:inherit; font-weight:600;">' + models + '</strong>'
+                + '<span style="font-size:inherit; line-height:inherit;">' + modelsLabel + '</span>'
+                + '</a>';
+        }
+
+        return '<div style="white-space:nowrap;">' + modelMetric + assetMetric + '</div>';
+    }
+
+    function modelReusableAssetsFormatter(value, row) {
+        var assets = Number(value) || 0;
+
+        if (!row || assets < 1) {
+            return assets;
+        }
+
+        return '<a href="{{ route('hardware.index') }}?model_id=' + row.id + '&reusable_assets=1">' + assets + '</a>';
+    }
+
 
     // Convert line breaks to <br>
     function notesFormatter(value) {
@@ -1504,11 +1572,20 @@
 
     function genericCheckinCheckoutFormatter(destination) {
         return function (value, row) {
+            var requestQuery = '{{ request()->filled('request_id') ? '?request_id=' . urlencode((string) request()->input('request_id')) : '' }}';
+
+            if (destination === 'hardware' && row.available_actions.start_transfer === true) {
+                return '<form method="POST" action="{{ config('app.url') }}/hardware/' + row.id + '/requests/{{ request()->integer('request_id') }}/start-transfer" style="display:inline;">'
+                    + '@csrf'
+                    + '<input type="hidden" name="request_bucket" value="{{ e(request()->input('request_bucket', 'reusable_now')) }}">'
+                    + '<button type="submit" class="btn btn-sm btn-primary" data-tooltip="true" title="Move this asset into the request-linked transfer process">Start transfer <span class="label label-info" title="Recently released feature">NEW</span></button>'
+                    + '</form>';
+            }
 
             // The user is allowed to check items out, AND the item is deployable
             if ((row.available_actions.checkout == true) && (row.user_can_checkout == true) && ((!row.asset_id) && (!row.assigned_to))) {
 
-                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '/checkout" class="btn btn-sm bg-maroon" data-tooltip="true" title="{{ trans('general.checkout_tooltip') }}">{{ trans('general.checkout') }}</a>';
+                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '/checkout' + requestQuery + '" class="btn btn-sm bg-maroon" data-tooltip="true" title="{{ trans('general.checkout_tooltip') }}">{{ trans('general.checkout') }}</a>';
 
             // The user is allowed to check items out, but the item is not able to be checked out
             } else if (((row.user_can_checkout == false)) && (row.available_actions.checkout == true) && (!row.assigned_to)) {
@@ -1524,9 +1601,9 @@
             // The user is allowed to check items in
             } else if (row.available_actions.checkin == true)  {
                 if (row.assigned_to) {
-                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '/checkin" class="btn btn-sm bg-purple" data-tooltip="true" title="{{ trans('general.checkin_tooltip') }}">{{ trans('general.checkin') }}</a>';
+                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.id + '/checkin' + requestQuery + '" class="btn btn-sm bg-purple" data-tooltip="true" title="{{ trans('general.checkin_tooltip') }}">{{ trans('general.checkin') }}</a>';
                 } else if (row.assigned_pivot_id) {
-                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.assigned_pivot_id + '/checkin" class="btn btn-sm bg-purple" data-tooltip="true" title="{{ trans('general.checkin_tooltip') }}">{{ trans('general.checkin') }}</a>';
+                    return '<a href="{{ config('app.url') }}/' + destination + '/' + row.assigned_pivot_id + '/checkin' + requestQuery + '" class="btn btn-sm bg-purple" data-tooltip="true" title="{{ trans('general.checkin_tooltip') }}">{{ trans('general.checkin') }}</a>';
                 }
 
             }
@@ -1547,6 +1624,915 @@
             return '<form action="{{ config('app.url') }}/account/request-asset/'+ value.id + '" method="POST">@csrf<button class="btn btn-block btn-primary btn-sm" data-tooltip="true" title="{{ trans('general.request_item') }}">{{ trans('button.request') }}</button></form>';
         }
 
+    }
+
+    var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
+    var modelRequestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name']));
+    var modelRequestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name']));
+    var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
+    var createProjectForRequestsUrl = '{{ route('account.request-projects.store') }}';
+    var modelRequestCartAddUrl = '{{ route('account.request-cart.items.add') }}';
+    var modelRequestCartPreviewUrl = '{{ route('account.request-cart.preview') }}';
+    var modelRequestCartRemoveUrl = '{{ route('account.request-cart.items.remove') }}';
+    var modelRequestCartClearUrl = '{{ route('account.request-cart.clear') }}';
+    var modelRequestCartSubmitUrl = '{{ route('account.request-cart.submit') }}';
+    var modelRequestCartToastTimer = null;
+
+    function buildModelRequestProjectOptions(selectedProjectId) {
+        var options = ['<option value=\"\">{{ trans('general.select_project') }}</option>'];
+
+        modelRequestProjects.forEach(function(project) {
+            var selected = String(project.id) === String(selectedProjectId) ? ' selected' : '';
+            options.push('<option value=\"' + project.id + '\"' + selected + '>' + project.name + '</option>');
+        });
+
+        return options.join('');
+    }
+
+    function buildModelRequestDisciplineOptions(selectedDisciplineId) {
+        var options = ['<option value=\"\">{{ trans('general.select_discipline') }}</option>'];
+
+        modelRequestDisciplines.forEach(function(discipline) {
+            var selected = String(discipline.id) === String(selectedDisciplineId) ? ' selected' : '';
+            options.push('<option value=\"' + discipline.id + '\"' + selected + '>' + discipline.name + '</option>');
+        });
+
+        return options.join('');
+    }
+
+    function buildModelRequestCompanyOptions(selectedCompanyId) {
+        var options = ['<option value=\"\">{{ trans('general.select_company') }}</option>'];
+
+        modelRequestCompanies.forEach(function(company) {
+            var selected = String(company.id) === String(selectedCompanyId) ? ' selected' : '';
+            options.push('<option value=\"' + company.id + '\"' + selected + '>' + company.name + '</option>');
+        });
+
+        return options.join('');
+    }
+
+    function formatEstimateCurrency(value) {
+        var number = Number(value || 0);
+
+        return number.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function referencePriceFormatter(value, row) {
+        if (row && row.reference_price_formatted) {
+            return row.reference_price_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function requestReferencePriceFormatter(value, row) {
+        if (row && row.reference_price_snapshot_formatted) {
+            return row.reference_price_snapshot_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function ensureModelRequestCartToast() {
+        if (document.getElementById('model-request-cart-toast')) {
+            return;
+        }
+
+        var toastHtml = ''
+            + '<div id="model-request-cart-toast" style="display:none;position:fixed;right:20px;bottom:20px;z-index:1060;max-width:320px;background:#222d32;color:#fff;padding:12px 16px;border-radius:6px;box-shadow:0 8px 18px rgba(0,0,0,0.2);font-size:13px;">'
+            + '  <div id="model-request-cart-toast-message"></div>'
+            + '</div>';
+
+        $('body').append(toastHtml);
+    }
+
+    function showModelRequestCartToast(message) {
+        ensureModelRequestCartToast();
+
+        $('#model-request-cart-toast-message').text(message);
+        $('#model-request-cart-toast').stop(true, true).fadeIn(150);
+
+        if (modelRequestCartToastTimer) {
+            window.clearTimeout(modelRequestCartToastTimer);
+        }
+
+        modelRequestCartToastTimer = window.setTimeout(function () {
+            $('#model-request-cart-toast').fadeOut(250);
+        }, 2200);
+    }
+
+    function attachRequestTableHeaderTooltips() {
+        $('.snipe-table[data-request-mode="requester"]').each(function () {
+            $(this).find('thead th[data-request-tooltip]').each(function () {
+                var $header = $(this);
+                var $headerInner = $header.find('.th-inner').first();
+
+                if ($header.find('.request-column-tooltip').length) {
+                    return;
+                }
+
+                var tooltipText = $header.attr('data-request-tooltip');
+                var iconHtml = ' <a href="#" class="request-column-tooltip" data-tooltip="true" title="' + escapeHtml(tooltipText) + '" onclick="return false;"><i class="fas fa-info-circle" aria-hidden="true"></i></a>';
+
+                if ($headerInner.length) {
+                    $headerInner.append(iconHtml);
+                } else {
+                    $header.append(iconHtml);
+                }
+            });
+
+            $('[data-tooltip="true"]').tooltip();
+        });
+    }
+
+    function ensureModelRequestModal() {
+        if (document.getElementById('model-request-modal')) {
+            return;
+        }
+
+        var modalHtml = ''
+            + '<div class="modal fade" id="model-request-modal" tabindex="-1" role="dialog" aria-hidden="true">'
+            + '  <div class="modal-dialog" role="document">'
+            + '    <div class="modal-content">'
+            + '      <form id="model-request-modal-form" method="POST">'
+            + '        @csrf'
+            + '        <div class="modal-header">'
+            + '          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+            + '          <h4 class="modal-title" id="model-request-modal-title">Modify request</h4>'
+            + '        </div>'
+            + '        <div class="modal-body">'
+            + '          <input type="hidden" name="request-action" id="model-request-modal-action" value="update">'
+            + '          <div class="alert alert-danger" id="model-request-modal-error" style="display:none;"></div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-quantity">Quantity</label>'
+            + '            <input type="number" name="request-quantity" id="model-request-modal-quantity" class="form-control" min="1" required>'
+            + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-discipline">Discipline</label>'
+            + '            <select name="requested_discipline_id" id="model-request-modal-discipline" class="form-control" required>' + buildModelRequestDisciplineOptions('') + '</select>'
+            + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="model-request-modal-company">{{ trans('general.company') }}</label>'
+            + '            <select name="company_id" id="model-request-modal-company" class="form-control" required>' + buildModelRequestCompanyOptions('') + '</select>'
+            + '          </div>'
+            + '          <div class="form-group" id="model-request-modal-project-group">'
+            + '            <label for="model-request-modal-project">{{ trans('general.project') }}</label>'
+            + '            <div class="input-group">'
+            + '              <select name="project_id" id="model-request-modal-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
+            + '              <span class="input-group-btn">'
+            + '                <button type="button" class="btn btn-default" id="model-request-modal-create-project" data-tooltip="true" title="Create project" ' + (canCreateProjectsForRequests ? '' : 'disabled') + '><i class="fas fa-plus" aria-hidden="true"></i></button>'
+            + '              </span>'
+            + '            </div>'
+            + '          </div>'
+            + '          <div class="form-group" id="model-request-modal-needed-by-group">'
+            + '            <label for="model-request-modal-needed-by-date">Needed By</label>'
+            + '            <input type="date" name="needed_by_date" id="model-request-modal-needed-by-date" class="form-control" required>'
+            + '          </div>'
+            + '          <div id="model-request-modal-estimate" class="well well-sm" style="margin-bottom:0;">'
+            + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Estimate <span class="label label-info" data-tooltip="true" title="Recently released feature">NEW</span></div>'
+            + '            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">'
+            + '              <span>Total Needed</span><span id="model-request-modal-estimate-requested">0</span>'
+            + '              <span>Reusable Now</span><span id="model-request-modal-estimate-reusable">0</span>'
+            + '              <span>Due Back Before Needed By</span><span id="model-request-modal-estimate-due-back">0</span>'
+            + '              <span>Shortfall</span><span id="model-request-modal-estimate-shortfall">0</span>'
+            + '              <span>Estimated Savings</span><span id="model-request-modal-estimate-savings">0.00</span>'
+            + '            </div>'
+            + '          </div>'
+            + '        </div>'
+            + '        <div class="modal-footer">'
+            + '          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>'
+            + '          <button type="submit" class="btn btn-primary" id="model-request-modal-submit">Update</button>'
+            + '        </div>'
+            + '      </form>'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+
+        $('body').append(modalHtml);
+
+        $('#model-request-modal-project, #model-request-modal-needed-by-date, #model-request-modal-quantity, #model-request-modal-company').on('change keyup', function () {
+            updateModelRequestEstimateSummary();
+        });
+
+        $('#model-request-modal-create-project').on('click', function () {
+            createProjectFromRequestModal('#model-request-modal-project', '#model-request-modal-error');
+        });
+    }
+
+    function ensureRequestSubmissionModal() {
+        if (document.getElementById('request-submission-modal')) {
+            return;
+        }
+
+        var modalHtml = ''
+            + '<div class="modal fade" id="request-submission-modal" tabindex="-1" role="dialog" aria-hidden="true">'
+            + '  <div class="modal-dialog" role="document">'
+            + '    <div class="modal-content">'
+            + '      <form id="request-submission-modal-form" method="POST">'
+            + '        @csrf'
+            + '        <div class="modal-header">'
+            + '          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+            + '          <h4 class="modal-title">Modify submission</h4>'
+            + '        </div>'
+            + '        <div class="modal-body">'
+            + '          <div class="alert alert-info">Project and Needed By apply to every model line in this submission.</div>'
+            + '          <div class="alert alert-danger" id="request-submission-modal-error" style="display:none;"></div>'
+            + '          <div class="form-group">'
+            + '            <label for="request-submission-modal-project">{{ trans('general.project') }}</label>'
+            + '            <div class="input-group">'
+            + '              <select name="project_id" id="request-submission-modal-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
+            + '              <span class="input-group-btn">'
+            + '                <button type="button" class="btn btn-default" id="request-submission-modal-create-project" data-tooltip="true" title="Create project"><i class="fas fa-plus" aria-hidden="true"></i></button>'
+            + '              </span>'
+            + '            </div>'
+            + '          </div>'
+            + '          <div class="form-group">'
+            + '            <label for="request-submission-modal-needed-by-date">Needed By</label>'
+            + '            <input type="date" name="needed_by_date" id="request-submission-modal-needed-by-date" class="form-control" required>'
+            + '          </div>'
+            + '        </div>'
+            + '        <div class="modal-footer">'
+            + '          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>'
+            + '          <button type="submit" class="btn btn-primary">Update submission</button>'
+            + '        </div>'
+            + '      </form>'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+
+        $('body').append(modalHtml);
+        $('#request-submission-modal-create-project').on('click', function () {
+            createProjectFromRequestModal('#request-submission-modal-project', '#request-submission-modal-error');
+        });
+    }
+
+    function openRequestSubmissionModal(updateUrl, projectId, neededByDate) {
+        ensureRequestSubmissionModal();
+        $('#request-submission-modal-form').attr('action', updateUrl);
+        $('#request-submission-modal-project').html(buildModelRequestProjectOptions(projectId || ''));
+        $('#request-submission-modal-project').val(String(projectId || ''));
+        $('#request-submission-modal-needed-by-date').val(neededByDate || '');
+        $('#request-submission-modal-error').hide().text('');
+        $('#request-submission-modal').modal('show');
+    }
+
+    function ensureModelRequestCartModal() {
+        if (document.getElementById('model-request-cart-modal')) {
+            return;
+        }
+
+        var modalHtml = ''
+            + '<div class="modal fade" id="model-request-cart-modal" tabindex="-1" role="dialog" aria-hidden="true">'
+            + '  <div class="modal-dialog modal-lg" role="document">'
+            + '    <div class="modal-content">'
+            + '      <form id="model-request-cart-modal-form" method="POST" action="' + modelRequestCartSubmitUrl + '">'
+            + '        @csrf'
+            + '        <div class="modal-header">'
+            + '          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+            + '          <h4 class="modal-title">Request Cart</h4>'
+            + '        </div>'
+            + '        <div class="modal-body">'
+            + '          <div class="alert alert-danger" id="model-request-cart-modal-error" style="display:none;"></div>'
+            + '          <div class="row">'
+            + '            <div class="col-md-6">'
+            + '              <div class="form-group">'
+            + '                <label for="model-request-cart-project">{{ trans('general.project') }}</label>'
+            + '                <div class="input-group">'
+            + '                  <select name="project_id" id="model-request-cart-project" class="form-control" required>' + buildModelRequestProjectOptions('') + '</select>'
+            + '                  <span class="input-group-btn">'
+            + '                    <button type="button" class="btn btn-default" id="model-request-cart-create-project" data-tooltip="true" title="Create project" ' + (canCreateProjectsForRequests ? '' : 'disabled') + '><i class="fas fa-plus" aria-hidden="true"></i></button>'
+            + '                  </span>'
+            + '                </div>'
+            + '              </div>'
+            + '            </div>'
+            + '          </div>'
+            + '          <div class="row">'
+            + '            <div class="col-md-6">'
+            + '              <div class="form-group">'
+            + '                <label for="model-request-cart-needed-by-date">Needed By</label>'
+            + '                <input type="date" name="needed_by_date" id="model-request-cart-needed-by-date" class="form-control" required>'
+            + '              </div>'
+            + '            </div>'
+            + '          </div>'
+            + '          <div class="table-responsive">'
+            + '            <table class="table table-striped table-condensed" style="margin-bottom:12px;">'
+            + '              <thead>'
+            + '                <tr>'
+            + '                  <th>Model</th>'
+            + '                  <th>Discipline</th>'
+            + '                  <th>{{ trans('general.company') }}</th>'
+            + '                  <th>Quantity</th>'
+            + '                  <th>Reusable Now</th>'
+            + '                  <th>Due Back</th>'
+            + '                  <th>Reserved by Other Project</th>'
+            + '                  <th>Shortfall</th>'
+            + '                  <th>Estimated Savings</th>'
+            + '                  <th>Amount to Buy</th>'
+            + '                  <th></th>'
+            + '                </tr>'
+            + '              </thead>'
+            + '              <tbody id="model-request-cart-lines"></tbody>'
+            + '            </table>'
+            + '          </div>'
+            + '          <div class="well well-sm" style="margin-bottom:0;">'
+            + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Planning Totals</div>'
+            + '            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">'
+            + '              <span>Total Needed</span><span id="model-request-cart-total-requested">0</span>'
+            + '              <span>Reusable Now</span><span id="model-request-cart-total-reusable">0</span>'
+            + '              <span>Due Back</span><span id="model-request-cart-total-due-back">0</span>'
+            + '              <span>Reserved by Other Project</span><span id="model-request-cart-total-reserved-other">0</span>'
+            + '              <span>Shortfall</span><span id="model-request-cart-total-shortfall">0</span>'
+            + '              <span>Estimated Savings</span><span id="model-request-cart-total-savings">0.00</span>'
+            + '              <span>Amount to Buy</span><span id="model-request-cart-total-buy">0.00</span>'
+            + '            </div>'
+            + '          </div>'
+            + '        </div>'
+            + '        <div class="modal-footer">'
+            + '          <button type="button" class="btn btn-danger pull-left" id="model-request-cart-clear">Clear Cart</button>'
+            + '          <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>'
+            + '          <button type="submit" class="btn btn-primary" id="model-request-cart-submit">{{ trans('button.request') }}</button>'
+            + '        </div>'
+            + '      </form>'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+
+        $('body').append(modalHtml);
+
+        $('#model-request-cart-project, #model-request-cart-needed-by-date').on('change keyup', function () {
+            refreshModelRequestCartPreview();
+        });
+
+        $('#model-request-cart-create-project').on('click', function () {
+            createProjectFromRequestModal('#model-request-cart-project', '#model-request-cart-modal-error');
+        });
+
+        $('#model-request-cart-clear').on('click', function () {
+            $.post(modelRequestCartClearUrl, {_token: '{{ csrf_token() }}'}).done(function (response) {
+                updateModelRequestCartCount(response.cart_count || 0);
+                refreshModelRequestCartPreview();
+            });
+        });
+    }
+
+    function updateModelRequestCartCount(count) {
+        $('#modelRequestCartCount').text(count);
+    }
+
+    $('#modelRequestCartButton').on('click', function () {
+        openModelRequestCartModal();
+    });
+
+    function addLinesToRequestCart(lines, openCartOnSuccess) {
+        return $.ajax({
+            url: modelRequestCartAddUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                _token: '{{ csrf_token() }}',
+                lines: lines
+            }
+        }).done(function (response) {
+            updateModelRequestCartCount(response.cart_count || 0);
+            showModelRequestCartToast(lines.length > 1 ? 'Items added to cart.' : 'Item added to cart.');
+
+            if (openCartOnSuccess) {
+                openModelRequestCartModal();
+            }
+        }).fail(function (xhr) {
+            var message = 'Unable to add items to the request cart.';
+
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                    message = xhr.responseJSON.errors[firstKey][0];
+                }
+            }
+
+            window.alert(message);
+        });
+    }
+
+    function openModelRequestModal(options) {
+        ensureModelRequestModal();
+
+        $('#model-request-modal-form').attr('action', options.requestUrl);
+        $('#model-request-modal-form').data('estimate-url', options.estimateUrl);
+        $('#model-request-modal-title').text(options.title);
+        $('#model-request-modal-action').val(options.action || 'update');
+        $('#model-request-modal-quantity').val(options.quantity || '');
+        $('#model-request-modal-discipline').html(buildModelRequestDisciplineOptions(options.requestedDisciplineId || ''));
+        $('#model-request-modal-discipline').val(String(options.requestedDisciplineId || ''));
+        $('#model-request-modal-company').html(buildModelRequestCompanyOptions(options.companyId || ''));
+        $('#model-request-modal-company').val(String(options.companyId || ''));
+        $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
+        $('#model-request-modal-project').val(String(options.projectId || ''));
+        $('#model-request-modal-needed-by-date').val(options.neededByDate || '');
+        $('#model-request-modal-project-group, #model-request-modal-needed-by-group').toggle(options.showSharedContext !== false);
+        $('#model-request-modal-submit').text(options.submitLabel);
+        resetModelRequestEstimateState();
+        $('#model-request-modal').modal('show');
+        updateModelRequestEstimateSummary();
+    }
+
+    function resetModelRequestEstimateState() {
+        $('#model-request-modal-error').hide().text('');
+        $('#model-request-modal-estimate-requested').text('0');
+        $('#model-request-modal-estimate-reusable').text('0');
+        $('#model-request-modal-estimate-due-back').text('0');
+        $('#model-request-modal-estimate-shortfall').text('0');
+        $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(0));
+        $('#model-request-modal-submit').prop('disabled', false);
+    }
+
+    function estimateModelRequestModal() {
+        var estimateUrl = $('#model-request-modal-form').data('estimate-url');
+        var quantity = $('#model-request-modal-quantity').val();
+        var companyId = $('#model-request-modal-company').val();
+        var projectId = $('#model-request-modal-project').val();
+        var neededByDate = $('#model-request-modal-needed-by-date').val();
+        var action = $('#model-request-modal-action').val();
+
+        $.ajax({
+            url: estimateUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                _token: '{{ csrf_token() }}',
+                'request-action': action,
+                'request-quantity': quantity,
+                company_id: companyId,
+                project_id: projectId,
+                needed_by_date: neededByDate
+            }
+        }).done(function (response) {
+            $('#model-request-modal-estimate-requested').text(response.requested_quantity);
+            $('#model-request-modal-estimate-reusable').text(response.reusable_now);
+            $('#model-request-modal-estimate-due-back').text(response.due_back_before_needed_by_quantity);
+            $('#model-request-modal-estimate-shortfall').text(response.procurement_shortfall);
+            $('#model-request-modal-estimate-savings').text(formatEstimateCurrency(response.estimated_savings));
+        }).fail(function (xhr) {
+            var message = 'Unable to estimate this request.';
+
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var firstKey = Object.keys(xhr.responseJSON.errors)[0];
+
+                if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                    message = xhr.responseJSON.errors[firstKey][0];
+                }
+            }
+
+            $('#model-request-modal-error').text(message).show();
+        });
+    }
+
+    function updateModelRequestEstimateSummary() {
+        var companyId = $('#model-request-modal-company').val();
+        var projectId = $('#model-request-modal-project').val();
+        var neededByDate = $('#model-request-modal-needed-by-date').val();
+        var quantity = $('#model-request-modal-quantity').val();
+
+        resetModelRequestEstimateState();
+
+        if (!companyId || !projectId || !neededByDate || !quantity) {
+            return;
+        }
+
+        $('#model-request-modal-estimate-requested').text(quantity);
+        estimateModelRequestModal();
+    }
+
+    function renderModelRequestCartLines(lines, metadataReady) {
+        var rows = [];
+
+        if (!lines.length) {
+            rows.push('<tr><td colspan="11" class="text-muted">Your request cart is empty.</td></tr>');
+        }
+
+        lines.forEach(function (line) {
+            rows.push(
+                '<tr>'
+                + '<td>' + escapeHtml(line.model_name) + '</td>'
+                + '<td>' + escapeHtml(line.discipline_name) + '</td>'
+                + '<td>' + escapeHtml(line.company_name) + '</td>'
+                + '<td>' + line.quantity + '</td>'
+                + '<td>' + (metadataReady ? line.reusable_quantity : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.due_back_before_needed_by_quantity : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.reserved_by_other_rfqs_count : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.procurement_shortfall : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.estimated_savings_formatted : '&mdash;') + '</td>'
+                + '<td>' + (metadataReady ? line.amount_to_buy_formatted : '&mdash;') + '</td>'
+                + '<td><button type="button" class="btn btn-danger btn-xs" onclick="removeLineFromModelRequestCart(' + line.model_id + ', ' + line.discipline_id + ', ' + line.company_id + ')"><i class="fas fa-times" aria-hidden="true"></i></button></td>'
+                + '</tr>'
+            );
+        });
+
+        $('#model-request-cart-lines').html(rows.join(''));
+    }
+
+    function escapeHtml(value) {
+        return $('<div>').text(value || '').html();
+    }
+
+    function renderModelRequestCartTotals(totals, formattedTotals, metadataReady) {
+        $('#model-request-cart-total-requested').text(totals.quantity || 0);
+        $('#model-request-cart-total-reusable').html(metadataReady ? (totals.reusable_quantity || 0) : '&mdash;');
+        $('#model-request-cart-total-due-back').html(metadataReady ? (totals.due_back_before_needed_by_quantity || 0) : '&mdash;');
+        $('#model-request-cart-total-reserved-other').html(metadataReady ? (totals.reserved_by_other_rfqs_count || 0) : '&mdash;');
+        $('#model-request-cart-total-shortfall').html(metadataReady ? (totals.procurement_shortfall || 0) : '&mdash;');
+        $('#model-request-cart-total-savings').html(metadataReady ? formattedTotals.estimated_savings : '&mdash;');
+        $('#model-request-cart-total-buy').html(metadataReady ? formattedTotals.amount_to_buy : '&mdash;');
+    }
+
+    function refreshModelRequestCartPreview() {
+        var projectId = $('#model-request-cart-project').val();
+        var neededByDate = $('#model-request-cart-needed-by-date').val();
+        var metadataReady = Boolean(projectId && neededByDate);
+
+        $.ajax({
+            url: modelRequestCartPreviewUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                _token: '{{ csrf_token() }}',
+                project_id: projectId,
+                needed_by_date: neededByDate
+            }
+        }).done(function (response) {
+            $('#model-request-cart-modal-error').hide().text('');
+            updateModelRequestCartCount(response.cart_count || 0);
+            renderModelRequestCartLines(response.lines || [], metadataReady);
+            renderModelRequestCartTotals(response.totals || {}, response.totals_formatted || {}, metadataReady);
+            $('#model-request-cart-submit').prop('disabled', !response.cart_count);
+        }).fail(function (xhr) {
+            var message = 'Unable to load the request cart.';
+
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (firstKey && xhr.responseJSON.errors[firstKey] && xhr.responseJSON.errors[firstKey][0]) {
+                    message = xhr.responseJSON.errors[firstKey][0];
+                }
+            }
+
+            $('#model-request-cart-modal-error').text(message).show();
+        });
+    }
+
+    function openModelRequestCartModal() {
+        ensureModelRequestCartModal();
+        $('#model-request-cart-modal').modal('show');
+        refreshModelRequestCartPreview();
+    }
+
+    function removeLineFromModelRequestCart(modelId, disciplineId, companyId) {
+        $.post(modelRequestCartRemoveUrl, {
+            _token: '{{ csrf_token() }}',
+            model_id: modelId,
+            discipline_id: disciplineId,
+            company_id: companyId
+        }).done(function (response) {
+            updateModelRequestCartCount(response.cart_count || 0);
+            refreshModelRequestCartPreview();
+        });
+    }
+
+    function createProjectFromRequestModal(targetSelect, errorTarget) {
+        if (!canCreateProjectsForRequests) {
+            return;
+        }
+
+        var projectName = window.prompt('Project name');
+
+        if (!projectName) {
+            return;
+        }
+
+        $.ajax({
+            url: createProjectForRequestsUrl,
+            method: 'POST',
+            dataType: 'json',
+            headers: {
+                Accept: 'application/json'
+            },
+            data: {
+                _token: '{{ csrf_token() }}',
+                name: projectName
+            }
+        }).done(function (response) {
+            if (!response || response.status !== 'success' || !response.payload) {
+                var inlineError = 'Unable to create the project.';
+
+                if (response && response.messages) {
+                    if (typeof response.messages === 'string') {
+                        inlineError = response.messages;
+                    } else if (Array.isArray(response.messages) && response.messages[0]) {
+                        inlineError = response.messages[0];
+                    } else {
+                        var inlineErrorKey = Object.keys(response.messages)[0];
+                        if (inlineErrorKey && response.messages[inlineErrorKey] && response.messages[inlineErrorKey][0]) {
+                            inlineError = response.messages[inlineErrorKey][0];
+                        }
+                    }
+                }
+
+                $(errorTarget).text(inlineError).show();
+                return;
+            }
+
+            modelRequestProjects.push({
+                id: response.payload.id,
+                name: response.payload.name
+            });
+            modelRequestProjects.sort(function (a, b) {
+                return a.name.localeCompare(b.name);
+            });
+
+            $(targetSelect).html(buildModelRequestProjectOptions(response.payload.id));
+            $(targetSelect).val(String(response.payload.id)).trigger('change');
+        }).fail(function (xhr) {
+            var message = 'Unable to create the project.';
+
+            if (xhr.responseJSON && xhr.responseJSON.messages) {
+                if (typeof xhr.responseJSON.messages === 'string') {
+                    message = xhr.responseJSON.messages;
+                } else if (Array.isArray(xhr.responseJSON.messages) && xhr.responseJSON.messages[0]) {
+                    message = xhr.responseJSON.messages[0];
+                } else {
+                    var messageKey = Object.keys(xhr.responseJSON.messages)[0];
+                    if (messageKey && xhr.responseJSON.messages[messageKey] && xhr.responseJSON.messages[messageKey][0]) {
+                        message = xhr.responseJSON.messages[messageKey][0];
+                    }
+                }
+            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                var errorKey = Object.keys(xhr.responseJSON.errors)[0];
+                if (errorKey && xhr.responseJSON.errors[errorKey] && xhr.responseJSON.errors[errorKey][0]) {
+                    message = xhr.responseJSON.errors[errorKey][0];
+                }
+            }
+
+            $(errorTarget).text(message).show();
+        });
+    }
+
+    function requestStatusFormatter(value) {
+        if (!value) {
+            return '';
+        }
+
+        var normalized = String(value).toLowerCase();
+        var labelClass = 'label-default';
+
+        if (normalized === 'pending') {
+            labelClass = 'label-warning';
+        } else if (normalized === 'in progress' || normalized === 'under review' || normalized === 'in transfer') {
+            labelClass = 'label-primary';
+        } else if (normalized === 'fully allocated' || normalized === 'closed' || normalized === 'fulfilled' || normalized === 'review complete') {
+            labelClass = 'label-success';
+        } else if (normalized === 'partially allocated') {
+            labelClass = 'label-info';
+        } else if (normalized === 'canceled' || normalized === 'rejected' || normalized === 'unable to complete' || normalized === 'not allocated') {
+            labelClass = 'label-danger';
+        }
+
+        return '<span class="label ' + labelClass + '">' + value + '</span>';
+    }
+
+    function requestRequesterStatusFormatter(value, row) {
+        var status = requestStatusFormatter(value);
+
+        if (!row || !row.has_rac_routing_gap) {
+            return status;
+        }
+
+        return status
+            + '<div class="text-warning small" style="margin-top:6px;white-space:normal;">'
+            + 'Coordinator assignment pending &mdash; an administrator has been notified.'
+            + '</div>';
+    }
+
+    function requestSubmissionOutcomeFormatter(value, row) {
+        return Number(value) || 0;
+    }
+
+    function requestSubmissionPendingToBuyFormatter(value, row) {
+        if (!row || !row.review_complete) {
+            return '<span class="text-muted">Pending review</span>';
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '<span class="text-muted">Price unavailable</span>';
+        }
+
+        return requestAmountToBuyFormatter(value, row);
+    }
+
+    function requestWorkflowActionsFormatter(value, row) {
+        if (!row) {
+            return '';
+        }
+
+        var actions = [];
+        if (row.request_detail_url) {
+            var viewTitle = 'View request';
+            actions.push(
+                '<a href="' + row.request_detail_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="' + viewTitle + '">'
+                + '<i class="fas fa-eye" aria-hidden="true"></i>'
+                + '<span class="sr-only">' + viewTitle + '</span>'
+                + '</a>'
+            );
+        }
+
+        if (row.request_update_url && row.model_id) {
+            var modifyTitle = 'Modify request';
+            var estimateUrl = '{{ route('account.request-estimate', ['itemType' => 'asset_model', 'itemId' => '__MODEL_ID__']) }}'.replace('__MODEL_ID__', row.model_id);
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="' + modifyTitle + '" onclick="openModelRequestModal({ requestUrl: \'' + row.request_update_url + '\', estimateUrl: \'' + estimateUrl + '\', action: \'update\', companyId: \'' + (row.company_id || '') + '\', projectId: \'' + (row.project_id || '') + '\', requestedDisciplineId: \'' + (row.requested_discipline_id || '') + '\', quantity: ' + (row.qty || 0) + ', neededByDate: \'' + (row.needed_by_date_value || '') + '\', showSharedContext: false, title: \'' + modifyTitle + '\', submitLabel: \'Update\' });">'
+                + '<i class="fas fa-pen" aria-hidden="true"></i>'
+                + '<span class="sr-only">' + modifyTitle + '</span>'
+                + '</button>'
+            );
+        }
+
+        if (row.request_cancel_url) {
+            var cancelTitle = 'Cancel request';
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-danger" data-tooltip="true" title="' + cancelTitle + '" onclick="cancelSubmittedRequestRow(\'' + row.request_cancel_url + '\');">'
+                + '<i class="fas fa-times" aria-hidden="true"></i>'
+                + '<span class="sr-only">' + cancelTitle + '</span>'
+                + '</button>'
+            );
+        }
+
+        return '<div style="display:flex;gap:6px;align-items:center;">' + actions.join('') + '</div>';
+    }
+
+    function requestDetailLinkFormatter(value, row) {
+        if (row && row.request_detail_url) {
+            return '<a href="' + row.request_detail_url + '">#' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestPageTotalLabelFormatter() {
+        return 'Page Total';
+    }
+
+    function requestBatchLinkFormatter(value, row) {
+        if (row && row.details_url) {
+            return '<a href="' + row.details_url + '">' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestBatchActionsFormatter(value, row) {
+        if (!row || !row.details_url) {
+            return '';
+        }
+
+        var actions = [
+            '<a href="' + row.details_url + '" class="btn btn-sm btn-primary" data-tooltip="true" title="Open submission">'
+            + '<i class="fas fa-eye" aria-hidden="true"></i>'
+            + '<span class="sr-only">Open submission</span>'
+            + '</a>'
+        ];
+
+        if (row.submission_update_url) {
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-warning" data-tooltip="true" title="Modify submission" onclick="openRequestSubmissionModal(\'' + row.submission_update_url + '\', \'' + (row.project_id || '') + '\', \'' + (row.needed_by_date_value || '') + '\');">'
+                + '<i class="fas fa-pen" aria-hidden="true"></i>'
+                + '<span class="sr-only">Modify submission</span>'
+                + '</button>'
+            );
+        }
+
+        if (row.submission_cancel_url) {
+            actions.push(
+                '<button type="button" class="btn btn-sm btn-danger" data-tooltip="true" title="Cancel submission" onclick="cancelSubmittedRequestRow(\'' + row.submission_cancel_url + '\', \'Cancel this entire submission?\');">'
+                + '<i class="fas fa-times" aria-hidden="true"></i>'
+                + '<span class="sr-only">Cancel submission</span>'
+                + '</button>'
+            );
+        }
+
+        return '<div style="display:flex;gap:6px;align-items:center;">' + actions.join('') + '</div>';
+    }
+
+    function requestModelLinkFormatter(value, row) {
+        if (row && row.model_show_url) {
+            return '<a href="' + row.model_show_url + '">' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestProjectLinkFormatter(value, row) {
+        if (row && row.project_requests_url && value) {
+            return '<a href="' + row.project_requests_url + '">' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestAvailabilityLinkFormatter(value, row, urlField) {
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        if (row && row[urlField]) {
+            return '<a href="' + row[urlField] + '">' + value + '</a>';
+        }
+
+        return value;
+    }
+
+    function requestReusableNowFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'reusable_now_url');
+    }
+
+    function requestDueBackFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'due_back_url');
+    }
+
+    function requestReservedFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'reserved_assets_url');
+    }
+
+    function requestReservedByOtherProjectFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'reserved_by_other_project_url');
+    }
+
+    function requestSavingsFormatter(value, row) {
+        if (row && row.estimated_savings_formatted) {
+            return row.estimated_savings_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function requestTotalNeedCostFormatter(value, row) {
+        if (row && row.total_need_cost_formatted) {
+            return row.total_need_cost_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    function requestAmountToBuyFormatter(value, row) {
+        if (row && row.amount_to_buy_formatted) {
+            return row.amount_to_buy_formatted;
+        }
+
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        return formatEstimateCurrency(value);
+    }
+
+    $(function () {
+        attachRequestTableHeaderTooltips();
+        $('.snipe-table').on('post-header.bs.table load-success.bs.table', attachRequestTableHeaderTooltips);
+    });
+
+    function cancelSubmittedRequestRow(url, confirmationMessage) {
+        if (!window.confirm(confirmationMessage || 'Cancel this request?')) {
+            return;
+        }
+
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.style.display = 'none';
+
+        var token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = '{{ csrf_token() }}';
+        form.appendChild(token);
+
+        document.body.appendChild(form);
+        form.submit();
     }
 
 

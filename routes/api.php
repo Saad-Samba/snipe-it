@@ -33,12 +33,24 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
      */
     Route::group(['prefix' => 'account'], function () {
 
+        Route::get(
+            'regional-coordinators',
+            [Api\RegionalAssetCoordinatorsController::class, 'index']
+        )->name('api.regional-asset-coordinators.index');
+
         Route::get('requests',
             [
-                Api\ProfileController::class, 
-                'requestedAssets'
+                Api\ModelRequestsController::class,
+                'index'
             ]
-        )->name('api.assets.requested');
+        )->name('api.requests.index');
+
+        Route::get('requests/received',
+            [
+                Api\ModelRequestsController::class,
+                'received'
+            ]
+        )->name('api.rac-requests.index');
 
         Route::get('eulas',
             [
@@ -140,6 +152,13 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
       * Categories API routes
       */
       Route::group(['prefix' => 'categories'], function () {
+
+        Route::get('distribution',
+            [
+                Api\CategoriesController::class,
+                'distribution'
+            ]
+        )->name('api.categories.distribution');
         
         Route::get('{item_type}/selectlist',
             [

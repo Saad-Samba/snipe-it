@@ -14,7 +14,15 @@ class StoreAssetModelRequest extends ImageUploadRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('create', new AssetModel);
+        $model = $this->route('model');
+
+        if ($model && ! $model instanceof AssetModel) {
+            $model = AssetModel::find($model);
+        }
+
+        return $model
+            ? Gate::allows('update', $model)
+            : Gate::allows('create', AssetModel::class);
     }
 
     public function prepareForValidation(): void
@@ -38,15 +46,56 @@ class StoreAssetModelRequest extends ImageUploadRequest
      */
     public function rules(): array
     {
-        return array_merge(
-            ['category_type' => 'in:asset'],
+        $rules = array_merge(
+            [
+                'category_type' => 'in:asset',
+                'add_default_values' => 'nullable|boolean',
+                'default_values' => 'nullable|array',
+            ],
             parent::rules(),
         );
+
+        if (! config('leams.model_fieldset_overrides')) {
+            $rules = array_merge($rules, [
+                'fieldset_id' => 'prohibited',
+                'custom_fieldset_id' => 'prohibited',
+            ]);
+        }
+
+        return $rules;
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if (! $this->filled('category_id')) {
+                return;
+            }
+
+            $user = $this->user();
+
+            if (! $user || $user->isSuperUser() || $user->isAdmin()) {
+                return;
+            }
+
+            $isManagedCategory = Category::whereKey($this->integer('category_id'))
+                ->where('category_type', 'asset')
+                ->where('manager_id', $user->id)
+                ->exists();
+
+            if (! $isManagedCategory) {
+                $validator->errors()->add('category_id', 'Selected category is not managed by you.');
+            }
+        });
     }
 
     public function messages(): array
     {
-        $messages = ['category_type.in' => trans('admin/models/message.invalid_category_type')];
+        $messages = [
+            'category_type.in' => trans('admin/models/message.invalid_category_type'),
+            'fieldset_id.prohibited' => trans('admin/models/message.fieldset_override_disabled'),
+            'custom_fieldset_id.prohibited' => trans('admin/models/message.fieldset_override_disabled'),
+        ];
         return $messages;
     }
 

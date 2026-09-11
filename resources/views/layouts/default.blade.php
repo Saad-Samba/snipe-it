@@ -383,20 +383,13 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                                 {{ trans('general.viewassets') }}
                                             </a></li>
 
-                                        @can('viewRequestable', \App\Models\Asset::class)
-                                            <li {!! (request()->is('account/requested') ? ' class="active"' : '') !!}>
-                                                <a href="{{ route('account.requested') }}">
-                                                    <x-icon type="checkmark" class="fa-fw" />
-                                                    {{ trans('general.requested_assets_menu') }}
-                                                </a></li>
-                                        @endcan
-
-                                        <li {!! (request()->is('account/accept') ? ' class="active"' : '') !!}>
-                                            <a href="{{ route('account.accept') }}">
-                                                <x-icon type="checkmark" class="fa-fw" />
-                                                {{ trans('general.accept_assets_menu') }}
-                                            </a></li>
-
+                                        <li {!! (request()->is('account/regional-coordinators') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('account.regional-asset-coordinators.index') }}">
+                                                <x-icon type="users" class="fa-fw" />
+                                                {{ trans('general.regional_asset_coordinators') }}
+                                                <x-new-feature-label />
+                                            </a>
+                                        </li>
 
                                         @can('self.profile')
                                         <li>
@@ -515,12 +508,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                     <li class="sidebar-section-label">
                                         <span>{{ trans('general.flags') }}</span>
                                     </li>
-                                    <li id="requestable-sidenav-option"{!! (Request::query('status') == 'Requestable' ? ' class="active"' : '') !!}><a
-                                                href="{{ url('hardware?status=Requestable') }}">
-                                            <x-icon type="checkmark" class="text-blue fa-fw" />
-                                            {{ trans('admin/hardware/general.requestable') }}
-                                        </a>
-                                    </li>
 
                                     @can('audit', \App\Models\Asset::class)
                                         <li id="audit-due-sidenav-option"{!! (request()->is('hardware/audit/due') ? ' class="active"' : '') !!}>
@@ -556,10 +543,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                             <a href="{{ route('hardware.bulkcheckout.show') }}">
                                                 {{ trans('general.bulk_checkout') }}
                                             </a>
-                                        </li>
-                                        <li{!! (request()->is('hardware/requested') ? ' class="active"' : '') !!}>
-                                            <a href="{{ route('assets.requested') }}">
-                                                {{ trans('general.requested') }}</a>
                                         </li>
                                     @endcan
 
@@ -787,13 +770,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         </li>
                                     @endcan
 
-                                    @can('view', \App\Models\Depreciation::class)
-                                        <li  {{!! (request()->is('depreciations') ? ' class="active"' : '') !!}}>
-                                            <a href="{{ route('depreciations.index') }}">
-                                                {{ trans('general.depreciation') }}
-                                            </a>
-                                        </li>
-                                    @endcan
                                 </ul>
                             </li>
                         @endcan
@@ -821,11 +797,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         <a href="{{ route('reports.audit') }}">
                                             {{ trans('general.audit_report') }}</a>
                                     </li>
-                                    <li {{!! (request()->is('reports/depreciation') ? ' class="active"' : '') !!}}>
-                                        <a href="{{ url('reports/depreciation') }}">
-                                            {{ trans('general.depreciation_report') }}
-                                        </a>
-                                    </li>
                                     <li {{!! (request()->is('reports/licenses') ? ' class="active"' : '') !!}}>
                                         <a href="{{ url('reports/licenses') }}">
                                             {{ trans('general.license_report') }}
@@ -834,11 +805,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                     <li {{!! (request()->is('ui.reports.maintenances') ? ' class="active"' : '') !!}}>
                                         <a href="{{ route('ui.reports.maintenances') }}">
                                             {{ trans('general.asset_maintenance_report') }}
-                                        </a>
-                                    </li>
-                                    <li {{!! (request()->is('reports/unaccepted_assets') ? ' class="active"' : '') !!}}>
-                                        <a href="{{ url('reports/unaccepted_assets') }}">
-                                            {{ trans('general.unaccepted_asset_report') }}
                                         </a>
                                     </li>
                                     <li  {{!! (request()->is('reports/accessories') ? ' class="active"' : '') !!}}>
@@ -850,14 +816,44 @@ dir="{{ Helper::determineLanguageDirection() }}">
                             </li>
                         @endcan
 
-                        @can('viewRequestable', \App\Models\Asset::class)
-                            <li{!! (request()->is('account/requestable-assets') ? ' class="active"' : '') !!}>
-                                <a href="{{ route('requestable-assets') }}">
+                        @php
+                            $canRequestModels = auth()->check() && auth()->user()->hasAccess('models.request');
+                            $canViewRacRequests = auth()->check()
+                                && (auth()->user()->racAssignments()->exists() || auth()->user()->racRequestTargets()->exists());
+                        @endphp
+                        @if ($canRequestModels || $canViewRacRequests)
+                            <li class="treeview{{ (request()->is('requests*') || request()->is('account/requestable-assets')) ? ' active' : '' }}">
+                                <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
-                                    <span>{{ trans('general.requestable_items') }}</span>
+                                    <span>Requests</span>
+                                    <x-new-feature-label />
+                                    <x-icon type="angle-left" class="pull-right"/>
                                 </a>
+
+                                <ul class="treeview-menu">
+                                    @if ($canRequestModels)
+                                        <li{!! (request()->is('account/requestable-assets') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('requestable-assets') }}">
+                                                Request Models
+                                            </a>
+                                        </li>
+                                        <li{!! (request()->is('requests') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('requests.index') }}">
+                                                Submitted Requests
+                                            </a>
+                                        </li>
+                                    @endif
+                                    @if ($canViewRacRequests)
+                                        <li{!! (request()->is('requests/received') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('rac-requests.index') }}">
+                                                Received Requests
+                                                <x-new-feature-label />
+                                            </a>
+                                        </li>
+                                    @endif
+                                </ul>
                             </li>
-                        @endcan
+                        @endif
 
 
                     </ul>
@@ -927,6 +923,8 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                 @else
                                     @yield('title')
                                 @endif
+
+                                @yield('breadcrumb_suffix')
 
                             </h1>
 
