@@ -185,7 +185,6 @@
 <script nonce="{{ csrf_token() }}">
 
     var serialRequired = @json($serialRequired);
-    var serialRequiredLabel = @json(trans('admin/hardware/form.serial_required_label'));
     var serialRequiredHelp = @json(trans('admin/hardware/form.serial_required_for_model'));
 
     function updateSerialRequirement(required) {
@@ -195,15 +194,6 @@
             input.setAttribute('aria-required', String(required));
             input.setAttribute('aria-describedby', 'serial-requirement-help');
             input.parentElement.classList.toggle('required', required);
-            var label = input.closest('.form-group').querySelector('label');
-            var indicator = label.querySelector('.serial-required-indicator');
-            if (!indicator) {
-                indicator = document.createElement('span');
-                indicator.className = 'serial-required-indicator text-danger';
-                indicator.textContent = ' (' + serialRequiredLabel + ')';
-                label.appendChild(indicator);
-            }
-            indicator.hidden = !required;
         });
         document.getElementById('serial-requirement-help').textContent = required ? serialRequiredHelp : '';
     }

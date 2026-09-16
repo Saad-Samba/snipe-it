@@ -9,19 +9,12 @@ const updateFunction = template.match(/    function updateSerialRequirement\(req
 const changeHandler = template.match(/\$\('#model_select_id'\)\.on\('change', (function \(\) \{[\s\S]*?\n        \})\);/)[1];
 
 function createInput() {
-    const indicators = [];
     const classes = new Set();
-    const label = {
-        querySelector: () => indicators[0],
-        appendChild: indicator => indicators.push(indicator),
-    };
     return {
         value: 'EXISTING-SERIAL',
-        indicators,
         classes,
         attributes: {},
         parentElement: { classList: { toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name) } },
-        closest: () => ({ querySelector: () => label }),
         setAttribute(name, value) { this.attributes[name] = value; },
     };
 }
@@ -31,18 +24,16 @@ test('serial indicators toggle for every row without changing entered values', (
     const help = { textContent: '' };
     const context = vm.createContext({
         serialRequired: false,
-        serialRequiredLabel: 'Required',
         serialRequiredHelp: 'The selected model requires a serial number for each asset.',
         document: {
             querySelectorAll: () => inputs,
-            createElement: () => ({}),
             getElementById: () => help,
         },
     });
     vm.runInContext(updateFunction, context);
     context.updateSerialRequirement(true);
     assert.equal(inputs[0].required, true);
-    assert.equal(inputs[0].indicators[0].hidden, false);
+    assert.equal(inputs[0].classes.has('required'), true);
     assert.match(help.textContent, /requires a serial/);
 
     inputs.push(createInput());
@@ -54,8 +45,6 @@ test('serial indicators toggle for every row without changing entered values', (
     context.updateSerialRequirement(false);
     for (const input of inputs) {
         assert.equal(input.required, false);
-        assert.equal(input.indicators[0].hidden, true);
-        assert.equal(input.indicators.length, 1);
         assert.equal(input.classes.has('required'), false);
         assert.equal(input.value, 'EXISTING-SERIAL');
     }

@@ -64,6 +64,5 @@ return [
     'optional_infos'  => 'Optional Information',
     'order_details'   => 'Order Related Information',
     'calc_eol'    => 'If nulling the EOL date, use automatic EOL calculation based on the purchase date and EOL rate.',
-    'serial_required_label' => 'Required',
     'serial_required_for_model' => 'The selected model requires a serial number for each asset.',
 ];
