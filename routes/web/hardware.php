@@ -176,6 +176,14 @@ Route::group(
             [BulkAssetsController::class, 'storeCheckin']
         )->name('hardware.bulkcheckin.store');
 
+        Route::post('requests/{checkoutRequest}/coordinator-resolution',
+            [AssetsController::class, 'markCoordinatorResolution']
+        )->name('hardware.requests.coordinator-resolution');
+
+        Route::post('{assetId}/requests/{checkoutRequestId}/start-transfer',
+            [AssetsController::class, 'startRequestTransfer']
+        )->name('hardware.requests.start-transfer');
+
     });
 
 Route::resource('hardware',

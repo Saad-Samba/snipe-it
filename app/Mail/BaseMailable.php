@@ -11,7 +11,7 @@ class BaseMailable extends Mailable
         return new Headers(
             text: [
                 'X-Auto-Response-Suppress' => 'OOF, DR, RN, NRN, AutoReply',
-                'X-System-Sender' => 'Snipe-IT',
+                'X-System-Sender' => 'LEAMS',
             ]
         );
     }

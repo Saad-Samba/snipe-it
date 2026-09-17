@@ -146,16 +146,6 @@ class LicensePresenter extends Presenter
                 'formatter' => 'dateDisplayFormatter',
             ],
             [
-                'field' => 'depreciation',
-                'searchable' => true,
-                'sortable' => true,
-                'switchable' => true,
-                'title' => trans('admin/hardware/form.depreciation'),
-                'visible' => false,
-                'formatter' => 'depreciationsLinkObjFormatter',
-            ],
-
-            [
                 'field' => 'maintained',
                 'searchable' => false,
                 'sortable' => true,

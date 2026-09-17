@@ -396,9 +396,6 @@ class Importer extends Component
             'name' => trans('general.name'),
             'notes' => trans('general.notes'),
             'category_type' => trans('admin/categories/general.import_category_type'),
-            'eula_text' => trans('admin/categories/general.import_eula_text'),
-            'use_default_eula' => trans('admin/categories/general.use_default_eula_column'),
-            'require_acceptance' => trans('admin/categories/general.import_require_acceptance'),
             'checkin_email' => trans('admin/categories/general.import_checkin_email'),
         ];
 
@@ -415,7 +412,6 @@ class Importer extends Component
             'model_number' => trans('general.model_no'),
             'notes' => trans('general.item_notes', ['item' => trans('admin/hardware/form.model')]),
             'obsolete' => trans('admin/models/table.obsolete'),
-            'requestable' => trans('admin/models/general.requestable'),
             'require_serial' => trans('admin/hardware/general.require_serial'),
 
         ];

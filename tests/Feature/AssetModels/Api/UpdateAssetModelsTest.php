@@ -4,6 +4,7 @@ namespace Tests\Feature\AssetModels\Api;
 
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\CustomFieldset;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -37,6 +38,41 @@ class UpdateAssetModelsTest extends TestCase
         $this->assertEquals('Test Model', $model->name, 'Name was not updated');
         $this->assertTrue($model->obsolete, 'Obsolete was not updated');
 
+    }
+
+    public function testCannotUpdateAssetModelWithLegacyFieldsetOverrideWhileDisabled()
+    {
+        $model = AssetModel::factory()->create(['fieldset_id' => null]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->patchJson(route('api.models.update', $model), [
+                'name' => $model->name,
+                'category_id' => $model->category_id,
+                'custom_fieldset_id' => CustomFieldset::factory()->create()->id,
+            ])
+            ->assertOk()
+            ->assertStatusMessageIs('error')
+            ->assertJsonPath('messages.custom_fieldset_id.0', trans('admin/models/message.fieldset_override_disabled'));
+
+        $this->assertNull($model->fresh()->fieldset_id);
+    }
+
+    public function testAfmCannotUpdateAssetModelOutsideManagedCategory()
+    {
+        $afm = User::factory()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $model = AssetModel::factory()->create();
+
+        $this->actingAsForApi($afm)
+            ->patchJson(route('api.models.update', $model), [
+                'name' => 'Out Of Scope Update',
+                'category_id' => $model->category_id,
+            ])
+            ->assertForbidden();
+
+        $this->assertNotEquals('Out Of Scope Update', $model->fresh()->name);
     }
 
     public function testCannotUpdateAssetModelViaPatchWithAccessoryCategory()

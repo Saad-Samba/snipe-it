@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Categories\Ui;
 
+use App\Models\Category;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -18,6 +19,50 @@ class IndexCategoriesTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('categories.index'))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('Category Manager', false)
+            ->assertSee('Reusable Inventory', false)
+            ->assertSee('Recently released feature', false)
+            ->assertDontSee('&quot;title&quot;:&quot;Available Models&quot;', false)
+            ->assertDontSee('&quot;title&quot;:&quot;Available Assets&quot;', false)
+            ->assertDontSee('&quot;title&quot;:&quot;Send Email&quot;', false)
+            ->assertSee('categoryReusableInventoryFormatter', false)
+            ->assertDontSee('My Categories', false);
+    }
+
+    public function testCategoryManagerCanOpenCategoryListWithoutGlobalCategoriesViewPermission()
+    {
+        $manager = User::factory()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->get(route('categories.index'))
+            ->assertOk()
+            ->assertDontSee('My Categories', false);
+    }
+
+    public function testIndexIncludesCategoryDistributionControls(): void
+    {
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('categories.index'))
+            ->assertOk()
+            ->assertSee('Categories')
+            ->assertSee('Distribution')
+            ->assertSee('By Site')
+            ->assertSee('By Discipline')
+            ->assertSee('api\/v1\/categories\/distribution', false);
+    }
+
+    public function testAfmCanOpenDistributionPageForManagedCategory(): void
+    {
+        $afm = User::factory()->create();
+        Category::factory()->forAssets()->create(['manager_id' => $afm->id]);
+
+        $this->actingAs($afm)
+            ->get(route('categories.index'))
+            ->assertOk()
+            ->assertSee('Distribution');
     }
 }

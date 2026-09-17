@@ -9,6 +9,7 @@ use App\Models\Traits\Requestable;
 use App\Models\Traits\Searchable;
 use App\Presenters\AssetModelPresenter;
 use App\Presenters\Presentable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Gate;
@@ -43,6 +44,7 @@ class AssetModel extends SnipeModel
     protected $presenter = AssetModelPresenter::class;
     protected $casts = [
         'obsolete' => 'boolean',
+        'reference_price' => 'float',
     ];
 
     // Declare the rules for the model validation
@@ -56,6 +58,7 @@ class AssetModel extends SnipeModel
         'manufacturer_id'   => 'integer|exists:manufacturers,id|nullable',
         'eol'               => 'integer:min:0|max:240|nullable',
         'obsolete'          => 'boolean',
+        'reference_price'   => 'numeric|nullable|gte:0|max:99999999999999999.99',
     ];
 
 
@@ -77,7 +80,7 @@ class AssetModel extends SnipeModel
         'name',
         'notes',
         'obsolete',
-        'requestable',
+        'reference_price',
         'require_serial'
     ];
 
@@ -133,6 +136,18 @@ class AssetModel extends SnipeModel
     public function availableAssets()
     {
         return $this->hasMany(\App\Models\Asset::class, 'model_id')->RTD();
+    }
+
+    public function dueBackAssetsByDate(?string $neededByDate)
+    {
+        $reservedStatusId = Setting::rfqReservedStatusId();
+
+        return $this->hasMany(\App\Models\Asset::class, 'model_id')
+            ->whereNotNull('assigned_to')
+            ->whereNotNull('expected_checkin')
+            ->when($neededByDate, fn ($query) => $query->whereDate('expected_checkin', '<=', $neededByDate))
+            ->when($reservedStatusId, fn ($query) => $query->where('status_id', '!=', $reservedStatusId))
+            ->NotArchived();
     }
 
     public function assignedAssets()
@@ -195,12 +210,14 @@ class AssetModel extends SnipeModel
 
     public function getFieldsetAttribute($value = null)
     {
-        $explicitFieldset = $this->relationLoaded('fieldset')
-            ? $this->relations['fieldset']
-            : $this->fieldset()->getResults();
+        if (config('leams.model_fieldset_overrides')) {
+            $explicitFieldset = $this->relationLoaded('fieldset')
+                ? $this->relations['fieldset']
+                : $this->fieldset()->getResults();
 
-        if ($explicitFieldset) {
-            return $explicitFieldset;
+            if ($explicitFieldset) {
+                return $explicitFieldset;
+            }
         }
 
         $category = $this->relationLoaded('category')
@@ -356,19 +373,39 @@ class AssetModel extends SnipeModel
         return $query->whereIn('category_id', $categoryIdListing);
     }
 
-    /**
-     * scopeRequestable
-     * Get all models that are requestable by a user.
-     *
-     * @param $query
-     *
-     * @return  $query
-     * @author  Daniel Meltzer <dmeltzer.devel@gmail.com>
-     * @version v3.5
-     */
-    public function scopeRequestableModels($query)
+    public function scopeManagedBy(Builder $query, User $user): Builder
     {
-        return $query->where('requestable', '1');
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->whereHas('category', function (Builder $categoryQuery) use ($user) {
+            $categoryQuery
+                ->where('categories.category_type', 'asset')
+                ->where('categories.manager_id', $user->id);
+        });
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return true;
+        }
+
+        $managerId = $this->relationLoaded('category')
+            ? $this->category?->manager_id
+            : $this->category()->value('manager_id');
+
+        return (int) $managerId === (int) $user->id;
+    }
+
+    public function scopeRequestableModels($query, bool $includeAllCompanies = false)
+    {
+        return $query->whereHas('availableAssets', function (Builder $assetQuery) use ($includeAllCompanies) {
+            if ($includeAllCompanies) {
+                $assetQuery->withoutGlobalScope(CompanyableScope::class);
+            }
+        });
     }
 
     /**
@@ -431,10 +468,16 @@ class AssetModel extends SnipeModel
 
     public function scopeOrderFieldset($query, $order)
     {
-        return $query
+        $query
             ->leftJoin('categories as fieldset_categories', 'models.category_id', '=', 'fieldset_categories.id')
+            ->leftJoin('custom_fieldsets as inherited_fieldsets', 'fieldset_categories.fieldset_id', '=', 'inherited_fieldsets.id');
+
+        if (! config('leams.model_fieldset_overrides')) {
+            return $query->orderBy('inherited_fieldsets.name', $order);
+        }
+
+        return $query
             ->leftJoin('custom_fieldsets as explicit_fieldsets', 'models.fieldset_id', '=', 'explicit_fieldsets.id')
-            ->leftJoin('custom_fieldsets as inherited_fieldsets', 'fieldset_categories.fieldset_id', '=', 'inherited_fieldsets.id')
             ->orderByRaw('COALESCE(explicit_fieldsets.name, inherited_fieldsets.name) '.$order);
     }
 
@@ -443,7 +486,18 @@ class AssetModel extends SnipeModel
      */
     public function scopeOrderByCreatedByName($query, $order)
     {
-        return $query->leftJoin('users as admin_sort', 'models.created_by', '=', 'admin_sort.id')->select('models.*')->orderBy('admin_sort.first_name', $order)->orderBy('admin_sort.last_name', $order);
+        $creatorNames = User::withTrashed()->select([
+            'id as model_creator_id',
+            'first_name as model_creator_first_name',
+            'last_name as model_creator_last_name',
+        ]);
+
+        return $query
+            ->leftJoinSub($creatorNames, 'admin_sort', function ($join) {
+                $join->on('models.created_by', '=', 'admin_sort.model_creator_id');
+            })
+            ->orderBy('admin_sort.model_creator_first_name', $order)
+            ->orderBy('admin_sort.model_creator_last_name', $order);
     }
 
 }

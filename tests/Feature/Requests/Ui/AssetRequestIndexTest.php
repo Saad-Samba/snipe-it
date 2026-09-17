@@ -23,6 +23,9 @@ class AssetRequestIndexTest extends TestCase
             ->get(route('assets.requested'))
             ->assertOk()
             ->assertViewHas('requestedItems')
+            ->assertSeeText('Candidate Companies')
+            ->assertSeeText('Candidate RACs')
+            ->assertSee('Recently released feature')
             ->assertSeeText($checkoutRequest->requestedItem->asset_tag);
     }
 }

@@ -271,6 +271,14 @@ return [
             'permission' => 'models.delete',
             'display'    => true,
         ],
+        [
+            'permission' => 'models.request',
+            'display'    => true,
+        ],
+        [
+            'permission' => 'models.request.all_companies',
+            'display'    => true,
+        ],
 
     ],
 

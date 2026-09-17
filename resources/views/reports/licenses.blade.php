@@ -35,9 +35,6 @@
                                 <th class="col-sm-1">{{ trans('admin/licenses/form.termination_date') }}</th>
                                 <th class="col-sm-1">{{ trans('general.purchase_date') }}</th>
                                 <th class="col-sm-1 text-right" class="col-sm-1">{{ trans('general.purchase_cost') }}</th>
-                                <th class="col-sm-1">{{ trans('general.depreciation') }}</th>
-                                <th class="col-sm-1 text-right">{{ trans('admin/hardware/table.book_value') }}</th>
-                                <th class="col-sm-1 text-right">{{ trans('admin/hardware/table.diff') }}</th>
                             </tr>
                         </thead>
 
@@ -65,15 +62,6 @@
                                 <td>{{ $license->purchase_date }}</td>
                                 <td class="text-right">
                                     {{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput($license->purchase_cost) }}
-                                </td>
-                                <td>
-                                    {{ ($license->depreciation) ? e($license->depreciation->name).' ('.$license->depreciation->months.' '.trans('general.months').')' : ''  }}
-                                </td>
-                                <td class="text-right">
-                                    {{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput($license->getDepreciatedValue()) }}
-                                </td>
-                                <td class="text-right">
-                                    -{{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput(($license->purchase_cost - $license->getDepreciatedValue())) }}
                                 </td>
                             </tr>
                             @endforeach

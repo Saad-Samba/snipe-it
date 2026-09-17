@@ -34,6 +34,7 @@ class UpdateCategoriesTest extends TestCase
                 'notes' => 'Test Note Edited',
                 'require_acceptance' => true,
                 'alert_on_response' => true,
+                'checkin_email' => false,
             ])
             ->assertOk()
             ->assertStatusMessageIs('success')
@@ -43,8 +44,9 @@ class UpdateCategoriesTest extends TestCase
         $this->assertEquals('Test Category Edited', $category->name, 'Name was not updated');
         $this->assertEquals('Test Note Edited', $category->notes, 'Note was not updated');
         $this->assertEquals($fieldset->id, $category->fieldset_id, 'Fieldset was not updated');
-        $this->assertEquals(1, $category->require_acceptance, 'Require acceptance was not updated');
-        $this->assertTrue($category->alert_on_response, 'Alert on response was not updated');
+        $this->assertEquals(0, $category->require_acceptance, 'Require acceptance should remain disabled');
+        $this->assertFalse($category->alert_on_response, 'Acceptance response alerts should remain disabled');
+        $this->assertTrue($category->checkin_email, 'Asset category emails should remain enabled');
     }
 
     public function testCanUpdateCategoryViaPatchWithoutCategoryType()
@@ -65,7 +67,7 @@ class UpdateCategoriesTest extends TestCase
         //dd($response);
         $category->refresh();
         $this->assertEquals('Test Category', $category->name, 'Name was not updated');
-        $this->assertEquals('Test EULA', $category->eula_text, 'EULA was not updated');
+        $this->assertNull($category->eula_text, 'EULA should remain disabled');
         $this->assertEquals('Test Note', $category->notes, 'Note was not updated');
 
     }
@@ -92,5 +94,44 @@ class UpdateCategoriesTest extends TestCase
         $this->assertNotEquals('Test Note', $category->notes, 'Note was not updated');
         $this->assertNotEquals('accessory', $category->category_type, 'EULA was not updated');
 
+    }
+
+    public function testCategoryManagerCanUpdateManagedCategoryWithoutChangingOwnership()
+    {
+        $manager = User::factory()->create();
+        $otherManager = User::factory()->create();
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'Managed Category',
+            'manager_id' => $manager->id,
+        ]);
+
+        $this->actingAsForApi($manager)
+            ->patchJson(route('api.categories.update', $category), [
+                'name' => 'Managed Category Updated',
+                'manager_id' => $otherManager->id,
+            ])
+            ->assertOk()
+            ->assertStatusMessageIs('success');
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'name' => 'Managed Category Updated',
+            'manager_id' => $manager->id,
+        ]);
+    }
+
+    public function testCategoryManagerCannotUpdateUnmanagedCategory()
+    {
+        $manager = User::factory()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $manager->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create();
+
+        $this->actingAsForApi($manager)
+            ->patchJson(route('api.categories.update', $unmanagedCategory), [
+                'name' => 'Should Not Change',
+            ])
+            ->assertForbidden();
     }
 }

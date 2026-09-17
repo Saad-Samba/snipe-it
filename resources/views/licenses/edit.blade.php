@@ -181,8 +181,6 @@
     </div>
 </div>
 
-@include ('partials.forms.edit.depreciation')
-
 <!-- Maintained -->
 <div class="form-group {{ $errors->has('maintained') ? ' has-error' : '' }}">
     <div class="col-md-3 control-label"><strong>{{ trans('admin/licenses/form.maintained') }}</strong></div>

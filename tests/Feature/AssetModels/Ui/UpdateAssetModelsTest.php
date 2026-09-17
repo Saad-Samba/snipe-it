@@ -25,7 +25,211 @@ class UpdateAssetModelsTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('models.edit', AssetModel::factory()->create()))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('Recently released feature')
+            ->assertDontSee('name="min_amt"', false);
+    }
+
+    public function test_web_update_preserves_existing_minimum_quantity(): void
+    {
+        $model = AssetModel::factory()->create(['min_amt' => 5]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => $model->name,
+                'category_id' => $model->category_id,
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertSame(5, $model->fresh()->min_amt);
+    }
+
+    public function testEditPageShowsCategoryFieldsetDefaultsWithoutModelOverrideControls()
+    {
+        $categoryFieldset = CustomFieldset::factory()->create(['name' => 'Category Governed Fieldset']);
+        $categoryFieldset->fields()->attach(CustomField::factory()->create(), ['order' => 1, 'required' => false]);
+        $hiddenModelFieldset = CustomFieldset::factory()->create(['name' => 'Stored Model Override']);
+        $category = Category::factory()->forAssets()->create([
+            'fieldset_id' => $categoryFieldset->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'fieldset_id' => $hiddenModelFieldset->id,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('models.edit', $model))
+            ->assertOk()
+            ->assertSee('Category Governed Fieldset')
+            ->assertDontSee('Stored Model Override')
+            ->assertDontSeeHtml('name="fieldset_id"')
+            ->assertSeeHtml('name="add_default_values"');
+    }
+
+    public function testModelDefaultsCanBeSavedForTheInheritedCategoryFieldset(): void
+    {
+        $fieldset = CustomFieldset::factory()->create();
+        $field = CustomField::factory()->create([
+            'name' => 'Network Speed',
+            'element' => 'text',
+            'format' => '',
+        ]);
+        $unrelatedField = CustomField::factory()->create(['name' => 'Unrelated Field']);
+        $fieldset->fields()->attach($field, ['order' => 1, 'required' => false]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'fieldset_id' => null,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->put(route('models.update', $model), [
+                'name' => $model->name,
+                'category_id' => $category->id,
+                'add_default_values' => '1',
+                'default_values' => [
+                    $field->id => '1 Gbps',
+                    $unrelatedField->id => 'Must not be attached',
+                ],
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertDatabaseHas('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $field->id,
+            'default_value' => '1 Gbps',
+        ]);
+        $this->assertDatabaseMissing('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $unrelatedField->id,
+        ]);
+        $this->assertNull($model->fresh()->fieldset_id);
+    }
+
+    public function testChangingCategoryReplacesDefaultsUsingTheNewCategoryFieldset(): void
+    {
+        $oldFieldset = CustomFieldset::factory()->create();
+        $newFieldset = CustomFieldset::factory()->create();
+        $oldField = CustomField::factory()->create(['name' => 'Old Category Field']);
+        $newField = CustomField::factory()->create(['name' => 'New Category Field']);
+        $oldFieldset->fields()->attach($oldField, ['order' => 1, 'required' => false]);
+        $newFieldset->fields()->attach($newField, ['order' => 1, 'required' => false]);
+        $oldCategory = Category::factory()->forAssets()->create(['fieldset_id' => $oldFieldset->id]);
+        $newCategory = Category::factory()->forAssets()->create(['fieldset_id' => $newFieldset->id]);
+        $model = AssetModel::factory()->create(['category_id' => $oldCategory->id]);
+        $model->defaultValues()->attach($oldField, ['default_value' => 'Old value']);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->put(route('models.update', $model), [
+                'name' => $model->name,
+                'category_id' => $newCategory->id,
+                'add_default_values' => '1',
+                'default_values' => [$newField->id => 'New value'],
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertDatabaseMissing('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $oldField->id,
+        ]);
+        $this->assertDatabaseHas('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $newField->id,
+            'default_value' => 'New value',
+        ]);
+    }
+
+    public function testModelFieldsetOverrideCannotBeSubmittedWhileDisabled()
+    {
+        $category = Category::factory()->forAssets()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'fieldset_id' => null,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.edit', $model))
+            ->put(route('models.update', $model), [
+                'name' => $model->name,
+                'category_id' => $category->id,
+                'fieldset_id' => CustomFieldset::factory()->create()->id,
+            ])
+            ->assertRedirect(route('models.edit', $model))
+            ->assertSessionHasErrors(['fieldset_id']);
+
+        $this->assertNull($model->fresh()->fieldset_id);
+    }
+
+    public function testAfmCanEditManagedAssetModel()
+    {
+        $afm = User::factory()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Managed Editable Model',
+            'category_id' => $managedCategory->id,
+        ]);
+
+        $this->actingAs($afm)
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => 'Managed Editable Model Updated',
+                'category_id' => $managedCategory->id,
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertTrue(AssetModel::where('name', 'Managed Editable Model Updated')->exists());
+    }
+
+    public function testAfmCannotEditUnmanagedAssetModel()
+    {
+        $afm = User::factory()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $unmanagedCategory->id,
+        ]);
+
+        $this->actingAs($afm)
+            ->get(route('models.edit', $model))
+            ->assertForbidden();
+
+        $response = $this->actingAs($afm)
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => 'Should Not Update',
+                'category_id' => $managedCategory->id,
+            ]);
+
+        $response->assertForbidden();
+        $this->assertFalse(AssetModel::where('name', 'Should Not Update')->exists());
+    }
+
+    public function testAfmEditFormOnlyShowsManagedCategories()
+    {
+        $afm = User::factory()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Managed Update Category',
+            'manager_id' => $afm->id,
+        ]);
+        $otherManagedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Second Managed Update Category',
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Unmanaged Update Category',
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $managedCategory->id,
+        ]);
+
+        $response = $this->actingAs($afm)->get(route('models.edit', $model));
+
+        $response->assertOk();
+        $response->assertSee('Managed Update Category');
+        $response->assertSee('Second Managed Update Category');
+        $response->assertDontSee('Unmanaged Update Category');
     }
 
     public function testUserCanEditAssetModels()
@@ -48,6 +252,47 @@ class UpdateAssetModelsTest extends TestCase
         $this->assertTrue(AssetModel::where('name', 'Test Model Edited')->exists());
         $this->assertTrue(AssetModel::where('name', 'Test Model Edited')->sole()->obsolete);
 
+    }
+
+    public function testUserCanUpdateAssetModelReferencePrice()
+    {
+        $category = Category::factory()->forAssets()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'reference_price' => 100,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => $model->name,
+                'category_id' => $category->id,
+                'reference_price' => '987.65',
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertEquals(987.65, (float) $model->fresh()->reference_price);
+    }
+
+    public function testUserCannotUpdateAssetModelWithNegativeReferencePrice()
+    {
+        $category = Category::factory()->forAssets()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $category->id,
+            'reference_price' => 100,
+        ]);
+
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.edit', $model))
+            ->put(route('models.update', ['model' => $model]), [
+                'name' => $model->name,
+                'category_id' => $category->id,
+                'reference_price' => '-5',
+            ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('models.edit', $model));
+        $response->assertSessionHasErrors(['reference_price']);
+        $this->assertEquals(100.0, (float) $model->fresh()->reference_price);
     }
 
     public function testUserCannotChangeAssetModelCategoryType()
@@ -74,6 +319,8 @@ class UpdateAssetModelsTest extends TestCase
 
     public function test_default_values_remain_unchanged_after_validation_error_occurs()
     {
+        config()->set('leams.model_fieldset_overrides', true);
+
         $this->markIncompleteIfMySQL('Custom Field Tests do not work in MySQL');
 
         $assetModel = AssetModel::factory()->create();
@@ -107,6 +354,8 @@ class UpdateAssetModelsTest extends TestCase
 
     public function test_default_values_can_be_updated()
     {
+        config()->set('leams.model_fieldset_overrides', true);
+
         $this->markIncompleteIfMySQL('Custom Field Tests do not work in MySQL');
 
         $assetModel = AssetModel::factory()->create();

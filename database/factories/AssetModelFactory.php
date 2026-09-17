@@ -34,6 +34,7 @@ class AssetModelFactory extends Factory
             'model_number' => $this->faker->creditCardNumber(),
             'notes' => 'Created by demo seeder',
             'obsolete' => 0,
+            'reference_price' => $this->faker->randomFloat(2, 100, 10000),
             'require_serial' => 0,
 
         ];

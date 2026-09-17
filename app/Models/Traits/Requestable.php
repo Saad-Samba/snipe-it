@@ -30,11 +30,32 @@ trait Requestable
         );
     }
 
-    public function request($qty = 1)
+    public function request($qty = 1, array $attributes = [])
     {
-        $this->requests()->save(
-            new CheckoutRequest(['user_id' => auth()->id(), 'qty' => $qty])
+        return $this->requests()->save(
+            new CheckoutRequest(array_merge([
+                'user_id' => auth()->id(),
+                'quantity' => $qty,
+                'status' => CheckoutRequest::STATUS_PENDING,
+            ], $attributes))
         );
+    }
+
+    public function updateRequest($qty = 1, ?User $user = null, array $attributes = [])
+    {
+        $user ??= auth()->user();
+        $request = $this->isRequestedBy($user);
+
+        if (!$request) {
+            return null;
+        }
+
+        $request->quantity = $qty;
+        $request->fill($attributes);
+        $request->status = $request->status ?: CheckoutRequest::STATUS_PENDING;
+        $request->save();
+
+        return $request->fresh();
     }
 
     public function deleteRequest()
@@ -48,6 +69,9 @@ trait Requestable
             $user_id = auth()->id();
         }
 
-        $this->requests()->where('user_id', $user_id)->update(['canceled_at' => \Carbon\Carbon::now()]);
+        $this->requests()->where('user_id', $user_id)->update([
+            'canceled_at' => \Carbon\Carbon::now(),
+            'status' => CheckoutRequest::STATUS_CANCELED,
+        ]);
     }
 }

@@ -49,7 +49,7 @@ class WelcomeNotification extends Notification
             ->markdown('notifications.Welcome', $this->user->toArray())
             ->withSymfonyMessage(function (Email $message) {
                 $message->getHeaders()->addTextHeader(
-                    'X-System-Sender', 'Snipe-IT'
+                    'X-System-Sender', 'LEAMS'
                 );
             });
     }
