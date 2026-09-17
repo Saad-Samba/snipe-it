@@ -26,6 +26,25 @@
 </div>
 @endif
 
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="box box-solid">
+            <div class="box-body text-center">
+                <p><strong>Detailed Analytics:</strong> Access the full Asset and License dashboards in Power BI.</p>
+                
+                <!-- The Power BI Button -->
+                <a href="https://app.powerbi.com/reportEmbed?reportId=310f86fe-52b1-4e1a-b21f-029e59994804&autoAuth=true&ctid=a92e6712-da61-4cce-9bb5-7a46762f71d7&actionBarEnabled=true&reportCopilotInEmbed=true" 
+                   target="_blank" 
+                   class="btn btn-primary btn-lg">
+                   <i class="fa fa-bar-chart" aria-hidden="true"></i> 
+                   Open Power BI Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
 
     <!-- panel -->
