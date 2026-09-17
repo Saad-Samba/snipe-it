@@ -56,6 +56,7 @@ class AssetModel extends SnipeModel
         'manufacturer_id'   => 'integer|exists:manufacturers,id|nullable',
         'eol'               => 'integer:min:0|max:240|nullable',
         'obsolete'          => 'boolean',
+        'price'             => 'numeric|nullable|min:0',
     ];
 
 
@@ -77,6 +78,7 @@ class AssetModel extends SnipeModel
         'name',
         'notes',
         'obsolete',
+        'price',
         'requestable',
         'require_serial'
     ];
