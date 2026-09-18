@@ -117,6 +117,9 @@
                 sortName: data_with_default('sort-name', 'created_at'),
                 sortOrder: data_with_default('sort-order', 'desc'),
                 stickyHeader: true,
+                // Leave room for the mirrored horizontal scrollbar when the
+                // table header becomes fixed at the top of the viewport.
+                stickyHeaderOffsetY: 18,
                 stickyHeaderOffsetLeft: parseInt($('body').css('padding-left'), 10),
                 stickyHeaderOffsetRight: parseInt($('body').css('padding-right'), 10),
                 trimOnSearch: false,
@@ -3198,15 +3201,187 @@
         searchboxHighlighter({ name:'pageload'});
         $('.search-input').keyup(searchboxHighlighter);
 
-        //  This is necessary to make the bootstrap tooltips work inside of the
-        // wenzhixin/bootstrap-table formatters
-        $('#table').on('post-body.bs.table', function () {
+        // This is necessary to make the bootstrap tooltips work inside of the
+        // wenzhixin/bootstrap-table formatters. Delegate it so every table,
+        // including tables initialized inside tabs, receives the hook.
+        $(document).on('post-body.bs.table', '.snipe-table', function () {
             $('[data-tooltip="true"]').tooltip({
                 container: 'body'
             });
-
-
         });
+    });
+
+    // Mirror the table body's native horizontal scrollbar above wide tables.
+    // This is adapted from the upstream implementation for #5779, including
+    // the later fixes for cloned tables, hidden tabs, sorting, and sticky
+    // headers (#19484).
+    function updateTopScrollbar(root) {
+        var $targets = root ? $(root).filter('.snipe-table') : $('.snipe-table');
+        var processedWrappers = [];
+
+        $targets.each(function () {
+            var $body = $(this).closest('.fixed-table-body');
+            if (! $body.length) return;
+
+            var $bootstrapTable = $body.closest('.bootstrap-table');
+            if (! $bootstrapTable.length) return;
+
+            var wrapper = $bootstrapTable[0];
+            if (processedWrappers.indexOf(wrapper) !== -1) return;
+            processedWrappers.push(wrapper);
+
+            // Fixed-column extensions can clone the table. Always bind the
+            // mirror to the primary body and table, not to an extension clone.
+            var $container = $bootstrapTable.children('.fixed-table-container').first();
+            if (! $container.length) return;
+
+            var $primaryBody = $container.find('.fixed-table-body').first();
+            var $primaryTable = $primaryBody.find('table.snipe-table').first();
+            if (! $primaryBody.length || ! $primaryTable.length) return;
+
+            var primaryBody = $primaryBody[0];
+            var primaryTable = $primaryTable[0];
+
+            // Remove mirrors created by the original upstream placement. The
+            // current mirror is a direct child of .bootstrap-table so it can
+            // be pinned against the page viewport.
+            $container.children('.snipe-top-scrollbar').remove();
+
+            // Fixed-height widgets already keep their bottom scrollbar close
+            // to their content and do not benefit from a second scrollbar.
+            if ($primaryTable.is('[data-height]')) {
+                $bootstrapTable.children('.snipe-top-scrollbar').remove();
+                return;
+            }
+
+            var $topScrollbar = $bootstrapTable.children('.snipe-top-scrollbar');
+            var overflows = primaryTable.scrollWidth > primaryBody.clientWidth;
+
+            // Preserve the node across transient width measurements during a
+            // sort, then reveal it again after Bootstrap Table settles.
+            if (! overflows) {
+                $topScrollbar.hide();
+                return;
+            }
+
+            if (! $topScrollbar.length) {
+                $topScrollbar = $('<div class="snipe-top-scrollbar" aria-hidden="true"><div class="snipe-top-scrollbar-inner"></div></div>');
+                $container.before($topScrollbar);
+            } else {
+                $topScrollbar.show();
+            }
+
+            var topScrollbar = $topScrollbar[0];
+            var syncing = false;
+
+            // The body can be replaced after a render, so refresh both
+            // namespaced handlers every time this function runs.
+            $topScrollbar.off('scroll.snipeScrollSync').on('scroll.snipeScrollSync', function () {
+                if (syncing) return;
+                syncing = true;
+                primaryBody.scrollLeft = topScrollbar.scrollLeft;
+                syncing = false;
+            });
+            $primaryBody.off('scroll.snipeScrollSync').on('scroll.snipeScrollSync', function () {
+                if (syncing) return;
+                syncing = true;
+                topScrollbar.scrollLeft = primaryBody.scrollLeft;
+                syncing = false;
+            });
+
+            $topScrollbar.children('.snipe-top-scrollbar-inner').css('width', primaryTable.scrollWidth + 'px');
+            pinTopScrollbarIfScrolled($topScrollbar, $container);
+        });
+    }
+
+    function pinTopScrollbarIfScrolled($topScrollbar, $container) {
+        if (! $topScrollbar.length || ! $container.length || $topScrollbar.css('display') === 'none') return;
+
+        var containerRect = $container[0].getBoundingClientRect();
+        var scrollbarHeight = $topScrollbar.outerHeight();
+        var shouldPin = containerRect.top < 0 && containerRect.bottom >= scrollbarHeight;
+
+        if (shouldPin) {
+            $topScrollbar.addClass('is-pinned').css({
+                position: 'fixed',
+                top: 0,
+                left: Math.round(containerRect.left) + 'px',
+                width: Math.round(containerRect.width) + 'px'
+            });
+        } else if ($topScrollbar.hasClass('is-pinned')) {
+            $topScrollbar.removeClass('is-pinned').css({
+                position: '',
+                top: '',
+                left: '',
+                width: ''
+            });
+        }
+    }
+
+    var topScrollbarFramePending = false;
+    function scheduleTopScrollbarPin() {
+        if (topScrollbarFramePending) return;
+        topScrollbarFramePending = true;
+
+        var requestFrame = window.requestAnimationFrame || function (callback) {
+            return window.setTimeout(callback, 16);
+        };
+
+        requestFrame(function () {
+            topScrollbarFramePending = false;
+            $('.snipe-top-scrollbar').each(function () {
+                var $topScrollbar = $(this);
+                var $bootstrapTable = $topScrollbar.parent('.bootstrap-table');
+                if (! $bootstrapTable.length) return;
+
+                pinTopScrollbarIfScrolled(
+                    $topScrollbar,
+                    $bootstrapTable.children('.fixed-table-container').first()
+                );
+            });
+        });
+    }
+
+    function deferTopScrollbarUpdate(callback) {
+        var requestFrame = window.requestAnimationFrame || function (fn) {
+            return window.setTimeout(fn, 0);
+        };
+
+        requestFrame(function () {
+            requestFrame(callback);
+        });
+        window.setTimeout(callback, 120);
+    }
+
+    $(window).on('scroll.snipeTopScrollbarPin resize.snipeTopScrollbarPin', scheduleTopScrollbarPin);
+
+    // These delegated listeners intentionally live outside document.ready so
+    // they also catch the first render of tables in hash-selected hidden tabs.
+    $(document).on('post-body.bs.table', '.snipe-table', function () {
+        var table = this;
+        deferTopScrollbarUpdate(function () {
+            updateTopScrollbar(table);
+        });
+        window.setTimeout(function () {
+            updateTopScrollbar(table);
+        }, 250);
+    });
+
+    $(document).on('shown.bs.tab', function () {
+        deferTopScrollbarUpdate(function () {
+            updateTopScrollbar();
+        });
+    });
+
+    $(document).on('reset-view.bs.table', '.snipe-table', function () {
+        var table = this;
+        deferTopScrollbarUpdate(function () {
+            updateTopScrollbar(table);
+        });
+    });
+
+    $(window).on('resize.snipeTopScrollbarMeasure', function () {
+        updateTopScrollbar();
     });
 
 </script>
