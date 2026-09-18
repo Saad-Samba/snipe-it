@@ -4,6 +4,7 @@ namespace Tests\Unit;
 use App\Models\Asset;
 use App\Models\Category;
 use App\Models\AssetModel;
+use App\Models\CustomField;
 use App\Models\CustomFieldset;
 use Tests\TestCase;
 
@@ -74,6 +75,24 @@ class AssetModelTest extends TestCase
         ]);
 
         $this->assertEquals($modelFieldset->id, $model->fieldset?->id);
+    }
+
+    public function test_custom_field_factory_states_use_the_effective_category_fieldset()
+    {
+        $encryptedField = CustomField::factory()->testEncrypted()->create();
+        $otherFields = [
+            CustomField::factory()->ram()->create(),
+            CustomField::factory()->cpu()->create(),
+        ];
+
+        $encryptedModel = AssetModel::factory()->hasEncryptedCustomField($encryptedField)->create();
+        $multiFieldModel = AssetModel::factory()->hasMultipleCustomFields($otherFields)->create();
+
+        $this->assertTrue($encryptedModel->fieldset->fields->contains($encryptedField));
+        $this->assertEqualsCanonicalizing(
+            collect($otherFields)->pluck('id')->all(),
+            $multiFieldModel->fieldset->fields->pluck('id')->all(),
+        );
     }
 
     public function test_obsolete_attribute_is_cast_to_boolean()
