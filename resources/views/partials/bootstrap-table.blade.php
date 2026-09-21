@@ -117,9 +117,8 @@
                 sortName: data_with_default('sort-name', 'created_at'),
                 sortOrder: data_with_default('sort-order', 'desc'),
                 stickyHeader: true,
-                // Leave room for the mirrored horizontal scrollbar when the
-                // table header becomes fixed at the top of the viewport.
-                stickyHeaderOffsetY: 18,
+                // updateTopScrollbar raises this only while a mirror is visible.
+                stickyHeaderOffsetY: 0,
                 stickyHeaderOffsetLeft: parseInt($('body').css('padding-left'), 10),
                 stickyHeaderOffsetRight: parseInt($('body').css('padding-right'), 10),
                 trimOnSearch: false,
@@ -3226,6 +3225,12 @@
             var $bootstrapTable = $body.closest('.bootstrap-table');
             if (! $bootstrapTable.length) return;
 
+            // In fullscreen mode this wrapper, rather than window, is the
+            // vertical scrolling element.
+            $bootstrapTable
+                .off('scroll.snipeTopScrollbarPin')
+                .on('scroll.snipeTopScrollbarPin', scheduleTopScrollbarPin);
+
             var wrapper = $bootstrapTable[0];
             if (processedWrappers.indexOf(wrapper) !== -1) return;
             processedWrappers.push(wrapper);
@@ -3251,6 +3256,7 @@
             // to their content and do not benefit from a second scrollbar.
             if ($primaryTable.is('[data-height]')) {
                 $bootstrapTable.children('.snipe-top-scrollbar').remove();
+                updateStickyHeaderOffset($primaryTable, 0);
                 return;
             }
 
@@ -3261,6 +3267,7 @@
             // sort, then reveal it again after Bootstrap Table settles.
             if (! overflows) {
                 $topScrollbar.hide();
+                updateStickyHeaderOffset($primaryTable, 0);
                 return;
             }
 
@@ -3270,6 +3277,8 @@
             } else {
                 $topScrollbar.show();
             }
+
+            updateStickyHeaderOffset($primaryTable, $topScrollbar.outerHeight());
 
             var topScrollbar = $topScrollbar[0];
             var syncing = false;
@@ -3292,6 +3301,19 @@
             $topScrollbar.children('.snipe-top-scrollbar-inner').css('width', primaryTable.scrollWidth + 'px');
             pinTopScrollbarIfScrolled($topScrollbar, $container);
         });
+    }
+
+    function updateStickyHeaderOffset($table, offset) {
+        var bootstrapTable = $table.data('bootstrap.table');
+        if (! bootstrapTable || ! bootstrapTable.options) return;
+
+        var nextOffset = Math.max(0, Math.round(offset || 0));
+        if (bootstrapTable.options.stickyHeaderOffsetY === nextOffset) return;
+
+        bootstrapTable.options.stickyHeaderOffsetY = nextOffset;
+        if (typeof bootstrapTable.renderStickyHeader === 'function') {
+            bootstrapTable.renderStickyHeader();
+        }
     }
 
     function pinTopScrollbarIfScrolled($topScrollbar, $container) {
