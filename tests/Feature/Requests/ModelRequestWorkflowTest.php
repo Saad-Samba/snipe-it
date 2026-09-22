@@ -3252,6 +3252,40 @@ class ModelRequestWorkflowTest extends TestCase
         Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class);
     }
 
+    public function test_reconciliation_reopens_a_not_allocated_request_when_it_adds_a_new_rac_target()
+    {
+        Notification::fake();
+        $requester = User::factory()->create();
+        $coordinator = User::factory()->create(['email' => 'reopened-rac@example.com']);
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Reopened RAC Scope', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create();
+        $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'requestable_id' => $model->id,
+            'user_id' => $requester->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
+            'status' => CheckoutRequest::STATUS_NOT_ALLOCATED,
+        ]);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->artisan('snipeit:reconcile-rac-routing')
+            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts; 1 coordinators initially notified.')
+            ->assertSuccessful();
+
+        $checkoutRequest->refresh();
+        $this->assertSame(CheckoutRequest::STATUS_PENDING, $checkoutRequest->status);
+        $this->assertNull($checkoutRequest->alternative_follow_up_notified_at);
+        $this->assertNotNull($checkoutRequest->coordinatorTargets()->firstOrFail()->initial_notified_at);
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class);
+    }
+
     public function test_destination_checkout_completes_a_request_linked_transfer()
     {
         $settings = Setting::getSettings();

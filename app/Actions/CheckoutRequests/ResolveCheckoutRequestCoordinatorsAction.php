@@ -84,14 +84,23 @@ class ResolveCheckoutRequestCoordinatorsAction
             }
         }
 
+        $addedCoordinatorTarget = false;
         foreach ($matchedAssignments as $assignment) {
-            $checkoutRequest->coordinatorTargets()->firstOrCreate(
+            $target = $checkoutRequest->coordinatorTargets()->firstOrCreate(
                 [
                     'user_id' => $assignment->user_id,
                     'company_id' => $assignment->company_id,
                     'discipline_id' => $assignment->discipline_id,
                 ]
             );
+            $addedCoordinatorTarget = $addedCoordinatorTarget || $target->wasRecentlyCreated;
+        }
+
+        if ($addedCoordinatorTarget && $checkoutRequest->resolvedStatus() === CheckoutRequest::STATUS_NOT_ALLOCATED) {
+            $checkoutRequest->forceFill([
+                'status' => CheckoutRequest::STATUS_PENDING,
+                'alternative_follow_up_notified_at' => null,
+            ])->save();
         }
 
         $unroutedScopeKeys = $reusableCountsByScope->keys()->diff($matchedAssignmentsByScope->keys());

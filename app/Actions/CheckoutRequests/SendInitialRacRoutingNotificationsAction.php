@@ -3,14 +3,17 @@
 namespace App\Actions\CheckoutRequests;
 
 use App\Models\CheckoutRequestCoordinator;
+use App\Models\CheckoutRequest;
 use App\Notifications\RacScopedRequestSummaryNotification;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class SendInitialRacRoutingNotificationsAction
 {
     public static function run(): int
     {
-        $targets = CheckoutRequestCoordinator::query()
+        $sent = 0;
+        self::eligibleTargets()
             ->with([
                 'checkoutRequest.requestedItem',
                 'checkoutRequest.requestedDiscipline',
@@ -20,32 +23,48 @@ class SendInitialRacRoutingNotificationsAction
                 'coordinator',
                 'discipline',
             ])
-            ->whereNull('initial_notified_at')
-            ->get()
-            ->filter(fn (CheckoutRequestCoordinator $target) =>
-                $target->coordinator?->email
-                && $target->checkoutRequest
-                && ! $target->hasTerminalResolution()
-                && $target->checkoutRequest->canBeProcessedBy($target->coordinator)
-            )
-            ->values();
+            ->chunkById(200, function (Collection $targets) use (&$sent) {
+                foreach ($targets->groupBy('user_id') as $coordinatorTargets) {
+                    /** @var CheckoutRequestCoordinator $first */
+                    $first = $coordinatorTargets->first();
+                    $first->coordinator->notify(new RacScopedRequestSummaryNotification(
+                        self::summary($coordinatorTargets)
+                    ));
 
-        $sent = 0;
-        foreach ($targets->groupBy('user_id') as $coordinatorTargets) {
-            /** @var CheckoutRequestCoordinator $first */
-            $first = $coordinatorTargets->first();
-            $first->coordinator->notify(new RacScopedRequestSummaryNotification(
-                self::summary($coordinatorTargets)
-            ));
-
-            CheckoutRequestCoordinator::query()
-                ->whereIn('id', $coordinatorTargets->pluck('id')->all())
-                ->whereNull('initial_notified_at')
-                ->update(['initial_notified_at' => now()]);
-            $sent++;
-        }
+                    CheckoutRequestCoordinator::query()
+                        ->whereIn('id', $coordinatorTargets->pluck('id')->all())
+                        ->whereNull('initial_notified_at')
+                        ->update(['initial_notified_at' => now()]);
+                    $sent++;
+                }
+            });
 
         return $sent;
+    }
+
+    private static function eligibleTargets(): Builder
+    {
+        return CheckoutRequestCoordinator::query()
+            ->whereNull('initial_notified_at')
+            ->where(function (Builder $query) {
+                $query->whereNull('resolution_status')
+                    ->orWhereNotIn('resolution_status', CheckoutRequestCoordinator::terminalResolutionStatuses());
+            })
+            ->whereHas('coordinator', function (Builder $query) {
+                $query->whereNotNull('email')
+                    ->where('activated', true)
+                    ->whereNull('deleted_at');
+            })
+            ->whereHas('checkoutRequest', function (Builder $query) {
+                $query->whereIn('status', [
+                    CheckoutRequest::STATUS_PENDING,
+                    CheckoutRequest::STATUS_PARTIALLY_ALLOCATED,
+                    CheckoutRequest::STATUS_IN_TRANSFER,
+                ])
+                    ->whereNull('canceled_at')
+                    ->whereNull('fulfilled_at')
+                    ->whereRaw('checkout_requests.quantity > (select count(*) from checkout_request_assets where checkout_request_assets.checkout_request_id = checkout_requests.id)');
+            });
     }
 
     private static function summary(Collection $targets): array
