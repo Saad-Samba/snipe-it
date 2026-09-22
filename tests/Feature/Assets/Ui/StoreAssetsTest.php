@@ -18,6 +18,14 @@ class StoreAssetsTest extends TestCase
             ->assertOk();
     }
 
+    public function testCompanySelectIsMarkedRequiredWhenCreatingAsset()
+    {
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('hardware.create'))
+            ->assertOk()
+            ->assertSeeHtml('id="company_select" required');
+    }
+
     public function testAssetCanBeStoredWithSerialRequiredAndSerialProvided()
     {
         $user = User::factory()->superuser()->create();
