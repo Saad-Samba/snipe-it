@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\Company;
+use App\Models\CompanyableScope;
 use App\Models\Discipline;
 use App\Models\RegionalAssetCoordinatorAssignment;
 use Illuminate\Support\Collection;
@@ -28,7 +29,9 @@ class ResolveCheckoutRequestCoordinatorsAction
             return self::finish($checkoutRequest, $result, $sendAlternativeFollowUp);
         }
 
-        $eligibleAssetPairs = Asset::query()
+        // RAC routing is a system operation and must discover eligible Sites
+        // network-wide. Only scope matches are persisted, never asset details.
+        $eligibleAssetPairs = Asset::withoutGlobalScope(CompanyableScope::class)
             ->RTD()
             ->where('model_id', $checkoutRequest->requestable_id)
             ->whereNotNull('company_id')
@@ -52,7 +55,11 @@ class ResolveCheckoutRequestCoordinatorsAction
             ->map(fn (Collection $assets) => $assets->count());
 
         $assignments = RegionalAssetCoordinatorAssignment::query()
-            ->with(['coordinator', 'company', 'discipline'])
+            ->with([
+                'coordinator' => fn ($query) => $query->withoutGlobalScope(CompanyableScope::class),
+                'company' => fn ($query) => $query->withoutGlobalScope(CompanyableScope::class),
+                'discipline',
+            ])
             ->get()
             ->filter(fn (RegionalAssetCoordinatorAssignment $assignment) => self::hasActiveCoordinator($assignment));
 
@@ -162,7 +169,7 @@ class ResolveCheckoutRequestCoordinatorsAction
             })
             ->values();
 
-        $companies = Company::query()
+        $companies = Company::withoutGlobalScope(CompanyableScope::class)
             ->whereIn('id', $scopeParts->pluck('companyId'))
             ->pluck('name', 'id');
         $disciplines = Discipline::query()
