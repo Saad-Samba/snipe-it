@@ -1735,15 +1735,21 @@ class ModelRequestWorkflowTest extends TestCase
     {
         $requester = User::factory()->requestAssetModels()->create();
         $coordinator = User::factory()->create();
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Processing Scope', 'created_by' => $requester->id]);
         $project = Project::factory()->create();
         $updatedProject = Project::factory()->create();
         $request = CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
             'project_id' => $project->id,
             'needed_by_date' => '2026-06-01',
         ]);
         $request->coordinatorTargets()->create([
             'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
             'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_IN_PROGRESS,
         ]);
 
