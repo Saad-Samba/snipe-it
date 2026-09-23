@@ -30,7 +30,7 @@ class ResolveCheckoutRequestCoordinatorsAction
         }
 
         // RAC routing is a system operation and must discover eligible Sites
-        // network-wide. Only scope matches are persisted, never asset details.
+        // across All Sites. Only scope matches are persisted, never asset details.
         $eligibleAssetPairs = Asset::withoutGlobalScope(CompanyableScope::class)
             ->RTD()
             ->where('model_id', $checkoutRequest->requestable_id)

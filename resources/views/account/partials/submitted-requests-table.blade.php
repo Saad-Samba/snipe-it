@@ -2,7 +2,7 @@
     <div class="text-muted" style="margin-bottom:8px;">
         <strong>Reuse planning fields</strong>
         <x-new-feature-label />
-        <span class="small">Network Reusable Now, Network Due Back, Reserved, Estimated Savings, Network Shortfall, and Pending to Buy. Network figures are aggregate counts across Sites; asset details remain role-scoped.</span>
+        <span class="small">All Sites Reusable Now, All Sites Due Back, Reserved, Estimated Savings, All Sites Shortfall, and Pending to Buy. All Sites figures are aggregate counts across Sites; asset details remain role-scoped.</span>
     </div>
 @endif
 <table
@@ -32,12 +32,12 @@
         <th data-field="total_need_cost" data-sortable="true" data-formatter="requestTotalNeedCostFormatter"@if (!empty($showFooter)) data-footer-formatter="sumFormatter"@endif>Total Need Cost</th>
         <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
         <th data-field="needed_by_date" data-sortable="true" data-formatter="dateDisplayFormatter">Needed By</th>
-        <th data-field="reusable_quantity" data-sortable="true" data-formatter="requestReusableNowFormatter" data-request-tooltip="Aggregate unassigned deployable assets available across all Sites. Asset details remain role-scoped."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Network Reusable Now</th>
-        <th data-field="due_back_before_needed_by_quantity" data-sortable="true" data-formatter="requestDueBackFormatter" data-request-tooltip="Aggregate assigned assets across all Sites expected back by the needed-by date. RFQ-reserved assets are excluded."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Network Due Back</th>
+        <th data-field="reusable_quantity" data-sortable="true" data-formatter="requestReusableNowFormatter" data-request-tooltip="Aggregate unassigned deployable assets available across all Sites. Asset details remain role-scoped."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>All Sites Reusable Now</th>
+        <th data-field="due_back_before_needed_by_quantity" data-sortable="true" data-formatter="requestDueBackFormatter" data-request-tooltip="Aggregate assigned assets across all Sites expected back by the needed-by date. RFQ-reserved assets are excluded."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>All Sites Due Back</th>
         <th data-field="reserved_count" data-sortable="true" data-formatter="requestReservedFormatter" data-request-tooltip="Assets marked in the RFQ reserved status for this same project with an expected return date."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Reserved</th>
         <th data-field="reserved_by_other_rfqs_count" data-sortable="true" data-formatter="requestReservedByOtherProjectFormatter" data-request-tooltip="Assets marked in the RFQ reserved status for a different project. This bucket is project-based only; discipline is not considered."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Reserved by Other Project</th>
         <th data-field="estimated_savings" data-sortable="true" data-formatter="requestSavingsFormatter" data-request-tooltip="The model cost used here is the one saved at the time of the request."@if (!empty($showFooter)) data-footer-formatter="sumFormatter"@endif>Estimated Savings</th>
-        <th data-field="procurement_shortfall" data-sortable="true" data-request-tooltip="Remaining quantity not covered by network reusable now plus network due back."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Network Shortfall</th>
+        <th data-field="procurement_shortfall" data-sortable="true" data-request-tooltip="Remaining quantity not covered by All Sites reusable now plus All Sites due back."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>All Sites Shortfall</th>
         <th data-field="amount_to_buy" data-sortable="true" data-formatter="requestAmountToBuyFormatter"@if (!empty($showFooter)) data-footer-formatter="sumFormatter"@endif>Pending to Buy</th>
         <th data-field="status" data-sortable="true" data-formatter="requestRequesterStatusFormatter">Status</th>
         <th data-field="request_date" data-sortable="true" data-formatter="dateDisplayFormatter">{{ trans('general.requested_date') }}</th>

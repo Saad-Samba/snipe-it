@@ -10,7 +10,7 @@ class EstimateAssetModelReuseAction
     public static function run(AssetModel $model, int $requestedQuantity, ?string $neededByDate = null): array
     {
         $requestedQuantity = max($requestedQuantity, 1);
-        // Planning uses aggregate network inventory. Asset discovery remains
+        // Planning uses aggregate All Sites inventory. Asset discovery remains
         // protected by the normal FMCS scope and authorization policies.
         $availableReusableStock = $model->availableAssets()
             ->withoutGlobalScope(CompanyableScope::class)
