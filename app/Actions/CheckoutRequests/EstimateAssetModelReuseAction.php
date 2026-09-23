@@ -3,13 +3,23 @@
 namespace App\Actions\CheckoutRequests;
 
 use App\Models\AssetModel;
+use App\Models\CompanyableScope;
+
 class EstimateAssetModelReuseAction
 {
     public static function run(AssetModel $model, int $requestedQuantity, ?string $neededByDate = null): array
     {
         $requestedQuantity = max($requestedQuantity, 1);
-        $availableReusableStock = $model->availableAssets()->count();
-        $dueBackBeforeNeededBy = $neededByDate ? $model->dueBackAssetsByDate($neededByDate)->count() : 0;
+        // Planning uses aggregate All Sites inventory. Asset discovery remains
+        // protected by the normal FMCS scope and authorization policies.
+        $availableReusableStock = $model->availableAssets()
+            ->withoutGlobalScope(CompanyableScope::class)
+            ->count();
+        $dueBackBeforeNeededBy = $neededByDate
+            ? $model->dueBackAssetsByDate($neededByDate)
+                ->withoutGlobalScope(CompanyableScope::class)
+                ->count()
+            : 0;
         $potentiallyCoverableByNeededBy = $availableReusableStock + $dueBackBeforeNeededBy;
         $coverableQuantity = min($requestedQuantity, $potentiallyCoverableByNeededBy);
         $procurementShortfall = max($requestedQuantity - $potentiallyCoverableByNeededBy, 0);

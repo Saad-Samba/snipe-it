@@ -309,7 +309,7 @@ class ModelRequestWorkflowTest extends TestCase
             ]);
 
         $this->artisan('snipeit:reconcile-rac-routing')
-            ->expectsOutput('1 active requests reconciled; 1 unrouted requests included in administrator alerts.')
+            ->expectsOutput('1 active requests reconciled; 1 unrouted requests included in administrator alerts; 0 coordinators initially notified.')
             ->assertSuccessful();
 
         $this->assertSame(
@@ -370,7 +370,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame(2, $checkoutRequest->remainingAllocationQuantity());
 
         $this->artisan('snipeit:reconcile-rac-routing')
-            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts.')
+            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts; 0 coordinators initially notified.')
             ->assertSuccessful();
 
         $checkoutRequest->refresh();
@@ -3132,6 +3132,158 @@ class ModelRequestWorkflowTest extends TestCase
             'user_id' => $coordinator->id,
             'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_COMPLETED,
         ]);
+    }
+
+    public function test_fmcs_cross_site_reuse_request_routes_notifies_transfers_and_completes_at_destination()
+    {
+        Notification::fake();
+        $settings = Setting::getSettings();
+        $settings->full_multiple_companies_support = 1;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $sourceCompany = Company::factory()->create(['name' => 'Source Site']);
+        $destinationCompany = Company::factory()->create(['name' => 'Destination Site']);
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create([
+            'company_id' => $destinationCompany->id,
+        ]);
+        $sourceCoordinator = User::factory()->viewAssets()->editAssets()->create([
+            'company_id' => $sourceCompany->id,
+            'email' => 'source-rac@example.com',
+        ]);
+        $destinationCoordinator = User::factory()->viewAssets()->checkoutAssets()->create([
+            'company_id' => $destinationCompany->id,
+        ]);
+        $discipline = Discipline::create(['name' => 'FMCS Network Reuse', 'created_by' => $requester->id]);
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        Statuslabel::factory()->create([
+            'name' => 'In Transfer',
+            'deployable' => 0,
+            'pending' => 1,
+            'archived' => 0,
+        ]);
+        $ready = Statuslabel::factory()->rtd()->create();
+        $asset = $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $sourceCoordinator->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->actingAs($requester)->post(route('account/request-item', [
+            'itemType' => 'asset_model',
+            'itemId' => $model->id,
+        ]), [
+            'request-quantity' => 1,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $destinationCompany->id,
+            'project_id' => $project->id,
+            'needed_by_date' => now()->addMonth()->format('Y-m-d'),
+        ])->assertRedirect();
+
+        $checkoutRequest = CheckoutRequest::query()->where('user_id', $requester->id)->firstOrFail();
+        $this->assertSame(1, $checkoutRequest->reusable_quantity);
+        $this->assertSame(0, $checkoutRequest->procurement_shortfall);
+        $this->assertDatabaseHas('checkout_request_coordinators', [
+            'checkout_request_id' => $checkoutRequest->id,
+            'user_id' => $sourceCoordinator->id,
+            'company_id' => $sourceCompany->id,
+        ]);
+        Notification::assertSentTo($sourceCoordinator, RacScopedRequestSummaryNotification::class);
+
+        $this->actingAs($sourceCoordinator)->post(route('hardware.requests.start-transfer', [
+            'assetId' => $asset->id,
+            'checkoutRequestId' => $checkoutRequest->id,
+        ]))->assertRedirect();
+
+        // Existing controlled handoff: a superuser receives and reassigns the
+        // asset to its destination Site before the destination checkout.
+        Asset::withoutGlobalScopes()->findOrFail($asset->id)->forceFill([
+            'company_id' => $destinationCompany->id,
+            'location_id' => null,
+            'rtd_location_id' => null,
+            'status_id' => $ready->id,
+        ])->save();
+
+        $this->actingAs($destinationCoordinator)->post(route('hardware.checkout.store', $asset->id), [
+            'checkout_to_type' => 'user',
+            'assigned_user' => $requester->id,
+            'expected_checkin' => now()->addWeek()->format('Y-m-d'),
+        ])->assertRedirect();
+
+        $checkoutRequest->refresh();
+        $this->assertSame(CheckoutRequest::STATUS_FULLY_ALLOCATED, $checkoutRequest->status);
+        $this->assertNotNull($checkoutRequest->fulfilled_at);
+    }
+
+    public function test_reconciliation_initially_notifies_a_rac_added_after_submission()
+    {
+        Notification::fake();
+        $requester = User::factory()->create();
+        $coordinator = User::factory()->create(['email' => 'late-rac@example.com']);
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Late RAC Scope', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create();
+        $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'requestable_id' => $model->id,
+            'user_id' => $requester->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ]);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->artisan('snipeit:reconcile-rac-routing')
+            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts; 1 coordinators initially notified.')
+            ->assertSuccessful();
+
+        $target = $checkoutRequest->coordinatorTargets()->where('user_id', $coordinator->id)->firstOrFail();
+        $this->assertNotNull($target->initial_notified_at);
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class);
+    }
+
+    public function test_reconciliation_reopens_a_not_allocated_request_when_it_adds_a_new_rac_target()
+    {
+        Notification::fake();
+        $requester = User::factory()->create();
+        $coordinator = User::factory()->create(['email' => 'reopened-rac@example.com']);
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Reopened RAC Scope', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create();
+        $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'requestable_id' => $model->id,
+            'user_id' => $requester->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
+            'status' => CheckoutRequest::STATUS_NOT_ALLOCATED,
+        ]);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->artisan('snipeit:reconcile-rac-routing')
+            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts; 1 coordinators initially notified.')
+            ->assertSuccessful();
+
+        $checkoutRequest->refresh();
+        $this->assertSame(CheckoutRequest::STATUS_PENDING, $checkoutRequest->status);
+        $this->assertNull($checkoutRequest->alternative_follow_up_notified_at);
+        $this->assertNotNull($checkoutRequest->coordinatorTargets()->firstOrFail()->initial_notified_at);
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class);
     }
 
     public function test_destination_checkout_completes_a_request_linked_transfer()

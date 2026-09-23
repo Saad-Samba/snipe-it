@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Actions\CheckoutRequests\ResolveCheckoutRequestCoordinatorsAction;
 use App\Actions\CheckoutRequests\SendAlternativeFollowUpNotificationAction;
+use App\Actions\CheckoutRequests\SendInitialRacRoutingNotificationsAction;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\Setting;
@@ -70,10 +71,13 @@ class ReconcileRacRouting extends Command
                 );
         }
 
+        $notifiedCoordinatorCount = SendInitialRacRoutingNotificationsAction::run();
+
         $this->info(sprintf(
-            '%d active requests reconciled; %d unrouted requests included in administrator alerts.',
+            '%d active requests reconciled; %d unrouted requests included in administrator alerts; %d coordinators initially notified.',
             $reconciledCount,
-            $alertedCount
+            $alertedCount,
+            $notifiedCoordinatorCount
         ));
 
         return self::SUCCESS;
