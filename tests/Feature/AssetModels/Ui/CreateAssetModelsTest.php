@@ -4,6 +4,8 @@ namespace Tests\Feature\AssetModels\Ui;
 
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\CustomField;
+use App\Models\CustomFieldset;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -23,7 +25,36 @@ class CreateAssetModelsTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('models.create'))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee(trans('admin/models/general.eol_help'))
+            ->assertDontSee('name="min_amt"', false);
+    }
+
+    public function testAfmCannotAccessCreatePageWithoutManagedCategories()
+    {
+        $afm = User::factory()->create();
+
+        $this->actingAs($afm)
+            ->get(route('models.create'))
+            ->assertForbidden();
+    }
+
+    public function testAfmCreatePageOnlyShowsManagedCategories()
+    {
+        $afm = User::factory()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Managed Alpha Category',
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create([
+            'name' => 'Unmanaged Beta Category',
+        ]);
+
+        $response = $this->actingAs($afm)->get(route('models.create'));
+
+        $response->assertOk();
+        $response->assertSee('Managed Alpha Category');
+        $response->assertDontSee('Unmanaged Beta Category');
     }
 
     public function testUserCanCreateAssetModels()
@@ -41,6 +72,112 @@ class CreateAssetModelsTest extends TestCase
 
         $this->assertTrue(AssetModel::where('name', 'Test Model')->exists());
         $this->assertTrue(AssetModel::where('name', 'Test Model')->sole()->obsolete);
+    }
+
+    public function testModelCanBeCreatedWithDefaultsFromItsCategoryFieldset(): void
+    {
+        $fieldset = CustomFieldset::factory()->create();
+        $field = CustomField::factory()->create([
+            'name' => 'Operating Voltage',
+            'element' => 'text',
+            'format' => '',
+        ]);
+        $fieldset->fields()->attach($field, ['order' => 1, 'required' => false]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->post(route('models.store'), [
+                'name' => 'Model With Category Defaults',
+                'category_id' => $category->id,
+                'add_default_values' => '1',
+                'default_values' => [$field->id => '24 VDC'],
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $model = AssetModel::where('name', 'Model With Category Defaults')->sole();
+
+        $this->assertDatabaseHas('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $field->id,
+            'default_value' => '24 VDC',
+        ]);
+        $this->assertNull($model->fieldset_id);
+    }
+
+    public function testAfmCanCreateAssetModelInManagedCategory()
+    {
+        $afm = User::factory()->create();
+        $managedCategory = Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+
+        $this->actingAs($afm)
+            ->from(route('models.create'))
+            ->post(route('models.store'), [
+                'name' => 'Managed AFM Model',
+                'category_id' => $managedCategory->id,
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertTrue(AssetModel::where('name', 'Managed AFM Model')->exists());
+    }
+
+    public function testUserCanCreateAssetModelWithReferencePrice()
+    {
+        $category = Category::factory()->forAssets()->create();
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.create'))
+            ->post(route('models.store'), [
+                'name' => 'Priced Test Model',
+                'category_id' => $category->id,
+                'reference_price' => '1234.56',
+            ])
+            ->assertRedirect(route('models.index'));
+
+        $this->assertEquals(
+            1234.56,
+            (float) AssetModel::where('name', 'Priced Test Model')->sole()->reference_price
+        );
+    }
+
+    public function testUserCannotCreateAssetModelWithNegativeReferencePrice()
+    {
+        $category = Category::factory()->forAssets()->create();
+
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.create'))
+            ->post(route('models.store'), [
+                'name' => 'Invalid Price Model',
+                'category_id' => $category->id,
+                'reference_price' => '-1',
+            ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('models.create'));
+        $response->assertSessionHasErrors(['reference_price']);
+        $this->assertFalse(AssetModel::where('name', 'Invalid Price Model')->exists());
+    }
+
+    public function testAfmCannotCreateAssetModelInUnmanagedCategory()
+    {
+        $afm = User::factory()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create();
+
+        $response = $this->actingAs($afm)
+            ->from(route('models.create'))
+            ->post(route('models.store'), [
+                'name' => 'Unmanaged AFM Model',
+                'category_id' => $unmanagedCategory->id,
+            ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('models.create'));
+        $response->assertSessionHasErrors(['category_id']);
+        $this->assertFalse(AssetModel::where('name', 'Unmanaged AFM Model')->exists());
     }
 
     public function testUserCannotUseAccessoryCategoryTypeAsAssetModelCategoryType()

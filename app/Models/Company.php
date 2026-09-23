@@ -93,7 +93,7 @@ final class Company extends SnipeModel
     {
         $escaped_input = e($unescaped_input);
 
-        if ($escaped_input == '0') {
+        if (($escaped_input == '0') || ($escaped_input === '')) {
             return null;
         } else {
             return $escaped_input;
@@ -126,6 +126,17 @@ final class Company extends SnipeModel
                 }
             }
         }
+    }
+
+    public static function currentUserLacksCompanyAssignmentForFullMultipleCompanySupport(): bool
+    {
+        if (! static::isFullMultipleCompanySupportEnabled()) {
+            return false;
+        }
+
+        $current_user = auth()->user();
+
+        return $current_user && (! $current_user->isSuperUser()) && is_null($current_user->company_id);
     }
 
     /**

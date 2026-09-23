@@ -4,7 +4,12 @@
 @endphp
 <div id="{{ $containerId }}" class="form-group{{ $errors->has($fieldname) ? ' has-error' : '' }}"{!!  (isset($style)) ? ' style="'.e($style).'"' : ''  !!}>
 
-    <label for="{{ $fieldname }}" class="col-md-3 control-label">{{ $translated_name }}</label>
+    <label for="{{ $fieldname }}" class="col-md-3 control-label">
+        {{ $translated_name }}
+        @if (! empty($new_feature))
+            <x-new-feature-label />
+        @endif
+    </label>
 
     <div class="col-md-7">
         <select class="js-data-ajax" data-endpoint="users" data-placeholder="{{ trans('general.select_user') }}" name="{{ $fieldname }}" style="width: 100%" id="{{ $fieldId }}" aria-label="{{ $fieldname }}"{{  ((isset($required)) && ($required=='true')) ? ' required' : '' }}>

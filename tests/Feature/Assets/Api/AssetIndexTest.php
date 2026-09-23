@@ -3,7 +3,10 @@
 namespace Tests\Feature\Assets\Api;
 
 use App\Models\Asset;
+use App\Models\AssetModel;
+use App\Models\Category;
 use App\Models\Company;
+use App\Models\Statuslabel;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Testing\Fluent\AssertableJson;
@@ -29,6 +32,55 @@ class AssetIndexTest extends TestCase
                 'rows',
             ])
             ->assertJson(fn(AssertableJson $json) => $json->has('rows', 3)->etc());
+    }
+
+    public function testAssetApiIndexCanFilterReusableAssetsWithinCategory()
+    {
+        $category = Category::factory()->assetLaptopCategory()->create();
+        $model = AssetModel::factory()->create(['category_id' => $category->id]);
+        $deployableStatus = Statuslabel::factory()->create(['deployable' => 1, 'archived' => 0]);
+        $undeployableStatus = Statuslabel::factory()->create(['deployable' => 0, 'archived' => 0]);
+        $archivedStatus = Statuslabel::factory()->create(['deployable' => 0, 'archived' => 1]);
+        $pendingStatus = Statuslabel::factory()->create(['deployable' => 1, 'pending' => 1, 'archived' => 0]);
+
+        $reusableAsset = Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $deployableStatus->id,
+        ]);
+
+        $undeployableAsset = Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $undeployableStatus->id,
+        ]);
+
+        $archivedAsset = Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $archivedStatus->id,
+        ]);
+
+        $assignedDeployableAsset = Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $deployableStatus->id,
+            'assigned_to' => User::factory()->create()->id,
+            'assigned_type' => User::class,
+        ]);
+
+        $pendingAsset = Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => $pendingStatus->id,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.assets.index', [
+                'category_id' => $category->id,
+                'reusable_assets' => 1,
+            ]))
+            ->assertOk()
+            ->assertResponseContainsInRows($reusableAsset, 'asset_tag')
+            ->assertResponseDoesNotContainInRows($assignedDeployableAsset, 'asset_tag')
+            ->assertResponseDoesNotContainInRows($pendingAsset, 'asset_tag')
+            ->assertResponseDoesNotContainInRows($undeployableAsset, 'asset_tag')
+            ->assertResponseDoesNotContainInRows($archivedAsset, 'asset_tag');
     }
 
     public function testAssetApiIndexReturnsModelObsoleteFlagAndCanFilterByIt()
@@ -256,6 +308,42 @@ class AssetIndexTest extends TestCase
             ->getJson(route('api.assets.index'))
             ->assertResponseDoesNotContainInRows($assetA, 'asset_tag')
             ->assertResponseContainsInRows($assetB, 'asset_tag');
+    }
+
+    public function testAssetFamilyManagerSeesOnlyAssetsInManagedCategoriesAcrossCompanies()
+    {
+        $this->settings->disableMultipleFullCompanySupport();
+
+        [$companyA, $companyB] = Company::factory()->count(2)->create();
+        $afm = User::factory()->create(['company_id' => null]);
+
+        $managedCategory = Category::factory()->assetLaptopCategory()->create([
+            'manager_id' => $afm->id,
+        ]);
+        $unmanagedCategory = Category::factory()->assetLaptopCategory()->create();
+
+        $managedModel = AssetModel::factory()->create(['category_id' => $managedCategory->id]);
+        $unmanagedModel = AssetModel::factory()->create(['category_id' => $unmanagedCategory->id]);
+
+        $createAsset = fn (Company $company, AssetModel $model) => Asset::withoutEvents(
+            fn () => Asset::forceCreate(Asset::factory()->raw([
+                'company_id' => $company->id,
+                'model_id' => $model->id,
+            ]))
+        );
+
+        $managedAssetA = $createAsset($companyA, $managedModel);
+        $managedAssetB = $createAsset($companyB, $managedModel);
+        $unmanagedAsset = $createAsset($companyA, $unmanagedModel);
+
+        $this->settings->enableMultipleFullCompanySupport();
+
+        $this->actingAsForApi($afm)
+            ->getJson(route('api.assets.index'))
+            ->assertOk()
+            ->assertResponseContainsInRows($managedAssetA, 'asset_tag')
+            ->assertResponseContainsInRows($managedAssetB, 'asset_tag')
+            ->assertResponseDoesNotContainInRows($unmanagedAsset, 'asset_tag');
     }
 
     public function testAssetApiIndexFiltersByOwnerId()

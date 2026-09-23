@@ -4,6 +4,7 @@ namespace Tests\Feature\Users\Ui;
 
 use App\Models\Asset;
 use App\Models\Company;
+use App\Models\Discipline;
 use App\Models\User;
 use Error;
 use Tests\TestCase;
@@ -24,6 +25,20 @@ class UpdateUserTest extends TestCase
         $this->actingAs(User::factory()->editUsers()->create())
             ->get(route('users.edit', User::factory()->create()->id))
             ->assertOk();
+    }
+
+    public function testEditPageShowsRacControlsWithoutExpandingOptionalDetails()
+    {
+        $editor = User::factory()->editUsers()->create();
+        $user = User::factory()->create();
+
+        $this->actingAs($editor)
+            ->get(route('users.edit', $user))
+            ->assertOk()
+            ->assertSee('rac_enabled', false)
+            ->assertSee(trans('admin/users/general.rac_enabled_label'))
+            ->assertSee(trans('admin/users/general.rac_discipline'))
+            ->assertSee('Recently released feature');
     }
 
     public function testCanViewEditPageForSoftDeletedUser()
@@ -295,6 +310,139 @@ class UpdateUserTest extends TestCase
             'first_name' => 'test',
             'username' => 'test',
             'company_id' => $companyB->id,
+        ]);
+    }
+
+    public function testUserCanBeMarkedAsRacFromEditForm()
+    {
+        $superUser = User::factory()->superuser()->create();
+        $company = Company::factory()->create();
+        $discipline = Discipline::create([
+            'name' => 'QA RAC Discipline',
+            'created_by' => $superUser->id,
+        ]);
+        $user = User::factory()->create();
+
+        $this->actingAs($superUser)
+            ->put(route('users.update', $user), [
+                'first_name' => $user->first_name,
+                'username' => $user->username,
+                'company_id' => $company->id,
+                'rac_enabled' => 1,
+                'rac_discipline_id' => $discipline->id,
+                'redirect_option' => 'index',
+            ])->assertRedirect(route('users.index'));
+
+        $this->assertDatabaseHas('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+        ]);
+    }
+
+    public function testUserCanBeAssignedToMultipleRacDisciplinesAndDeselectedScopesAreRemoved()
+    {
+        $superUser = User::factory()->superuser()->create();
+        $company = Company::factory()->create();
+        $disciplineA = Discipline::create([
+            'name' => 'Multi RAC Discipline A',
+            'created_by' => $superUser->id,
+        ]);
+        $disciplineB = Discipline::create([
+            'name' => 'Multi RAC Discipline B',
+            'created_by' => $superUser->id,
+        ]);
+        $user = User::factory()->create();
+
+        $basePayload = [
+            'first_name' => $user->first_name,
+            'username' => $user->username,
+            'company_id' => $company->id,
+            'rac_enabled' => 1,
+            'redirect_option' => 'index',
+        ];
+
+        $this->actingAs($superUser)
+            ->put(route('users.update', $user), array_merge($basePayload, [
+                'rac_discipline_ids' => [$disciplineA->id, $disciplineB->id],
+            ]))
+            ->assertRedirect(route('users.index'));
+
+        $this->assertDatabaseHas('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'discipline_id' => $disciplineA->id,
+        ]);
+        $this->assertDatabaseHas('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'discipline_id' => $disciplineB->id,
+        ]);
+
+        $this->actingAs($superUser)
+            ->put(route('users.update', $user), array_merge($basePayload, [
+                'rac_discipline_ids' => [$disciplineB->id],
+            ]))
+            ->assertRedirect(route('users.index'));
+
+        $this->assertDatabaseMissing('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'discipline_id' => $disciplineA->id,
+        ]);
+        $this->assertDatabaseHas('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'discipline_id' => $disciplineB->id,
+        ]);
+
+        $this->actingAs($superUser)
+            ->put(route('users.update', $user), array_merge($basePayload, [
+                'rac_enabled' => 0,
+                'rac_discipline_ids' => [],
+            ]))
+            ->assertRedirect(route('users.index'));
+
+        $this->assertDatabaseMissing('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function testUserCannotClaimRacScopeAlreadyAssignedToAnotherUser()
+    {
+        $superUser = User::factory()->superuser()->create();
+        $company = Company::factory()->create();
+        $discipline = Discipline::create([
+            'name' => 'Conflicting RAC Discipline',
+            'created_by' => $superUser->id,
+        ]);
+        $existingRac = User::factory()->create(['company_id' => $company->id]);
+        $candidate = User::factory()->create();
+
+        $existingRac->racAssignments()->create([
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $superUser->id,
+        ]);
+
+        $this->actingAs($superUser)
+            ->from(route('users.edit', $candidate))
+            ->put(route('users.update', $candidate), [
+                'first_name' => $candidate->first_name,
+                'username' => $candidate->username,
+                'company_id' => $company->id,
+                'rac_enabled' => 1,
+                'rac_discipline_ids' => [$discipline->id],
+                'redirect_option' => 'index',
+            ])
+            ->assertRedirect(route('users.edit', $candidate))
+            ->assertSessionHasErrors([
+                'rac_discipline_ids' => 'A RAC is already assigned to '.$company->name.' / '.$discipline->name.': '.$existingRac->display_name.'.',
+            ]);
+
+        $this->assertDatabaseMissing('regional_asset_coordinator_assignments', [
+            'user_id' => $candidate->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
         ]);
     }
 }

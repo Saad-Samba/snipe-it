@@ -24,7 +24,9 @@ class CustomFieldSetDefaultValuesForModel extends Component
     {
         $this->model_id = $model_id;
         $this->category_id = old('category_id', $this->model?->category_id);
-        $this->fieldset_id = $this->model?->fieldset_id;
+        $this->fieldset_id = config('leams.model_fieldset_overrides')
+            ? $this->model?->fieldset_id
+            : null;
         $this->add_default_values = ($this->model?->defaultValues->count() > 0);
 
 
@@ -60,7 +62,11 @@ class CustomFieldSetDefaultValuesForModel extends Component
     #[Computed]
     public function inheritedFieldset()
     {
-        if ($this->fieldset_id || ! $this->selectedCategory) {
+        if (! $this->selectedCategory) {
+            return null;
+        }
+
+        if (config('leams.model_fieldset_overrides') && $this->fieldset_id) {
             return null;
         }
 
@@ -145,6 +151,10 @@ class CustomFieldSetDefaultValuesForModel extends Component
 
     private function effectiveFieldsetId()
     {
+        if (! config('leams.model_fieldset_overrides')) {
+            return $this->selectedCategory?->fieldset_id;
+        }
+
         return $this->fieldset_id ?: $this->selectedCategory?->fieldset_id;
     }
 }

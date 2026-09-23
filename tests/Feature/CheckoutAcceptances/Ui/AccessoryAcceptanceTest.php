@@ -118,19 +118,16 @@ class AccessoryAcceptanceTest extends TestCase
 
         $originalAccessoryCheckoutCount = AccessoryCheckout::count();
 
-        // find the acceptance to be declined
-        $checkoutAcceptance = CheckoutAcceptance::query()
-            ->where([
+        // Category acceptance is disabled for new checkouts in the reuse workflow.
+        // Create a historical acceptance explicitly so the legacy decline path
+        // remains covered.
+        $checkoutAcceptance = CheckoutAcceptance::factory()
+            ->pending()
+            ->for($accessory, 'checkoutable')
+            ->create([
                 'assigned_to_id' => $assignee->id,
                 'qty' => 3,
-            ])
-            ->whereNull('accepted_at')
-            ->whereNull('declined_at')
-            ->whereHasMorph(
-                'checkoutable',
-                [Accessory::class],
-            )
-            ->sole();
+            ]);
 
         // decline the checkout
         $this->actingAs($assignee)
