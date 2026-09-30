@@ -143,8 +143,8 @@ class AuditFmcsReadiness extends Command
         chmod($path, 0600);
         $formatter = new EscapeFormula('`');
         fputcsv($handle, [
-            'severity', 'code', 'resource_type', 'resource_id', 'label', 'site_id',
-            'related_type', 'related_id', 'related_site_id', 'context', 'message',
+            'severity', 'code', 'resource_type', 'resource_id', 'label', 'site_id', 'site_name',
+            'related_type', 'related_id', 'related_label', 'related_site_id', 'related_site_name', 'context', 'message',
         ]);
 
         foreach ($findings as $finding) {
@@ -155,9 +155,12 @@ class AuditFmcsReadiness extends Command
                 $finding['resource_id'],
                 $finding['label'],
                 $finding['site_id'],
+                $finding['site_name'],
                 $finding['related_type'],
                 $finding['related_id'],
+                $finding['related_label'],
                 $finding['related_site_id'],
+                $finding['related_site_name'],
                 $finding['context'],
                 $finding['message'],
             ];

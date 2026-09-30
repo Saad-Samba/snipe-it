@@ -136,6 +136,9 @@ class AuditFmcsReadinessTest extends TestCase
             $finding['code'] === 'asset_assignment_site_mismatch'
             && $finding['resource_id'] === $asset->id
             && $finding['related_id'] === $assignedUser->id
+            && $finding['site_name'] === $assetCompany->name
+            && $finding['related_label'] === $assignedUser->username
+            && $finding['related_site_name'] === $otherCompany->name
             && $finding['severity'] === 'blocking'
         ));
         $this->assertTrue($findings->contains(
@@ -167,9 +170,12 @@ class AuditFmcsReadinessTest extends TestCase
             ->assertExitCode(0);
     }
 
-    public function testCommandWritesCompleteCsvBeforeReturningBlockingExitCode(): void
+    public function testCommandWritesExcelFriendlyCsvBeforeReturningBlockingExitCode(): void
     {
-        $user = User::factory()->create(['company_id' => null]);
+        $assetCompany = Company::factory()->create(['name' => 'Rabat Centre']);
+        $userCompany = Company::factory()->create(['name' => 'Sale R&D']);
+        $user = User::factory()->create(['company_id' => $userCompany->id]);
+        $asset = Asset::factory()->assignedToUser($user)->create(['company_id' => $assetCompany->id]);
         $path = sys_get_temp_dir().'/fmcs-readiness-'.Str::uuid().'.csv';
 
         try {
@@ -178,8 +184,11 @@ class AuditFmcsReadinessTest extends TestCase
 
             $this->assertFileExists($path);
             $contents = file_get_contents($path);
-            $this->assertStringContainsString('severity,code,resource_type,resource_id', $contents);
-            $this->assertStringContainsString('blocking,missing_site,User,'.$user->id, $contents);
+            $this->assertStringContainsString('severity,code,resource_type,resource_id,label,site_id,site_name', $contents);
+            $this->assertStringContainsString('blocking,asset_assignment_site_mismatch,Asset,'.$asset->id, $contents);
+            $this->assertStringContainsString('Rabat Centre', $contents);
+            $this->assertStringContainsString($user->username, $contents);
+            $this->assertStringContainsString('Sale R&D', $contents);
         } finally {
             if (file_exists($path)) {
                 unlink($path);

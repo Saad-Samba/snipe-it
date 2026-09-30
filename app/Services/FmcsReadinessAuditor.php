@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Asset;
+use App\Models\Company;
 use App\Models\Location;
 use App\Models\User;
 use Illuminate\Database\Query\Builder;
@@ -32,6 +33,12 @@ class FmcsReadinessAuditor
         ['table' => 'departments', 'type' => 'Department', 'label' => 'name', 'column' => 'location_id'],
     ];
 
+    private const RELATED_RESOURCE_LABELS = [
+        'User' => ['table' => 'users', 'label' => 'username'],
+        'Location' => ['table' => 'locations', 'label' => 'name'],
+        'Asset' => ['table' => 'assets', 'label' => 'asset_tag'],
+    ];
+
     public function audit(bool $includeInactiveUsers = false, bool $includeDeleted = false): array
     {
         $findings = [];
@@ -52,6 +59,7 @@ class FmcsReadinessAuditor
 
         $this->collectLocationMismatches($findings, $includeInactiveUsers, $includeDeleted);
         $this->collectAssetAssignmentMismatches($findings, $includeDeleted);
+        $this->addDisplayValues($findings);
 
         usort($findings, function (array $left, array $right): int {
             $severityOrder = ['blocking' => 0, 'warning' => 1, 'info' => 2];
@@ -369,6 +377,59 @@ class FmcsReadinessAuditor
         }
 
         return $contexts;
+    }
+
+    /**
+     * Add names alongside IDs so CSV and JSON exports can be reconciled without
+     * a second lookup in the application.
+     */
+    private function addDisplayValues(array &$findings): void
+    {
+        $siteIds = collect($findings)
+            ->flatMap(fn (array $finding): array => [$finding['site_id'], $finding['related_site_id']])
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $siteNames = $siteIds === []
+            ? collect()
+            : Company::withoutGlobalScopes()->whereIn('id', $siteIds)->pluck('name', 'id');
+
+        $relatedLabels = [];
+        foreach (self::RELATED_RESOURCE_LABELS as $type => $resource) {
+            $ids = collect($findings)
+                ->filter(fn (array $finding): bool => $finding['related_type'] === $type && $finding['related_id'] !== null)
+                ->pluck('related_id')
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($ids === []) {
+                continue;
+            }
+
+            $relatedLabels[$type] = DB::table($resource['table'])
+                ->whereIn('id', $ids)
+                ->pluck($resource['label'], 'id');
+        }
+
+        foreach ($findings as &$finding) {
+            $finding['site_name'] = $this->siteDisplayValue($finding['site_id'], $siteNames);
+            $finding['related_site_name'] = $this->siteDisplayValue($finding['related_site_id'], $siteNames);
+            $finding['related_label'] = $finding['related_type'] && $finding['related_id']
+                ? $relatedLabels[$finding['related_type']][$finding['related_id']] ?? 'Unknown '.$finding['related_type'].' #'.$finding['related_id']
+                : null;
+        }
+        unset($finding);
+    }
+
+    private function siteDisplayValue(?int $siteId, $siteNames): string
+    {
+        if ($siteId === null) {
+            return 'Unassigned';
+        }
+
+        return $siteNames[$siteId] ?? 'Unknown Site #'.$siteId;
     }
 
     private function finding(
