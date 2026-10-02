@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\MessageBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -75,6 +76,11 @@ class LicensesController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', License::class);
+        $errors = $this->validateRequiredLicenseFields($request);
+        if ($errors->isNotEmpty()) {
+            return redirect()->back()->withInput()->withErrors($errors);
+        }
+
         // create a new model instance
         $license = new License();
         // Save the license data
@@ -163,6 +169,10 @@ class LicensesController extends Controller
 
 
         $this->authorize('update', $license);
+        $errors = $this->validateRequiredLicenseFields($request, $license);
+        if ($errors->isNotEmpty()) {
+            return redirect()->back()->withInput()->withErrors($errors);
+        }
 
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->perpetual         = $request->boolean('perpetual');
@@ -197,6 +207,23 @@ class LicensesController extends Controller
         }
         // If we can't adjust the number of seats, the error is flashed to the session by the event handler in License.php
         return redirect()->back()->withInput()->withErrors($license->getErrors());
+    }
+
+    private function validateRequiredLicenseFields(Request $request, ?License $license = null): MessageBag
+    {
+        $errors = new MessageBag();
+
+        $serial = $request->has('serial') ? $request->input('serial') : optional($license)->serial;
+        if (trim((string) $serial) === '') {
+            $errors->add('serial', 'The product key field is required.');
+        }
+
+        $requestedCompanyId = $request->has('company_id') ? $request->input('company_id') : optional($license)->company_id;
+        if (is_null(Company::getIdForCurrentUser($requestedCompanyId))) {
+            $errors->add('company_id', 'The site field is required.');
+        }
+
+        return $errors;
     }
 
     /**

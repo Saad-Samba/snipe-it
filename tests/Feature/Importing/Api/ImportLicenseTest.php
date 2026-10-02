@@ -115,6 +115,64 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
     }
 
     #[Test]
+    public function licenseImportRequiresProductKey(): void
+    {
+        $importFileBuilder = ImportFileBuilder::times(1)->forget(['productKey']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'serial' => [
+                                'The product key field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('licenses', [
+            'name' => $row['licenseName'],
+        ]);
+    }
+
+    #[Test]
+    public function licenseImportRequiresCompany(): void
+    {
+        $importFileBuilder = ImportFileBuilder::times(1)->forget(['companyName']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create(['company_id' => null]));
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'company_id' => [
+                                'The site field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('licenses', [
+            'name' => $row['licenseName'],
+        ]);
+    }
+
+    #[Test]
     public function willNotCreateNewLicenseWhenNameAndSerialNumberAlreadyExist(): void
     {
         $license = License::factory()->create();
@@ -401,13 +459,28 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
             'licenseName' => $license->name,
             'serialNumber' => 'SN-NEW',
         ])->forget('productKey');
+        $row = $importFileBuilder->firstRow();
         $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
 
         $this->actingAsForApi(User::factory()->superuser()->create());
-        $this->importFileResponse(['import' => $import->id, 'import-update' => true])->assertOk();
+        $this->importFileResponse(['import' => $import->id, 'import-update' => true])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'serial' => [
+                                'The product key field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
 
         $this->assertSame('SN-OLD', $license->fresh()->serial_number);
-        $this->assertDatabaseHas('licenses', [
+        $this->assertDatabaseMissing('licenses', [
             'name' => $license->name,
             'serial_number' => 'SN-NEW',
         ]);
@@ -423,14 +496,29 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $importFileBuilder = ImportFileBuilder::new([
             'licenseName' => $license->name,
         ])->forget(['productKey', 'serialNumber']);
+        $row = $importFileBuilder->firstRow();
         $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
 
         $this->actingAsForApi(User::factory()->superuser()->create());
-        $this->importFileResponse(['import' => $import->id, 'import-update' => true])->assertOk();
+        $this->importFileResponse(['import' => $import->id, 'import-update' => true])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'serial' => [
+                                'The product key field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
 
-        $this->assertSame(2, License::where('name', $license->name)->count());
+        $this->assertSame(1, License::where('name', $license->name)->count());
         $this->assertSame('PK-EXISTING', $license->fresh()->serial);
-        $this->assertDatabaseHas('licenses', [
+        $this->assertDatabaseMissing('licenses', [
             'name' => $license->name,
             'serial' => '',
             'serial_number' => '',

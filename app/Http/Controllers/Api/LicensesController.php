@@ -6,6 +6,7 @@ use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Transformers\LicensesTransformer;
 use App\Http\Transformers\SelectlistTransformer;
+use App\Models\Company;
 use App\Models\License;
 use App\Models\Setting;
 use Illuminate\Http\Request;
@@ -203,6 +204,10 @@ class LicensesController extends Controller
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
 
+        if ($errors = $this->requiredLicenseFieldErrors($request, $license)) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, $errors));
+        }
+
         if ($license->save()) {
             return response()->json(Helper::formatStandardApiResponse('success', $license, trans('admin/licenses/message.create.success')));
         }
@@ -242,6 +247,10 @@ class LicensesController extends Controller
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
+
+        if ($errors = $this->requiredLicenseFieldErrors($request, $license)) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, $errors));
+        }
 
         if ($license->save()) {
             return response()->json(Helper::formatStandardApiResponse('success', $license, trans('admin/licenses/message.update.success')));
@@ -298,5 +307,21 @@ class LicensesController extends Controller
         $licenses = $licenses->orderBy('name', 'ASC')->paginate(50);
 
         return (new SelectlistTransformer)->transformSelectlist($licenses);
+    }
+
+    private function requiredLicenseFieldErrors(Request $request, License $license): array
+    {
+        $errors = [];
+
+        if (trim((string) $license->serial) === '') {
+            $errors['serial'] = ['The product key field is required.'];
+        }
+
+        $requestedCompanyId = $request->has('company_id') ? $request->input('company_id') : $license->company_id;
+        if (is_null(Company::getIdForCurrentUser($requestedCompanyId))) {
+            $errors['company_id'] = ['The site field is required.'];
+        }
+
+        return $errors;
     }
 }

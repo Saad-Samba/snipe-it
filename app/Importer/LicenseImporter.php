@@ -49,6 +49,18 @@ class LicenseImporter extends ItemImporter
         $this->item['serial'] = $productKey;
         $this->item['serial_number'] = $serialNumber;
 
+        if ($productKey === '') {
+            $this->addImportError($this->item['name'], 'serial', 'The product key field is required.');
+
+            return;
+        }
+
+        if (empty($this->item['company_id'])) {
+            $this->addImportError($this->item['name'], 'company_id', 'The site field is required.');
+
+            return;
+        }
+
         $licenseQuery = License::where('name', $this->item['name']);
         $hasProductKey = $productKey !== '';
         $hasSerialNumber = $serialNumber !== '';
@@ -195,5 +207,19 @@ class LicenseImporter extends ItemImporter
 
         return ($productKey !== '' && $existingProductKey !== '' && $productKey !== $existingProductKey)
             || ($serialNumber !== '' && $existingSerialNumber !== '' && $serialNumber !== $existingSerialNumber);
+    }
+
+    private function addImportError(string $name, string $field, string $message): void
+    {
+        $this->log($message);
+
+        if ($this->errorCallback) {
+            call_user_func(
+                $this->errorCallback,
+                (object) ['name' => $name],
+                'License "'.$name.'"',
+                [$field => [$message]]
+            );
+        }
     }
 }
