@@ -35,6 +35,7 @@ class CreateLicenseTest extends TestCase
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-1001',
                 'serial_number' => 'LIC-SN-1001',
                 'software_version' => '2026.1',
@@ -64,6 +65,7 @@ class CreateLicenseTest extends TestCase
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
                 'expiration_date' => $expirationDate,
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-PERPETUAL',
                 'perpetual' => '1',
             ]);
@@ -83,6 +85,7 @@ class CreateLicenseTest extends TestCase
                 'seats' => '10',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-MISSING-EXPIRATION',
             ]);
 
@@ -102,6 +105,7 @@ class CreateLicenseTest extends TestCase
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-TOO-MANY-SEATS',
             ]);
         $response->assertStatus(302);
@@ -123,6 +127,7 @@ class CreateLicenseTest extends TestCase
                 'seats' => '10',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
             ]);
 
         $response->assertStatus(302);
@@ -132,6 +137,27 @@ class CreateLicenseTest extends TestCase
             'company_id' => 'The site field is required.',
         ]);
         $this->assertFalse(License::where('name', 'Test Missing Required License Fields')->exists());
+    }
+
+    public function testLicenseCreateRequiresLastPhysicalVerificationDate()
+    {
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('licenses.create'))
+            ->post(route('licenses.store'), [
+                'name' => 'Test Missing Physical Verification Date License',
+                'seats' => '10',
+                'category_id' => Category::factory()->forLicenses()->create()->id,
+                'company_id' => Company::factory()->create()->id,
+                'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'serial' => 'LIC-PK-MISSING-PHYSICAL-VERIFICATION',
+            ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('licenses.create'));
+        $response->assertInvalid([
+            'last_physical_verification_date' => 'The last physical verification date field is required.',
+        ]);
+        $this->assertFalse(License::where('name', 'Test Missing Physical Verification Date License')->exists());
     }
 
 

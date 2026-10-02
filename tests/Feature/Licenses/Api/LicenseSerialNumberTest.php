@@ -22,6 +22,7 @@ class LicenseSerialNumberTest extends TestCase
                 'category_id' => $category->id,
                 'company_id' => $company->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'perpetual' => true,
                 'serial' => 'PK-API-STORE',
                 'serial_number' => 'SN-API-STORE',
@@ -61,6 +62,7 @@ class LicenseSerialNumberTest extends TestCase
                 'seats' => 1,
                 'category_id' => $category->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'perpetual' => true,
             ])
             ->assertStatusMessageIs('error')
@@ -83,6 +85,7 @@ class LicenseSerialNumberTest extends TestCase
                 'seats' => 1,
                 'category_id' => $category->id,
                 'company_id' => $company->id,
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'perpetual' => true,
                 'serial' => 'PK-API-MISSING-EXPIRATION',
             ])
@@ -91,6 +94,29 @@ class LicenseSerialNumberTest extends TestCase
 
         $this->assertDatabaseMissing('licenses', [
             'name' => 'API Missing Expiration Date License',
+        ]);
+    }
+
+    public function testRequiresLastPhysicalVerificationDateWhenStoringLicense()
+    {
+        $category = Category::factory()->forLicenses()->create();
+        $company = Company::factory()->create();
+
+        $this->actingAsForApi(User::factory()->createLicenses()->create())
+            ->postJson(route('api.licenses.store'), [
+                'name' => 'API Missing Physical Verification Date License',
+                'seats' => 1,
+                'category_id' => $category->id,
+                'company_id' => $company->id,
+                'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'perpetual' => true,
+                'serial' => 'PK-API-MISSING-PHYSICAL-VERIFICATION',
+            ])
+            ->assertStatusMessageIs('error')
+            ->assertJsonPath('messages.last_physical_verification_date.0', 'The last physical verification date field is required.');
+
+        $this->assertDatabaseMissing('licenses', [
+            'name' => 'API Missing Physical Verification Date License',
         ]);
     }
 }

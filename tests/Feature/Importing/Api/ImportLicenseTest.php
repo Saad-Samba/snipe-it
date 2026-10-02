@@ -90,6 +90,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertEquals($row['companyName'], $newLicense->company->name);
         $this->assertEquals($row['category'], $newLicense->category->name);
         $this->assertEquals($row['expirationDate'], $newLicense->expiration_date->toDateString());
+        $this->assertEquals($row['lastPhysicalVerificationDate'], $newLicense->last_physical_verification_date->toDateString());
         $this->assertEquals($row['isMaintained'] === 'TRUE', $newLicense->maintained);
         $this->assertEquals($row['isReassignAble'] === 'TRUE', $newLicense->reassignable);
         $this->assertEquals('', $newLicense->purchase_order);
@@ -190,6 +191,35 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
                         "License \"{$row['licenseName']}\"" => [
                             'expiration_date' => [
                                 'The expiration date field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('licenses', [
+            'name' => $row['licenseName'],
+        ]);
+    }
+
+    #[Test]
+    public function licenseImportRequiresLastPhysicalVerificationDate(): void
+    {
+        $importFileBuilder = ImportFileBuilder::times(1)->forget(['lastPhysicalVerificationDate']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'last_physical_verification_date' => [
+                                'The last physical verification date field is required.',
                             ],
                         ],
                     ],
@@ -361,6 +391,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertEquals($row['companyName'], $updatedLicense->company->name);
         $this->assertEquals($row['category'], $updatedLicense->category->name);
         $this->assertEquals($row['expirationDate'], $updatedLicense->expiration_date->toDateString());
+        $this->assertEquals($row['lastPhysicalVerificationDate'], $updatedLicense->last_physical_verification_date->toDateString());
         $this->assertEquals($row['isMaintained'] === 'TRUE', $updatedLicense->maintained);
         $this->assertEquals($row['isReassignAble'] === 'TRUE', $updatedLicense->reassignable);
         $this->assertEquals($license->purchase_order, $updatedLicense->purchase_order);
@@ -614,6 +645,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
             'expirationDate'   => $faker['seats'],
             'isMaintained'     => $faker['purchaseDate'],
             'isReassignAble'   => $faker['purchaseCost'],
+            'lastPhysicalVerificationDate' => $faker['purchaseDate'],
             'licensedToName'   => $faker['orderNumber'],
             'licensedToEmail'  => $faker['licensedToEmail'],
             'licenseName'      => $faker['licenseName'],
@@ -643,6 +675,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
                 'reassignable'     => 'purchase_cost',
                 'Licensed To Name' => 'order_number',
                 'Licensed to Email' => 'license_email',
+                'Last Physical Verification Date' => 'last_physical_verification_date',
                 'Item name'        => 'name',
                 'manufacturer'     => 'category',
                 'Notes'            => 'notes',
@@ -675,6 +708,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertEquals($row['companyName'], $newLicense->company->name);
         $this->assertEquals($row['manufacturerName'], $newLicense->category->name);
         $this->assertEquals($row['orderNumber'], $newLicense->expiration_date->toDateString());
+        $this->assertEquals($row['lastPhysicalVerificationDate'], $newLicense->last_physical_verification_date->toDateString());
         $this->assertEquals($row['purchaseCost'] === 'TRUE', $newLicense->maintained);
         $this->assertEquals($row['purchaseDate'] === 'TRUE', $newLicense->reassignable);
         $this->assertEquals('', $newLicense->purchase_order);

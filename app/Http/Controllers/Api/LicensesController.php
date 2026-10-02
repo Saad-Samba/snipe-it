@@ -66,6 +66,10 @@ class LicensesController extends Controller
             $licenses->where('licenses.serial_number', '=', $request->input('serial_number'));
         }
 
+        if ($request->filled('last_physical_verification_date')) {
+            $licenses->whereDate('licenses.last_physical_verification_date', '=', $request->input('last_physical_verification_date'));
+        }
+
         if ($request->filled('order_number')) {
             $licenses->where('order_number', '=', $request->input('order_number'));
         }
@@ -159,6 +163,7 @@ class LicensesController extends Controller
                         'name',
                         'purchase_cost',
                         'expiration_date',
+                        'last_physical_verification_date',
                         'purchase_order',
                         'order_number',
                         'notes',
@@ -325,6 +330,13 @@ class LicensesController extends Controller
         $expirationDate = $request->has('expiration_date') ? $request->input('expiration_date') : $license->expiration_date;
         if (trim((string) $expirationDate) === '') {
             $errors['expiration_date'] = ['The expiration date field is required.'];
+        }
+
+        $lastPhysicalVerificationDate = $request->has('last_physical_verification_date')
+            ? $request->input('last_physical_verification_date')
+            : $license->last_physical_verification_date;
+        if (trim((string) $lastPhysicalVerificationDate) === '') {
+            $errors['last_physical_verification_date'] = ['The last physical verification date field is required.'];
         }
 
         return $errors;

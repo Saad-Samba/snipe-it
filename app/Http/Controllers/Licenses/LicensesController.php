@@ -89,6 +89,7 @@ class LicensesController extends Controller
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
+        $license->last_physical_verification_date = $request->input('last_physical_verification_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained', 0);
@@ -177,6 +178,7 @@ class LicensesController extends Controller
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
+        $license->last_physical_verification_date = $request->input('last_physical_verification_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained',0);
@@ -226,6 +228,13 @@ class LicensesController extends Controller
         $expirationDate = $request->has('expiration_date') ? $request->input('expiration_date') : optional($license)->expiration_date;
         if (trim((string) $expirationDate) === '') {
             $errors->add('expiration_date', 'The expiration date field is required.');
+        }
+
+        $lastPhysicalVerificationDate = $request->has('last_physical_verification_date')
+            ? $request->input('last_physical_verification_date')
+            : optional($license)->last_physical_verification_date;
+        if (trim((string) $lastPhysicalVerificationDate) === '') {
+            $errors->add('last_physical_verification_date', 'The last physical verification date field is required.');
         }
 
         return $errors;
@@ -389,6 +398,7 @@ class LicensesController extends Controller
                         trans('general.email'),
                         trans('general.supplier'),
                         trans('admin/licenses/form.expiration'),
+                        trans('admin/licenses/form.last_physical_verification_date'),
                         trans('admin/licenses/form.purchase_order'),
                         trans('admin/licenses/form.termination_date'),
                         trans('admin/licenses/form.maintained'),
@@ -422,6 +432,7 @@ class LicensesController extends Controller
                             $license->email,
                             ($license->supplier) ? $license->supplier->name: '',
                             $license->expiration_date,
+                            $license->last_physical_verification_date,
                             $license->purchase_order,
                             $license->termination_date,
                             ( $license->maintained == '1') ? trans('general.yes') : trans('general.no'),

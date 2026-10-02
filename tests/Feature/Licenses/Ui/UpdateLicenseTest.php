@@ -30,6 +30,7 @@ class UpdateLicenseTest extends TestCase
                 'category_id' => $license_category,
                 'company_id' => $company->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-UPDATE-SEATS',
             ]);
         $response->assertStatus(302);
@@ -43,6 +44,7 @@ class UpdateLicenseTest extends TestCase
                 'category_id' => $license_category,
                 'company_id' => $company->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-UPDATE-SEATS',
                 'serial_number' => 'LIC-SN-2001',
                 'software_version' => '2027 R2',
@@ -69,6 +71,7 @@ class UpdateLicenseTest extends TestCase
                 'category_id' => $license_category,
                 'company_id' => $company->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-SEATS-TOO-MUCH',
             ]);
         $response->assertStatus(302);
@@ -82,6 +85,7 @@ class UpdateLicenseTest extends TestCase
                 'category_id' => $license_category,
                 'company_id' => $company->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-SEATS-TOO-MUCH',
             ])
             ->assertStatus(302);
@@ -108,6 +112,7 @@ class UpdateLicenseTest extends TestCase
                 'category_id' => $license->category_id,
                 'company_id' => $license->company_id,
                 'expiration_date' => $expirationDate,
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => $license->serial,
                 'perpetual' => '1',
             ])
@@ -131,6 +136,7 @@ class UpdateLicenseTest extends TestCase
                 'category_id' => $license_category,
                 'company_id' => $company->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-REMOVE-SEATS',
             ]);
         $response->assertStatus(302);
@@ -144,6 +150,7 @@ class UpdateLicenseTest extends TestCase
                 'category_id' => $license_category,
                 'company_id' => $company->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-REMOVE-SEATS',
             ])
             ->assertStatus(302);

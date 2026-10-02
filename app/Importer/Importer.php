@@ -50,6 +50,7 @@ abstract class Importer
         'item_number' => 'item number',
         'image' => 'image',
         'expiration_date' => 'expiration date',
+        'last_physical_verification_date' => 'last physical verification date',
         'location' => 'location',
         'notes' => 'notes',
         'license_email' => 'licensed to email',

@@ -290,6 +290,7 @@ class Importer extends Component
             'company' => trans('general.company'),
             'email' => trans('general.importer.checked_out_to_email'),
             'expiration_date' => trans('admin/licenses/form.expiration'),
+            'last_physical_verification_date' => trans('admin/licenses/form.last_physical_verification_date'),
             'full_name' => trans('general.importer.checked_out_to_fullname'),
             'item_name' => trans('general.item_name_var', ['item' => trans('general.license')]),
             'license_email' => trans('admin/licenses/form.to_email'),
@@ -552,6 +553,12 @@ class Importer extends Component
                 [
                     'software version',
                     'version',
+                ],
+            'last_physical_verification_date' =>
+                [
+                    'last physical verification date',
+                    'physical verification date',
+                    'last verification date',
                 ],
             'require_serial' =>
                 [

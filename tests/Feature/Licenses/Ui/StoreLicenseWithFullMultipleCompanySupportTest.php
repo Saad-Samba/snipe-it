@@ -26,6 +26,7 @@ class StoreLicenseWithFullMultipleCompanySupportTest extends TestCase
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => $company->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'serial' => 'LIC-PK-FMCS',
             ]);
 

@@ -49,7 +49,9 @@ class LicenseImporter extends ItemImporter
         $this->item['serial'] = $productKey;
         $this->item['serial_number'] = $serialNumber;
         $expirationDate = trim($this->findCsvMatch($row, 'expiration_date'));
+        $lastPhysicalVerificationDate = trim($this->findCsvMatch($row, 'last_physical_verification_date'));
         $this->item['expiration_date'] = null;
+        $this->item['last_physical_verification_date'] = null;
 
         if ($productKey === '') {
             $this->addImportError($this->item['name'], 'serial', 'The product key field is required.');
@@ -65,6 +67,12 @@ class LicenseImporter extends ItemImporter
 
         if ($expirationDate === '') {
             $this->addImportError($this->item['name'], 'expiration_date', 'The expiration date field is required.');
+
+            return;
+        }
+
+        if ($lastPhysicalVerificationDate === '') {
+            $this->addImportError($this->item['name'], 'last_physical_verification_date', 'The last physical verification date field is required.');
 
             return;
         }
@@ -124,6 +132,7 @@ class LicenseImporter extends ItemImporter
         $asset_tag = $this->item['asset_tag'] = trim($this->findCsvMatch($row, 'asset_tag')); // used for checkout out to an asset.
 
         $this->item['expiration_date'] = date('Y-m-d 00:00:01', strtotime($expirationDate));
+        $this->item['last_physical_verification_date'] = date('Y-m-d 00:00:01', strtotime($lastPhysicalVerificationDate));
         $this->item['license_email'] = trim($this->findCsvMatch($row, 'license_email'));
         $this->item['license_name'] = trim($this->findCsvMatch($row, 'license_name'));
         $this->item['software_version'] = trim($this->findCsvMatch($row, 'software_version'));

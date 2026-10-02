@@ -148,6 +148,30 @@
 
 </div>
 
+<!-- Last Physical Verification Date -->
+<div class="form-group {{ $errors->has('last_physical_verification_date') ? ' has-error' : '' }}">
+    <label for="last_physical_verification_date" class="col-md-3 control-label">{{ trans('admin/licenses/form.last_physical_verification_date') }}</label>
+
+    <div class="col-md-9">
+        <div class="col-md-4" style="padding-left:0px;">
+            <div class="input-group date" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
+                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="last_physical_verification_date" id="last_physical_verification_date" value="{{ old('last_physical_verification_date', ($item->last_physical_verification_date) ? $item->last_physical_verification_date->format('Y-m-d') : '') }}" maxlength="10" required>
+                <span class="input-group-addon"><x-icon type="calendar" /></span>
+            </div>
+        </div>
+        <div class="col-md-7" style="margin-left: -15px; padding-top: 8px;">
+            <a href="#" data-tooltip="true" title="{{ trans('admin/licenses/form.last_physical_verification_date_help') }}">
+                <x-icon type="info-circle" />
+                <span class="sr-only">{{ trans('admin/licenses/form.last_physical_verification_date_help') }}</span>
+            </a>
+        </div>
+        <div class="col-md-12">
+            {!! $errors->first('last_physical_verification_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
+    </div>
+
+</div>
+
 <!-- Termination Date -->
 <div class="form-group {{ $errors->has('termination_date') ? ' has-error' : '' }}">
     <label for="termination_date" class="col-md-3 control-label">{{ trans('admin/licenses/form.termination_date') }}</label>

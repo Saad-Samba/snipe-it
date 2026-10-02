@@ -23,6 +23,7 @@ class LicenseSoftwareVersionTest extends TestCase
                 'category_id' => $category->id,
                 'company_id' => $company->id,
                 'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
                 'perpetual' => true,
                 'serial' => 'PK-API-SOFTWARE-VERSION',
             ])
