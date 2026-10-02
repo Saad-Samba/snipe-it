@@ -173,6 +173,35 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
     }
 
     #[Test]
+    public function licenseImportRequiresExpirationDate(): void
+    {
+        $importFileBuilder = ImportFileBuilder::times(1)->forget(['expirationDate']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'expiration_date' => [
+                                'The expiration date field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('licenses', [
+            'name' => $row['licenseName'],
+        ]);
+    }
+
+    #[Test]
     public function willNotCreateNewLicenseWhenNameAndSerialNumberAlreadyExist(): void
     {
         $license = License::factory()->create();

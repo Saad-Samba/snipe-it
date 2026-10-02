@@ -131,7 +131,7 @@
     <div class="col-md-9">
         <div class="col-md-4" id="expiration_date_wrapper" style="padding-left:0px;">
             <div class="input-group date" id="expiration_date_picker" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
-                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expiration_date" id="expiration_date" value="{{ old('expiration_date', ($item->expiration_date) ? $item->expiration_date->format('Y-m-d') : '') }}" maxlength="10" @required(! old('perpetual', $item->perpetual))>
+                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expiration_date" id="expiration_date" value="{{ old('expiration_date', ($item->expiration_date) ? $item->expiration_date->format('Y-m-d') : '') }}" maxlength="10" required>
                 <span class="input-group-addon"><x-icon type="calendar" /></span>
             </div>
         </div>
@@ -194,35 +194,4 @@
 
 @include ('partials.forms.edit.notes')
 
-@stop
-
-
-@section('moar_scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var perpetualCheckbox = document.getElementById('perpetual');
-        var expirationInput = document.getElementById('expiration_date');
-        var expirationPicker = document.getElementById('expiration_date_picker');
-        var expirationWrapper = document.getElementById('expiration_date_wrapper');
-
-        if (!perpetualCheckbox || !expirationInput || !expirationPicker || !expirationWrapper) {
-            return;
-        }
-
-        function syncPerpetualState() {
-            var isPerpetual = perpetualCheckbox.checked;
-            expirationInput.disabled = isPerpetual;
-            expirationInput.required = !isPerpetual;
-            expirationPicker.classList.toggle('text-muted', isPerpetual);
-            expirationPicker.style.opacity = isPerpetual ? '0.65' : '1';
-
-            if (isPerpetual) {
-                expirationInput.value = '';
-            }
-        }
-
-        perpetualCheckbox.addEventListener('change', syncPerpetualState);
-        syncPerpetualState();
-    });
-</script>
 @stop

@@ -322,6 +322,11 @@ class LicensesController extends Controller
             $errors['company_id'] = ['The site field is required.'];
         }
 
+        $expirationDate = $request->has('expiration_date') ? $request->input('expiration_date') : $license->expiration_date;
+        if (trim((string) $expirationDate) === '') {
+            $errors['expiration_date'] = ['The expiration date field is required.'];
+        }
+
         return $errors;
     }
 }

@@ -52,8 +52,10 @@ class CreateLicenseTest extends TestCase
 
     }
 
-    public function testPerpetualLicenseCanBeCreatedWithoutExpirationDate()
+    public function testPerpetualLicenseCanBeCreatedWithExpirationDate()
     {
+        $expirationDate = now()->addYear()->format('Y-m-d');
+
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->from(route('licenses.create'))
             ->post(route('licenses.store'), [
@@ -61,6 +63,7 @@ class CreateLicenseTest extends TestCase
                 'seats' => '10',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
+                'expiration_date' => $expirationDate,
                 'serial' => 'LIC-PK-PERPETUAL',
                 'perpetual' => '1',
             ]);
@@ -68,7 +71,7 @@ class CreateLicenseTest extends TestCase
         $response->assertStatus(302);
         $license = License::where('name', 'Test Perpetual License')->sole();
         $this->assertTrue($license->perpetual);
-        $this->assertNull($license->expiration_date);
+        $this->assertSame($expirationDate, $license->expiration_date->format('Y-m-d'));
     }
 
     public function testNonPerpetualLicenseWithoutExpirationDateFailsValidation()
@@ -98,6 +101,7 @@ class CreateLicenseTest extends TestCase
                 'seats' => '100000',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
+                'expiration_date' => now()->addYear()->format('Y-m-d'),
                 'serial' => 'LIC-PK-TOO-MANY-SEATS',
             ]);
         $response->assertStatus(302);

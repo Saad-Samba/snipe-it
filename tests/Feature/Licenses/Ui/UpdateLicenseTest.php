@@ -91,9 +91,10 @@ class UpdateLicenseTest extends TestCase
         $this->assertEquals($license->licenseseats()->count(), 9999);
     }
 
-    public function testCanMarkLicensePerpetualAndClearExpirationDate()
+    public function testCanMarkLicensePerpetualAndKeepExpirationDate()
     {
         $admin = User::factory()->superuser()->create();
+        $expirationDate = now()->addYear()->format('Y-m-d');
         $license = License::factory()->create([
             'company_id' => Company::factory()->create()->id,
             'expiration_date' => now()->addMonth()->format('Y-m-d'),
@@ -106,6 +107,7 @@ class UpdateLicenseTest extends TestCase
                 'seats' => $license->seats,
                 'category_id' => $license->category_id,
                 'company_id' => $license->company_id,
+                'expiration_date' => $expirationDate,
                 'serial' => $license->serial,
                 'perpetual' => '1',
             ])
@@ -113,7 +115,7 @@ class UpdateLicenseTest extends TestCase
 
         $license->refresh();
         $this->assertTrue($license->perpetual);
-        $this->assertNull($license->expiration_date);
+        $this->assertSame($expirationDate, $license->expiration_date->format('Y-m-d'));
     }
 
     public function testCanRemoveLicenseSeats()
