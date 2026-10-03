@@ -22,7 +22,9 @@ class CreateLicenseTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('licenses.create'))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee(trans('general.purchase_cost_usd'))
+            ->assertSee('USD');
     }
 
     public function testLicenseCreate()

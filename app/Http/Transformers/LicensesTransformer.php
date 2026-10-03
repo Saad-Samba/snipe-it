@@ -49,6 +49,7 @@ class LicensesTransformer
             'last_physical_verification_date' => Helper::getFormattedDateObject($license->last_physical_verification_date, 'date'),
             'depreciation' => ($license->depreciation) ? ['id' => (int) $license->depreciation->id,'name'=> e($license->depreciation->name)] : null,
             'purchase_cost' => Helper::formatCurrencyOutput($license->purchase_cost),
+            'purchase_cost_currency' => 'USD',
             'purchase_cost_numeric' => $license->purchase_cost,
             'notes' => Helper::parseEscapedMarkedownInline($license->notes),
             'seats' => (int) $license->seats,
