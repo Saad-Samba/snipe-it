@@ -5,6 +5,7 @@ namespace Tests\Feature\Licenses\Ui;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\License;
+use App\Models\SoftwareModel;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -53,6 +54,34 @@ class CreateLicenseTest extends TestCase
         $this->assertEquals($license->licenseseats()->count(), 10);
         //test log entries? Sure.
 
+    }
+
+    public function testLicenseCreateUsesSoftwareModelMetadata()
+    {
+        $softwareModel = SoftwareModel::factory()->create([
+            'name' => 'Davinci Developer Classic',
+        ]);
+
+        $response = $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('licenses.create'))
+            ->post(route('licenses.store'), [
+                'name' => 'Ignored free-text name',
+                'software_model_id' => $softwareModel->id,
+                'seats' => 10,
+                'company_id' => Company::factory()->create()->id,
+                'category_id' => Category::factory()->forLicenses()->create()->id,
+                'manufacturer_id' => null,
+                'expiration_date' => now()->addYear()->format('Y-m-d'),
+                'last_physical_verification_date' => now()->format('Y-m-d'),
+                'serial' => 'LIC-PK-SOFTWARE-MODEL',
+            ]);
+
+        $response->assertStatus(302);
+        $license = License::where('software_model_id', $softwareModel->id)->sole();
+
+        $this->assertSame($softwareModel->name, $license->name);
+        $this->assertSame($softwareModel->category_id, $license->category_id);
+        $this->assertSame($softwareModel->manufacturer_id, $license->manufacturer_id);
     }
 
     public function testPerpetualLicenseCanBeCreatedWithExpirationDate()

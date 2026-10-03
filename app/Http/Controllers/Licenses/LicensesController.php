@@ -6,6 +6,7 @@ use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\License;
+use App\Models\SoftwareModel;
 use App\Models\LicenseSeat;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -87,6 +88,7 @@ class LicensesController extends Controller
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
+        $license->software_model_id = $request->filled('software_model_id') ? $request->input('software_model_id') : null;
         $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
         $license->last_physical_verification_date = $request->input('last_physical_verification_date');
@@ -111,6 +113,8 @@ class LicensesController extends Controller
         $license->termination_date  = $request->input('termination_date');
         $license->created_by           = auth()->id();
         $license->min_amt           = $request->input('min_amt');
+
+        $this->applySoftwareModel($license);
 
         if($request->get('redirect_option') === 'back'){
             session()->put(['redirect_option' => 'index']);
@@ -186,6 +190,7 @@ class LicensesController extends Controller
         $license->software_version  = $request->input('software_version');
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
+        $license->software_model_id = $request->filled('software_model_id') ? $request->input('software_model_id') : null;
         $license->notes             = $request->input('notes');
         $license->order_number      = $request->input('order_number');
         $license->purchase_cost     = $request->input('purchase_cost');
@@ -200,6 +205,8 @@ class LicensesController extends Controller
         $license->supplier_id       = $request->input('supplier_id');
         $license->category_id       = $request->input('category_id');
         $license->min_amt           = $request->input('min_amt');
+
+        $this->applySoftwareModel($license);
 
         session()->put(['redirect_option' => $request->get('redirect_option')]);
 
@@ -238,6 +245,24 @@ class LicensesController extends Controller
         }
 
         return $errors;
+    }
+
+    private function applySoftwareModel(License $license): void
+    {
+        if (! $license->software_model_id) {
+            return;
+        }
+
+        $softwareModel = SoftwareModel::find($license->software_model_id);
+
+        if (! $softwareModel) {
+            return;
+        }
+
+        $license->name = $softwareModel->name;
+        $license->category_id = $softwareModel->category_id;
+        $license->manufacturer_id = $softwareModel->manufacturer_id;
+        $license->discipline_id = $softwareModel->discipline_id ?? $license->discipline_id;
     }
 
     /**

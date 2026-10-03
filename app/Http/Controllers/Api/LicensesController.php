@@ -9,6 +9,7 @@ use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Company;
 use App\Models\License;
 use App\Models\Setting;
+use App\Models\SoftwareModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
@@ -26,7 +27,7 @@ class LicensesController extends Controller
     {
         $this->authorize('view', License::class);
 
-        $licenses = License::with('company', 'manufacturer', 'supplier', 'category', 'adminuser', 'project', 'discipline')
+        $licenses = License::with('company', 'manufacturer', 'supplier', 'category', 'adminuser', 'project', 'discipline', 'softwareModel')
             ->withCount('freeSeats as free_seats_count');
         $settings = Setting::getSettings();
 
@@ -48,6 +49,10 @@ class LicensesController extends Controller
 
         if ($request->filled('discipline_id')) {
             $licenses->where('licenses.discipline_id', '=', $request->input('discipline_id'));
+        }
+
+        if ($request->filled('software_model_id')) {
+            $licenses->where('licenses.software_model_id', '=', $request->input('software_model_id'));
         }
 
         if ($request->filled('name')) {
@@ -208,6 +213,8 @@ class LicensesController extends Controller
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
+        $this->applySoftwareModel($license);
+        $this->applySoftwareModel($license);
 
         if ($errors = $this->requiredLicenseFieldErrors($request, $license)) {
             return response()->json(Helper::formatStandardApiResponse('error', null, $errors));
@@ -218,6 +225,23 @@ class LicensesController extends Controller
         }
 
         return response()->json(Helper::formatStandardApiResponse('error', null, $license->getErrors()));
+    }
+
+    private function applySoftwareModel(License $license): void
+    {
+        if (! $license->software_model_id) {
+            return;
+        }
+
+        $softwareModel = SoftwareModel::find($license->software_model_id);
+        if (! $softwareModel) {
+            return;
+        }
+
+        $license->name = $softwareModel->name;
+        $license->category_id = $softwareModel->category_id;
+        $license->manufacturer_id = $softwareModel->manufacturer_id;
+        $license->discipline_id = $softwareModel->discipline_id ?? $license->discipline_id;
     }
 
     /**

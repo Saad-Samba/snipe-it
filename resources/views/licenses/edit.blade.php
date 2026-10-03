@@ -13,6 +13,19 @@
 
 {{-- Page content --}}
 @section('inputFields')
+<div class="form-group {{ $errors->has('software_model_id') ? ' has-error' : '' }}">
+    <label for="software_model_id" class="col-md-3 control-label">Software Model</label>
+    <div class="col-md-7">
+        <select class="form-control select2" name="software_model_id" id="software_model_id" data-placeholder="Select a Software Model (optional)">
+            <option value=""></option>
+            @foreach (\App\Models\SoftwareModel::where('active', true)->with(['category', 'manufacturer', 'discipline'])->orderBy('name')->get() as $softwareModel)
+                <option value="{{ $softwareModel->id }}" data-name="{{ $softwareModel->name }}" data-category-id="{{ $softwareModel->category_id }}" data-manufacturer-id="{{ $softwareModel->manufacturer_id }}" data-discipline-id="{{ $softwareModel->discipline_id }}" @selected(old('software_model_id', $item->software_model_id) == $softwareModel->id)>{{ $softwareModel->name }}</option>
+            @endforeach
+        </select>
+        <span class="help-block">Optional. Selecting a Software Model uses its canonical name, category, manufacturer, and discipline.</span>
+        {!! $errors->first('software_model_id', '<span class="alert-msg">:message</span>') !!}
+    </div>
+</div>
 @include ('partials.forms.edit.name', ['translated_name' => trans('admin/licenses/form.name')])
 
 <div class="form-group {{ $errors->has('software_version') ? ' has-error' : '' }}">
@@ -218,4 +231,48 @@
 
 @include ('partials.forms.edit.notes')
 
+@stop
+
+@section('moar_scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        $('#software_model_id').on('change', function () {
+            var option = $(this).find(':selected');
+            if (!option.val()) {
+                return;
+            }
+
+            $('#name').val(option.data('name'));
+            $('#category_id').val(option.data('category-id')).trigger('change');
+            $('#manufacturer_id').val(option.data('manufacturer-id')).trigger('change');
+            if (option.data('discipline-id')) {
+                $('#discipline_id').val(option.data('discipline-id')).trigger('change');
+            }
+        });
+
+        var perpetualCheckbox = document.getElementById('perpetual');
+        var expirationInput = document.getElementById('expiration_date');
+        var expirationPicker = document.getElementById('expiration_date_picker');
+        var expirationWrapper = document.getElementById('expiration_date_wrapper');
+
+        if (!perpetualCheckbox || !expirationInput || !expirationPicker || !expirationWrapper) {
+            return;
+        }
+
+        function syncPerpetualState() {
+            var isPerpetual = perpetualCheckbox.checked;
+            expirationInput.disabled = isPerpetual;
+            expirationInput.required = !isPerpetual;
+            expirationPicker.classList.toggle('text-muted', isPerpetual);
+            expirationPicker.style.opacity = isPerpetual ? '0.65' : '1';
+
+            if (isPerpetual) {
+                expirationInput.value = '';
+            }
+        }
+
+        perpetualCheckbox.addEventListener('change', syncPerpetualState);
+        syncPerpetualState();
+    });
+</script>
 @stop

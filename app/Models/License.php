@@ -50,6 +50,7 @@ class License extends Depreciable
         'company_id'   => 'integer',
         'project_id'   => 'integer',
         'discipline_id' => 'integer',
+        'software_model_id' => 'integer',
     ];
 
     protected $rules = [
@@ -62,6 +63,7 @@ class License extends Depreciable
         'company_id' => 'integer|nullable',
         'project_id' => 'integer|nullable|exists:projects,id,deleted_at,NULL',
         'discipline_id' => 'integer|nullable|exists:disciplines,id,deleted_at,NULL',
+        'software_model_id' => 'integer|nullable|exists:software_models,id,deleted_at,NULL',
         'purchase_cost'     =>  'numeric|nullable|gte:0|max:99999999999999999.99',
         'purchase_date'   => 'date_format:Y-m-d|nullable|max:10|required_with:depreciation_id',
         'perpetual'   => 'boolean',
@@ -92,6 +94,7 @@ class License extends Depreciable
         'name',
         'project_id',
         'discipline_id',
+        'software_model_id',
         'notes',
         'order_number',
         'purchase_cost',
@@ -135,6 +138,7 @@ class License extends Depreciable
      * @var array
      */
     protected $searchableRelations = [
+        'softwareModel' => ['name'],
         'manufacturer' => ['name'],
         'company'      => ['name'],
         'project'      => ['name'],
@@ -143,6 +147,11 @@ class License extends Depreciable
         'depreciation' => ['name'],
         'supplier'     => ['name'],
     ];
+
+    public function softwareModel()
+    {
+        return $this->belongsTo(SoftwareModel::class);
+    }
     protected $appends = ['free_seat_count'];
 
     /**
