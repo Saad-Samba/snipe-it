@@ -5,6 +5,7 @@ namespace Tests\Feature\Licenses\Ui;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\License;
+use App\Models\SoftwareModel;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -22,10 +23,11 @@ class UpdateLicenseTest extends TestCase
         $admin = User::factory()->superuser()->create();
         $license_category = Category::factory()->forLicenses()->create()->id;
         $company = Company::factory()->create();
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'Test Update License', 'category_id' => $license_category]);
         $response = $this->actingAs($admin)
             ->from(route('licenses.create'))
             ->post(route('licenses.store'), [
-                'name' => 'Test Update License',
+                'software_model_id' => $softwareModel->id,
                 'seats' => '9999',
                 'category_id' => $license_category,
                 'company_id' => $company->id,
@@ -63,10 +65,11 @@ class UpdateLicenseTest extends TestCase
         $admin = User::factory()->superuser()->create();
         $license_category = Category::factory()->forLicenses()->create()->id;
         $company = Company::factory()->create();
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'Test Update License', 'category_id' => $license_category]);
         $response = $this->actingAs($admin)
             ->from(route('licenses.create'))
             ->post(route('licenses.store'), [
-                'name' => 'Test Update License',
+                'software_model_id' => $softwareModel->id,
                 'seats' => '9999',
                 'category_id' => $license_category,
                 'company_id' => $company->id,
@@ -128,10 +131,11 @@ class UpdateLicenseTest extends TestCase
         $admin = User::factory()->superuser()->create();
         $license_category = Category::factory()->forLicenses()->create()->id;
         $company = Company::factory()->create();
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'Test Remove License Seats', 'category_id' => $license_category]);
         $response = $this->actingAs($admin)
             ->from(route('licenses.create'))
             ->post(route('licenses.store'), [
-                'name' => 'Test Remove License Seats',
+                'software_model_id' => $softwareModel->id,
                 'seats' => '9999',
                 'category_id' => $license_category,
                 'company_id' => $company->id,

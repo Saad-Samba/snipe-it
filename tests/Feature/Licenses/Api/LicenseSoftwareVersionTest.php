@@ -15,10 +15,14 @@ class LicenseSoftwareVersionTest extends TestCase
     {
         $category = Category::factory()->forLicenses()->create();
         $company = Company::factory()->create();
+        $softwareModel = SoftwareModel::factory()->create([
+            'name' => 'Versioned API License',
+            'category_id' => $category->id,
+        ]);
 
         $this->actingAsForApi(User::factory()->createLicenses()->create())
             ->postJson(route('api.licenses.store'), [
-                'name' => 'Versioned API License',
+                'software_model_id' => $softwareModel->id,
                 'software_version' => 'R2026b',
                 'seats' => 1,
                 'category_id' => $category->id,
@@ -72,5 +76,17 @@ class LicenseSoftwareVersionTest extends TestCase
             'category_id' => $softwareModel->category_id,
             'manufacturer_id' => $softwareModel->manufacturer_id,
         ]);
+    }
+
+    public function testSoftwareModelIsRequiredWhenCreatingALicense()
+    {
+        $this->actingAsForApi(User::factory()->createLicenses()->create())
+            ->postJson(route('api.licenses.store'), [
+                'name' => 'Uncontrolled API License',
+                'seats' => 1,
+                'category_id' => Category::factory()->forLicenses()->create()->id,
+                'perpetual' => true,
+            ])
+            ->assertStatusMessageIs('error');
     }
 }

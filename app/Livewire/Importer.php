@@ -308,6 +308,7 @@ class Importer extends Component
             'seats' => trans('admin/licenses/form.seats'),
             'serial' => trans('admin/licenses/form.license_key'),
             'serial_number' => trans('general.serial_number'),
+            'software_model' => 'Software Model',
             'software_version' => trans('admin/licenses/form.software_version'),
             'supplier' => trans('general.supplier'),
             'termination_date' => trans('admin/licenses/form.termination_date'),

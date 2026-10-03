@@ -30,10 +30,12 @@ class CreateLicenseTest extends TestCase
 
     public function testLicenseCreate()
     {
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'Test Valid License']);
+
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->from(route('licenses.create'))
             ->post(route('licenses.store'), [
-                'name' => 'Test Valid License',
+                'software_model_id' => $softwareModel->id,
                 'seats' => '10',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
@@ -87,11 +89,12 @@ class CreateLicenseTest extends TestCase
     public function testPerpetualLicenseCanBeCreatedWithExpirationDate()
     {
         $expirationDate = now()->addYear()->format('Y-m-d');
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'Test Perpetual License']);
 
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->from(route('licenses.create'))
             ->post(route('licenses.store'), [
-                'name' => 'Test Perpetual License',
+                'software_model_id' => $softwareModel->id,
                 'seats' => '10',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
@@ -109,10 +112,12 @@ class CreateLicenseTest extends TestCase
 
     public function testNonPerpetualLicenseWithoutExpirationDateFailsValidation()
     {
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'Test Missing Expiration License']);
+
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->from(route('licenses.create'))
             ->post(route('licenses.store'), [
-                'name' => 'Test Missing Expiration License',
+                'software_model_id' => $softwareModel->id,
                 'seats' => '10',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
@@ -128,10 +133,12 @@ class CreateLicenseTest extends TestCase
 
     public function testTooManySeatsLicenseCreate()
     {
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'Test Valid License']);
+
         $response = $this->actingAs(User::factory()->superuser()->create())
             ->from(route('licenses.create'))
             ->post(route('licenses.store'), [
-                'name' => 'Test Valid License',
+                'software_model_id' => $softwareModel->id,
                 'seats' => '100000',
                 'category_id' => Category::factory()->forLicenses()->create()->id,
                 'company_id' => Company::factory()->create()->id,
@@ -189,6 +196,18 @@ class CreateLicenseTest extends TestCase
             'last_physical_verification_date' => 'The last physical verification date field is required.',
         ]);
         $this->assertFalse(License::where('name', 'Test Missing Physical Verification Date License')->exists());
+
+    public function testSoftwareModelIsRequiredForNewLicenses()
+    {
+        $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('licenses.create'))
+            ->post(route('licenses.store'), [
+                'name' => 'Free Text License',
+                'seats' => 1,
+                'category_id' => Category::factory()->forLicenses()->create()->id,
+                'perpetual' => true,
+            ])
+            ->assertInvalid(['software_model_id']);
     }
 
 

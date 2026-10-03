@@ -209,11 +209,14 @@ class LicensesController extends Controller
     public function store(Request $request) : JsonResponse
     {
         $this->authorize('create', License::class);
+        $request->validate([
+            'software_model_id' => 'required|exists:software_models,id,deleted_at,NULL,active,1',
+        ]);
+
         $license = new License;
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
-        $this->applySoftwareModel($license);
         $this->applySoftwareModel($license);
 
         if ($errors = $this->requiredLicenseFieldErrors($request, $license)) {
@@ -276,6 +279,7 @@ class LicensesController extends Controller
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
+        $this->applySoftwareModel($license);
 
         if ($errors = $this->requiredLicenseFieldErrors($request, $license)) {
             return response()->json(Helper::formatStandardApiResponse('error', null, $errors));

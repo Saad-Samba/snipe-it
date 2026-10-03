@@ -55,6 +55,7 @@ abstract class Importer
         'notes' => 'notes',
         'license_email' => 'licensed to email',
         'license_name' => 'licensed to name',
+        'software_model' => 'software model',
         'maintained' => 'maintained',
         'manufacturer' => 'manufacturer',
         'asset_model' => 'model name',

@@ -14,15 +14,15 @@
 {{-- Page content --}}
 @section('inputFields')
 <div class="form-group {{ $errors->has('software_model_id') ? ' has-error' : '' }}">
-    <label for="software_model_id" class="col-md-3 control-label">Software Model</label>
+    <label for="software_model_id" class="col-md-3 control-label">Software Model{{ $item->exists ? '' : ' *' }}</label>
     <div class="col-md-7">
-        <select class="form-control select2" name="software_model_id" id="software_model_id" data-placeholder="Select a Software Model (optional)">
+        <select class="form-control select2" name="software_model_id" id="software_model_id" data-placeholder="Select a Software Model" {{ $item->exists ? '' : 'required' }}>
             <option value=""></option>
-            @foreach (\App\Models\SoftwareModel::where('active', true)->with(['category', 'manufacturer', 'discipline'])->orderBy('name')->get() as $softwareModel)
+            @foreach (\App\Models\SoftwareModel::where(fn ($query) => $query->where('active', true)->orWhere('id', $item->software_model_id))->with(['category', 'manufacturer', 'discipline'])->orderBy('name')->get() as $softwareModel)
                 <option value="{{ $softwareModel->id }}" data-name="{{ $softwareModel->name }}" data-category-id="{{ $softwareModel->category_id }}" data-manufacturer-id="{{ $softwareModel->manufacturer_id }}" data-discipline-id="{{ $softwareModel->discipline_id }}" @selected(old('software_model_id', $item->software_model_id) == $softwareModel->id)>{{ $softwareModel->name }}</option>
             @endforeach
         </select>
-        <span class="help-block">Optional. Selecting a Software Model uses its canonical name, category, manufacturer, and discipline.</span>
+        <span class="help-block">{{ $item->exists ? 'Select a Software Model to standardize this license. Legacy licenses can remain unlinked during the transition.' : 'Required. Its canonical name, category, manufacturer, and discipline are used for this license.' }}</span>
         {!! $errors->first('software_model_id', '<span class="alert-msg">:message</span>') !!}
     </div>
 </div>
@@ -236,9 +236,28 @@
 @section('moar_scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        function syncSoftwareModelFields() {
+            var select = $('#software_model_id');
+            var option = select.find(':selected');
+            var hasSoftwareModel = Boolean(option.val());
+
+            $('#name').prop('readonly', hasSoftwareModel);
+            $('#category_id, #manufacturer_id, #discipline_id').prop('disabled', hasSoftwareModel).trigger('change');
+
+            if (!hasSoftwareModel) {
+                return;
+            }
+
+            $('#name').val(option.data('name'));
+            $('#category_id').val(option.data('category-id')).trigger('change');
+            $('#manufacturer_id').val(option.data('manufacturer-id')).trigger('change');
+            $('#discipline_id').val(option.data('discipline-id') || '').trigger('change');
+        }
+
         $('#software_model_id').on('change', function () {
             var option = $(this).find(':selected');
             if (!option.val()) {
+                syncSoftwareModelFields();
                 return;
             }
 
@@ -248,7 +267,10 @@
             if (option.data('discipline-id')) {
                 $('#discipline_id').val(option.data('discipline-id')).trigger('change');
             }
+            syncSoftwareModelFields();
         });
+
+        syncSoftwareModelFields();
 
         var perpetualCheckbox = document.getElementById('perpetual');
         var expirationInput = document.getElementById('expiration_date');

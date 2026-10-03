@@ -81,6 +81,9 @@ class LicensesController extends Controller
         if ($errors->isNotEmpty()) {
             return redirect()->back()->withInput()->withErrors($errors);
         }
+        $request->validate([
+            'software_model_id' => 'required|exists:software_models,id,deleted_at,NULL,active,1',
+        ]);
 
         // create a new model instance
         $license = new License();
@@ -88,7 +91,7 @@ class LicensesController extends Controller
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
-        $license->software_model_id = $request->filled('software_model_id') ? $request->input('software_model_id') : null;
+        $license->software_model_id = $request->input('software_model_id');
         $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
         $license->last_physical_verification_date = $request->input('last_physical_verification_date');

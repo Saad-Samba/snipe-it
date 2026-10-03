@@ -5,6 +5,7 @@ namespace Tests\Feature\Licenses\Api;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\License;
+use App\Models\SoftwareModel;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -14,10 +15,11 @@ class LicenseSerialNumberTest extends TestCase
     {
         $category = Category::factory()->forLicenses()->create();
         $company = Company::factory()->create();
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'API License', 'category_id' => $category->id]);
 
         $this->actingAsForApi(User::factory()->createLicenses()->create())
             ->postJson(route('api.licenses.store'), [
-                'name' => 'API License',
+                'software_model_id' => $softwareModel->id,
                 'seats' => 1,
                 'category_id' => $category->id,
                 'company_id' => $company->id,

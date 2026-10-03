@@ -5,6 +5,7 @@ namespace Tests\Feature\Importing\Api;
 use App\Models\Actionlog as ActivityLog;
 use App\Models\Import;
 use App\Models\License;
+use App\Models\SoftwareModel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Str;
@@ -98,6 +99,27 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertNull($newLicense->termination_date);
         $this->assertNull($newLicense->deprecate);
         $this->assertNull($newLicense->min_amt);
+        $this->assertSame($row['softwareModel'], $newLicense->softwareModel->name);
+    }
+
+    #[Test]
+    public function importUsesAnExistingSoftwareModelAsTheCanonicalProductDefinition(): void
+    {
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'Canonical Import Product']);
+        $importFileBuilder = ImportFileBuilder::new([
+            'licenseName' => 'Uncontrolled CSV Name',
+            'softwareModel' => $softwareModel->name,
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])->assertOk();
+
+        $this->assertDatabaseHas('licenses', [
+            'software_model_id' => $softwareModel->id,
+            'name' => $softwareModel->name,
+            'category_id' => $softwareModel->category_id,
+        ]);
     }
 
     #[Test]

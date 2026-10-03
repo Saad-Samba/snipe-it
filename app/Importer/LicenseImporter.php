@@ -4,6 +4,7 @@ namespace App\Importer;
 
 use App\Models\Asset;
 use App\Models\License;
+use App\Models\SoftwareModel;
 use Illuminate\Support\Facades\Auth;
 
 class LicenseImporter extends ItemImporter
@@ -73,7 +74,13 @@ class LicenseImporter extends ItemImporter
 
         if ($lastPhysicalVerificationDate === '') {
             $this->addImportError($this->item['name'], 'last_physical_verification_date', 'The last physical verification date field is required.');
+            return;
+        }
 
+        $this->item['manufacturer'] = $this->createOrFetchManufacturer(trim($this->findCsvMatch($row, 'manufacturer')));
+        $this->item['min_amt'] = trim($this->findCsvMatch($row, 'min_amt'));
+
+        if (! $this->applySoftwareModel($row)) {
             return;
         }
 
@@ -140,9 +147,6 @@ class LicenseImporter extends ItemImporter
         $this->item['purchase_order'] = trim($this->findCsvMatch($row, 'purchase_order'));
         $this->item['order_number'] = trim($this->findCsvMatch($row, 'order_number'));
         $this->item['reassignable'] = trim($this->findCsvMatch($row, 'reassignable'));
-        $this->item['manufacturer'] = $this->createOrFetchManufacturer(trim($this->findCsvMatch($row, 'manufacturer')));
-        $this->item['min_amt'] = trim($this->findCsvMatch($row, 'min_amt'));
-
         if($this->item['reassignable'] == "")
         {
             $this->item['reassignable'] = 1;
@@ -212,6 +216,49 @@ class LicenseImporter extends ItemImporter
         }
 
         return 'A matching License ' . $this->item['name'] . ' with ' . implode(' and ', $details) . ' already exists';
+    }
+
+    /**
+     * Imports use the same reusable product definition as the license form.
+     * A supplied Software Model name is preferred; legacy CSVs derive it from
+     * the license name and create the catalog entry on first use.
+     */
+    private function applySoftwareModel(array $row): bool
+    {
+        $modelName = trim($this->findCsvMatch($row, 'software_model')) ?: trim((string) $this->item['name']);
+
+        if ($modelName === '') {
+            $this->log('A Software Model or license name is required; import row skipped.');
+            return false;
+        }
+
+        if (empty($this->item['category_id'])) {
+            $this->log('A license category is required to create Software Model '.$modelName.'; import row skipped.');
+            return false;
+        }
+
+        $softwareModel = SoftwareModel::firstOrCreate(
+            ['name' => $modelName],
+            [
+                'category_id' => $this->item['category_id'] ?? null,
+                'manufacturer_id' => $this->item['manufacturer_id'] ?? null,
+                'created_by' => auth()->id(),
+                'active' => true,
+            ]
+        );
+
+        if (! $softwareModel->category_id) {
+            $this->log('Software Model '.$modelName.' has no license category; import row skipped.');
+            return false;
+        }
+
+        $this->item['software_model_id'] = $softwareModel->id;
+        $this->item['name'] = $softwareModel->name;
+        $this->item['category_id'] = $softwareModel->category_id;
+        $this->item['manufacturer_id'] = $softwareModel->manufacturer_id;
+        $this->item['discipline_id'] = $softwareModel->discipline_id;
+
+        return true;
     }
 
     private function hasConflictingIdentifiers(License $license, string $productKey, string $serialNumber): bool
