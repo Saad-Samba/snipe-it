@@ -3,6 +3,7 @@
 namespace Tests\Feature\Importing\Api;
 
 use App\Models\Actionlog as ActivityLog;
+use App\Models\Category;
 use App\Models\Import;
 use App\Models\License;
 use App\Models\SoftwareModel;
@@ -20,13 +21,43 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
     use CleansUpImportFiles;
     use WithFaker;
 
+    protected bool $seedSoftwareModelsForImport = true;
+
     protected function importFileResponse(array $parameters = []): TestResponse
     {
         if (!array_key_exists('import-type', $parameters)) {
             $parameters['import-type'] = 'license';
         }
 
+        if ($this->seedSoftwareModelsForImport && isset($parameters['import'])) {
+            $this->seedSoftwareModelsForImport(Import::find($parameters['import']));
+        }
+
         return parent::importFileResponse($parameters);
+    }
+
+    private function seedSoftwareModelsForImport(?Import $import): void
+    {
+        $path = $import ? config('app.private_uploads').'/imports/'.$import->file_path : null;
+        if (! $path || ! file_exists($path)) {
+            return;
+        }
+
+        foreach (ImportFileBuilder::fromFile($path)->all() as $row) {
+            if (empty($row['softwareModel']) || empty($row['category'])) {
+                continue;
+            }
+
+            $category = Category::firstOrCreate([
+                'name' => $row['category'],
+                'category_type' => 'license',
+            ]);
+
+            SoftwareModel::firstOrCreate(
+                ['name' => $row['softwareModel']],
+                ['category_id' => $category->id, 'active' => true]
+            );
+        }
     }
 
     #[Test]
@@ -120,6 +151,20 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
             'name' => $softwareModel->name,
             'category_id' => $softwareModel->category_id,
         ]);
+    }
+
+    #[Test]
+    public function importRejectsAnUnknownSoftwareModel(): void
+    {
+        $this->seedSoftwareModelsForImport = false;
+        $importFileBuilder = ImportFileBuilder::new(['softwareModel' => 'Unknown Product Model']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])->assertInternalServerError();
+
+        $this->assertDatabaseMissing('licenses', ['serial' => $row['productKey']]);
     }
 
     #[Test]
@@ -679,11 +724,16 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
             'productKey'       => $faker['category'],
             'seats'            => $faker['licensedToName'],
             'serialNumber'     => $faker['notes'],
+            'softwareModel'    => $faker['licenseName'],
             'supplierName'     => $faker['manufacturerName']
         ];
 
         $importFileBuilder = new ImportFileBuilder([$row]);
         $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->seedSoftwareModelsForImport = false;
+        $category = Category::firstOrCreate(['name' => $row['manufacturerName'], 'category_type' => 'license']);
+        SoftwareModel::factory()->create(['name' => $row['softwareModel'], 'category_id' => $category->id]);
 
         $this->actingAsForApi(User::factory()->superuser()->create());
 
@@ -703,6 +753,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
                 'Notes'            => 'notes',
                 'Product Key'      => 'serial',
                 'Serial number'    => 'serial_number',
+                'Software Model'   => 'software_model',
                 'Order Number'     => 'expiration_date',
                 'Purchase Cost'    => 'maintained',
                 'Purchase Date'    => 'reassignable',

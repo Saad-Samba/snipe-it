@@ -196,6 +196,7 @@ class CreateLicenseTest extends TestCase
             'last_physical_verification_date' => 'The last physical verification date field is required.',
         ]);
         $this->assertFalse(License::where('name', 'Test Missing Physical Verification Date License')->exists());
+    }
 
     public function testSoftwareModelIsRequiredForNewLicenses()
     {

@@ -26,7 +26,7 @@
         {!! $errors->first('software_model_id', '<span class="alert-msg">:message</span>') !!}
     </div>
 </div>
-@include ('partials.forms.edit.name', ['translated_name' => trans('admin/licenses/form.name')])
+<input type="hidden" name="name" id="name" value="{{ old('name', $item->name) }}">
 
 <div class="form-group {{ $errors->has('software_version') ? ' has-error' : '' }}">
     <label for="software_version" class="col-md-3 control-label">{{ trans('admin/licenses/form.software_version') }}</label>

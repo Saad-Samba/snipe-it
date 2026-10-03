@@ -5,7 +5,6 @@ namespace App\Importer;
 use App\Models\Asset;
 use App\Models\License;
 use App\Models\SoftwareModel;
-use Illuminate\Support\Facades\Auth;
 
 class LicenseImporter extends ItemImporter
 {
@@ -219,36 +218,22 @@ class LicenseImporter extends ItemImporter
     }
 
     /**
-     * Imports use the same reusable product definition as the license form.
-     * A supplied Software Model name is preferred; legacy CSVs derive it from
-     * the license name and create the catalog entry on first use.
+     * Imports use an existing, active Software Model as the product definition.
      */
     private function applySoftwareModel(array $row): bool
     {
-        $modelName = trim($this->findCsvMatch($row, 'software_model')) ?: trim((string) $this->item['name']);
+        $modelName = trim($this->findCsvMatch($row, 'software_model'));
 
         if ($modelName === '') {
-            $this->log('A Software Model or license name is required; import row skipped.');
+            $this->log('An existing Software Model is required; import row skipped.');
+            $this->addSoftwareModelImportError('A Software Model is required.');
             return false;
         }
 
-        if (empty($this->item['category_id'])) {
-            $this->log('A license category is required to create Software Model '.$modelName.'; import row skipped.');
-            return false;
-        }
-
-        $softwareModel = SoftwareModel::firstOrCreate(
-            ['name' => $modelName],
-            [
-                'category_id' => $this->item['category_id'] ?? null,
-                'manufacturer_id' => $this->item['manufacturer_id'] ?? null,
-                'created_by' => auth()->id(),
-                'active' => true,
-            ]
-        );
-
-        if (! $softwareModel->category_id) {
-            $this->log('Software Model '.$modelName.' has no license category; import row skipped.');
+        $softwareModel = SoftwareModel::where('active', true)->where('name', $modelName)->first();
+        if (! $softwareModel) {
+            $this->log('No active Software Model named '.$modelName.' was found; import row skipped.');
+            $this->addSoftwareModelImportError('No active Software Model named '.$modelName.' was found.');
             return false;
         }
 
@@ -259,6 +244,13 @@ class LicenseImporter extends ItemImporter
         $this->item['discipline_id'] = $softwareModel->discipline_id;
 
         return true;
+    }
+
+    private function addSoftwareModelImportError(string $message): void
+    {
+        $license = new License;
+        $license->name = $this->item['name'] ?? 'License';
+        $this->addErrorToBag($license, 'software_model', $message);
     }
 
     private function hasConflictingIdentifiers(License $license, string $productKey, string $serialNumber): bool
