@@ -29,6 +29,7 @@ use App\Models\License;
 use App\Models\Location;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\PlatformDongles;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -771,9 +772,14 @@ class AssetsController extends Controller
     {
         $asset = new Asset();
         $asset->model()->associate(AssetModel::find((int) $request->get('model_id')));
+        $dongleLicense = PlatformDongles::licenseForLinking($request->integer('license_id'));
+        if ($message = PlatformDongles::canLinkLicense($asset, $dongleLicense)) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, ['license_id' => [$message]]));
+        }
 
         $asset->fill($request->validated());
         $asset->created_by    = auth()->id();
+        PlatformDongles::normalizeAsset($asset);
 
         /**
          * this is here just legacy reasons. Api\AssetController
@@ -829,6 +835,9 @@ class AssetsController extends Controller
         }
 
         if ($asset->save()) {
+            if ($dongleLicense) {
+                PlatformDongles::linkLicense($asset->fresh(), $dongleLicense, auth()->user());
+            }
             if ($request->get('assigned_user')) {
                 $target = User::find(request('assigned_user'));
             } elseif ($request->get('assigned_asset')) {
@@ -839,6 +848,10 @@ class AssetsController extends Controller
             if (isset($target)) {
                 $asset->checkOut($target, auth()->user(), date('Y-m-d H:i:s'), '', 'Checked out on asset creation', e($request->get('name')));
             }
+
+            $asset = $asset->fresh();
+            PlatformDongles::normalizeAsset($asset);
+            $asset->save();
 
             if ($asset->image) {
                 $asset->image = $asset->getImageUrl();
@@ -868,10 +881,17 @@ class AssetsController extends Controller
         if ($request->has('model_id')) {
             $asset->model()->associate(AssetModel::find($request->validated()['model_id']));
         }
+        $dongleLicense = PlatformDongles::licenseForLinking(
+            $request->filled('license_id') ? $request->integer('license_id') : PlatformDongles::existingLicenseId($asset)
+        );
+        if ($message = PlatformDongles::canLinkLicense($asset, $dongleLicense)) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, ['license_id' => [$message]]));
+        }
         $asset->company_id = $request->validated()['company_id'];
         if ($request->has('rtd_location_id') && !$request->has('location_id')) {
             $asset->location_id = $request->validated()['rtd_location_id'];
         }
+        PlatformDongles::normalizeAsset($asset);
         if ($request->input('last_audit_date')) {
             $asset->last_audit_date = Carbon::parse($request->input('last_audit_date'))->startOfDay()->format('Y-m-d H:i:s');
         }
@@ -912,6 +932,9 @@ class AssetsController extends Controller
             }
         }
         if ($asset->save()) {
+            if ($dongleLicense) {
+                PlatformDongles::linkLicense($asset->fresh(), $dongleLicense, auth()->user());
+            }
             if (($request->filled('assigned_user')) && ($target = User::find($request->get('assigned_user')))) {
                 $location = $target->location_id;
             } elseif (($request->filled('assigned_asset')) && ($target = Asset::find($request->get('assigned_asset')))) {
@@ -926,6 +949,10 @@ class AssetsController extends Controller
             if (isset($target)) {
                 $asset->checkOut($target, auth()->user(), date('Y-m-d H:i:s'), '', 'Checked out on asset update', e($request->get('name')), $location);
             }
+
+            $asset = $asset->fresh();
+            PlatformDongles::normalizeAsset($asset);
+            $asset->save();
 
             if ($asset->image) {
                 $asset->image = $asset->getImageUrl();

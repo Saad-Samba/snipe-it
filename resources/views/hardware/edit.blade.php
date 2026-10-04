@@ -72,6 +72,22 @@
     </div>
 
 
+    @php
+        $platformDongleLicense = $item->exists ? $item->licenses()->first() : null;
+    @endphp
+    <div id="platform_dongle_license" style="display: none;">
+        @include ('partials.forms.edit.license-select', [
+            'translated_name' => 'License entitlement',
+            'fieldname' => 'license_id',
+            'select_id' => 'platform_dongle_license_id',
+            'license' => $platformDongleLicense,
+            'required' => 'true',
+        ])
+        <div class="col-md-7 col-md-offset-3 help-block" style="margin-top: -10px; margin-bottom: 15px;">
+            Link this physical dongle to the license entitlement it enables.
+        </div>
+    </div>
+
 
     @include ('partials.forms.edit.status', [ 'required' => 'true'])
     @if (!$item->id)
@@ -307,6 +323,35 @@
         });
         //grab custom fields for this model whenever model changes.
         $('#model_select_id').on("change", fetchCustomFields);
+
+        const platformDongleModels = @json(\App\Support\PlatformDongles::modelNames());
+
+        function selectedModelIsPlatformDongle() {
+            return platformDongleModels.includes($.trim($('#model_select_id option:selected').text()).toLowerCase());
+        }
+
+        function syncPlatformDongleFields() {
+            const isPlatformDongle = selectedModelIsPlatformDongle();
+
+            $('#platform_dongle_license').toggle(isPlatformDongle);
+            $('#platform_dongle_license_id').prop('required', isPlatformDongle);
+            $('#name').closest('.form-group').toggle(!isPlatformDongle);
+            $('#name').prop('disabled', isPlatformDongle);
+            if (isPlatformDongle) {
+                $('#name').val('');
+            }
+
+            $('#rtd_location_id').toggle(!isPlatformDongle);
+            $('#rtd_location_id_location_select').prop('disabled', isPlatformDongle);
+            if (isPlatformDongle) {
+                $('#rtd_location_id_location_select').val(null).trigger('change');
+            }
+
+            $('.add_field_button').prop('disabled', isPlatformDongle);
+        }
+
+        $('#model_select_id').on('change', syncPlatformDongleFields);
+        syncPlatformDongleFields();
 
         //initialize assigned user/loc/asset based on statuslabel's statustype
         user_add($(".status_id option:selected").val());
