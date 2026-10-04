@@ -7,6 +7,7 @@ use App\Models\Actionlog as ActionLog;
 use App\Models\Asset;
 use App\Models\CustomField;
 use App\Models\Import;
+use App\Models\License;
 use App\Models\User;
 use App\Notifications\CheckoutAssetNotification;
 use Carbon\Carbon;
@@ -140,6 +141,27 @@ class ImportAssetsTest extends ImportDataTestCase implements TestsPermissionsReq
         //Notes is never read.
         // $this->assertEquals($row['notes'], $newAsset->notes);
 
+    }
+
+    #[Test]
+    public function importPlatformDongleLinksItsLicenseAndClearsNameAndLocation(): void
+    {
+        $license = License::factory()->create(['seats' => 1]);
+        $row = ImportFileBuilder::new()->definition();
+        $row['model'] = 'Vector KEYMAN';
+        $row['licenseId'] = $license->id;
+        $row['itemName'] = 'This free-form name must be cleared';
+        $importFileBuilder = new ImportFileBuilder([$row]);
+        $import = Import::factory()->asset()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])->assertOk();
+
+        $asset = Asset::query()->where('serial', $row['serialNumber'])->sole();
+        $this->assertNull($asset->name);
+        $this->assertNull($asset->location_id);
+        $this->assertNull($asset->rtd_location_id);
+        $this->assertDatabaseHas('license_seats', ['license_id' => $license->id, 'asset_id' => $asset->id]);
     }
 
     #[Test]

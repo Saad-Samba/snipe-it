@@ -79,7 +79,10 @@ class StoreAssetRequest extends ImageUploadRequest
 
         return array_merge(
             $modelRules,
-            ['status_id' => [new AssetCannotBeCheckedOutToNondeployableStatus()]],
+            [
+                'status_id' => [new AssetCannotBeCheckedOutToNondeployableStatus()],
+                'license_id' => ['nullable', 'integer', 'exists:licenses,id,deleted_at,NULL'],
+            ],
             parent::rules(),
         );
     }

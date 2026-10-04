@@ -22,6 +22,7 @@ use App\Models\Location;
 use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
+use App\Support\PlatformDongles;
 use App\View\Label;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -199,6 +200,19 @@ class AssetsController extends Controller
 
         $settings = Setting::getSettings();
 
+        if (PlatformDongles::isPlatformDongleModel($model) && count($asset_tags) !== 1) {
+            return redirect()->back()->withInput()->withErrors([
+                'asset_tags' => 'Create one Platform dongle at a time so its license entitlement can be linked directly.',
+            ]);
+        }
+
+        $dongleLicense = PlatformDongles::licenseForLinking($request->integer('license_id'));
+        $candidateDongle = new Asset;
+        $candidateDongle->model()->associate($model);
+        if ($message = PlatformDongles::canLinkLicense($candidateDongle, $dongleLicense)) {
+            return redirect()->back()->withInput()->withErrors(['license_id' => $message]);
+        }
+
         //Validate required serial based on model setting
         for ($a = 1, $aMax = count($asset_tags); $a <= $aMax; $a++) {
             if ($model && $model->require_serial === 1 && empty($serials[$a])) {
@@ -263,6 +277,8 @@ class AssetsController extends Controller
             if (!request('assigned_user') && !request('assigned_asset') && !request('assigned_location')) {
                 $asset->location_id = $request->input('rtd_location_id', null);
             }
+
+            PlatformDongles::normalizeAsset($asset);
 
             if ($request->has('use_cloned_image')) {
                 $cloned_model_img = Asset::select('image')->find($request->input('clone_image_from_id'));
@@ -332,6 +348,14 @@ class AssetsController extends Controller
 
                 if (isset($target)) {
                     $asset->checkOut($target, auth()->user(), date('Y-m-d H:i:s'), $request->input('expected_checkin', null), 'Checked out on asset creation', $request->get('name'), $location);
+                }
+
+                $asset = $asset->fresh();
+                PlatformDongles::normalizeAsset($asset);
+                $asset->save();
+
+                if ($dongleLicense) {
+                    PlatformDongles::linkLicense($asset, $dongleLicense, auth()->user());
                 }
 
                 $successes[] = "<a href='" . route('hardware.show', $asset) . "' style='color: white;'>" . e($asset->asset_tag) . "</a>";
@@ -518,6 +542,13 @@ class AssetsController extends Controller
         $asset->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $asset->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
         $asset->model_id = $request->input('model_id');
+        $asset->model()->associate(AssetModel::find($asset->model_id));
+        $dongleLicense = PlatformDongles::licenseForLinking(
+            $request->filled('license_id') ? $request->integer('license_id') : PlatformDongles::existingLicenseId($asset)
+        );
+        if ($message = PlatformDongles::canLinkLicense($asset, $dongleLicense)) {
+            return redirect()->back()->withInput()->withErrors(['license_id' => $message]);
+        }
         $asset->order_number = $request->input('order_number');
 
         $asset_tags = $request->input('asset_tags');
@@ -529,6 +560,8 @@ class AssetsController extends Controller
 
         $asset->notes = $request->input('notes');
         $asset->owner_id = $request->filled('owner_id') ? $request->input('owner_id') : null;
+
+        PlatformDongles::normalizeAsset($asset);
 
         $asset = $request->handleImages($asset);
 
@@ -575,6 +608,9 @@ class AssetsController extends Controller
                 ]));
         }
         if ($asset->save()) {
+            if ($dongleLicense) {
+                PlatformDongles::linkLicense($asset->fresh(), $dongleLicense, auth()->user());
+            }
             return Helper::getRedirectOption($request, $asset->id, 'Assets')
                 ->with('success', trans('admin/hardware/message.update.success'));
         }

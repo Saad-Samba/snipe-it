@@ -7,6 +7,7 @@ use App\Models\AssetModel;
 use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\Location;
+use App\Models\License;
 use App\Models\Statuslabel;
 use App\Models\Supplier;
 use App\Models\User;
@@ -140,6 +141,52 @@ class StoreAssetTest extends TestCase
 
         $this->assertDatabaseMissing('assets', [
             'asset_tag' => '1234',
+        ]);
+    }
+
+    public function testPlatformDongleRequiresALicenseEntitlement(): void
+    {
+        $model = AssetModel::factory()->create(['name' => 'Vector KEYMAN']);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
+                'asset_tag' => 'KEYMAN-001',
+                'model_id' => $model->id,
+                'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
+            ]))
+            ->assertOk()
+            ->assertStatusMessageIs('error')
+            ->assertJsonPath('messages.license_id.0', 'A license entitlement is required for a Platform dongle.');
+
+        $this->assertDatabaseMissing('assets', ['asset_tag' => 'KEYMAN-001']);
+    }
+
+    public function testPlatformDongleUsesItsModelAndLinksTheLicenseEntitlement(): void
+    {
+        $model = AssetModel::factory()->create(['name' => 'Vector KEYMAN']);
+        $license = License::factory()->create(['seats' => 1]);
+        $location = Location::factory()->create();
+
+        $response = $this->actingAsForApi(User::factory()->superuser()->create())
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
+                'asset_tag' => 'KEYMAN-002',
+                'license_id' => $license->id,
+                'location_id' => $location->id,
+                'model_id' => $model->id,
+                'name' => 'Do not retain this free-form name',
+                'rtd_location_id' => $location->id,
+                'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
+            ]))
+            ->assertOk()
+            ->assertStatusMessageIs('success');
+
+        $asset = Asset::findOrFail($response->json('payload.id'));
+        $this->assertNull($asset->name);
+        $this->assertNull($asset->location_id);
+        $this->assertNull($asset->rtd_location_id);
+        $this->assertDatabaseHas('license_seats', [
+            'license_id' => $license->id,
+            'asset_id' => $asset->id,
         ]);
     }
 

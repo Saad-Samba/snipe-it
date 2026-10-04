@@ -213,6 +213,7 @@ class Importer extends Component
             'company' => trans('general.company'),
             'image' => trans('general.importer.image_filename'),
             'item_name' => trans('general.item_name_var', ['item' => trans('general.asset')]),
+            'license_id' => 'License ID',
             'location' => trans('general.location'),
             'manufacturer' => trans('general.manufacturer'),
             'model_notes' => trans('general.item_notes', ['item' => trans('admin/hardware/form.model')]),
