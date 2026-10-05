@@ -64,7 +64,6 @@ class UpdateAssetRequest extends ImageUploadRequest
                     'string', 'max:255', 'not_array',
                     $setting->unique_serial=='1' ? Rule::unique('assets', 'serial')->ignore($this->asset)->withoutTrashed() : 'nullable',
                 ],
-                'license_id' => ['nullable', 'integer', 'exists:licenses,id,deleted_at,NULL'],
             ],
         );
 

@@ -343,11 +343,11 @@
                     <div class="row">
                       <div class="col-md-3">
                         <strong>
-                          {{ trans('general.purchase_cost_usd') }}
+                          {{ trans('general.purchase_cost') }}
                         </strong>
                       </div>
                       <div class="col-md-9">
-                        USD
+                        {{ $snipeSettings->default_currency }}
                         {{ Helper::formatCurrencyOutput($license->purchase_cost) }}
                       </div>
                     </div>

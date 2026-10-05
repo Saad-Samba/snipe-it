@@ -41,7 +41,6 @@ class License extends Depreciable
     protected $casts = [
         'purchase_date' => 'date',
         'expiration_date' => 'date',
-        'last_physical_verification_date' => 'date',
         'termination_date' => 'date',
         'perpetual' => 'boolean',
         'serial_number' => 'string',
@@ -65,8 +64,7 @@ class License extends Depreciable
         'purchase_cost'     =>  'numeric|nullable|gte:0|max:99999999999999999.99',
         'purchase_date'   => 'date_format:Y-m-d|nullable|max:10|required_with:depreciation_id',
         'perpetual'   => 'boolean',
-        'expiration_date'   => 'required|date_format:Y-m-d|max:10',
-        'last_physical_verification_date' => 'required|date_format:Y-m-d|max:10',
+        'expiration_date'   => 'required_unless:perpetual,true|date_format:Y-m-d|nullable|max:10',
         'termination_date'   => 'date_format:Y-m-d|nullable|max:10',
         'serial_number'   => 'string|nullable|max:191',
         'software_version' => 'string|nullable|max:255',
@@ -82,7 +80,6 @@ class License extends Depreciable
         'company_id',
         'depreciation_id',
         'expiration_date',
-        'last_physical_verification_date',
         'license_email',
         'license_name', //actually licensed_to
         'maintained',
@@ -126,7 +123,6 @@ class License extends Depreciable
         'purchase_cost',
         'purchase_date',
         'expiration_date',
-        'last_physical_verification_date',
     ];
 
     /**
@@ -160,6 +156,13 @@ class License extends Depreciable
                 $newSeatCount = $license->getAttributes()['seats'];
 
                 return static::adjustSeatCount($license, 0, $newSeatCount);
+            }
+        );
+        static::saving(
+            function ($license) {
+                if ($license->perpetual) {
+                    $license->expiration_date = null;
+                }
             }
         );
         // However, we listen for updating to be able to prevent the edit if we cannot delete enough seats.
@@ -347,21 +350,6 @@ class License extends Depreciable
             $value = (new Carbon($value))->toDateString();
         }
         $this->attributes['expiration_date'] = $value;
-    }
-
-    /**
-     * Sets last physical verification date attribute
-     *
-     * @return mixed
-     */
-    public function setLastPhysicalVerificationDateAttribute($value)
-    {
-        if ($value == '' || $value == '0000-00-00') {
-            $value = null;
-        } else {
-            $value = (new Carbon($value))->toDateString();
-        }
-        $this->attributes['last_physical_verification_date'] = $value;
     }
 
     /**

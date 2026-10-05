@@ -3,11 +3,9 @@
 namespace App\Importer;
 
 use App\Models\Asset;
-use App\Models\AssetModel;
 use App\Models\Statuslabel;
 use App\Models\User;
 use App\Events\CheckoutableCheckedIn;
-use App\Support\PlatformDongles;
 use Illuminate\Support\Facades\Crypt;
 
 class AssetImporter extends ItemImporter
@@ -128,16 +126,6 @@ class AssetImporter extends ItemImporter
         $this->item['asset_eol_date'] = trim($this->findCsvMatch($row, 'asset_eol_date'));
         $this->item['asset_tag'] = $asset_tag;
 
-        $asset->model()->associate(AssetModel::find($this->item['model_id']));
-        $licenseId = $this->findCsvMatch($row, 'license_id');
-        $dongleLicense = PlatformDongles::licenseForLinking($licenseId ?: PlatformDongles::existingLicenseId($asset));
-        if ($licenseError = PlatformDongles::canLinkLicense($asset, $dongleLicense)) {
-            $this->log($licenseError);
-            $this->addErrorToBag($asset, 'license_id', $licenseError);
-
-            return $licenseError;
-        }
-
         // We need to save the user if it exists so that we can checkout to user later.
         // Sanitizing the item will remove it.
         if (array_key_exists('checkout_target', $this->item)) {
@@ -151,13 +139,6 @@ class AssetImporter extends ItemImporter
         // checkout method if necessary below.
         if (isset($this->item['location_id'])) {
             $item['rtd_location_id'] = $this->item['location_id'];
-        }
-
-        PlatformDongles::normalizeAsset($asset);
-        if (PlatformDongles::isPlatformDongleModel($asset->model)) {
-            $item['name'] = null;
-            $item['location_id'] = null;
-            $item['rtd_location_id'] = null;
         }
 
 
@@ -224,10 +205,6 @@ class AssetImporter extends ItemImporter
         $asset->setImported(true);
 
         if ($asset->save()) {
-
-            if ($dongleLicense) {
-                PlatformDongles::linkLicense($asset->fresh(), $dongleLicense, User::findOrFail($this->created_by));
-            }
 
             $this->log('Asset '.$this->item['name'].' with serial number '.$this->item['serial'].' was created');
 

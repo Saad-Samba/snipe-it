@@ -31,8 +31,7 @@ class AssetIndexTest extends TestCase
                 'total',
                 'rows',
             ])
-            ->assertJson(fn(AssertableJson $json) => $json->has('rows', 3)->etc())
-            ->assertJsonPath('rows.0.purchase_cost_currency', 'USD');
+            ->assertJson(fn(AssertableJson $json) => $json->has('rows', 3)->etc());
     }
 
     public function testAssetApiIndexCanFilterReusableAssetsWithinCategory()

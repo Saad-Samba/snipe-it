@@ -28,9 +28,7 @@ class EditAssetTest extends TestCase
         $asset = Asset::factory()->create();
         $user = User::factory()->editAssets()->create();
         $response = $this->actingAs($user)->get(route('hardware.edit', $asset));
-        $response->assertStatus(200)
-            ->assertSee(trans('general.purchase_cost_usd'))
-            ->assertSee('USD');
+        $response->assertStatus(200);
     }
 
     public function testAssetEditPostIsRedirectedIfRedirectSelectionIsIndex()
