@@ -53,7 +53,6 @@ abstract class Importer
         'location' => 'location',
         'notes' => 'notes',
         'license_email' => 'licensed to email',
-        'license_id' => 'license id',
         'license_name' => 'licensed to name',
         'maintained' => 'maintained',
         'manufacturer' => 'manufacturer',
