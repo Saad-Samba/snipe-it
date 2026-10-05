@@ -850,12 +850,18 @@
                                             <div class="row">
                                                 <div class="col-md-3">
                                                     <strong>
-                                                        {{ trans('general.purchase_cost_usd') }}
+                                                        {{ trans('admin/hardware/form.cost') }}
                                                     </strong>
                                                 </div>
                                                 <div class="col-md-9">
                                                     <x-copy-to-clipboard copy_what="purchase_cost">
-                                                        USD
+                                                        @if (($asset->id) && ($asset->location))
+                                                            {{ $asset->location->currency }}
+                                                        @elseif (($asset->id) && ($asset->location))
+                                                            {{ $asset->location->currency }}
+                                                        @else
+                                                            {{ $snipeSettings->default_currency }}
+                                                        @endif
                                                         {{ Helper::formatCurrencyOutput($asset->purchase_cost)}}
                                                     </x-copy-to-clipboard>
 

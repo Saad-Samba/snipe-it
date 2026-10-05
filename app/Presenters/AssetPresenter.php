@@ -184,7 +184,7 @@ class AssetPresenter extends Presenter
                 'field' => 'purchase_cost',
                 'searchable' => true,
                 'sortable' => true,
-                'title' => trans('general.purchase_cost_usd'),
+                'title' => trans('general.purchase_cost'),
                 'footerFormatter' => 'sumFormatter',
                 'class' => 'text-right',
             ],[

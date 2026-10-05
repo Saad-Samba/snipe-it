@@ -77,13 +77,6 @@ class LicensePresenter extends Presenter
                 'title' => trans('admin/licenses/form.expiration'),
                 'formatter' => 'dateDisplayFormatter',
             ], [
-                'field' => 'last_physical_verification_date',
-                'searchable' => true,
-                'sortable' => true,
-                'visible' => false,
-                'title' => trans('admin/licenses/form.last_physical_verification_date'),
-                'formatter' => 'dateDisplayFormatter',
-            ], [
                 'field' => 'termination_date',
                 'searchable' => true,
                 'sortable' => true,
@@ -172,7 +165,7 @@ class LicensePresenter extends Presenter
                 'searchable' => true,
                 'sortable' => true,
                 'visible' => false,
-                'title' => trans('general.purchase_cost_usd'),
+                'title' => trans('general.purchase_cost'),
                 'footerFormatter' => 'sumFormatterQuantity',
                 'class' => 'text-right',
             ], [
