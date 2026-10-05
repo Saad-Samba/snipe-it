@@ -49,17 +49,20 @@ class ProjectsController extends Controller
     {
         $activeTab = request()->query('tab', 'assets');
         $isRequestsTab = $activeTab === 'requests';
-        $isRequesterProjectReview = ! auth()->user()->isSuperUser()
+        $canViewProjectOverview = auth()->user()->can('view', $project);
+        $isRequesterProjectReview = ! $canViewProjectOverview
             && auth()->user()->hasAccess('models.request')
             && $isRequestsTab;
         $requestSummary = null;
 
-        if ($isRequesterProjectReview) {
-            $requestSummary = $this->authorizeProjectRequestsAccess($project);
-        } elseif (! auth()->user()->isSuperUser() && auth()->user()->hasAccess('models.request')) {
-            abort(403);
-        } else {
+        if ($canViewProjectOverview) {
             $this->authorize('view', $project);
+            $activeTab = auth()->user()->isSuperUser() ? $activeTab : 'requests';
+            $requestSummary = CheckoutRequest::projectSummary($project->id);
+        } elseif ($isRequesterProjectReview) {
+            $requestSummary = $this->authorizeProjectRequestsAccess($project);
+        } else {
+            abort(403);
         }
 
         $project->loadCount(['assets', 'licenses']);
@@ -72,6 +75,7 @@ class ProjectsController extends Controller
             'project' => $project,
             'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests'], true) ? $activeTab : 'assets',
             'requestSummary' => $requestSummary,
+            'canViewProjectRequestOverview' => $canViewProjectOverview,
             'showFullProjectTabs' => auth()->user()->isSuperUser(),
         ]);
     }

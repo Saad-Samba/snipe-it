@@ -441,6 +441,16 @@ class CheckoutRequest extends Model
         return self::summarizeRequests($requests);
     }
 
+    public static function projectSummary(int $projectId): array
+    {
+        return self::summarizeRequests(
+            self::query()
+                ->where('project_id', $projectId)
+                ->whereNull('canceled_at')
+                ->get()
+        );
+    }
+
     public static function summarizeRequests(Collection $requests): array
     {
         $reservedStatusId = Setting::rfqReservedStatusId();
