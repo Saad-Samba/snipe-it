@@ -18,6 +18,15 @@ return array(
     'user_has_no_email'         => 'This user does not have an email address in their profile.',
     'log_record_not_found'        => 'A matching log record for this user could not be found.',
 
+    'impersonate' => array(
+        'started' => 'You are now logged in as :name.',
+        'stopped' => 'You are back to your own account.',
+        'cannot_impersonate_self' => 'You cannot log in as yourself.',
+        'cannot_impersonate_superuser' => 'You cannot log in as another superuser.',
+        'target_not_active' => 'That user is deactivated or deleted and cannot be logged in as.',
+        'impersonator_missing' => 'The original account for this impersonation session no longer exists. Please log in again.',
+    ),
+
 
     'success' => array(
         'create'    => 'User was successfully created.',
