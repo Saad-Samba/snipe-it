@@ -71,7 +71,7 @@ class LicenseSoftwareVersionTest extends TestCase
 
         $this->assertDatabaseHas('licenses', [
             'name' => 'API Maintenance Date',
-            'maintenance_expires_at' => '2027-12-31',
+            'maintenance_expires_at' => '2027-12-31 00:00:00',
         ]);
     }
 }
