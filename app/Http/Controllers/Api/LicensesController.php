@@ -10,7 +10,9 @@ use App\Models\License;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
 
 class LicensesController extends Controller
 {
@@ -113,6 +115,10 @@ class LicensesController extends Controller
             $licenses->whereNull('expiration_date');
         }
 
+        if ($request->filled('maintenance_expires')) {
+            $licenses->whereNotNull('maintenance_expires_at');
+        }
+
         if ($request->filled('search')) {
             $licenses = $licenses->TextSearch($request->input('search'));
         }
@@ -158,6 +164,7 @@ class LicensesController extends Controller
                         'name',
                         'purchase_cost',
                         'expiration_date',
+                        'maintenance_expires_at',
                         'purchase_order',
                         'order_number',
                         'notes',
@@ -198,6 +205,9 @@ class LicensesController extends Controller
     public function store(Request $request) : JsonResponse
     {
         $this->authorize('create', License::class);
+        if ($errors = $this->maintenanceExpiryErrors($request)) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, $errors));
+        }
         $license = new License;
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
@@ -239,6 +249,9 @@ class LicensesController extends Controller
         $this->authorize('update', License::class);
 
         $license = License::findOrFail($id);
+        if ($errors = $this->maintenanceExpiryErrors($request, $license)) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, $errors));
+        }
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
@@ -248,6 +261,22 @@ class LicensesController extends Controller
         }
 
         return Helper::formatStandardApiResponse('error', null, $license->getErrors());
+    }
+
+    private function maintenanceExpiryErrors(Request $request, ?License $license = null): array
+    {
+        $perpetual = $request->has('perpetual') ? $request->boolean('perpetual') : (bool) $license?->perpetual;
+        $maintained = $request->has('maintained') ? $request->boolean('maintained') : (bool) $license?->maintained;
+        $validator = Validator::make($request->all(), [
+            'maintenance_expires_at' => [
+                'nullable',
+                'date_format:Y-m-d',
+                'max:10',
+                Rule::requiredIf($perpetual && $maintained),
+            ],
+        ]);
+
+        return $validator->fails() ? $validator->errors()->toArray() : [];
     }
 
     /**

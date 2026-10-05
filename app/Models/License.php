@@ -41,6 +41,7 @@ class License extends Depreciable
     protected $casts = [
         'purchase_date' => 'date',
         'expiration_date' => 'date',
+        'maintenance_expires_at' => 'date',
         'termination_date' => 'date',
         'perpetual' => 'boolean',
         'serial_number' => 'string',
@@ -83,6 +84,7 @@ class License extends Depreciable
         'license_email',
         'license_name', //actually licensed_to
         'maintained',
+        'maintenance_expires_at',
         'perpetual',
         'manufacturer_id',
         'category_id',
@@ -123,6 +125,7 @@ class License extends Depreciable
         'purchase_cost',
         'purchase_date',
         'expiration_date',
+        'maintenance_expires_at',
     ];
 
     /**
@@ -162,6 +165,10 @@ class License extends Depreciable
             function ($license) {
                 if ($license->perpetual) {
                     $license->expiration_date = null;
+                }
+
+                if (! $license->perpetual || ! $license->maintained) {
+                    $license->maintenance_expires_at = null;
                 }
             }
         );
