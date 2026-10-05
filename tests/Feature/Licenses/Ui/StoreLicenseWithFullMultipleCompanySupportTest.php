@@ -20,11 +20,10 @@ class StoreLicenseWithFullMultipleCompanySupportTest extends TestCase
 
         $this->settings->enableMultipleFullCompanySupport();
 
-        $response = $this->actingAs($actor)
         $category = Category::factory()->forLicenses()->create();
         $softwareModel = SoftwareModel::factory()->create(['name' => 'My Cool License', 'category_id' => $category->id]);
 
-        $response
+        $response = $this->actingAs($actor)
             ->post(route('licenses.store'), [
                 'software_model_id' => $softwareModel->id,
                 'seats' => '1',
