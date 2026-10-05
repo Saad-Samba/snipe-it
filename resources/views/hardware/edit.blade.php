@@ -161,14 +161,7 @@
                     @include ('partials.forms.edit.datepicker', ['translated_name' => trans('admin/hardware/form.eol_date'),'fieldname' => 'asset_eol_date'])
                     @include ('partials.forms.edit.supplier-select', ['translated_name' => trans('general.supplier'), 'fieldname' => 'supplier_id'])
 
-                    @php
-                        $currency_type = null;
-                        if ($item->id && $item->location) {
-                            $currency_type = $item->location->currency;
-                        }
-                    @endphp
-
-                    @include ('partials.forms.edit.purchase_cost', ['currency_type' => $currency_type])
+                    @include ('partials.forms.edit.purchase_cost', ['currency_type' => 'USD', 'unit_cost' => trans('general.purchase_cost_usd')])
 
                 </div> <!-- end order details -->
             </fieldset>

@@ -125,6 +125,7 @@ class AssetsTransformer
             'last_checkin' => Helper::getFormattedDateObject($asset->last_checkin, 'datetime'),
             'expected_checkin' => Helper::getFormattedDateObject($asset->expected_checkin, 'date'),
             'purchase_cost' => Helper::formatCurrencyOutput($asset->purchase_cost),
+            'purchase_cost_currency' => 'USD',
             'checkin_counter' => (int) $asset->checkin_counter,
             'checkout_counter' => (int) $asset->checkout_counter,
             'requests_counter' => (int) $asset->requests_counter,

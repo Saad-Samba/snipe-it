@@ -44,7 +44,7 @@
     <div class="form-group {{ $errors->has('serial') ? ' has-error' : '' }}">
         <label for="serial" class="col-md-3 control-label">{{ trans('admin/licenses/form.license_key') }}</label>
         <div class="col-md-7">
-            <textarea class="form-control" type="text" name="serial" id="serial" rows="5"{{  (Helper::checkIfRequired($item, 'serial')) ? ' required' : '' }}>{{ old('serial', $item->serial) }}</textarea>
+            <textarea class="form-control" type="text" name="serial" id="serial" rows="5" required>{{ old('serial', $item->serial) }}</textarea>
             {!! $errors->first('serial', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
         </div>
     </div>
@@ -58,7 +58,7 @@
     </div>
 </div>
 
-@include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id'])
+@include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id', 'field_req' => true])
 @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id'])
 @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id'])
 @include ('partials.forms.edit.manufacturer-select', ['translated_name' => trans('general.manufacturer'), 'fieldname' => 'manufacturer_id',])
@@ -97,7 +97,7 @@
 
 @include ('partials.forms.edit.supplier-select', ['translated_name' => trans('general.supplier'), 'fieldname' => 'supplier_id'])
 @include ('partials.forms.edit.order_number')
-@include ('partials.forms.edit.purchase_cost')
+@include ('partials.forms.edit.purchase_cost', ['currency_type' => 'USD', 'unit_cost' => trans('general.purchase_cost_usd')])
 @include ('partials.forms.edit.datepicker', ['translated_name' => trans('general.purchase_date'),'fieldname' => 'purchase_date'])
 
 <!-- Perpetual -->
@@ -131,7 +131,7 @@
     <div class="col-md-9">
         <div class="col-md-4" id="expiration_date_wrapper" style="padding-left:0px;">
             <div class="input-group date" id="expiration_date_picker" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
-                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expiration_date" id="expiration_date" value="{{ old('expiration_date', ($item->expiration_date) ? $item->expiration_date->format('Y-m-d') : '') }}" maxlength="10" @required(! old('perpetual', $item->perpetual))>
+                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expiration_date" id="expiration_date" value="{{ old('expiration_date', ($item->expiration_date) ? $item->expiration_date->format('Y-m-d') : '') }}" maxlength="10" required>
                 <span class="input-group-addon"><x-icon type="calendar" /></span>
             </div>
         </div>
@@ -143,6 +143,30 @@
         </div>
         <div class="col-md-12">
             {!! $errors->first('expiration_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
+    </div>
+
+</div>
+
+<!-- Last Physical Verification Date -->
+<div class="form-group {{ $errors->has('last_physical_verification_date') ? ' has-error' : '' }}">
+    <label for="last_physical_verification_date" class="col-md-3 control-label">{{ trans('admin/licenses/form.last_physical_verification_date') }}</label>
+
+    <div class="col-md-9">
+        <div class="col-md-4" style="padding-left:0px;">
+            <div class="input-group date" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
+                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="last_physical_verification_date" id="last_physical_verification_date" value="{{ old('last_physical_verification_date', ($item->last_physical_verification_date) ? $item->last_physical_verification_date->format('Y-m-d') : '') }}" maxlength="10" required>
+                <span class="input-group-addon"><x-icon type="calendar" /></span>
+            </div>
+        </div>
+        <div class="col-md-7" style="margin-left: -15px; padding-top: 8px;">
+            <a href="#" data-tooltip="true" title="{{ trans('admin/licenses/form.last_physical_verification_date_help') }}">
+                <x-icon type="info-circle" />
+                <span class="sr-only">{{ trans('admin/licenses/form.last_physical_verification_date_help') }}</span>
+            </a>
+        </div>
+        <div class="col-md-12">
+            {!! $errors->first('last_physical_verification_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
         </div>
     </div>
 
@@ -194,35 +218,4 @@
 
 @include ('partials.forms.edit.notes')
 
-@stop
-
-
-@section('moar_scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var perpetualCheckbox = document.getElementById('perpetual');
-        var expirationInput = document.getElementById('expiration_date');
-        var expirationPicker = document.getElementById('expiration_date_picker');
-        var expirationWrapper = document.getElementById('expiration_date_wrapper');
-
-        if (!perpetualCheckbox || !expirationInput || !expirationPicker || !expirationWrapper) {
-            return;
-        }
-
-        function syncPerpetualState() {
-            var isPerpetual = perpetualCheckbox.checked;
-            expirationInput.disabled = isPerpetual;
-            expirationInput.required = !isPerpetual;
-            expirationPicker.classList.toggle('text-muted', isPerpetual);
-            expirationPicker.style.opacity = isPerpetual ? '0.65' : '1';
-
-            if (isPerpetual) {
-                expirationInput.value = '';
-            }
-        }
-
-        perpetualCheckbox.addEventListener('change', syncPerpetualState);
-        syncPerpetualState();
-    });
-</script>
 @stop
