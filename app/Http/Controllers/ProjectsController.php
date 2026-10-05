@@ -50,6 +50,9 @@ class ProjectsController extends Controller
         $activeTab = request()->query('tab', 'assets');
         $isRequestsTab = $activeTab === 'requests';
         $canViewProjectOverview = auth()->user()->can('view', $project);
+        $hasProjectOverviewDrillDown = request()->filled('requester_id')
+            || request()->filled('discipline_id')
+            || request()->boolean('unassigned_discipline');
         $isRequesterProjectReview = ! $canViewProjectOverview
             && auth()->user()->hasAccess('models.request')
             && $isRequestsTab;
@@ -76,6 +79,7 @@ class ProjectsController extends Controller
             'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests'], true) ? $activeTab : 'assets',
             'requestSummary' => $requestSummary,
             'canViewProjectRequestOverview' => $canViewProjectOverview,
+            'showGroupedProjectRequestOverview' => $canViewProjectOverview && ! $hasProjectOverviewDrillDown,
             'showFullProjectTabs' => auth()->user()->isSuperUser(),
         ]);
     }

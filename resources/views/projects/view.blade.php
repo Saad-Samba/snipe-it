@@ -115,18 +115,39 @@
                             @endif
 
                             <div class="table-responsive">
-                                @include('account.partials.submitted-requests-table', [
-                                    'tableId' => 'projectRequestsTable',
-                                    'requestMode' => ($canViewProjectRequestOverview ?? false) ? 'project-overview' : 'requester',
-                                    'dataUrl' => route('api.requests.index', array_filter([
-                                        'project_id' => $project->id,
-                                        'project_overview' => ($canViewProjectRequestOverview ?? false) ? 1 : null,
-                                    ])),
-                                    'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
-                                    'showRequester' => $canViewProjectRequestOverview ?? false,
-                                    'showProject' => false,
-                                    'showActions' => ! ($canViewProjectRequestOverview ?? false),
-                                ])
+                                @if ($showGroupedProjectRequestOverview ?? false)
+                                    @include('projects.partials.request-overview-groups-table', [
+                                        'tableId' => 'projectRequestOverviewTable',
+                                        'dataUrl' => route('api.requests.index', [
+                                            'project_id' => $project->id,
+                                            'project_overview' => 1,
+                                            'overview' => 'grouped',
+                                        ]),
+                                        'exportFileName' => 'project-'.str_slug($project->name).'-request-overview-'.date('Y-m-d'),
+                                    ])
+                                @else
+                                    @if (($canViewProjectRequestOverview ?? false) && request()->filled('requester_id'))
+                                        <div class="alert alert-info">
+                                            Showing the request lines for the selected requester and discipline. <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">Back to Request Overview</a>
+                                        </div>
+                                    @endif
+                                    @include('account.partials.submitted-requests-table', [
+                                        'tableId' => 'projectRequestsTable',
+                                        'requestMode' => ($canViewProjectRequestOverview ?? false) ? 'project-overview' : 'requester',
+                                        'dataUrl' => route('api.requests.index', array_filter([
+                                            'project_id' => $project->id,
+                                            'project_overview' => ($canViewProjectRequestOverview ?? false) ? 1 : null,
+                                            'requester_id' => request('requester_id'),
+                                            'discipline_id' => request('discipline_id'),
+                                            'unassigned_discipline' => request()->boolean('unassigned_discipline') ? 1 : null,
+                                        ])),
+                                        'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
+                                        'showRequester' => $canViewProjectRequestOverview ?? false,
+                                        'showProject' => false,
+                                        'showActions' => ! ($canViewProjectRequestOverview ?? false),
+                                        'sidePagination' => ($canViewProjectRequestOverview ?? false) ? 'client' : 'server',
+                                    ])
+                                @endif
                             </div>
                         </div>
                     @endif
@@ -138,4 +159,17 @@
 
 @section('moar_scripts')
     @include ('partials.bootstrap-table')
+    <script nonce="{{ csrf_token() }}">
+        function projectRequestGroupStatusFormatter(value) {
+            return requestStatusFormatter(value);
+        }
+
+        function projectRequestGroupDrillDownFormatter(value, row) {
+            if (!row || !row.drill_down_url) {
+                return '';
+            }
+
+            return '<a href="' + row.drill_down_url + '" class="btn btn-sm btn-primary">View request lines</a>';
+        }
+    </script>
 @stop

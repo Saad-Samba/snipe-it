@@ -131,6 +131,16 @@ class ModelRequestsController extends Controller
             $checkoutRequests->where('project_id', (int) $request->input('project_id'));
         }
 
+        if ($isProjectOverview && $request->filled('requester_id')) {
+            $checkoutRequests->where('user_id', (int) $request->input('requester_id'));
+        }
+
+        if ($isProjectOverview && $request->boolean('unassigned_discipline')) {
+            $checkoutRequests->whereNull('requested_discipline_id');
+        } elseif ($isProjectOverview && $request->filled('discipline_id')) {
+            $checkoutRequests->where('requested_discipline_id', (int) $request->input('discipline_id'));
+        }
+
         if ($request->filled('project')) {
             $projectSearch = trim((string) $request->input('project'));
             $checkoutRequests->whereHas('project', function ($query) use ($projectSearch) {
@@ -147,6 +157,15 @@ class ModelRequestsController extends Controller
         }
 
         $checkoutRequests = $checkoutRequests->get();
+
+        if ($isProjectOverview
+            && $request->input('overview') === 'grouped'
+            && ! $request->filled('requester_id')
+            && ! $request->filled('discipline_id')
+            && ! $request->boolean('unassigned_discipline')) {
+            return $this->projectOverviewGroupResults($checkoutRequests);
+        }
+
         $submissionEditable = $isProjectOverview
             ? collect()
             : $checkoutRequests
@@ -278,6 +297,67 @@ class ModelRequestsController extends Controller
         }
 
         return $results;
+    }
+
+    private function projectOverviewGroupResults(Collection $checkoutRequests): array
+    {
+        $rows = $checkoutRequests
+            ->groupBy(function (CheckoutRequest $checkoutRequest) {
+                return implode(':', [
+                    $checkoutRequest->user_id,
+                    $checkoutRequest->requested_discipline_id ?: 'unassigned',
+                ]);
+            })
+            ->map(function (Collection $requests) {
+                /** @var CheckoutRequest $firstRequest */
+                $firstRequest = $requests->sortBy('id')->first();
+                $summary = CheckoutRequest::summarizeRequests($requests);
+                $neededByDates = $requests
+                    ->map(fn (CheckoutRequest $checkoutRequest) => optional($checkoutRequest->needed_by_date)->format('Y-m-d'))
+                    ->filter()
+                    ->unique()
+                    ->values();
+                $statusValues = $requests
+                    ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requesterAllocationStatus())
+                    ->unique()
+                    ->values();
+
+                return [
+                    'requested_by' => e(optional($firstRequest->requestingUser())->display_name ?: 'Unknown requester'),
+                    'requested_discipline' => e(optional($firstRequest->requestedDiscipline)->name ?: 'Not specified'),
+                    'models_count' => $requests
+                        ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requestable_type.':'.$checkoutRequest->requestable_id)
+                        ->unique()
+                        ->count(),
+                    'requests_count' => $requests->count(),
+                    'total_needed' => $summary['total_needed'],
+                    'needed_by' => $neededByDates->count() === 1
+                        ? Helper::getFormattedDateObject($firstRequest->needed_by_date, 'date')
+                        : ($neededByDates->isEmpty() ? '-' : 'Multiple dates'),
+                    'reusable_now' => $summary['reusable_now'],
+                    'shortfall' => $summary['shortfall'],
+                    'status' => $statusValues->count() === 1
+                        ? e(ucfirst(str_replace('_', ' ', $statusValues->first())))
+                        : 'Mixed',
+                    'drill_down_url' => route('projects.show', [
+                        'project' => $firstRequest->project_id,
+                        'tab' => 'requests',
+                        'requester_id' => $firstRequest->user_id,
+                        'discipline_id' => $firstRequest->requested_discipline_id,
+                        'unassigned_discipline' => $firstRequest->requested_discipline_id ? null : 1,
+                    ]),
+                ];
+            })
+            ->sortBy([
+                ['requested_discipline', 'asc'],
+                ['requested_by', 'asc'],
+            ])
+            ->values();
+
+        return [
+            'total' => $rows->count(),
+            'rows' => $rows->all(),
+        ];
     }
 
     private function batchResults(Collection $checkoutRequests): array
