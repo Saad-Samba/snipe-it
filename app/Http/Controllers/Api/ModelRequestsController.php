@@ -97,11 +97,19 @@ class ModelRequestsController extends Controller
 
     public function index(Request $request): array
     {
-        if (! auth()->user()->hasAccess('models.request')) {
+        $isProjectOverview = $request->boolean('project_overview');
+        $project = null;
+
+        if ($isProjectOverview) {
+            $project = Project::findOrFail($request->integer('project_id'));
+            $this->authorize('view', $project);
+        } elseif (! auth()->user()->hasAccess('models.request')) {
             abort(403, 'You are not authorized to view submitted requests.');
         }
 
-        $checkoutRequests = CheckoutRequest::requesterScopedQuery(auth()->user())
+        $checkoutRequests = ($isProjectOverview
+            ? CheckoutRequest::query()->whereNull('canceled_at')
+            : CheckoutRequest::requesterScopedQuery(auth()->user()))
             ->with([
                 'requestedItem',
                 'project',
@@ -139,7 +147,9 @@ class ModelRequestsController extends Controller
         }
 
         $checkoutRequests = $checkoutRequests->get();
-        $submissionEditable = $checkoutRequests
+        $submissionEditable = $isProjectOverview
+            ? collect()
+            : $checkoutRequests
             ->groupBy(fn (CheckoutRequest $checkoutRequest) => $this->submissionKey($checkoutRequest))
             ->map(fn (Collection $submissionRequests) => $this->submissionIsEditable($submissionRequests));
 
@@ -181,7 +191,8 @@ class ModelRequestsController extends Controller
                 $checkoutRequest->requestable_type === AssetModel::class
                 && $requestedItem instanceof AssetModel
             ) ? $requestedItem : null;
-            $canEditSubmission = (bool) ($submissionEditable[$this->submissionKey($checkoutRequest)] ?? false);
+            $canEditSubmission = ! $isProjectOverview
+                && (bool) ($submissionEditable[$this->submissionKey($checkoutRequest)] ?? false);
 
             $assets = [
                 'request_id' => (int) $checkoutRequest->id,

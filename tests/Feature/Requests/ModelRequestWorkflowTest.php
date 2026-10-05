@@ -952,6 +952,61 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertDontSee('Potentially Coverable');
     }
 
+    public function test_project_viewer_can_review_all_requests_for_a_project_without_submission_actions()
+    {
+        $rfqLead = User::factory()->viewProjects()->create();
+        $requesterA = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Amina',
+            'last_name' => 'Electrical',
+        ]);
+        $requesterB = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Bilal',
+            'last_name' => 'Automation',
+        ]);
+        $project = Project::factory()->create(['name' => 'RFQ North Extension']);
+        $electrical = Discipline::create(['name' => 'Electrical', 'created_by' => $requesterA->id]);
+        $automation = Discipline::create(['name' => 'Automation', 'created_by' => $requesterA->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requesterA)->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requesterA->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $electrical->id,
+            'quantity' => 2,
+        ]);
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requesterB->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $automation->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($rfqLead)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertOk()
+            ->assertSee('Request Overview')
+            ->assertSee('Reuse Summary')
+            ->assertSee('project_overview=1', false)
+            ->assertSee('Requester');
+
+        $this->actingAsForApi($rfqLead)
+            ->getJson(route('api.requests.index', [
+                'project_id' => $project->id,
+                'project_overview' => 1,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonFragment(['requested_by' => 'Amina Electrical'])
+            ->assertJsonFragment(['requested_by' => 'Bilal Automation'])
+            ->assertJsonPath('rows.0.request_update_url', null);
+    }
+
     public function test_requester_cannot_open_project_assets_tab_from_project_requests_view()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();

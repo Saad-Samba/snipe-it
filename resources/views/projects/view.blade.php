@@ -45,14 +45,14 @@
                         </li>
                     @endif
 
-                    @if (auth()->user()->hasAccess('models.request'))
+                    @if (($canViewProjectRequestOverview ?? false) || auth()->user()->hasAccess('models.request'))
                         <li class="{{ ($activeTab ?? 'assets') === 'requests' ? 'active' : '' }}">
                             <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">
                                 <span class="hidden-lg hidden-md">
                                     <i class="fas fa-clipboard-list" aria-hidden="true"></i>
                                 </span>
                                 <span class="hidden-xs hidden-sm">
-                                    Requests
+                                    {{ ($canViewProjectRequestOverview ?? false) ? 'Request Overview' : 'Requests' }}
                                     <x-new-feature-label />
                                     {!! (!empty($requestSummary) && $requestSummary['requests_count'] > 0) ? '<span class="badge badge-secondary">'.number_format($requestSummary['requests_count']).'</span>' : '' !!}
                                 </span>
@@ -108,7 +108,7 @@
                         </div>
                     @endif
 
-                    @if (auth()->user()->hasAccess('models.request'))
+                    @if (($canViewProjectRequestOverview ?? false) || auth()->user()->hasAccess('models.request'))
                         <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
                             @if (!empty($requestSummary))
                                 @include('account.partials.request-project-summary', ['summary' => $requestSummary])
@@ -117,9 +117,16 @@
                             <div class="table-responsive">
                                 @include('account.partials.submitted-requests-table', [
                                     'tableId' => 'projectRequestsTable',
-                                    'requestMode' => 'requester',
-                                    'dataUrl' => route('api.requests.index', ['project_id' => $project->id]),
+                                    'requestMode' => ($canViewProjectRequestOverview ?? false) ? 'project-overview' : 'requester',
+                                    'dataUrl' => route('api.requests.index', array_filter([
+                                        'project_id' => $project->id,
+                                        'project_overview' => ($canViewProjectRequestOverview ?? false) ? 1 : null,
+                                    ])),
                                     'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
+                                    'showRequester' => $canViewProjectRequestOverview ?? false,
+                                    'showProject' => false,
+                                    'showActions' => ! ($canViewProjectRequestOverview ?? false),
+                                    'sidePagination' => ($canViewProjectRequestOverview ?? false) ? 'client' : 'server',
                                 ])
                             </div>
                         </div>
