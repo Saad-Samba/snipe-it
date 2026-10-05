@@ -58,6 +58,7 @@ class ImpersonateController extends Controller
         $impersonatorId = $actor->id;
         Auth::login($user);
         $request->session()->put('impersonator_id', $impersonatorId);
+        $request->session()->put('2fa_authed', $user->id);
 
         return redirect()->route('home')
             ->with('success', trans('admin/users/message.impersonate.started', ['name' => $user->display_name]));
@@ -95,6 +96,7 @@ class ImpersonateController extends Controller
         }
 
         Auth::login($impersonator);
+        $request->session()->put('2fa_authed', $impersonator->id);
 
         return redirect()->route('users.show', $impersonatedId ?: $impersonator->id)
             ->with('success', trans('admin/users/message.impersonate.stopped'));
