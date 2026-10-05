@@ -61,6 +61,7 @@ class ImpersonateUserTest extends TestCase
 
         $this->assertSame($target->id, auth()->id());
         $this->assertSame($actor->id, session('impersonator_id'));
+        $this->assertSame($target->id, session('2fa_authed'));
         $this->assertDatabaseHas('action_logs', [
             'item_type' => User::class,
             'item_id' => $target->id,
@@ -111,12 +112,31 @@ class ImpersonateUserTest extends TestCase
 
         $this->assertSame($actor->id, auth()->id());
         $this->assertNull(session('impersonator_id'));
+        $this->assertSame($actor->id, session('2fa_authed'));
         $this->assertDatabaseHas('action_logs', [
             'item_type' => User::class,
             'item_id' => $target->id,
             'created_by' => $actor->id,
             'action_type' => 'stopped impersonating',
         ]);
+    }
+
+    public function test_normal_logout_clears_the_impersonator_marker(): void
+    {
+        $actor = User::factory()->superuser()->create();
+        $target = User::factory()->create();
+        $this->allow($actor);
+
+        $this->actingAs($actor)
+            ->post(route('users.impersonate.start', $target), ['note' => 'Investigating access'])
+            ->assertRedirect(route('home'));
+
+        $this->post(route('logout.post'))
+            ->assertRedirect(route('login'))
+            ->assertSessionMissing('impersonator_id')
+            ->assertSessionMissing('2fa_authed');
+
+        $this->assertGuest();
     }
 
     public function test_user_detail_displays_the_confirmation_modal_only_for_eligible_impersonations(): void
