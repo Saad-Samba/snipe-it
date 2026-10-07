@@ -45,14 +45,14 @@
                         </li>
                     @endif
 
-                    @if (($canViewProjectRequestOverview ?? false) || auth()->user()->hasAccess('models.request'))
+                    @if ($canViewProjectRequestOverview ?? false)
                         <li class="{{ ($activeTab ?? 'assets') === 'requests' ? 'active' : '' }}">
                             <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">
                                 <span class="hidden-lg hidden-md">
                                     <i class="fas fa-clipboard-list" aria-hidden="true"></i>
                                 </span>
                                 <span class="hidden-xs hidden-sm">
-                                    {{ ($canViewProjectRequestOverview ?? false) ? 'Request Overview' : 'Requests' }}
+                                    Request Overview
                                     <x-new-feature-label />
                                     {!! (!empty($requestSummary) && $requestSummary['requests_count'] > 0) ? '<span class="badge badge-secondary">'.number_format($requestSummary['requests_count']).'</span>' : '' !!}
                                 </span>
@@ -108,7 +108,7 @@
                         </div>
                     @endif
 
-                    @if (($canViewProjectRequestOverview ?? false) || auth()->user()->hasAccess('models.request'))
+                    @if ($canViewProjectRequestOverview ?? false)
                         <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
                             <div class="table-responsive">
                                 @if ($showGroupedProjectRequestOverview ?? false)
@@ -125,20 +125,20 @@
                                 @else
                                     @include('account.partials.submitted-requests-table', [
                                         'tableId' => 'projectRequestsTable',
-                                        'requestMode' => ($canViewProjectRequestOverview ?? false) ? 'project-overview' : 'requester',
+                                        'requestMode' => 'project-overview',
                                         'dataUrl' => route('api.requests.index', array_filter([
                                             'project_id' => $project->id,
-                                            'project_overview' => ($canViewProjectRequestOverview ?? false) ? 1 : null,
+                                            'project_overview' => 1,
                                             'requester_id' => request('requester_id'),
                                             'discipline_id' => request('discipline_id'),
                                             'unassigned_discipline' => request()->boolean('unassigned_discipline') ? 1 : null,
                                         ])),
                                         'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
-                                        'showRequester' => $canViewProjectRequestOverview ?? false,
+                                        'showRequester' => true,
                                         'showProject' => false,
-                                        'showActions' => ! ($canViewProjectRequestOverview ?? false),
-                                        'sidePagination' => ($canViewProjectRequestOverview ?? false) ? 'client' : 'server',
-                                        'showFooter' => $canViewProjectRequestOverview ?? false,
+                                        'showActions' => false,
+                                        'sidePagination' => 'client',
+                                        'showFooter' => true,
                                         'footerLabelFormatter' => 'requestProjectTotalLabelFormatter',
                                     ])
                                 @endif

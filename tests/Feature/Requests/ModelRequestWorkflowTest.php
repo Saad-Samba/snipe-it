@@ -922,7 +922,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.project', 'Project One');
     }
 
-    public function test_project_requests_tab_shows_request_review_for_requester()
+    public function test_requester_cannot_open_project_request_overview()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Requests Tab Project']);
@@ -941,15 +941,7 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->actingAs($requester)
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
-            ->assertOk()
-            ->assertSee('Requests')
-            ->assertDontSee('Reuse Summary')
-            ->assertSee('Reuse planning fields')
-            ->assertSee('Recently released feature')
-            ->assertSee('projectRequestsTable', false)
-            ->assertSee('Quantity')
-            ->assertSee('Reference Price')
-            ->assertDontSee('Potentially Coverable');
+            ->assertForbidden();
     }
 
     public function test_project_viewer_can_review_all_requests_for_a_project_without_submission_actions()
