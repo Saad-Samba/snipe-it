@@ -10,6 +10,7 @@ use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
+use App\Models\License;
 use App\Models\Location;
 use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
@@ -1105,6 +1106,40 @@ class ModelRequestWorkflowTest extends TestCase
                 'requested_discipline' => 'Automation',
                 'total_needed' => 3,
             ]);
+    }
+
+    public function test_project_viewer_can_view_project_assets_and_licenses_without_global_permissions()
+    {
+        $projectViewer = User::factory()->create([
+            'permissions' => json_encode(['projects.view' => '1']),
+        ]);
+        $project = Project::factory()->create();
+        $asset = Asset::factory()->create([
+            'project_id' => $project->id,
+            'company_id' => Company::factory()->create()->id,
+        ]);
+        $license = License::factory()->create([
+            'project_id' => $project->id,
+            'company_id' => Company::factory()->create()->id,
+        ]);
+
+        $this->actingAs($projectViewer)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'assets']))
+            ->assertOk()
+            ->assertSee('projectAssetsTable', false)
+            ->assertSee('projectLicensesTable', false);
+
+        $this->actingAsForApi($projectViewer)
+            ->getJson(route('api.assets.index', ['project_id' => $project->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $asset->id);
+
+        $this->actingAsForApi($projectViewer)
+            ->getJson(route('api.licenses.index', ['project_id' => $project->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $license->id);
     }
 
     public function test_requester_cannot_open_project_assets_tab_from_project_requests_view()

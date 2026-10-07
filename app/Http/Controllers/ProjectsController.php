@@ -67,7 +67,7 @@ class ProjectsController extends Controller
             'requestSummary' => $requestSummary,
             'canViewProjectRequestOverview' => $canViewProjectOverview,
             'showGroupedProjectRequestOverview' => $canViewProjectOverview && ! $hasProjectOverviewDrillDown,
-            'showFullProjectTabs' => auth()->user()->isSuperUser(),
+            'showFullProjectTabs' => $canViewProjectOverview,
         ]);
     }
 

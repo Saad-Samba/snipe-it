@@ -24,9 +24,11 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\Company;
+use App\Models\CompanyableScope;
 use App\Models\CustomField;
 use App\Models\License;
 use App\Models\Location;
+use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use Carbon\Carbon;
@@ -91,7 +93,15 @@ class AssetsController extends Controller
             $this->authorize('reports.view');
         } else {
             $transformer = 'App\Http\Transformers\AssetsTransformer';
-            $this->authorize('index', Asset::class);
+            $project = $request->filled('project_id')
+                ? Project::findOrFail($request->integer('project_id'))
+                : null;
+
+            if ($project) {
+                $this->authorize('view', $project);
+            } else {
+                $this->authorize('index', Asset::class);
+            }
         }
 
 
@@ -181,6 +191,10 @@ class AssetsController extends Controller
                 'model.depreciation',
                 'supplier'
             ); // it might be tempting to add 'assetlog' here, but don't. It blows up update-heavy users.
+
+        if (isset($project)) {
+            $assets->withoutGlobalScope(CompanyableScope::class);
+        }
 
 
         if ($filter_non_deprecable_assets) {
