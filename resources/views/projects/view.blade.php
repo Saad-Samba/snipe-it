@@ -110,10 +110,6 @@
 
                     @if (($canViewProjectRequestOverview ?? false) || auth()->user()->hasAccess('models.request'))
                         <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
-                            @if (!empty($requestSummary))
-                                @include('account.partials.request-project-summary', ['summary' => $requestSummary])
-                            @endif
-
                             <div class="table-responsive">
                                 @if ($showGroupedProjectRequestOverview ?? false)
                                     @include('projects.partials.request-overview-groups-table', [
@@ -124,6 +120,7 @@
                                             'overview' => 'grouped',
                                         ]),
                                         'exportFileName' => 'project-'.str_slug($project->name).'-request-overview-'.date('Y-m-d'),
+                                        'showFooter' => true,
                                     ])
                                 @else
                                     @if (($canViewProjectRequestOverview ?? false) && request()->filled('requester_id'))
@@ -146,6 +143,8 @@
                                         'showProject' => false,
                                         'showActions' => ! ($canViewProjectRequestOverview ?? false),
                                         'sidePagination' => ($canViewProjectRequestOverview ?? false) ? 'client' : 'server',
+                                        'showFooter' => $canViewProjectRequestOverview ?? false,
+                                        'footerLabelFormatter' => 'requestProjectTotalLabelFormatter',
                                     ])
                                 @endif
                             </div>
@@ -160,6 +159,10 @@
 @section('moar_scripts')
     @include ('partials.bootstrap-table')
     <script nonce="{{ csrf_token() }}">
+        function requestProjectTotalLabelFormatter() {
+            return 'Project Total';
+        }
+
         function projectRequestGroupStatusFormatter(value) {
             return requestStatusFormatter(value);
         }

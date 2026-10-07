@@ -991,9 +991,11 @@ class ModelRequestWorkflowTest extends TestCase
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertOk()
             ->assertSee('Request Overview')
-            ->assertSee('Reuse Summary')
+            ->assertDontSee('Reuse Summary')
             ->assertSee('project_overview=1', false)
-            ->assertSee('Requester');
+            ->assertSee('Requester')
+            ->assertSee('data-show-footer="true"', false)
+            ->assertSee('data-footer-formatter="requestProjectTotalLabelFormatter"', false);
 
         $this->actingAsForApi($rfqLead)
             ->getJson(route('api.requests.index', [
@@ -1045,6 +1047,10 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Grouped request status')
             ->assertSee('projectRequestOverviewTable', false)
+            ->assertDontSee('Reuse Summary')
+            ->assertSee('data-show-footer="true"', false)
+            ->assertSee('data-footer-formatter="requestProjectTotalLabelFormatter"', false)
+            ->assertSee('data-footer-formatter="qtySumFormatter"', false)
             ->assertSee("Each row combines one requester's needs for one discipline.", false);
 
         $this->actingAs($rfqLead)

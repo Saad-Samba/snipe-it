@@ -21,7 +21,7 @@
         }'>
     <thead>
     <tr>
-        <th data-field="request_id" data-sortable="true" data-visible="true" data-switchable="false" data-formatter="requestDetailLinkFormatter"@if (!empty($showFooter)) data-footer-formatter="requestPageTotalLabelFormatter"@endif>ID</th>
+        <th data-field="request_id" data-sortable="true" data-visible="true" data-switchable="false" data-formatter="requestDetailLinkFormatter"@if (!empty($showFooter)) data-footer-formatter="{{ $footerLabelFormatter ?? 'requestPageTotalLabelFormatter' }}"@endif>ID</th>
         <th data-field="requested_discipline" data-sortable="true">Discipline</th>
         <th data-field="company" data-sortable="true">{{ trans('general.company') }}</th>
         <th data-field="image" data-sortable="true" data-formatter="imageFormatter">{{ trans('general.image') }}</th>
