@@ -8,7 +8,7 @@
 <table
         data-cookie-id-table="{{ $tableId }}"
         data-id-table="{{ $tableId }}"
-        data-side-pagination="server"
+        data-side-pagination="{{ $sidePagination ?? 'server' }}"
         data-show-footer="{{ !empty($showFooter) ? 'true' : 'false' }}"
         data-sort-order="desc"
         data-request-mode="{{ $requestMode ?? 'requester' }}"

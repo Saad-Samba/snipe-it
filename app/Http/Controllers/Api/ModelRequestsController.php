@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
@@ -179,7 +180,8 @@ class ModelRequestsController extends Controller
         $results = [];
         $results['total'] = $checkoutRequests->count();
         $showableFields = [];
-        $canViewAssets = auth()->user()->can('index', Asset::class);
+        $user = auth()->user();
+        $canViewAssets = $user->can('index', Asset::class);
 
         foreach (CustomField::all() as $field) {
             if (($field->field_encrypted == '0') && ($field->show_in_requestable_list == '1')) {
@@ -212,6 +214,11 @@ class ModelRequestsController extends Controller
             ) ? $requestedItem : null;
             $canEditSubmission = ! $isProjectOverview
                 && (bool) ($submissionEditable[$this->submissionKey($checkoutRequest)] ?? false);
+            $canViewRequestAssets = $canViewAssets && (
+                $user->isSuperUser()
+                || (int) $checkoutRequest->user_id === (int) $user->id
+                || $checkoutRequest->coordinatorTargets->contains('user_id', $user->id)
+            );
 
             $assets = [
                 'request_id' => (int) $checkoutRequest->id,
@@ -271,17 +278,17 @@ class ModelRequestsController extends Controller
                     ? route('requests.index', ['model_id' => $checkoutRequest->requestable_id])
                     : null,
                 'project_requests_url' => $this->projectRequestsUrl($checkoutRequest->project),
-                'request_detail_url' => $canViewAssets ? route('hardware.index', $requestDetailQuery) : null,
-                'reusable_now_url' => $canViewAssets
+                'request_detail_url' => $canViewRequestAssets ? route('hardware.index', $requestDetailQuery) : null,
+                'reusable_now_url' => $canViewRequestAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reusable_now']))
                     : null,
-                'due_back_url' => $canViewAssets
+                'due_back_url' => $canViewRequestAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'due_back']))
                     : null,
-                'reserved_assets_url' => $canViewAssets
+                'reserved_assets_url' => $canViewRequestAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved']))
                     : null,
-                'reserved_by_other_project_url' => $canViewAssets
+                'reserved_by_other_project_url' => $canViewRequestAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved_other_project']))
                     : null,
                 'request_update_url' => $canEditSubmission ? route('requests.update', $checkoutRequest) : null,
@@ -308,7 +315,7 @@ class ModelRequestsController extends Controller
             ->map(function (Collection $requests) {
                 /** @var CheckoutRequest $firstRequest */
                 $firstRequest = $requests->sortBy('id')->first();
-                $summary = CheckoutRequest::summarizeRequests($requests);
+                $summary = $this->projectOverviewGroupSummary($requests);
                 $statusValues = $requests
                     ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requesterAllocationStatus())
                     ->unique()
@@ -337,6 +344,42 @@ class ModelRequestsController extends Controller
             'total' => $rows->count(),
             'rows' => $rows->all(),
         ];
+    }
+
+    private function projectOverviewGroupSummary(Collection $requests): array
+    {
+        return $requests
+            ->groupBy(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requestable_type.':'.$checkoutRequest->requestable_id)
+            ->reduce(function (array $summary, Collection $modelRequests) {
+                /** @var CheckoutRequest $firstRequest */
+                $firstRequest = $modelRequests->first();
+                $quantity = (int) $modelRequests->sum('quantity');
+
+                if ($firstRequest->requestable_type === AssetModel::class && $firstRequest->requestedItem instanceof AssetModel) {
+                    $neededByDate = $modelRequests
+                        ->pluck('needed_by_date')
+                        ->filter()
+                        ->map(fn ($date) => $date->format('Y-m-d'))
+                        ->sort()
+                        ->first();
+                    $estimate = EstimateAssetModelReuseAction::run($firstRequest->requestedItem, $quantity, $neededByDate);
+
+                    $summary['reusable_now'] += (int) $estimate['reusable_quantity'];
+                    $summary['shortfall'] += (int) $estimate['procurement_shortfall'];
+                } else {
+                    $lineSummary = CheckoutRequest::summarizeRequests($modelRequests);
+                    $summary['reusable_now'] += (int) $lineSummary['reusable_now'];
+                    $summary['shortfall'] += (int) $lineSummary['shortfall'];
+                }
+
+                $summary['total_needed'] += $quantity;
+
+                return $summary;
+            }, [
+                'total_needed' => 0,
+                'reusable_now' => 0,
+                'shortfall' => 0,
+            ]);
     }
 
     private function batchResults(Collection $checkoutRequests): array

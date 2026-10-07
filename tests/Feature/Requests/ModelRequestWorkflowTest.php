@@ -943,9 +943,9 @@ class ModelRequestWorkflowTest extends TestCase
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertOk()
             ->assertSee('Requests')
-            ->assertSee('Reuse Summary')
-            ->assertSee('Reuse planning fields')
-            ->assertSee('Recently released feature')
+            ->assertDontSee('Reuse Summary')
+            ->assertDontSee('Reuse planning fields')
+            ->assertDontSee('Recently released feature')
             ->assertSee('projectRequestsTable', false)
             ->assertSee('Quantity')
             ->assertSee('Reference Price')
@@ -954,7 +954,7 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_project_viewer_can_review_all_requests_for_a_project_without_submission_actions()
     {
-        $rfqLead = User::factory()->viewProjects()->create();
+        $rfqLead = User::factory()->viewProjects()->viewAssets()->create();
         $requesterA = User::factory()->viewAssets()->requestAssetModels()->create([
             'first_name' => 'Amina',
             'last_name' => 'Electrical',
@@ -1006,6 +1006,8 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('total', 2)
             ->assertJsonFragment(['requested_by' => 'Amina Electrical'])
             ->assertJsonFragment(['requested_by' => 'Bilal Automation'])
+            ->assertJsonPath('rows.0.request_detail_url', null)
+            ->assertJsonPath('rows.0.reusable_now_url', null)
             ->assertJsonPath('rows.0.request_update_url', null);
     }
 
@@ -1058,6 +1060,7 @@ class ModelRequestWorkflowTest extends TestCase
             'quantity' => 4,
             'needed_by_date' => '2026-12-04',
         ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $electrical->id);
 
         $this->actingAs($rfqLead)
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
@@ -1096,6 +1099,8 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonFragment([
                 'requested_discipline' => 'Electrical',
                 'total_needed' => 6,
+                'reusable_now' => 1,
+                'shortfall' => 5,
             ])
             ->assertJsonFragment([
                 'requested_discipline' => 'Automation',
@@ -2338,12 +2343,13 @@ class ModelRequestWorkflowTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('checkout_requests', [
-            'user_id' => $requester->id,
-            'project_id' => $project->id,
-            'requestable_id' => $model->id,
-            'needed_by_date' => '2026-12-15',
-        ]);
+        $submittedRequest = CheckoutRequest::query()
+            ->where('user_id', $requester->id)
+            ->where('project_id', $project->id)
+            ->where('requestable_id', $model->id)
+            ->firstOrFail();
+
+        $this->assertSame('2026-12-15', $submittedRequest->needed_by_date->format('Y-m-d'));
     }
 
     public function test_request_cart_submit_creates_distinct_requests_for_same_model_and_discipline_across_companies()
