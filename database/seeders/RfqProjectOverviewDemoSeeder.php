@@ -17,6 +17,8 @@ class RfqProjectOverviewDemoSeeder extends Seeder
 
     private const PROJECT_NAME = 'DEMO - RFQ Project Overview';
 
+    private const RFQ_NEEDED_BY_DATE = '2026-12-15';
+
     private const ELECTRICAL_BATCH = '00000000-0000-4000-8000-000000000201';
 
     private const AUTOMATION_BATCH = '00000000-0000-4000-8000-000000000202';
@@ -35,6 +37,8 @@ class RfqProjectOverviewDemoSeeder extends Seeder
             ['name' => self::PROJECT_NAME],
             [
                 'notes' => 'Manual QA scenario for the RFQ Project Request Overview.',
+                'is_rfq' => true,
+                'rfq_needed_by_date' => self::RFQ_NEEDED_BY_DATE,
                 'created_by' => $admin->id,
             ]
         );
@@ -129,26 +133,26 @@ class RfqProjectOverviewDemoSeeder extends Seeder
             ])
             ->forceDelete();
 
-        $this->createRequest($electricalRequester, $electrical, $company, $project, $network, 2, '2026-11-30', self::ELECTRICAL_BATCH);
-        $this->createRequest($electricalRequester, $electrical, $company, $project, $oscilloscope, 1, '2026-11-30', self::ELECTRICAL_BATCH);
-        $this->createRequest($electricalRequester, $electrical, $company, $project, $pcan, 4, '2026-12-06', self::ELECTRICAL_BATCH);
-        $this->createRequest($electricalRequester, $electrical, $company, $project, $network, 1, '2026-12-12', self::ELECTRICAL_BATCH);
-        $this->createRequest($electricalSupportRequester, $electrical, $company, $project, $pcan, 1, '2026-12-03', self::ELECTRICAL_SUPPORT_BATCH);
-        $this->createRequest($electricalSupportRequester, $electrical, $company, $project, $network, 2, '2026-12-14', self::ELECTRICAL_SUPPORT_BATCH);
-        $this->createRequest($automationRequester, $automation, $company, $project, $debugProbe, 3, '2026-12-02', self::AUTOMATION_BATCH);
-        $this->createRequest($automationRequester, $automation, $company, $project, $trace32Probe, 1, '2026-12-04', self::AUTOMATION_BATCH);
-        $this->createRequest($automationRequester, $automation, $company, $project, $pcan, 2, '2026-12-09', self::AUTOMATION_BATCH);
-        $this->createRequest($validationRequester, $validation, $company, $project, $keysightScope, 2, '2026-11-27', self::VALIDATION_BATCH);
-        $this->createRequest($validationRequester, $validation, $company, $project, $oscilloscope, 1, '2026-12-01', self::VALIDATION_BATCH);
-        $this->createRequest($validationRequester, $validation, $company, $project, $debugProbe, 2, '2026-12-08', self::VALIDATION_BATCH);
-        $this->createRequest($powerRequester, $power, $company, $project, $powerSupply, 2, '2026-11-29', self::POWER_BATCH);
-        $this->createRequest($powerRequester, $power, $company, $project, $powerSupply, 1, '2026-12-05', self::POWER_BATCH);
-        $this->createRequest($powerRequester, $power, $company, $project, $keysightScope, 1, '2026-12-10', self::POWER_BATCH);
+        $this->createRequest($electricalRequester, $electrical, $company, $project, $network, 2, self::RFQ_NEEDED_BY_DATE, self::ELECTRICAL_BATCH);
+        $this->createRequest($electricalRequester, $electrical, $company, $project, $oscilloscope, 1, self::RFQ_NEEDED_BY_DATE, self::ELECTRICAL_BATCH);
+        $this->createRequest($electricalRequester, $electrical, $company, $project, $pcan, 4, self::RFQ_NEEDED_BY_DATE, self::ELECTRICAL_BATCH);
+        $this->createRequest($electricalRequester, $electrical, $company, $project, $network, 1, self::RFQ_NEEDED_BY_DATE, self::ELECTRICAL_BATCH);
+        $this->createRequest($electricalSupportRequester, $electrical, $company, $project, $pcan, 1, self::RFQ_NEEDED_BY_DATE, self::ELECTRICAL_SUPPORT_BATCH);
+        $this->createRequest($electricalSupportRequester, $electrical, $company, $project, $network, 2, self::RFQ_NEEDED_BY_DATE, self::ELECTRICAL_SUPPORT_BATCH);
+        $this->createRequest($automationRequester, $automation, $company, $project, $debugProbe, 3, self::RFQ_NEEDED_BY_DATE, self::AUTOMATION_BATCH);
+        $this->createRequest($automationRequester, $automation, $company, $project, $trace32Probe, 1, self::RFQ_NEEDED_BY_DATE, self::AUTOMATION_BATCH);
+        $this->createRequest($automationRequester, $automation, $company, $project, $pcan, 2, self::RFQ_NEEDED_BY_DATE, self::AUTOMATION_BATCH);
+        $this->createRequest($validationRequester, $validation, $company, $project, $keysightScope, 2, self::RFQ_NEEDED_BY_DATE, self::VALIDATION_BATCH);
+        $this->createRequest($validationRequester, $validation, $company, $project, $oscilloscope, 1, self::RFQ_NEEDED_BY_DATE, self::VALIDATION_BATCH);
+        $this->createRequest($validationRequester, $validation, $company, $project, $debugProbe, 2, self::RFQ_NEEDED_BY_DATE, self::VALIDATION_BATCH);
+        $this->createRequest($powerRequester, $power, $company, $project, $powerSupply, 2, self::RFQ_NEEDED_BY_DATE, self::POWER_BATCH);
+        $this->createRequest($powerRequester, $power, $company, $project, $powerSupply, 1, self::RFQ_NEEDED_BY_DATE, self::POWER_BATCH);
+        $this->createRequest($powerRequester, $power, $company, $project, $keysightScope, 1, self::RFQ_NEEDED_BY_DATE, self::POWER_BATCH);
 
         $this->command?->info('Seeded RFQ Project Overview QA scenario.');
         $this->command?->line('Lead: demo-RFQ-LEAD / '.self::PASSWORD);
         $this->command?->line('Project: '.self::PROJECT_NAME);
-        $this->command?->line('Seeded 15 request lines across Electrical, Automation, Validation, and Power Electronics.');
+        $this->command?->line('Seeded 15 request lines with the RFQ Needed By date '.self::RFQ_NEEDED_BY_DATE.'.');
     }
 
     private function upsertUser(

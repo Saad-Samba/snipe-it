@@ -2299,6 +2299,47 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertCount(1, $submittedRequests->pluck('submission_batch_id')->unique());
     }
 
+    public function test_rfq_project_uses_its_configured_needed_by_date_for_cart_submission()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create([
+            'is_rfq' => true,
+            'rfq_needed_by_date' => '2026-12-15',
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $discipline = Discipline::create(['name' => 'RFQ Deadline Discipline', 'created_by' => $requester->id]);
+        $companyId = Company::factory()->create()->id;
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-cart.items.add'), [
+                'lines' => [[
+                    'model_id' => $model->id,
+                    'quantity' => 2,
+                    'discipline_id' => $discipline->id,
+                    'company_id' => $companyId,
+                ]],
+            ])
+            ->assertOk();
+
+        $this->actingAs($requester)
+            ->post(route('account.request-cart.submit'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-10-01',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('checkout_requests', [
+            'user_id' => $requester->id,
+            'project_id' => $project->id,
+            'requestable_id' => $model->id,
+            'needed_by_date' => '2026-12-15',
+        ]);
+    }
+
     public function test_request_cart_submit_creates_distinct_requests_for_same_model_and_discipline_across_companies()
     {
         Notification::fake();
