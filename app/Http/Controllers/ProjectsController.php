@@ -48,12 +48,9 @@ class ProjectsController extends Controller
     public function show(Project $project) : View
     {
         $activeTab = request()->query('tab', 'assets');
-        $canViewProjectOverview = auth()->user()->can('view', $project);
         $hasProjectOverviewDrillDown = request()->filled('requester_id')
             || request()->filled('discipline_id')
             || request()->boolean('unassigned_discipline');
-
-        abort_unless($canViewProjectOverview, 403);
 
         $this->authorize('view', $project);
         $activeTab = auth()->user()->isSuperUser() ? $activeTab : 'requests';
@@ -65,9 +62,7 @@ class ProjectsController extends Controller
             'project' => $project,
             'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests'], true) ? $activeTab : 'assets',
             'requestSummary' => $requestSummary,
-            'canViewProjectRequestOverview' => $canViewProjectOverview,
-            'showGroupedProjectRequestOverview' => $canViewProjectOverview && ! $hasProjectOverviewDrillDown,
-            'showFullProjectTabs' => $canViewProjectOverview,
+            'showGroupedProjectRequestOverview' => ! $hasProjectOverviewDrillDown,
         ]);
     }
 
