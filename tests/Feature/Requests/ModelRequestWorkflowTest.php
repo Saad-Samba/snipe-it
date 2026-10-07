@@ -991,9 +991,12 @@ class ModelRequestWorkflowTest extends TestCase
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertOk()
             ->assertSee('Request Overview')
-            ->assertSee('Reuse Summary')
+            ->assertDontSee('Reuse Summary')
             ->assertSee('project_overview=1', false)
-            ->assertSee('Requester');
+            ->assertSee('Requester')
+            ->assertSee('data-show-footer="true"', false)
+            ->assertSee('data-footer-formatter="requestProjectTotalLabelFormatter"', false)
+            ->assertSee('data-side-pagination="client"', false);
 
         $this->actingAsForApi($rfqLead)
             ->getJson(route('api.requests.index', [

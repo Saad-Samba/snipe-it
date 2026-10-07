@@ -21,6 +21,10 @@ class RfqProjectOverviewDemoSeeder extends Seeder
 
     private const AUTOMATION_BATCH = '00000000-0000-4000-8000-000000000202';
 
+    private const VALIDATION_BATCH = '00000000-0000-4000-8000-000000000203';
+
+    private const POWER_BATCH = '00000000-0000-4000-8000-000000000204';
+
     public function run(): void
     {
         $admin = User::withoutGlobalScopes()->where('username', 'demo-GSA')->firstOrFail();
@@ -60,6 +64,24 @@ class RfqProjectOverviewDemoSeeder extends Seeder
             $admin->id,
             $company->id
         );
+        $validationRequester = $this->upsertUser(
+            'demo-RFQ-VALIDATION',
+            'QA RFQ',
+            'Validation',
+            'demo-rfq-validation@example.com',
+            ['models.request' => '1', 'models.request.all_companies' => '1'],
+            $admin->id,
+            $company->id
+        );
+        $powerRequester = $this->upsertUser(
+            'demo-RFQ-POWER',
+            'QA RFQ',
+            'Power',
+            'demo-rfq-power@example.com',
+            ['models.request' => '1', 'models.request.all_companies' => '1'],
+            $admin->id,
+            $company->id
+        );
 
         $electrical = Discipline::withoutGlobalScopes()->updateOrCreate(
             ['name' => 'QA RFQ Electrical'],
@@ -69,22 +91,50 @@ class RfqProjectOverviewDemoSeeder extends Seeder
             ['name' => 'QA RFQ Automation'],
             ['notes' => 'QA discipline for Project Request Overview.', 'created_by' => $admin->id]
         );
+        $validation = Discipline::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA RFQ Validation'],
+            ['notes' => 'QA discipline for Project Request Overview.', 'created_by' => $admin->id]
+        );
+        $power = Discipline::withoutGlobalScopes()->updateOrCreate(
+            ['name' => 'QA RFQ Power Electronics'],
+            ['notes' => 'QA discipline for Project Request Overview.', 'created_by' => $admin->id]
+        );
 
         $network = AssetModel::withoutGlobalScopes()->where('name', 'Vector VN1630A CAN/LIN Interface')->firstOrFail();
+        $pcan = AssetModel::withoutGlobalScopes()->where('name', 'PEAK PCAN-USB FD Interface')->firstOrFail();
         $oscilloscope = AssetModel::withoutGlobalScopes()->where('name', 'Tektronix MDO3024 Oscilloscope')->firstOrFail();
+        $keysightScope = AssetModel::withoutGlobalScopes()->where('name', 'Keysight DSOX1204G Oscilloscope')->firstOrFail();
         $debugProbe = AssetModel::withoutGlobalScopes()->where('name', 'SEGGER J-Link PRO Debug Probe')->firstOrFail();
+        $trace32Probe = AssetModel::withoutGlobalScopes()->where('name', 'Lauterbach TRACE32 Debug Probe')->firstOrFail();
+        $powerSupply = AssetModel::withoutGlobalScopes()->where('name', 'EA-PS 9080-60 DC Power Supply')->firstOrFail();
 
         CheckoutRequest::withoutGlobalScopes()
-            ->whereIn('submission_batch_id', [self::ELECTRICAL_BATCH, self::AUTOMATION_BATCH])
+            ->whereIn('submission_batch_id', [
+                self::ELECTRICAL_BATCH,
+                self::AUTOMATION_BATCH,
+                self::VALIDATION_BATCH,
+                self::POWER_BATCH,
+            ])
             ->forceDelete();
 
         $this->createRequest($electricalRequester, $electrical, $company, $project, $network, 2, '2026-11-30', self::ELECTRICAL_BATCH);
         $this->createRequest($electricalRequester, $electrical, $company, $project, $oscilloscope, 1, '2026-11-30', self::ELECTRICAL_BATCH);
+        $this->createRequest($electricalRequester, $electrical, $company, $project, $pcan, 4, '2026-12-06', self::ELECTRICAL_BATCH);
+        $this->createRequest($electricalRequester, $electrical, $company, $project, $network, 1, '2026-12-12', self::ELECTRICAL_BATCH);
         $this->createRequest($automationRequester, $automation, $company, $project, $debugProbe, 3, '2026-12-02', self::AUTOMATION_BATCH);
+        $this->createRequest($automationRequester, $automation, $company, $project, $trace32Probe, 1, '2026-12-04', self::AUTOMATION_BATCH);
+        $this->createRequest($automationRequester, $automation, $company, $project, $pcan, 2, '2026-12-09', self::AUTOMATION_BATCH);
+        $this->createRequest($validationRequester, $validation, $company, $project, $keysightScope, 2, '2026-11-27', self::VALIDATION_BATCH);
+        $this->createRequest($validationRequester, $validation, $company, $project, $oscilloscope, 1, '2026-12-01', self::VALIDATION_BATCH);
+        $this->createRequest($validationRequester, $validation, $company, $project, $debugProbe, 2, '2026-12-08', self::VALIDATION_BATCH);
+        $this->createRequest($powerRequester, $power, $company, $project, $powerSupply, 2, '2026-11-29', self::POWER_BATCH);
+        $this->createRequest($powerRequester, $power, $company, $project, $powerSupply, 1, '2026-12-05', self::POWER_BATCH);
+        $this->createRequest($powerRequester, $power, $company, $project, $keysightScope, 1, '2026-12-10', self::POWER_BATCH);
 
         $this->command?->info('Seeded RFQ Project Overview QA scenario.');
         $this->command?->line('Lead: demo-RFQ-LEAD / '.self::PASSWORD);
         $this->command?->line('Project: '.self::PROJECT_NAME);
+        $this->command?->line('Seeded 13 request lines across Electrical, Automation, Validation, and Power Electronics.');
     }
 
     private function upsertUser(

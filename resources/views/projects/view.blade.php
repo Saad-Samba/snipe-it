@@ -110,10 +110,6 @@
 
                     @if (($canViewProjectRequestOverview ?? false) || auth()->user()->hasAccess('models.request'))
                         <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
-                            @if (!empty($requestSummary))
-                                @include('account.partials.request-project-summary', ['summary' => $requestSummary])
-                            @endif
-
                             <div class="table-responsive">
                                 @include('account.partials.submitted-requests-table', [
                                     'tableId' => 'projectRequestsTable',
@@ -127,6 +123,8 @@
                                     'showProject' => false,
                                     'showActions' => ! ($canViewProjectRequestOverview ?? false),
                                     'sidePagination' => ($canViewProjectRequestOverview ?? false) ? 'client' : 'server',
+                                    'showFooter' => $canViewProjectRequestOverview ?? false,
+                                    'footerLabelFormatter' => 'requestProjectTotalLabelFormatter',
                                 ])
                             </div>
                         </div>
@@ -139,4 +137,9 @@
 
 @section('moar_scripts')
     @include ('partials.bootstrap-table')
+    <script nonce="{{ csrf_token() }}">
+        function requestProjectTotalLabelFormatter() {
+            return 'Project Total';
+        }
+    </script>
 @stop
