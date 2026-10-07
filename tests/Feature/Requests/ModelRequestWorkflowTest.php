@@ -2881,7 +2881,11 @@ class ModelRequestWorkflowTest extends TestCase
         ]);
 
         $this->actingAs($projectViewer)
-            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->get(route('projects.show', [
+                'project' => $project->id,
+                'tab' => 'requests',
+                'discipline_id' => $discipline->id,
+            ]))
             ->assertOk()
             ->assertSee('data-field="category"', false)
             ->assertSee('data-field="total_need_cost"', false)
