@@ -309,11 +309,6 @@ class ModelRequestsController extends Controller
                 /** @var CheckoutRequest $firstRequest */
                 $firstRequest = $requests->sortBy('id')->first();
                 $summary = CheckoutRequest::summarizeRequests($requests);
-                $neededByDates = $requests
-                    ->map(fn (CheckoutRequest $checkoutRequest) => optional($checkoutRequest->needed_by_date)->format('Y-m-d'))
-                    ->filter()
-                    ->unique()
-                    ->values();
                 $statusValues = $requests
                     ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requesterAllocationStatus())
                     ->unique()
@@ -322,9 +317,6 @@ class ModelRequestsController extends Controller
                 return [
                     'requested_discipline' => e(optional($firstRequest->requestedDiscipline)->name ?: 'Not specified'),
                     'total_needed' => $summary['total_needed'],
-                    'needed_by' => $neededByDates->count() === 1
-                        ? Helper::getFormattedDateObject($firstRequest->needed_by_date, 'date')
-                        : ($neededByDates->isEmpty() ? '-' : 'Multiple dates'),
                     'reusable_now' => $summary['reusable_now'],
                     'shortfall' => $summary['shortfall'],
                     'status' => $statusValues->count() === 1

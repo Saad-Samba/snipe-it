@@ -123,11 +123,6 @@
                                         'showFooter' => true,
                                     ])
                                 @else
-                                    @if (($canViewProjectRequestOverview ?? false) && request()->filled('requester_id'))
-                                        <div class="alert alert-info">
-                                            Showing the request lines for the selected requester and discipline. <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">Back to Request Overview</a>
-                                        </div>
-                                    @endif
                                     @include('account.partials.submitted-requests-table', [
                                         'tableId' => 'projectRequestsTable',
                                         'requestMode' => ($canViewProjectRequestOverview ?? false) ? 'project-overview' : 'requester',

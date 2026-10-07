@@ -1016,7 +1016,11 @@ class ModelRequestWorkflowTest extends TestCase
             'first_name' => 'Amina',
             'last_name' => 'Electrical',
         ]);
-        $project = Project::factory()->create(['name' => 'RFQ Grouped Review']);
+        $project = Project::factory()->create([
+            'name' => 'RFQ Grouped Review',
+            'is_rfq' => true,
+            'rfq_needed_by_date' => '2026-12-15',
+        ]);
         $electrical = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
         $automation = Discipline::create(['name' => 'Automation', 'created_by' => $requester->id]);
         $secondRequester = User::factory()->viewAssets()->requestAssetModels()->create([
@@ -1058,7 +1062,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAs($rfqLead)
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertOk()
-            ->assertSee('Discipline request status')
+            ->assertSee('RFQ Grouped Review (Needed by 15 Dec 2026)')
             ->assertSee('projectRequestOverviewTable', false)
             ->assertDontSee('Reuse Summary')
             ->assertSee('data-show-footer="true"', false)
@@ -1067,7 +1071,9 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertDontSee('<th data-field="requested_by"', false)
             ->assertDontSee('<th data-field="models_count"', false)
             ->assertDontSee('<th data-field="requests_count"', false)
-            ->assertSee("Each row combines all requests for one discipline.", false);
+            ->assertDontSee('<th data-field="needed_by"', false)
+            ->assertDontSee('Discipline request status')
+            ->assertDontSee("Each row combines all requests for one discipline.", false);
 
         $this->actingAs($rfqLead)
             ->get(route('projects.show', [
@@ -1076,7 +1082,7 @@ class ModelRequestWorkflowTest extends TestCase
                 'discipline_id' => $electrical->id,
             ]))
             ->assertOk()
-            ->assertSee('Showing the request lines for the selected requester and discipline.')
+            ->assertDontSee('Showing the request lines for the selected requester and discipline.')
             ->assertSee('projectRequestsTable', false);
 
         $this->actingAsForApi($rfqLead)
