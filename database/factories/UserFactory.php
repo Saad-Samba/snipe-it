@@ -152,11 +152,6 @@ class UserFactory extends Factory
         return $this->appendPermission(['models.request' => '1']);
     }
 
-    public function viewProjects()
-    {
-        return $this->appendPermission(['projects.view' => '1']);
-    }
-
     public function deleteAssetModels()
     {
         return $this->appendPermission(['models.delete' => '1']);

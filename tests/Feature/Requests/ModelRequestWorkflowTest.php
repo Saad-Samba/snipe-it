@@ -954,7 +954,12 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_project_viewer_can_review_all_requests_for_a_project_without_submission_actions()
     {
-        $rfqLead = User::factory()->viewProjects()->viewAssets()->create();
+        $rfqLead = User::factory()->create([
+            'permissions' => json_encode([
+                'projects.view' => '1',
+                'assets.view' => '1',
+            ]),
+        ]);
         $requesterA = User::factory()->viewAssets()->requestAssetModels()->create([
             'first_name' => 'Amina',
             'last_name' => 'Electrical',
@@ -1013,7 +1018,9 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_project_viewer_can_review_requests_grouped_by_discipline()
     {
-        $rfqLead = User::factory()->viewProjects()->create();
+        $rfqLead = User::factory()->create([
+            'permissions' => json_encode(['projects.view' => '1']),
+        ]);
         $requester = User::factory()->viewAssets()->requestAssetModels()->create([
             'first_name' => 'Amina',
             'last_name' => 'Electrical',
