@@ -10,6 +10,7 @@ use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
+use App\Models\License;
 use App\Models\Location;
 use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
@@ -922,7 +923,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.project', 'Project One');
     }
 
-    public function test_project_requests_tab_shows_request_review_for_requester()
+    public function test_requester_cannot_open_project_request_overview()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Requests Tab Project']);
@@ -941,15 +942,204 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->actingAs($requester)
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertForbidden();
+    }
+
+    public function test_project_viewer_can_review_all_requests_for_a_project_without_submission_actions()
+    {
+        $rfqLead = User::factory()->create([
+            'permissions' => json_encode([
+                'projects.view' => '1',
+                'assets.view' => '1',
+            ]),
+        ]);
+        $requesterA = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Amina',
+            'last_name' => 'Electrical',
+        ]);
+        $requesterB = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Bilal',
+            'last_name' => 'Automation',
+        ]);
+        $project = Project::factory()->create(['name' => 'RFQ North Extension']);
+        $electrical = Discipline::create(['name' => 'Electrical', 'created_by' => $requesterA->id]);
+        $automation = Discipline::create(['name' => 'Automation', 'created_by' => $requesterA->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requesterA)->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requesterA->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $electrical->id,
+            'quantity' => 2,
+        ]);
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requesterB->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $automation->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($rfqLead)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertOk()
-            ->assertSee('Requests')
-            ->assertSee('Reuse Summary')
-            ->assertSee('Reuse planning fields')
-            ->assertSee('Recently released feature')
-            ->assertSee('projectRequestsTable', false)
-            ->assertSee('Quantity')
-            ->assertSee('Reference Price')
-            ->assertDontSee('Potentially Coverable');
+            ->assertSee('Request Overview')
+            ->assertDontSee('Reuse Summary')
+            ->assertSee('project_overview=1', false)
+            ->assertDontSee('<th data-field="requested_by"', false)
+            ->assertSee('data-show-footer="true"', false)
+            ->assertSee('data-footer-formatter="requestProjectTotalLabelFormatter"', false);
+
+        $this->actingAsForApi($rfqLead)
+            ->getJson(route('api.requests.index', [
+                'project_id' => $project->id,
+                'project_overview' => 1,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonFragment(['requested_by' => 'Amina Electrical'])
+            ->assertJsonFragment(['requested_by' => 'Bilal Automation'])
+            ->assertJsonPath('rows.0.request_detail_url', null)
+            ->assertJsonPath('rows.0.reusable_now_url', null)
+            ->assertJsonPath('rows.0.request_update_url', null);
+    }
+
+    public function test_project_viewer_can_review_requests_grouped_by_discipline()
+    {
+        $rfqLead = User::factory()->create([
+            'permissions' => json_encode(['projects.view' => '1']),
+        ]);
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Amina',
+            'last_name' => 'Electrical',
+        ]);
+        $project = Project::factory()->create([
+            'name' => 'RFQ Grouped Review',
+            'is_rfq' => true,
+            'rfq_needed_by_date' => '2026-12-15',
+        ]);
+        $electrical = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
+        $automation = Discipline::create(['name' => 'Automation', 'created_by' => $requester->id]);
+        $secondRequester = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Bilal',
+            'last_name' => 'Electrical',
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->count(2)->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $electrical->id,
+            'quantity' => 1,
+            'needed_by_date' => '2026-11-30',
+        ]);
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $automation->id,
+            'quantity' => 3,
+            'needed_by_date' => '2026-12-02',
+        ]);
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $secondRequester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $electrical->id,
+            'quantity' => 4,
+            'needed_by_date' => '2026-12-04',
+        ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $electrical->id);
+
+        $this->actingAs($rfqLead)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertOk()
+            ->assertSee('RFQ Grouped Review (Needed by 15 Dec 2026)')
+            ->assertSee('projectRequestOverviewTable', false)
+            ->assertDontSee('Reuse Summary')
+            ->assertSee('data-show-footer="true"', false)
+            ->assertSee('data-footer-formatter="requestProjectTotalLabelFormatter"', false)
+            ->assertSee('data-footer-formatter="qtySumFormatter"', false)
+            ->assertDontSee('<th data-field="requested_by"', false)
+            ->assertDontSee('<th data-field="models_count"', false)
+            ->assertDontSee('<th data-field="requests_count"', false)
+            ->assertDontSee('<th data-field="needed_by"', false)
+            ->assertDontSee('Discipline request status')
+            ->assertDontSee("Each row combines all requests for one discipline.", false);
+
+        $this->actingAs($rfqLead)
+            ->get(route('projects.show', [
+                'project' => $project->id,
+                'tab' => 'requests',
+                'discipline_id' => $electrical->id,
+            ]))
+            ->assertOk()
+            ->assertDontSee('Showing the request lines for the selected requester and discipline.')
+            ->assertSee('projectRequestsTable', false);
+
+        $this->actingAsForApi($rfqLead)
+            ->getJson(route('api.requests.index', [
+                'project_id' => $project->id,
+                'project_overview' => 1,
+                'overview' => 'grouped',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonFragment([
+                'requested_discipline' => 'Electrical',
+                'total_needed' => 6,
+                'reusable_now' => 3,
+                'shortfall' => 3,
+            ])
+            ->assertJsonFragment([
+                'requested_discipline' => 'Automation',
+                'total_needed' => 3,
+            ]);
+    }
+
+    public function test_project_viewer_can_view_project_assets_and_licenses_without_global_permissions()
+    {
+        $projectViewer = User::factory()->create([
+            'permissions' => json_encode(['projects.view' => '1']),
+        ]);
+        $project = Project::factory()->create();
+        $asset = Asset::factory()->create([
+            'project_id' => $project->id,
+            'company_id' => Company::factory()->create()->id,
+        ]);
+        $license = License::factory()->create([
+            'project_id' => $project->id,
+            'company_id' => Company::factory()->create()->id,
+        ]);
+
+        $this->actingAs($projectViewer)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'assets']))
+            ->assertOk()
+            ->assertSee('projectAssetsTable', false)
+            ->assertSee('projectLicensesTable', false);
+
+        $this->actingAsForApi($projectViewer)
+            ->getJson(route('api.assets.index', ['project_id' => $project->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $asset->id);
+
+        $this->actingAsForApi($projectViewer)
+            ->getJson(route('api.licenses.index', ['project_id' => $project->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $license->id);
     }
 
     public function test_requester_cannot_open_project_assets_tab_from_project_requests_view()
@@ -2154,6 +2344,48 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertCount(1, $submittedRequests->pluck('submission_batch_id')->unique());
     }
 
+    public function test_rfq_project_uses_its_configured_needed_by_date_for_cart_submission()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create([
+            'is_rfq' => true,
+            'rfq_needed_by_date' => '2026-12-15',
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $discipline = Discipline::create(['name' => 'RFQ Deadline Discipline', 'created_by' => $requester->id]);
+        $companyId = Company::factory()->create()->id;
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-cart.items.add'), [
+                'lines' => [[
+                    'model_id' => $model->id,
+                    'quantity' => 2,
+                    'discipline_id' => $discipline->id,
+                    'company_id' => $companyId,
+                ]],
+            ])
+            ->assertOk();
+
+        $this->actingAs($requester)
+            ->post(route('account.request-cart.submit'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-10-01',
+            ])
+            ->assertRedirect();
+
+        $submittedRequest = CheckoutRequest::query()
+            ->where('user_id', $requester->id)
+            ->where('project_id', $project->id)
+            ->where('requestable_id', $model->id)
+            ->firstOrFail();
+
+        $this->assertSame('2026-12-15', $submittedRequest->needed_by_date->format('Y-m-d'));
+    }
+
     public function test_request_cart_submit_creates_distinct_requests_for_same_model_and_discipline_across_companies()
     {
         Notification::fake();
@@ -2622,6 +2854,9 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_project_requests_tab_shows_category_and_total_need_cost_columns()
     {
+        $projectViewer = User::factory()->create([
+            'permissions' => json_encode(['projects.view' => '1']),
+        ]);
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Requests Columns Project']);
         $discipline = Discipline::create([
@@ -2645,8 +2880,12 @@ class ModelRequestWorkflowTest extends TestCase
             'reference_price_snapshot' => 1200,
         ]);
 
-        $this->actingAs($requester)
-            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+        $this->actingAs($projectViewer)
+            ->get(route('projects.show', [
+                'project' => $project->id,
+                'tab' => 'requests',
+                'discipline_id' => $discipline->id,
+            ]))
             ->assertOk()
             ->assertSee('data-field="category"', false)
             ->assertSee('data-field="total_need_cost"', false)

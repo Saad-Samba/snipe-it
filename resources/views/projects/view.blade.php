@@ -19,51 +19,46 @@
         <div class="col-md-12">
             <div class="nav-tabs-custom">
                 <ul class="nav nav-tabs">
-                    @if ($showFullProjectTabs ?? false)
-                        <li class="{{ ($activeTab ?? 'assets') === 'assets' ? 'active' : '' }}">
-                            <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'assets']) }}">
-                                <span class="hidden-lg hidden-md">
-                                    <i class="fas fa-barcode" aria-hidden="true"></i>
-                                </span>
-                                <span class="hidden-xs hidden-sm">
-                                    {{ trans('general.assets') }}
-                                    {!! ($project->assets_count > 0) ? '<span class="badge badge-secondary">'.number_format($project->assets_count).'</span>' : '' !!}
-                                </span>
-                            </a>
-                        </li>
+                    <li class="{{ ($activeTab ?? 'assets') === 'assets' ? 'active' : '' }}">
+                        <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'assets']) }}">
+                            <span class="hidden-lg hidden-md">
+                                <i class="fas fa-barcode" aria-hidden="true"></i>
+                            </span>
+                            <span class="hidden-xs hidden-sm">
+                                {{ trans('general.assets') }}
+                                {!! ($project->assets_count > 0) ? '<span class="badge badge-secondary">'.number_format($project->assets_count).'</span>' : '' !!}
+                            </span>
+                        </a>
+                    </li>
 
-                        <li class="{{ ($activeTab ?? 'assets') === 'licenses' ? 'active' : '' }}">
-                            <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'licenses']) }}">
-                                <span class="hidden-lg hidden-md">
-                                    <i class="far fa-save"></i>
-                                </span>
-                                <span class="hidden-xs hidden-sm">
-                                    {{ trans('general.licenses') }}
-                                    {!! ($project->licenses_count > 0) ? '<span class="badge badge-secondary">'.number_format($project->licenses_count).'</span>' : '' !!}
-                                </span>
-                            </a>
-                        </li>
-                    @endif
+                    <li class="{{ ($activeTab ?? 'assets') === 'licenses' ? 'active' : '' }}">
+                        <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'licenses']) }}">
+                            <span class="hidden-lg hidden-md">
+                                <i class="far fa-save"></i>
+                            </span>
+                            <span class="hidden-xs hidden-sm">
+                                {{ trans('general.licenses') }}
+                                {!! ($project->licenses_count > 0) ? '<span class="badge badge-secondary">'.number_format($project->licenses_count).'</span>' : '' !!}
+                            </span>
+                        </a>
+                    </li>
 
-                    @if (auth()->user()->hasAccess('models.request'))
-                        <li class="{{ ($activeTab ?? 'assets') === 'requests' ? 'active' : '' }}">
-                            <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">
-                                <span class="hidden-lg hidden-md">
-                                    <i class="fas fa-clipboard-list" aria-hidden="true"></i>
-                                </span>
-                                <span class="hidden-xs hidden-sm">
-                                    Requests
-                                    <x-new-feature-label />
-                                    {!! (!empty($requestSummary) && $requestSummary['requests_count'] > 0) ? '<span class="badge badge-secondary">'.number_format($requestSummary['requests_count']).'</span>' : '' !!}
-                                </span>
-                            </a>
-                        </li>
-                    @endif
+                    <li class="{{ ($activeTab ?? 'assets') === 'requests' ? 'active' : '' }}">
+                        <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">
+                            <span class="hidden-lg hidden-md">
+                                <i class="fas fa-clipboard-list" aria-hidden="true"></i>
+                            </span>
+                            <span class="hidden-xs hidden-sm">
+                                Request Overview
+                                <x-new-feature-label />
+                                {!! (!empty($requestSummary) && $requestSummary['requests_count'] > 0) ? '<span class="badge badge-secondary">'.number_format($requestSummary['requests_count']).'</span>' : '' !!}
+                            </span>
+                        </a>
+                    </li>
                 </ul>
 
                 <div class="tab-content">
-                    @if ($showFullProjectTabs ?? false)
-                        <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'assets' ? 'in active' : '' }}" id="asset_tab">
+                    <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'assets' ? 'in active' : '' }}" id="asset_tab">
                             <div class="table table-responsive">
                                 @include('partials.asset-bulk-actions')
 
@@ -86,9 +81,9 @@
                                       }'>
                                 </table>
                             </div>
-                        </div>
+                    </div>
 
-                        <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'licenses' ? 'in active' : '' }}" id="licenses_tab">
+                    <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'licenses' ? 'in active' : '' }}" id="licenses_tab">
                             <div class="table-responsive">
                                 <table
                                     data-columns="{{ \App\Presenters\LicensePresenter::dataTableLayout() }}"
@@ -105,25 +100,43 @@
                                       }'>
                                 </table>
                             </div>
-                        </div>
-                    @endif
+                    </div>
 
-                    @if (auth()->user()->hasAccess('models.request'))
-                        <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
-                            @if (!empty($requestSummary))
-                                @include('account.partials.request-project-summary', ['summary' => $requestSummary])
-                            @endif
-
+                    <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
                             <div class="table-responsive">
-                                @include('account.partials.submitted-requests-table', [
-                                    'tableId' => 'projectRequestsTable',
-                                    'requestMode' => 'requester',
-                                    'dataUrl' => route('api.requests.index', ['project_id' => $project->id]),
-                                    'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
-                                ])
+                                @if ($showGroupedProjectRequestOverview ?? false)
+                                    @include('projects.partials.request-overview-groups-table', [
+                                        'tableId' => 'projectRequestOverviewTable',
+                                        'dataUrl' => route('api.requests.index', [
+                                            'project_id' => $project->id,
+                                            'project_overview' => 1,
+                                            'overview' => 'grouped',
+                                        ]),
+                                        'exportFileName' => 'project-'.str_slug($project->name).'-request-overview-'.date('Y-m-d'),
+                                        'showFooter' => true,
+                                    ])
+                                @else
+                                    @include('account.partials.submitted-requests-table', [
+                                        'tableId' => 'projectRequestsTable',
+                                        'requestMode' => 'project-overview',
+                                        'dataUrl' => route('api.requests.index', array_filter([
+                                            'project_id' => $project->id,
+                                            'project_overview' => 1,
+                                            'requester_id' => request('requester_id'),
+                                            'discipline_id' => request('discipline_id'),
+                                            'unassigned_discipline' => request()->boolean('unassigned_discipline') ? 1 : null,
+                                        ])),
+                                        'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
+                                        'showRequester' => true,
+                                        'showProject' => false,
+                                        'showActions' => false,
+                                        'sidePagination' => 'client',
+                                        'showFooter' => true,
+                                        'footerLabelFormatter' => 'requestProjectTotalLabelFormatter',
+                                    ])
+                                @endif
                             </div>
-                        </div>
-                    @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -132,4 +145,21 @@
 
 @section('moar_scripts')
     @include ('partials.bootstrap-table')
+    <script nonce="{{ csrf_token() }}">
+        function requestProjectTotalLabelFormatter() {
+            return 'Project Total';
+        }
+
+        function projectRequestGroupStatusFormatter(value) {
+            return requestStatusFormatter(value);
+        }
+
+        function projectRequestGroupDrillDownFormatter(value, row) {
+            if (!row || !row.drill_down_url) {
+                return '';
+            }
+
+            return '<a href="' + row.drill_down_url + '" class="btn btn-sm btn-primary">View request lines</a>';
+        }
+    </script>
 @stop

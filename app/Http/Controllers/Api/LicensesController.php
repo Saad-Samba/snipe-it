@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Transformers\LicensesTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\License;
+use App\Models\CompanyableScope;
+use App\Models\Project;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,10 +25,22 @@ class LicensesController extends Controller
      */
     public function index(Request $request) : JsonResponse | array
     {
-        $this->authorize('view', License::class);
+        $project = $request->filled('project_id')
+            ? Project::findOrFail($request->integer('project_id'))
+            : null;
+
+        if ($project) {
+            $this->authorize('view', $project);
+        } else {
+            $this->authorize('view', License::class);
+        }
 
         $licenses = License::with('company', 'manufacturer', 'supplier', 'category', 'adminuser', 'project', 'discipline')
             ->withCount('freeSeats as free_seats_count');
+
+        if ($project) {
+            $licenses->withoutGlobalScope(CompanyableScope::class);
+        }
         $settings = Setting::getSettings();
 
         if ($request->input('status')=='inactive') {

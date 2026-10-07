@@ -1628,7 +1628,10 @@
 
     }
 
-    var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
+    @php
+        $modelRequestProjects = \App\Models\Project::orderBy('name')->get(['id', 'name', 'is_rfq', 'rfq_needed_by_date']);
+    @endphp
+    var modelRequestProjects = @json($modelRequestProjects);
     var modelRequestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name']));
     var modelRequestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name']));
     var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
@@ -1649,6 +1652,21 @@
         });
 
         return options.join('');
+    }
+
+    function applyRfqProjectNeededByDate(projectSelect, neededByDateInput, notice) {
+        var project = modelRequestProjects.find(function (candidate) {
+            return String(candidate.id) === String($(projectSelect).val());
+        });
+        var neededByDate = project && project.is_rfq ? project.rfq_needed_by_date : null;
+
+        if (neededByDate) {
+            $(neededByDateInput).val(neededByDate).prop('readonly', true);
+            $(notice).text('This RFQ project has one official Needed By date: ' + neededByDate + '.').show();
+        } else {
+            $(neededByDateInput).prop('readonly', false);
+            $(notice).hide().text('');
+        }
     }
 
     function buildModelRequestDisciplineOptions(selectedDisciplineId) {
@@ -1800,6 +1818,7 @@
             + '          <div class="form-group" id="model-request-modal-needed-by-group">'
             + '            <label for="model-request-modal-needed-by-date">Needed By</label>'
             + '            <input type="date" name="needed_by_date" id="model-request-modal-needed-by-date" class="form-control" required>'
+            + '            <span class="help-block" id="model-request-modal-rfq-notice" style="display:none;"></span>'
             + '          </div>'
             + '          <div id="model-request-modal-estimate" class="well well-sm" style="margin-bottom:0;">'
             + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Estimate <span class="label label-info" data-tooltip="true" title="Recently released feature">NEW</span></div>'
@@ -1824,6 +1843,10 @@
         $('body').append(modalHtml);
 
         $('#model-request-modal-project, #model-request-modal-needed-by-date, #model-request-modal-quantity, #model-request-modal-company').on('change keyup', function () {
+            updateModelRequestEstimateSummary();
+        });
+        $('#model-request-modal-project').on('change', function () {
+            applyRfqProjectNeededByDate('#model-request-modal-project', '#model-request-modal-needed-by-date', '#model-request-modal-rfq-notice');
             updateModelRequestEstimateSummary();
         });
 
@@ -1862,6 +1885,7 @@
             + '          <div class="form-group">'
             + '            <label for="request-submission-modal-needed-by-date">Needed By</label>'
             + '            <input type="date" name="needed_by_date" id="request-submission-modal-needed-by-date" class="form-control" required>'
+            + '            <span class="help-block" id="request-submission-modal-rfq-notice" style="display:none;"></span>'
             + '          </div>'
             + '        </div>'
             + '        <div class="modal-footer">'
@@ -1877,6 +1901,9 @@
         $('#request-submission-modal-create-project').on('click', function () {
             createProjectFromRequestModal('#request-submission-modal-project', '#request-submission-modal-error');
         });
+        $('#request-submission-modal-project').on('change', function () {
+            applyRfqProjectNeededByDate('#request-submission-modal-project', '#request-submission-modal-needed-by-date', '#request-submission-modal-rfq-notice');
+        });
     }
 
     function openRequestSubmissionModal(updateUrl, projectId, neededByDate) {
@@ -1885,6 +1912,7 @@
         $('#request-submission-modal-project').html(buildModelRequestProjectOptions(projectId || ''));
         $('#request-submission-modal-project').val(String(projectId || ''));
         $('#request-submission-modal-needed-by-date').val(neededByDate || '');
+        applyRfqProjectNeededByDate('#request-submission-modal-project', '#request-submission-modal-needed-by-date', '#request-submission-modal-rfq-notice');
         $('#request-submission-modal-error').hide().text('');
         $('#request-submission-modal').modal('show');
     }
@@ -1924,6 +1952,7 @@
             + '              <div class="form-group">'
             + '                <label for="model-request-cart-needed-by-date">Needed By</label>'
             + '                <input type="date" name="needed_by_date" id="model-request-cart-needed-by-date" class="form-control" required>'
+            + '                <span class="help-block" id="model-request-cart-rfq-notice" style="display:none;"></span>'
             + '              </div>'
             + '            </div>'
             + '          </div>'
@@ -1973,6 +2002,10 @@
         $('body').append(modalHtml);
 
         $('#model-request-cart-project, #model-request-cart-needed-by-date').on('change keyup', function () {
+            refreshModelRequestCartPreview();
+        });
+        $('#model-request-cart-project').on('change', function () {
+            applyRfqProjectNeededByDate('#model-request-cart-project', '#model-request-cart-needed-by-date', '#model-request-cart-rfq-notice');
             refreshModelRequestCartPreview();
         });
 
@@ -2041,6 +2074,7 @@
         $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
         $('#model-request-modal-project').val(String(options.projectId || ''));
         $('#model-request-modal-needed-by-date').val(options.neededByDate || '');
+        applyRfqProjectNeededByDate('#model-request-modal-project', '#model-request-modal-needed-by-date', '#model-request-modal-rfq-notice');
         $('#model-request-modal-project-group, #model-request-modal-needed-by-group').toggle(options.showSharedContext !== false);
         $('#model-request-modal-submit').text(options.submitLabel);
         resetModelRequestEstimateState();
@@ -2193,6 +2227,7 @@
 
     function openModelRequestCartModal() {
         ensureModelRequestCartModal();
+        applyRfqProjectNeededByDate('#model-request-cart-project', '#model-request-cart-needed-by-date', '#model-request-cart-rfq-notice');
         $('#model-request-cart-modal').modal('show');
         refreshModelRequestCartPreview();
     }
@@ -2254,7 +2289,9 @@
 
             modelRequestProjects.push({
                 id: response.payload.id,
-                name: response.payload.name
+                name: response.payload.name,
+                is_rfq: false,
+                rfq_needed_by_date: null
             });
             modelRequestProjects.sort(function (a, b) {
                 return a.name.localeCompare(b.name);
