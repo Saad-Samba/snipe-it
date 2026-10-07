@@ -993,7 +993,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertSee('Request Overview')
             ->assertDontSee('Reuse Summary')
             ->assertSee('project_overview=1', false)
-            ->assertSee('Requester')
+            ->assertDontSee('<th data-field="requested_by"', false)
             ->assertSee('data-show-footer="true"', false)
             ->assertSee('data-footer-formatter="requestProjectTotalLabelFormatter"', false);
 
@@ -1009,7 +1009,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.request_update_url', null);
     }
 
-    public function test_project_viewer_can_review_requests_grouped_by_requester_and_discipline()
+    public function test_project_viewer_can_review_requests_grouped_by_discipline()
     {
         $rfqLead = User::factory()->viewProjects()->create();
         $requester = User::factory()->viewAssets()->requestAssetModels()->create([
@@ -1019,6 +1019,10 @@ class ModelRequestWorkflowTest extends TestCase
         $project = Project::factory()->create(['name' => 'RFQ Grouped Review']);
         $electrical = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
         $automation = Discipline::create(['name' => 'Automation', 'created_by' => $requester->id]);
+        $secondRequester = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Bilal',
+            'last_name' => 'Electrical',
+        ]);
         $model = AssetModel::factory()->create([
             'category_id' => $this->managedAssetCategoryFor($requester)->id,
         ]);
@@ -1041,23 +1045,34 @@ class ModelRequestWorkflowTest extends TestCase
             'quantity' => 3,
             'needed_by_date' => '2026-12-02',
         ]);
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $secondRequester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $electrical->id,
+            'quantity' => 4,
+            'needed_by_date' => '2026-12-04',
+        ]);
 
         $this->actingAs($rfqLead)
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertOk()
-            ->assertSee('Grouped request status')
+            ->assertSee('Discipline request status')
             ->assertSee('projectRequestOverviewTable', false)
             ->assertDontSee('Reuse Summary')
             ->assertSee('data-show-footer="true"', false)
             ->assertSee('data-footer-formatter="requestProjectTotalLabelFormatter"', false)
             ->assertSee('data-footer-formatter="qtySumFormatter"', false)
-            ->assertSee("Each row combines one requester's needs for one discipline.", false);
+            ->assertDontSee('<th data-field="requested_by"', false)
+            ->assertDontSee('<th data-field="models_count"', false)
+            ->assertDontSee('<th data-field="requests_count"', false)
+            ->assertSee("Each row combines all requests for one discipline.", false);
 
         $this->actingAs($rfqLead)
             ->get(route('projects.show', [
                 'project' => $project->id,
                 'tab' => 'requests',
-                'requester_id' => $requester->id,
                 'discipline_id' => $electrical->id,
             ]))
             ->assertOk()
@@ -1073,14 +1088,11 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('total', 2)
             ->assertJsonFragment([
-                'requested_by' => 'Amina Electrical',
                 'requested_discipline' => 'Electrical',
-                'requests_count' => 2,
-                'total_needed' => 2,
+                'total_needed' => 6,
             ])
             ->assertJsonFragment([
                 'requested_discipline' => 'Automation',
-                'requests_count' => 1,
                 'total_needed' => 3,
             ]);
     }

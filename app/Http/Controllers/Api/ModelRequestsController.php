@@ -303,10 +303,7 @@ class ModelRequestsController extends Controller
     {
         $rows = $checkoutRequests
             ->groupBy(function (CheckoutRequest $checkoutRequest) {
-                return implode(':', [
-                    $checkoutRequest->user_id,
-                    $checkoutRequest->requested_discipline_id ?: 'unassigned',
-                ]);
+                return $checkoutRequest->requested_discipline_id ?: 'unassigned';
             })
             ->map(function (Collection $requests) {
                 /** @var CheckoutRequest $firstRequest */
@@ -323,13 +320,7 @@ class ModelRequestsController extends Controller
                     ->values();
 
                 return [
-                    'requested_by' => e(optional($firstRequest->requestingUser())->display_name ?: 'Unknown requester'),
                     'requested_discipline' => e(optional($firstRequest->requestedDiscipline)->name ?: 'Not specified'),
-                    'models_count' => $requests
-                        ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requestable_type.':'.$checkoutRequest->requestable_id)
-                        ->unique()
-                        ->count(),
-                    'requests_count' => $requests->count(),
                     'total_needed' => $summary['total_needed'],
                     'needed_by' => $neededByDates->count() === 1
                         ? Helper::getFormattedDateObject($firstRequest->needed_by_date, 'date')
@@ -342,16 +333,12 @@ class ModelRequestsController extends Controller
                     'drill_down_url' => route('projects.show', [
                         'project' => $firstRequest->project_id,
                         'tab' => 'requests',
-                        'requester_id' => $firstRequest->user_id,
                         'discipline_id' => $firstRequest->requested_discipline_id,
                         'unassigned_discipline' => $firstRequest->requested_discipline_id ? null : 1,
                     ]),
                 ];
             })
-            ->sortBy([
-                ['requested_discipline', 'asc'],
-                ['requested_by', 'asc'],
-            ])
+            ->sortBy('requested_discipline')
             ->values();
 
         return [

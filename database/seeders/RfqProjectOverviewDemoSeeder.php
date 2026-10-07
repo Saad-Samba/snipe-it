@@ -25,6 +25,8 @@ class RfqProjectOverviewDemoSeeder extends Seeder
 
     private const POWER_BATCH = '00000000-0000-4000-8000-000000000204';
 
+    private const ELECTRICAL_SUPPORT_BATCH = '00000000-0000-4000-8000-000000000205';
+
     public function run(): void
     {
         $admin = User::withoutGlobalScopes()->where('username', 'demo-GSA')->firstOrFail();
@@ -82,6 +84,15 @@ class RfqProjectOverviewDemoSeeder extends Seeder
             $admin->id,
             $company->id
         );
+        $electricalSupportRequester = $this->upsertUser(
+            'demo-RFQ-ELECTRICAL-SUPPORT',
+            'QA RFQ',
+            'Electrical Support',
+            'demo-rfq-electrical-support@example.com',
+            ['models.request' => '1', 'models.request.all_companies' => '1'],
+            $admin->id,
+            $company->id
+        );
 
         $electrical = Discipline::withoutGlobalScopes()->updateOrCreate(
             ['name' => 'QA RFQ Electrical'],
@@ -114,6 +125,7 @@ class RfqProjectOverviewDemoSeeder extends Seeder
                 self::AUTOMATION_BATCH,
                 self::VALIDATION_BATCH,
                 self::POWER_BATCH,
+                self::ELECTRICAL_SUPPORT_BATCH,
             ])
             ->forceDelete();
 
@@ -121,6 +133,8 @@ class RfqProjectOverviewDemoSeeder extends Seeder
         $this->createRequest($electricalRequester, $electrical, $company, $project, $oscilloscope, 1, '2026-11-30', self::ELECTRICAL_BATCH);
         $this->createRequest($electricalRequester, $electrical, $company, $project, $pcan, 4, '2026-12-06', self::ELECTRICAL_BATCH);
         $this->createRequest($electricalRequester, $electrical, $company, $project, $network, 1, '2026-12-12', self::ELECTRICAL_BATCH);
+        $this->createRequest($electricalSupportRequester, $electrical, $company, $project, $pcan, 1, '2026-12-03', self::ELECTRICAL_SUPPORT_BATCH);
+        $this->createRequest($electricalSupportRequester, $electrical, $company, $project, $network, 2, '2026-12-14', self::ELECTRICAL_SUPPORT_BATCH);
         $this->createRequest($automationRequester, $automation, $company, $project, $debugProbe, 3, '2026-12-02', self::AUTOMATION_BATCH);
         $this->createRequest($automationRequester, $automation, $company, $project, $trace32Probe, 1, '2026-12-04', self::AUTOMATION_BATCH);
         $this->createRequest($automationRequester, $automation, $company, $project, $pcan, 2, '2026-12-09', self::AUTOMATION_BATCH);
@@ -134,7 +148,7 @@ class RfqProjectOverviewDemoSeeder extends Seeder
         $this->command?->info('Seeded RFQ Project Overview QA scenario.');
         $this->command?->line('Lead: demo-RFQ-LEAD / '.self::PASSWORD);
         $this->command?->line('Project: '.self::PROJECT_NAME);
-        $this->command?->line('Seeded 13 request lines across Electrical, Automation, Validation, and Power Electronics.');
+        $this->command?->line('Seeded 15 request lines across Electrical, Automation, Validation, and Power Electronics.');
     }
 
     private function upsertUser(
