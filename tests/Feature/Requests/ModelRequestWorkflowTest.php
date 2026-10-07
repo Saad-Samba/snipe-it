@@ -944,8 +944,8 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Requests')
             ->assertDontSee('Reuse Summary')
-            ->assertDontSee('Reuse planning fields')
-            ->assertDontSee('Recently released feature')
+            ->assertSee('Reuse planning fields')
+            ->assertSee('Recently released feature')
             ->assertSee('projectRequestsTable', false)
             ->assertSee('Quantity')
             ->assertSee('Reference Price')
@@ -1099,8 +1099,8 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonFragment([
                 'requested_discipline' => 'Electrical',
                 'total_needed' => 6,
-                'reusable_now' => 1,
-                'shortfall' => 5,
+                'reusable_now' => 3,
+                'shortfall' => 3,
             ])
             ->assertJsonFragment([
                 'requested_discipline' => 'Automation',
