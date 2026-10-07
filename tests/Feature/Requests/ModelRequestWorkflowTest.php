@@ -2854,6 +2854,9 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_project_requests_tab_shows_category_and_total_need_cost_columns()
     {
+        $projectViewer = User::factory()->create([
+            'permissions' => json_encode(['projects.view' => '1']),
+        ]);
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Requests Columns Project']);
         $discipline = Discipline::create([
@@ -2877,7 +2880,7 @@ class ModelRequestWorkflowTest extends TestCase
             'reference_price_snapshot' => 1200,
         ]);
 
-        $this->actingAs($requester)
+        $this->actingAs($projectViewer)
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertOk()
             ->assertSee('data-field="category"', false)
