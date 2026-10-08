@@ -12,8 +12,6 @@ use App\Models\AssetModel;
 
 class CustomFieldSetDefaultValuesForModel extends Component
 {
-    public $add_default_values;
-
     public $category_id;
     public $fieldset_id;
     public $model_id;
@@ -27,17 +25,7 @@ class CustomFieldSetDefaultValuesForModel extends Component
         $this->fieldset_id = config('leams.model_fieldset_overrides')
             ? $this->model?->fieldset_id
             : null;
-        $this->add_default_values = ($this->model?->defaultValues->count() > 0);
-
-
         $this->initializeSelectedValuesArray();
-        if (session()->has('errors')) {
-            $errors = session('errors')->keys();
-            $selectedValuesKeys = array_keys($this->selectedValues);
-            if (count(array_intersect($selectedValuesKeys, $errors)) > 0) {
-                $this->add_default_values = true;
-            };
-        }
         $this->populatedSelectedValuesArray();
     }
 
