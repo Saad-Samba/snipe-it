@@ -9,6 +9,7 @@
 
 {{-- Page content --}}
 @section('inputFields')
+@php($selectedCategoryId = old('category_id', $item->category_id ?: $availableCategories->first()?->id))
 @include ('partials.forms.edit.name', ['translated_name' => trans('admin/models/table.name'), 'required' => 'true'])
 <div id="category_id" class="form-group{{ $errors->has('category_id') ? ' has-error' : '' }}">
     <label for="category_id" class="col-md-3 control-label">{{ trans('admin/categories/general.category_name') }}</label>
@@ -16,7 +17,7 @@
     <div class="col-md-7">
         <select class="select2" name="category_id" id="category_id" style="width: 100%" required aria-label="category_id">
             @foreach ($availableCategories as $category)
-                <option value="{{ $category->id }}" @selected((string) old('category_id', $item->category_id) === (string) $category->id)>
+                <option value="{{ $category->id }}" @selected((string) $selectedCategoryId === (string) $category->id)>
                     {{ $category->name }}
                 </option>
             @endforeach
@@ -116,7 +117,10 @@
 
 <!-- Custom Fieldset -->
 <!-- If $item->id is null we are cloning the model and we need the $model_id variable -->
-@livewire('custom-field-set-default-values-for-model', ["model_id" => $item->id ?? $model_id ?? null])
+@livewire('custom-field-set-default-values-for-model', [
+    "model_id" => $item->id ?? $model_id ?? null,
+    "category_id" => $selectedCategoryId,
+])
 
 @include ('partials.forms.edit.notes')
 @include ('partials.forms.edit.image-upload', ['image_path' => app('models_upload_path')])

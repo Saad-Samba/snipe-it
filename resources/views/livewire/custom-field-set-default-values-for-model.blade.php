@@ -180,8 +180,9 @@
 
                     const sync = () => {
                         const component = Livewire.find(componentId);
-                        if (component) {
-                            component.set('category_id', categorySelect.val());
+                        const categoryId = categorySelect.val() || null;
+                        if (component && String(component.get('category_id') ?? '') !== String(categoryId ?? '')) {
+                            component.set('category_id', categoryId);
                         }
                     };
 

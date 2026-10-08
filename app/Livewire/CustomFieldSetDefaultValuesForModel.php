@@ -18,10 +18,10 @@ class CustomFieldSetDefaultValuesForModel extends Component
 
     public array $selectedValues = [];
 
-    public function mount($model_id = null)
+    public function mount($model_id = null, $category_id = null)
     {
         $this->model_id = $model_id;
-        $this->category_id = old('category_id', $this->model?->category_id);
+        $this->category_id = old('category_id', $category_id ?? $this->model?->category_id);
         $this->fieldset_id = config('leams.model_fieldset_overrides')
             ? $this->model?->fieldset_id
             : null;
