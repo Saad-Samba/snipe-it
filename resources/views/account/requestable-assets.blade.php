@@ -42,6 +42,18 @@
                         </button>
                     </form>
 
+                    <div class="form-inline" style="margin-bottom:10px;">
+                        <div class="form-group">
+                            <label for="requestableModelsCategoryFilter" class="control-label">{{ trans('general.category') }}</label>
+                            <select id="requestableModelsCategoryFilter" class="form-control input-sm">
+                                <option value="">{{ trans('general.all') }} {{ trans('general.categories') }}</option>
+                                @foreach ($models->pluck('category.name')->filter()->unique()->sort() as $categoryName)
+                                    <option value="{{ $categoryName }}">{{ $categoryName }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table
                             id="requestableModelsTable"
@@ -59,7 +71,7 @@
                                     <th data-field="id" data-visible="false" data-sortable="true">ID</th>
                                     <th data-sortable="true">{{ trans('general.image') }}</th>
                                     <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
-                                    <th data-sortable="true">{{ trans('general.category') }}</th>
+                                    <th data-field="category" data-sortable="true">{{ trans('general.category') }}</th>
                                     <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
                                     <th data-sortable="true">Reusable Assets <x-new-feature-label /></th>
                                     <th data-sortable="true">Reference Price <x-new-feature-label /></th>
@@ -216,6 +228,12 @@
 
             addLinesToRequestCart(lines, false);
             return false;
+        });
+
+        $('#requestableModelsCategoryFilter').on('change', function () {
+            var category = $(this).val();
+
+            $('#requestableModelsTable').bootstrapTable('filterBy', category ? { category: category } : {});
         });
     </script>
 @stop
