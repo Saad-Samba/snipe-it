@@ -6,6 +6,7 @@ use App\Http\Traits\TwoColumnUniqueUndeletedTrait;
 use App\Models\Traits\Searchable;
 use App\Presenters\Presentable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Gate;
 use Watson\Validating\ValidatingTrait;
@@ -33,7 +34,9 @@ class Category extends SnipeModel
 
     protected $casts = [
         'alert_on_response' => 'boolean',
+        'checkin_email'     => 'boolean',
         'created_by'      => 'integer',
+        'manager_id'      => 'integer',
     ];
 
     /**
@@ -41,6 +44,7 @@ class Category extends SnipeModel
      */
     public $rules = [
         'created_by' => 'numeric|nullable',
+        'manager_id' => 'numeric|nullable|exists:users,id',
         'name'   => 'required|min:1|max:255|two_column_unique_undeleted:category_type',
         'require_acceptance'   => 'boolean',
         'use_default_eula'   => 'boolean',
@@ -75,11 +79,26 @@ class Category extends SnipeModel
         'alert_on_response',
         'use_default_eula',
         'created_by',
+        'manager_id',
         'tag_color',
         'notes',
     ];
 
     use Searchable;
+
+    /**
+     * Asset custody changes always notify the affected user. Keep the legacy
+     * category field for upstream compatibility while enforcing one company
+     * policy across web, API, imports, seeders, and other save paths.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Category $category) {
+            if ($category->category_type === 'asset') {
+                $category->checkin_email = true;
+            }
+        });
+    }
 
     /**
      * The attributes that should be included when searching the model.
@@ -93,7 +112,9 @@ class Category extends SnipeModel
      *
      * @var array
      */
-    protected $searchableRelations = [];
+    protected $searchableRelations = [
+        'manager' => ['first_name', 'last_name', 'display_name', 'username'],
+    ];
 
     /**
      * Checks if category can be deleted
@@ -212,6 +233,29 @@ class Category extends SnipeModel
         return $this->hasManyThrough(Asset::class, \App\Models\AssetModel::class, 'category_id', 'model_id');
     }
 
+    public function manager()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'manager_id')->withTrashed();
+    }
+
+    public function scopeManagedBy(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->where('manager_id', $user->id);
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        if ($user->isSuperUser() || $user->isAdmin()) {
+            return true;
+        }
+
+        return (int) $this->manager_id === (int) $user->id;
+    }
+
     /**
      * Establishes the category -> assets relationship but also takes into consideration
      * the setting to show archived in lists.
@@ -231,6 +275,20 @@ class Category extends SnipeModel
     }
 
     /**
+     * Establishes the category -> reusable assets relationship.
+     *
+     * Reusable assets should follow the same RTD logic used by model
+     * "remaining" counts so category totals and drilldowns stay consistent.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\Relation
+     */
+    public function reusableAssets()
+    {
+        return $this->hasManyThrough(Asset::class, \App\Models\AssetModel::class, 'category_id', 'model_id')
+            ->RTD();
+    }
+
+    /**
      * Establishes the category -> models relationship
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]
@@ -240,6 +298,28 @@ class Category extends SnipeModel
     public function models()
     {
         return $this->hasMany(\App\Models\AssetModel::class, 'category_id');
+    }
+
+    public function availableModels()
+    {
+        return $this->hasMany(\App\Models\AssetModel::class, 'category_id')
+            ->whereHas('availableAssets');
+    }
+
+    public function scopeOrderManager($query, $order)
+    {
+        $managerNames = User::withTrashed()->select([
+            'id as category_manager_id',
+            'first_name as category_manager_first_name',
+            'last_name as category_manager_last_name',
+        ]);
+
+        return $query
+            ->leftJoinSub($managerNames, 'category_manager', function ($join) {
+                $join->on('categories.manager_id', '=', 'category_manager.category_manager_id');
+            })
+            ->orderBy('category_manager.category_manager_first_name', $order)
+            ->orderBy('category_manager.category_manager_last_name', $order);
     }
 
     public function fieldset()
@@ -342,6 +422,17 @@ class Category extends SnipeModel
 
     public function scopeOrderByCreatedBy($query, $order)
     {
-        return $query->leftJoin('users as admin_sort', 'categories.created_by', '=', 'admin_sort.id')->select('categories.*')->orderBy('admin_sort.first_name', $order)->orderBy('admin_sort.last_name', $order);
+        $creatorNames = User::withTrashed()->select([
+            'id as category_creator_id',
+            'first_name as category_creator_first_name',
+            'last_name as category_creator_last_name',
+        ]);
+
+        return $query
+            ->leftJoinSub($creatorNames, 'admin_sort', function ($join) {
+                $join->on('categories.created_by', '=', 'admin_sort.category_creator_id');
+            })
+            ->orderBy('admin_sort.category_creator_first_name', $order)
+            ->orderBy('admin_sort.category_creator_last_name', $order);
     }
 }

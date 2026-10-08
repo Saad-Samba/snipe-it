@@ -24,7 +24,34 @@ class CreateCategoriesTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('categories.create'))
-            ->assertOk();
+            ->assertOk()
+            ->assertDontSee('name="require_acceptance"', false)
+            ->assertDontSee('name="eula_text"', false)
+            ->assertDontSee('name="use_default_eula"', false)
+            ->assertDontSee('name="checkin_email"', false)
+            ->assertDontSee(route('account.accept'), false);
+    }
+
+    public function testAfmCannotOpenOrSubmitCategoryCreation()
+    {
+        $afm = User::factory()->create([
+            'permissions' => json_encode(['categories.create' => 1]),
+        ]);
+        Category::factory()->forAssets()->create([
+            'manager_id' => $afm->id,
+        ]);
+
+        $this->actingAs($afm)
+            ->get(route('categories.create'))
+            ->assertForbidden();
+
+        $this->actingAs($afm)
+            ->post(route('categories.store'), [
+                'name' => 'Self Assigned Category',
+                'category_type' => 'asset',
+                'manager_id' => $afm->id,
+            ])
+            ->assertForbidden();
     }
 
     public function testUserCanCreateCategories()
@@ -47,10 +74,11 @@ class CreateCategoriesTest extends TestCase
             'name' => 'Test Category',
             'category_type' => 'asset',
             'fieldset_id' => $fieldset->id,
-            'eula_text' => 'Sample text',
+            'eula_text' => null,
             'notes' => 'My Note',
-            'require_acceptance' => 1,
+            'require_acceptance' => 0,
             'alert_on_response' => 0,
+            'checkin_email' => 1,
         ]);
     }
 

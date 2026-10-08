@@ -22,10 +22,13 @@ use App\Http\Transformers\LicensesTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\CheckoutRequest;
 use App\Models\Company;
+use App\Models\CompanyableScope;
 use App\Models\CustomField;
 use App\Models\License;
 use App\Models\Location;
+use App\Models\Project;
 use App\Models\Setting;
 use App\Models\User;
 use Carbon\Carbon;
@@ -65,6 +68,13 @@ class AssetsController extends Controller
             $action = 'audits';
         }
         $filter_non_deprecable_assets = false;
+        $requestContext = null;
+
+        if ($request->filled('request_id')) {
+            $requestContext = CheckoutRequest::withoutGlobalScopes()
+                ->with('project')
+                ->find($request->integer('request_id'));
+        }
 
         /**
          * This looks MAD janky (and it is), but the AssetsController@index does a LOT of heavy lifting throughout the 
@@ -83,7 +93,15 @@ class AssetsController extends Controller
             $this->authorize('reports.view');
         } else {
             $transformer = 'App\Http\Transformers\AssetsTransformer';
-            $this->authorize('index', Asset::class);
+            $project = $request->filled('project_id')
+                ? Project::findOrFail($request->integer('project_id'))
+                : null;
+
+            if ($project) {
+                $this->authorize('view', $project);
+            } else {
+                $this->authorize('index', Asset::class);
+            }
         }
 
 
@@ -153,7 +171,8 @@ class AssetsController extends Controller
 
         }
 
-        $assets = Asset::select('assets.*')
+        $assets = Asset::visibleTo($request->user())
+            ->select('assets.*')
             ->with(
                 'model',
                 'location',
@@ -172,6 +191,10 @@ class AssetsController extends Controller
                 'model.depreciation',
                 'supplier'
             ); // it might be tempting to add 'assetlog' here, but don't. It blows up update-heavy users.
+
+        if (isset($project)) {
+            $assets->withoutGlobalScope(CompanyableScope::class);
+        }
 
 
         if ($filter_non_deprecable_assets) {
@@ -256,13 +279,35 @@ class AssetsController extends Controller
                 });
                 break;
             case 'RTD':
-                $assets->whereNull('assets.assigned_to')
-                    ->join('status_labels AS status_alias', function ($join) {
+                $assets->join('status_labels AS status_alias', function ($join) {
                         $join->on('status_alias.id', '=', 'assets.status_id')
                             ->where('status_alias.deployable', '=', 1)
                             ->where('status_alias.pending', '=', 0)
                             ->where('status_alias.archived', '=', 0);
                     });
+
+                if ($request->filled('request_id')) {
+                    $assets->where(function ($query) use ($requestContext) {
+                        $query->whereNull('assets.assigned_to');
+
+                        if ($requestContext) {
+                            $query->orWhere(function ($assignedQuery) use ($requestContext) {
+                                $assignedQuery->whereNotNull('assets.assigned_to')
+                                    ->where(function ($eligibleAssignedQuery) use ($requestContext) {
+                                        if ($requestContext->project_id) {
+                                            $eligibleAssignedQuery->where('assets.project_id', $requestContext->project_id);
+                                        }
+
+                                        if ($requestContext->needed_by_date) {
+                                            $eligibleAssignedQuery->orWhereDate('assets.expected_checkin', '<=', $requestContext->needed_by_date);
+                                        }
+                                    });
+                            });
+                        }
+                    });
+                } else {
+                    $assets->whereNull('assets.assigned_to');
+                }
                 break;
             case 'Undeployable':
                 $assets->Undeployable();
@@ -315,6 +360,10 @@ class AssetsController extends Controller
         // Leave these under the TextSearch scope, else the fuzziness will override the specific ID (status ID, etc) requested
         if ($request->filled('status_id')) {
             $assets->where('assets.status_id', '=', $request->input('status_id'));
+        }
+
+        if ($request->boolean('reusable_assets')) {
+            $assets->RTD();
         }
 
         if ($request->filled('asset_tag')) {
@@ -388,6 +437,51 @@ class AssetsController extends Controller
 
         if ($request->filled('discipline_id')) {
             $assets->where('assets.discipline_id', '=', $request->input('discipline_id'));
+        }
+
+        if ($requestContext && $request->filled('request_bucket') && $requestContext->requestable_type === AssetModel::class) {
+            $reservedStatusId = Setting::rfqReservedStatusId();
+
+            $assets->where('assets.model_id', '=', $requestContext->requestable_id);
+
+            switch ($request->input('request_bucket')) {
+                case 'reusable_now':
+                    $assets->RTD();
+                    if ($requestContext->company_id) {
+                        $assets->orderByRaw('CASE WHEN assets.company_id = ? THEN 0 ELSE 1 END ASC', [
+                            $requestContext->company_id,
+                        ]);
+                    }
+                    break;
+                case 'due_back':
+                    $assets->whereNotNull('assets.assigned_to')
+                        ->whereNotNull('assets.expected_checkin')
+                        ->when(
+                            $requestContext->needed_by_date,
+                            fn ($query) => $query->whereDate('assets.expected_checkin', '<=', $requestContext->needed_by_date)
+                        )
+                        ->when(
+                            $reservedStatusId,
+                            fn ($query) => $query->where('assets.status_id', '!=', $reservedStatusId)
+                        )
+                        ->NotArchived();
+                    break;
+                case 'reserved':
+                    $assets->where('assets.project_id', '=', $requestContext->project_id)
+                        ->when(
+                            $reservedStatusId,
+                            fn ($query) => $query->where('assets.status_id', '=', $reservedStatusId)
+                        );
+                    break;
+                case 'reserved_other_project':
+                    $assets->whereNotNull('assets.project_id')
+                        ->where('assets.project_id', '!=', $requestContext->project_id)
+                        ->when(
+                            $reservedStatusId,
+                            fn ($query) => $query->where('assets.status_id', '=', $reservedStatusId)
+                        );
+                    break;
+            }
         }
 
         if ($request->filled('company_id')) {
@@ -599,7 +693,7 @@ class AssetsController extends Controller
      */
     public function show(Request $request, $id): JsonResponse | array
     {
-        if ($asset = Asset::with('assetstatus')
+        if ($asset = Asset::visibleTo($request->user())->with('assetstatus')
             ->with('assignedTo')->withTrashed()
             ->withCount('checkins as checkins_count', 'checkouts as checkouts_count', 'userRequests as user_requests_count')->find($id)
         ) {
@@ -788,9 +882,7 @@ class AssetsController extends Controller
         if ($request->has('model_id')) {
             $asset->model()->associate(AssetModel::find($request->validated()['model_id']));
         }
-        if ($request->has('company_id')) {
-            $asset->company_id = Company::getIdForCurrentUser($request->validated()['company_id']);
-        }
+        $asset->company_id = $request->validated()['company_id'];
         if ($request->has('rtd_location_id') && !$request->has('location_id')) {
             $asset->location_id = $request->validated()['rtd_location_id'];
         }

@@ -49,6 +49,19 @@ Now you are ready to run the entire test suite from your terminal:
 php artisan test
 ````
 
+If you are using the Docker-hosted dev app and want to avoid mutating the live `snipeit` container state, do not run `docker exec snipeit php artisan test ...`.
+Use the isolated helper instead, which spins up a one-off app container with `APP_ENV=testing` and a dedicated `snipeittests` MySQL schema:
+
+```shell
+./docker/run-isolated-test.sh
+./docker/run-isolated-test.sh tests/Feature/Requests/ModelRequestWorkflowTest.php
+```
+
+This helper also isolates Laravel's cache paths (`APP_CONFIG_CACHE`, `APP_PACKAGES_CACHE`, `APP_SERVICES_CACHE`, `APP_ROUTES_CACHE`, and `VIEW_COMPILED_PATH`) so the one-off test container does not reuse the live app's cached config from `bootstrap/cache/config.php`.
+That cache reuse is what can silently route tests back onto the hosted MySQL database and knock the browser-facing app back into setup mode.
+
+The Docker image used by this repo does not include `pdo_sqlite`, so Docker-based isolated tests must use the dedicated `snipeittests` schema instead of the in-memory `sqlite_testing` connection.
+
 To run individual test files, you can pass the path to the test that you want to run:
 
 ```shell

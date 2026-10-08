@@ -37,6 +37,9 @@
                         <th class="col-md-1">{{ trans('general.image') }}</th>
                         <th class="col-md-2">{{ trans('general.name') }}</th>
                         <th class="col-md-2" data-sortable="true">{{ trans('admin/hardware/table.location') }}</th>
+                        <th class="col-md-2" data-sortable="true">Candidate Companies <x-new-feature-label /></th>
+                        <th class="col-md-2" data-sortable="true">Candidate RACs <x-new-feature-label /></th>
+                        <th class="col-md-2" data-sortable="true">{{ trans('general.qty') }}</th>
                         <th class="col-md-2" data-sortable="true">{{ trans('admin/hardware/form.expected_checkin') }}</th>
                         <th class="col-md-3" data-sortable="true">{{ trans('admin/hardware/table.requesting_user') }}</th>
                         <th class="col-md-2">{{ trans('admin/hardware/table.requested_date') }}</th>
@@ -77,6 +80,27 @@
                             @else
                             <td></td>
                             @endif
+                            <td>{{ $request->coordinatorTargets->pluck('company.name')->filter()->unique()->implode(', ') }}</td>
+                            <td>
+                                {{ $request->coordinatorTargets->pluck('coordinator.display_name')->filter()->unique()->implode(', ') }}
+                                @if (in_array($request->rac_routing_status, [\App\Models\CheckoutRequest::RAC_ROUTING_UNROUTED, \App\Models\CheckoutRequest::RAC_ROUTING_PARTIALLY_ROUTED], true))
+                                    <div class="text-danger">
+                                        <strong>Unrouted — RAC missing</strong>
+                                        <x-new-feature-label />
+                                        <ul class="list-unstyled">
+                                            @foreach ($request->rac_unrouted_scopes ?? [] as $scope)
+                                                <li>
+                                                    {{ $scope['company_name'] ?? 'Site #'.$scope['company_id'] }}
+                                                    /
+                                                    {{ $scope['discipline_name'] ?? 'Discipline #'.$scope['discipline_id'] }}
+                                                    ({{ $scope['reusable_quantity'] }} reusable)
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+                            </td>
+                            <td>{{ $request->quantity }}</td>
 
                             <td>
                             @if ($request->itemType() == "asset")

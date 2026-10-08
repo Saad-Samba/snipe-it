@@ -889,29 +889,6 @@
                                                 </div>
                                             </div>
                                         @endif
-                                        @if (($asset->model) && ($asset->depreciation) && ($asset->purchase_date))
-                                            <div class="row">
-                                                <div class="col-md-3">
-                                                    <strong>
-                                                        {{ trans('admin/hardware/table.current_value') }}
-                                                    </strong>
-                                                </div>
-                                                <div class="col-md-9">
-                                                    <x-copy-to-clipboard copy_what="current_value">
-                                                        @if (($asset->id) && ($asset->location))
-                                                            {{ $asset->location->currency }}
-                                                        @elseif (($asset->id) && ($asset->location))
-                                                            {{ $asset->location->currency }}
-                                                        @else
-                                                            {{ $snipeSettings->default_currency }}
-                                                        @endif
-                                                    {{ Helper::formatCurrencyOutput($asset->getDepreciatedValue() )}}
-                                                    </x-copy-to-clipboard>
-
-
-                                                </div>
-                                            </div>
-                                        @endif
                                         @if ($asset->order_number)
                                             <div class="row">
                                                 <div class="col-md-3">
@@ -980,37 +957,6 @@
                                                 </div>
                                             </div>
 
-                                        @endif
-
-                                        @if (($asset->model) && ($asset->depreciation))
-                                            <div class="row">
-                                                <div class="col-md-3">
-                                                    <strong>
-                                                        {{ trans('general.depreciation') }}
-                                                    </strong>
-                                                </div>
-                                                <div class="col-md-9">
-                                                    {{ $asset->depreciation->name }}
-                                                    ({{ trans_choice('general.months_plural', $asset->depreciation->months) }})
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-3">
-                                                    <strong>
-                                                        {{ trans('admin/hardware/form.fully_depreciated') }}
-                                                    </strong>
-                                                </div>
-                                                <div class="col-md-9">
-                                                    @if ($asset->purchase_date)
-                                                        {{ Helper::getFormattedDateObject($asset->depreciated_date()->format('Y-m-d'), 'date', false) }}
-                                                        -
-                                                        {{ Carbon::parse($asset->depreciated_date())->diffForHumans(['parts' => 3]) }}
-                                                    @else
-                                                        {{ trans('general.na_no_purchase_date') }}
-                                                    @endif
-
-                                                </div>
-                                            </div>
                                         @endif
 
                                         @if (($asset->asset_eol_date) && ($asset->purchase_date))

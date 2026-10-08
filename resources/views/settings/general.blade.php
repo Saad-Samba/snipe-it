@@ -132,42 +132,6 @@
 
                        <fieldset>
                            <x-form-legend>
-                               {{ trans('admin/settings/general.legends.eula') }}
-                           </x-form-legend>
-
-                           <!-- Require signature for acceptance -->
-                           <div class="form-group {{ $errors->has('require_accept_signature') ? 'error' : '' }}">
-                               <div class="col-md-8 col-md-offset-3">
-                                   <label class="form-control">
-                                       <input type="checkbox" name="require_accept_signature" value="1" @checked(old('require_accept_signature', $setting->require_accept_signature)) />
-                                       {{ trans('admin/settings/general.require_accept_signature') }}
-                                   </label>
-                                   {!! $errors->first('require_accept_signature', '<span class="alert-msg" aria-hidden="true">:message</span>') !!}
-                                   <p class="help-block">{{ trans('admin/settings/general.require_accept_signature_help_text') }}</p>
-                               </div>
-                           </div>
-                           <!-- /.form-group -->
-
-                           <!-- Default EULA -->
-                           <div class="form-group {{ $errors->has('default_eula_text') ? 'error' : '' }}">
-                               <label for="default_eula_text" class="col-md-3 control-label">{{ trans('admin/settings/general.default_eula_text') }}</label>
-
-                               <div class="col-md-8">
-                                   <x-input.textarea
-                                           name="default_eula_text"
-                                           :value="old('default_eula_text', $setting->default_eula_text)"
-                                           placeholder="{{ trans('admin/settings/general.default_eula_text_placeholder') }}"
-                                   />
-                                   {!! $errors->first('default_eula_text', '<span class="alert-msg" aria-hidden="true">:message</span>') !!}
-                                   <p class="help-block">{{ trans('admin/settings/general.default_eula_help_text') }}</p>
-                                   <p class="help-block">{!! trans('admin/settings/general.eula_markdown') !!}</p>
-                               </div>
-                           </div>
-
-                       </fieldset>
-
-                       <fieldset>
-                           <x-form-legend>
                                {{ trans('admin/settings/general.legends.misc_display') }}
                            </x-form-legend>
 
@@ -307,6 +271,25 @@
                                    </div>
                                </div>
 
+                           <!-- RFQ reservation status -->
+                           <div class="form-group {{ $errors->has('rfq_reserved_statuslabel_id') ? 'error' : '' }}">
+                               <label for="rfq_reserved_statuslabel_id" class="col-md-3 control-label">
+                                   {{ trans('admin/settings/general.rfq_reserved_status') }}
+                               </label>
+
+                               <div class="col-md-8">
+                                   <x-input.select
+                                       name="rfq_reserved_statuslabel_id"
+                                       :options="$rfq_statuslabel_list"
+                                       :selected="old('rfq_reserved_statuslabel_id', $setting->rfq_reserved_statuslabel_id)"
+                                       style="width: 100%"
+                                       aria-label="rfq_reserved_statuslabel_id"
+                                   />
+                                   {!! $errors->first('rfq_reserved_statuslabel_id', '<span class="alert-msg" aria-hidden="true">:message</span>') !!}
+                                   <p class="help-block">{{ trans('admin/settings/general.rfq_reserved_status_help') }}</p>
+                               </div>
+                           </div>
+
 
                        </fieldset>
 
@@ -403,23 +386,6 @@
                                </div>
                            </div>
                            
-                               <!-- Depreciation method -->
-                               <div class="form-group {{ $errors->has('depreciation_method') ? 'error' : '' }}">
-
-                                   <label for="depreciation_method" class="col-md-3 control-label">{{ trans('admin/depreciations/general.depreciation_method') }}</label>
-
-                                   <div class="col-md-8">
-                                       <x-input.select
-                                           name="depreciation_method"
-                                           id="depreciation_method"
-                                           :options="['default' => trans('admin/depreciations/general.linear_depreciation'), 'half_1' => trans('admin/depreciations/general.half_1'), 'half_2' => trans('admin/depreciations/general.half_2')]"
-                                           :selected="old('depreciation_method', $setting->depreciation_method)"
-                                           style="width: 80%"
-                                       />
-                                   </div>
-                               </div>
-                               <!-- /.form-group -->
-
                                <!-- unique serial -->
                                <div class="form-group">
                                    <div class="col-md-8 col-md-offset-3">

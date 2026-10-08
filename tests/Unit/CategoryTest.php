@@ -56,4 +56,27 @@ class CategoryTest extends TestCase
         $this->assertCount(5, $category->models);
         $this->assertEquals(10, $category->itemCount());
     }
+
+    public function test_asset_categories_always_enable_checkin_checkout_emails(): void
+    {
+        $category = Category::factory()->forAssets()->create([
+            'checkin_email' => false,
+        ]);
+
+        $this->assertTrue($category->checkin_email);
+
+        $category->update(['checkin_email' => false]);
+
+        $this->assertTrue($category->fresh()->checkin_email);
+    }
+
+    public function test_non_asset_categories_preserve_their_email_preference(): void
+    {
+        $category = Category::factory()->create([
+            'category_type' => 'accessory',
+            'checkin_email' => false,
+        ]);
+
+        $this->assertFalse($category->checkin_email);
+    }
 }

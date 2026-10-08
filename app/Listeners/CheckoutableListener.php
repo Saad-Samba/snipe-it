@@ -74,7 +74,9 @@ class CheckoutableListener
             return;
         }
 
-        $acceptance = $this->getCheckoutAcceptance($event);
+        // Category acceptance is disabled for the company workflow. Keep the
+        // historical acceptance subsystem intact, but do not create new requests.
+        $acceptance = null;
 
         $shouldSendEmailToUser = $this->shouldSendCheckoutEmailToUser($event->checkoutable);
         $shouldSendEmailToAlertAddress = $this->shouldSendEmailToAlertAddress($acceptance);
@@ -243,43 +245,6 @@ class CheckoutableListener
     }
 
     /**
-     * Generates a checkout acceptance
-     * @param  Event $event
-     * @return mixed
-     */
-    private function getCheckoutAcceptance($event)
-    {
-        $checkedOutToType = get_class($event->checkedOutTo);
-        if ($checkedOutToType != "App\Models\User") {
-            return null;
-        }
-
-        if (!$event->checkoutable->requireAcceptance()) {
-            return null;
-        }
-
-        $acceptance = new CheckoutAcceptance;
-        $acceptance->checkoutable()->associate($event->checkoutable);
-        $acceptance->assignedTo()->associate($event->checkedOutTo);
-
-        $acceptance->qty = 1;
-
-        if (isset($event->checkoutable->checkout_qty)) {
-            $acceptance->qty = $event->checkoutable->checkout_qty;
-        }
-
-        $category = $this->getCategoryFromCheckoutable($event->checkoutable);
-
-        if ($category?->alert_on_response) {
-            $acceptance->alert_on_response_id = auth()->id();
-        }
-        
-        $acceptance->save();
-
-        return $acceptance;
-    }
-
-    /**
      * Get the appropriate notification for the event
      *
      * @param  CheckoutableCheckedIn  $event
@@ -427,26 +392,7 @@ class CheckoutableListener
 
     private function shouldSendCheckoutEmailToUser(Model $checkoutable): bool
     {
-        /**
-         * Send an email if any of the following conditions are met:
-         * 1. The asset requires acceptance
-         * 2. The item has a EULA
-         * 3. The item should send an email at check-in/check-out
-         */
-
-        if ($checkoutable->requireAcceptance()) {
-            return true;
-        }
-
-        if ($checkoutable->getEula()) {
-            return true;
-        }
-
-        if ($this->checkoutableCategoryShouldSendEmail($checkoutable)) {
-            return true;
-        }
-
-        return false;
+        return $this->checkoutableCategoryShouldSendEmail($checkoutable);
     }
 
     private function shouldSendEmailToAlertAddress($acceptance = null): bool

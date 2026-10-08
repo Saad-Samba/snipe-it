@@ -19,8 +19,8 @@
         <div class="col-md-12">
             <div class="nav-tabs-custom">
                 <ul class="nav nav-tabs">
-                    <li class="active">
-                        <a href="#asset_tab" data-toggle="tab">
+                    <li class="{{ ($activeTab ?? 'assets') === 'assets' ? 'active' : '' }}">
+                        <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'assets']) }}">
                             <span class="hidden-lg hidden-md">
                                 <i class="fas fa-barcode" aria-hidden="true"></i>
                             </span>
@@ -31,8 +31,8 @@
                         </a>
                     </li>
 
-                    <li>
-                        <a href="#licenses_tab" data-toggle="tab">
+                    <li class="{{ ($activeTab ?? 'assets') === 'licenses' ? 'active' : '' }}">
+                        <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'licenses']) }}">
                             <span class="hidden-lg hidden-md">
                                 <i class="far fa-save"></i>
                             </span>
@@ -42,51 +42,100 @@
                             </span>
                         </a>
                     </li>
+
+                    <li class="{{ ($activeTab ?? 'assets') === 'requests' ? 'active' : '' }}">
+                        <a href="{{ route('projects.show', ['project' => $project->id, 'tab' => 'requests']) }}">
+                            <span class="hidden-lg hidden-md">
+                                <i class="fas fa-clipboard-list" aria-hidden="true"></i>
+                            </span>
+                            <span class="hidden-xs hidden-sm">
+                                Request Overview
+                                <x-new-feature-label />
+                                {!! (!empty($requestSummary) && $requestSummary['requests_count'] > 0) ? '<span class="badge badge-secondary">'.number_format($requestSummary['requests_count']).'</span>' : '' !!}
+                            </span>
+                        </a>
+                    </li>
                 </ul>
 
                 <div class="tab-content">
-                    <div class="tab-pane fade in active" id="asset_tab">
-                        <div class="table table-responsive">
-                            @include('partials.asset-bulk-actions')
+                    <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'assets' ? 'in active' : '' }}" id="asset_tab">
+                            <div class="table table-responsive">
+                                @include('partials.asset-bulk-actions')
 
-                            <table
-                                data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout() }}"
-                                data-cookie-id-table="projectAssetsTable"
-                                data-id-table="projectAssetsTable"
-                                data-side-pagination="server"
-                                data-show-columns-search="true"
-                                data-sort-order="asc"
-                                data-toolbar="#assetsBulkEditToolbar"
-                                data-bulk-button-id="#bulkAssetEditButton"
-                                data-bulk-form-id="#assetsBulkForm"
-                                id="projectAssetsTable"
-                                class="table table-striped snipe-table"
-                                data-url="{{ route('api.assets.index', ['project_id' => $project->id]) }}"
-                                data-export-options='{
-                                  "fileName": "export-projects-{{ str_slug($project->name) }}-assets-{{ date('Y-m-d') }}",
-                                  "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
-                                  }'>
-                            </table>
-                        </div>
+                                <table
+                                    data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout() }}"
+                                    data-cookie-id-table="projectAssetsTable"
+                                    data-id-table="projectAssetsTable"
+                                    data-side-pagination="server"
+                                    data-show-columns-search="true"
+                                    data-sort-order="asc"
+                                    data-toolbar="#assetsBulkEditToolbar"
+                                    data-bulk-button-id="#bulkAssetEditButton"
+                                    data-bulk-form-id="#assetsBulkForm"
+                                    id="projectAssetsTable"
+                                    class="table table-striped snipe-table"
+                                    data-url="{{ route('api.assets.index', ['project_id' => $project->id]) }}"
+                                    data-export-options='{
+                                      "fileName": "export-projects-{{ str_slug($project->name) }}-assets-{{ date('Y-m-d') }}",
+                                      "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
+                                      }'>
+                                </table>
+                            </div>
                     </div>
 
-                    <div class="tab-pane" id="licenses_tab">
-                        <div class="table-responsive">
-                            <table
-                                data-columns="{{ \App\Presenters\LicensePresenter::dataTableLayout() }}"
-                                data-cookie-id-table="projectLicensesTable"
-                                data-id-table="projectLicensesTable"
-                                data-side-pagination="server"
-                                data-sort-order="asc"
-                                id="projectLicensesTable"
-                                class="table table-striped snipe-table"
-                                data-url="{{ route('api.licenses.index', ['project_id' => $project->id]) }}"
-                                data-export-options='{
-                                  "fileName": "export-projects-{{ str_slug($project->name) }}-licenses-{{ date('Y-m-d') }}",
-                                  "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
-                                  }'>
-                            </table>
-                        </div>
+                    <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'licenses' ? 'in active' : '' }}" id="licenses_tab">
+                            <div class="table-responsive">
+                                <table
+                                    data-columns="{{ \App\Presenters\LicensePresenter::dataTableLayout() }}"
+                                    data-cookie-id-table="projectLicensesTable"
+                                    data-id-table="projectLicensesTable"
+                                    data-side-pagination="server"
+                                    data-sort-order="asc"
+                                    id="projectLicensesTable"
+                                    class="table table-striped snipe-table"
+                                    data-url="{{ route('api.licenses.index', ['project_id' => $project->id]) }}"
+                                    data-export-options='{
+                                      "fileName": "export-projects-{{ str_slug($project->name) }}-licenses-{{ date('Y-m-d') }}",
+                                      "ignoreColumn": ["actions","image","change","checkbox","checkincheckout","icon"]
+                                      }'>
+                                </table>
+                            </div>
+                    </div>
+
+                    <div class="tab-pane fade {{ ($activeTab ?? 'assets') === 'requests' ? 'in active' : '' }}" id="requests_tab">
+                            <div class="table-responsive">
+                                @if ($showGroupedProjectRequestOverview ?? false)
+                                    @include('projects.partials.request-overview-groups-table', [
+                                        'tableId' => 'projectRequestOverviewTable',
+                                        'dataUrl' => route('api.requests.index', [
+                                            'project_id' => $project->id,
+                                            'project_overview' => 1,
+                                            'overview' => 'grouped',
+                                        ]),
+                                        'exportFileName' => 'project-'.str_slug($project->name).'-request-overview-'.date('Y-m-d'),
+                                        'showFooter' => true,
+                                    ])
+                                @else
+                                    @include('account.partials.submitted-requests-table', [
+                                        'tableId' => 'projectRequestsTable',
+                                        'requestMode' => 'project-overview',
+                                        'dataUrl' => route('api.requests.index', array_filter([
+                                            'project_id' => $project->id,
+                                            'project_overview' => 1,
+                                            'requester_id' => request('requester_id'),
+                                            'discipline_id' => request('discipline_id'),
+                                            'unassigned_discipline' => request()->boolean('unassigned_discipline') ? 1 : null,
+                                        ])),
+                                        'exportFileName' => 'project-'.str_slug($project->name).'-requests-'.date('Y-m-d'),
+                                        'showRequester' => true,
+                                        'showProject' => false,
+                                        'showActions' => false,
+                                        'sidePagination' => 'client',
+                                        'showFooter' => true,
+                                        'footerLabelFormatter' => 'requestProjectTotalLabelFormatter',
+                                    ])
+                                @endif
+                            </div>
                     </div>
                 </div>
             </div>
@@ -96,4 +145,21 @@
 
 @section('moar_scripts')
     @include ('partials.bootstrap-table')
+    <script nonce="{{ csrf_token() }}">
+        function requestProjectTotalLabelFormatter() {
+            return 'Project Total';
+        }
+
+        function projectRequestGroupStatusFormatter(value) {
+            return requestStatusFormatter(value);
+        }
+
+        function projectRequestGroupDrillDownFormatter(value, row) {
+            if (!row || !row.drill_down_url) {
+                return '';
+            }
+
+            return '<a href="' + row.drill_down_url + '" class="btn btn-sm btn-primary">View request lines</a>';
+        }
+    </script>
 @stop

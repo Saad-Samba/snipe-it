@@ -38,6 +38,7 @@ services:
       APP_URL: ${APP_URL:-http://localhost:8000}
       COOKIE_NAME: ${COOKIE_NAME:-snipeit_session}
       CACHE_PREFIX: ${CACHE_PREFIX:-snipeit}
+      LEAMS_MODEL_FIELDSET_OVERRIDES: ${LEAMS_MODEL_FIELDSET_OVERRIDES:-false}
 
   mariadb:
     image: mariadb:11.4.7

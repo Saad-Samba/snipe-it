@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CheckoutRequest;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -46,11 +47,23 @@ class ProjectsController extends Controller
 
     public function show(Project $project) : View
     {
+        $activeTab = request()->query('tab', 'assets');
+        $hasProjectOverviewDrillDown = request()->filled('requester_id')
+            || request()->filled('discipline_id')
+            || request()->boolean('unassigned_discipline');
+
         $this->authorize('view', $project);
+        $activeTab = auth()->user()->isSuperUser() ? $activeTab : 'requests';
+        $requestSummary = CheckoutRequest::projectSummary($project->id);
 
         $project->loadCount(['assets', 'licenses']);
 
-        return view('projects/view')->with('project', $project);
+        return view('projects/view', [
+            'project' => $project,
+            'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests'], true) ? $activeTab : 'assets',
+            'requestSummary' => $requestSummary,
+            'showGroupedProjectRequestOverview' => ! $hasProjectOverviewDrillDown,
+        ]);
     }
 
     public function edit(Project $project) : View
@@ -85,4 +98,5 @@ class ProjectsController extends Controller
 
         return redirect()->route('projects.index')->with('success', trans('admin/projects/message.delete.success'));
     }
+
 }

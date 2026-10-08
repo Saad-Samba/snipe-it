@@ -23,7 +23,7 @@ class BulkAssetCheckoutTest extends TestCase
                 'assigned_user' => 1,
                 'assigned_asset' => null,
                 'checkout_at' => null,
-                'expected_checkin' => null,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
                 'note' => null,
             ])
             ->assertForbidden();
@@ -81,7 +81,7 @@ class BulkAssetCheckoutTest extends TestCase
                 'assigned_user' => User::factory()->create(['email' => 'someone@example.com'])->id,
                 'assigned_asset' => null,
                 'checkout_at' => null,
-                'expected_checkin' => null,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
                 'note' => null,
             ])
             ->assertSessionHas('error', trans_choice('admin/hardware/message.multi-checkout.error', 2));
@@ -149,6 +149,7 @@ class BulkAssetCheckoutTest extends TestCase
                 ],
                 'checkout_to_type' => $type,
                 "assigned_$type" => $target->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ]);
 
         // ensure bulk checkout is blocked
@@ -176,6 +177,7 @@ class BulkAssetCheckoutTest extends TestCase
                 ],
                 'checkout_to_type' => $type,
                 "assigned_$type" => $target->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ]);
 
         $this->assertEquals(

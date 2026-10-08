@@ -1,7 +1,5 @@
 # Compose file to spin up a local Snipe-IT for development.
 
-version: '3'
-
 services:
   snipeit:
     build:

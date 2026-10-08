@@ -69,12 +69,14 @@ class Setting extends Model
         'google_client_id',
         'google_client_secret',
         'manager_view_enabled',
+        'rfq_reserved_statuslabel_id',
     ];
 
     protected $casts = [
         'label2_asset_logo' => 'boolean',
         'require_checkinout_notes' => 'boolean',
         'manager_view_enabled' => 'boolean',
+        'rfq_reserved_statuslabel_id' => 'integer',
         'finance_report_enabled' => 'boolean',
         'finance_report_anchor_date' => 'date',
         'finance_report_last_sent_at' => 'datetime',
@@ -101,6 +103,19 @@ class Setting extends Model
             }
         }
         return self::$_cache;
+    }
+
+    public static function rfqReservedStatusId(): ?int
+    {
+        $configuredStatusId = self::getSettings()?->rfq_reserved_statuslabel_id;
+
+        if ($configuredStatusId) {
+            return (int) $configuredStatusId;
+        }
+
+        return Statuslabel::query()
+            ->where('name', 'Reserved for RFQ')
+            ->value('id');
     }
 
     /**

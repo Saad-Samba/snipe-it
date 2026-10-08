@@ -99,8 +99,17 @@ class AssetModelImporter extends ItemImporter
         $this->item['fieldset'] = trim($this->findCsvMatch($row, 'fieldset'));
         $this->item['depreciation'] = trim($this->findCsvMatch($row, 'depreciation'));
         $this->setBooleanFieldIfPresent($row, 'obsolete');
-        $this->setBooleanFieldIfPresent($row, 'requestable');
         $this->setBooleanFieldIfPresent($row, 'require_serial');
+
+        if (! config('leams.model_fieldset_overrides') && ! empty($this->item['fieldset'])) {
+            $this->addErrorToBag(
+                $assetModel,
+                'fieldset',
+                trans('admin/models/message.fieldset_override_disabled')
+            );
+
+            return;
+        }
 
         if (!empty($this->item['category'])) {
             if ($category = $this->createOrFetchCategory($this->item['category'])) {
