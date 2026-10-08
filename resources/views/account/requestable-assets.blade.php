@@ -35,23 +35,25 @@
                         No models with reusable inventory are currently available.
                     </div>
                 @else
-                    <form id="requestableModelsBulkForm" class="form-inline" style="margin-bottom:10px;">
-                        <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>
-                            <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                            Add Selected to Cart
-                        </button>
-                    </form>
-
-                    <div class="form-inline" style="margin-bottom:10px;">
-                        <div class="form-group">
-                            <label for="requestableModelsCategoryFilter" class="control-label">{{ trans('general.category') }}</label>
-                            <select id="requestableModelsCategoryFilter" class="form-control input-sm">
-                                <option value="">{{ trans('general.all') }} {{ trans('general.categories') }}</option>
-                                @foreach ($models->pluck('category.name')->filter()->unique()->sort() as $categoryName)
-                                    <option value="{{ $categoryName }}">{{ $categoryName }}</option>
-                                @endforeach
-                            </select>
+                    <div id="requestableModelsToolbar" class="clearfix" style="margin-bottom:10px;">
+                        <div class="pull-left form-inline">
+                            <div class="form-group">
+                                <label for="requestableModelsCategoryFilter" class="control-label">{{ trans('general.category') }}</label>
+                                <select id="requestableModelsCategoryFilter" class="form-control input-sm">
+                                    <option value="">{{ trans('general.all') }} {{ trans('general.categories') }}</option>
+                                    @foreach ($models->pluck('category.name')->filter()->unique()->sort() as $categoryName)
+                                        <option value="{{ $categoryName }}">{{ $categoryName }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
+
+                        <form id="requestableModelsBulkForm" class="pull-right">
+                            <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>
+                                <i class="fas fa-cart-plus" aria-hidden="true"></i>
+                                Add to Cart
+                            </button>
+                        </form>
                     </div>
 
                     <div class="table-responsive">
