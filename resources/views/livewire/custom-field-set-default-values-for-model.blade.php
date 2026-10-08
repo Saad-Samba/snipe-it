@@ -170,33 +170,13 @@
             window.fieldsetDefaultValuesHookedComponents = window.fieldsetDefaultValuesHookedComponents || {};
 
             const installCategorySync = () => {
-                const syncCategorySelection = () => {
-                    const categorySelect = $('select[name="category_id"]').first();
-                    if (! categorySelect.length) {
-                        return;
-                    }
-
-                    categorySelect.off(namespace);
-
-                    const sync = () => {
-                        const component = Livewire.find(componentId);
-                        const categoryId = categorySelect.val() || null;
-                        if (component && String(component.get('category_id') ?? '') !== String(categoryId ?? '')) {
-                            component.set('category_id', categoryId);
-                        }
-                    };
-
-                    categorySelect.on(`change${namespace} select2:select${namespace} select2:clear${namespace}`, sync);
-                    sync();
-                };
-
-                syncCategorySelection();
-
                 if (! window.fieldsetDefaultValuesHookedComponents[componentId]) {
-                    Livewire.hook('request', ({ succeed }) => {
-                        succeed(() => {
-                            queueMicrotask(syncCategorySelection);
-                        });
+                    const categorySelect = $('select[name="category_id"]').first();
+                    categorySelect.on(`change${namespace} select2:select${namespace} select2:clear${namespace}`, () => {
+                        const component = Livewire.find(componentId);
+                        if (component) {
+                            component.set('category_id', categorySelect.val() || null);
+                        }
                     });
                     window.fieldsetDefaultValuesHookedComponents[componentId] = true;
                 }
