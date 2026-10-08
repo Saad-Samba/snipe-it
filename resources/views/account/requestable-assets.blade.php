@@ -45,11 +45,8 @@
                     <div class="form-inline" style="margin-bottom:10px;">
                         <div class="form-group">
                             <label for="requestableModelsCategoryFilter" class="control-label">{{ trans('general.category') }}</label>
-                            <select
-                                id="requestableModelsCategoryFilter"
-                                class="form-control input-sm select2"
-                                data-placeholder="{{ trans('general.all') }} {{ trans('general.categories') }}"
-                                multiple>
+                            <select id="requestableModelsCategoryFilter" class="form-control input-sm">
+                                <option value="">{{ trans('general.all') }} {{ trans('general.categories') }}</option>
                                 @foreach ($models->pluck('category.name')->filter()->unique()->sort() as $categoryName)
                                     <option value="{{ $categoryName }}">{{ $categoryName }}</option>
                                 @endforeach
@@ -235,12 +232,12 @@
         });
 
         $('#requestableModelsCategoryFilter').on('change', function () {
-            var categories = $(this).val() || [];
+            var category = $(this).val();
 
-            $('#requestableModelsTable').bootstrapTable('filterBy', categories.length ? { category: categories } : {}, {
+            $('#requestableModelsTable').bootstrapTable('filterBy', category ? { category: category } : {}, {
                 filterAlgorithm: function (row, filters) {
                     return !filters.category
-                        || filters.category.indexOf($('<div>').html(row.category || '').text().trim()) !== -1;
+                        || $('<div>').html(row.category || '').text().trim() === filters.category;
                 }
             });
         });
