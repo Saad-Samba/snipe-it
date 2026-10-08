@@ -45,8 +45,11 @@
                     <div class="form-inline" style="margin-bottom:10px;">
                         <div class="form-group">
                             <label for="requestableModelsCategoryFilter" class="control-label">{{ trans('general.category') }}</label>
-                            <select id="requestableModelsCategoryFilter" class="form-control input-sm">
-                                <option value="">{{ trans('general.all') }} {{ trans('general.categories') }}</option>
+                            <select
+                                id="requestableModelsCategoryFilter"
+                                class="form-control input-sm select2"
+                                data-placeholder="{{ trans('general.all') }} {{ trans('general.categories') }}"
+                                multiple>
                                 @foreach ($models->pluck('category.name')->filter()->unique()->sort() as $categoryName)
                                     <option value="{{ $categoryName }}">{{ $categoryName }}</option>
                                 @endforeach
@@ -63,6 +66,7 @@
                             data-bulk-button-id="#requestableModelsBulkAddButton"
                             data-bulk-form-id="#requestableModelsBulkForm"
                             data-click-to-select="false"
+                            data-advanced-search="false"
                             data-search="true"
                             data-pagination="true">
                             <thead>
@@ -231,12 +235,12 @@
         });
 
         $('#requestableModelsCategoryFilter').on('change', function () {
-            var category = $(this).val();
+            var categories = $(this).val() || [];
 
-            $('#requestableModelsTable').bootstrapTable('filterBy', category ? { category: category } : {}, {
+            $('#requestableModelsTable').bootstrapTable('filterBy', categories.length ? { category: categories } : {}, {
                 filterAlgorithm: function (row, filters) {
                     return !filters.category
-                        || $('<div>').html(row.category || '').text().trim() === filters.category;
+                        || filters.category.indexOf($('<div>').html(row.category || '').text().trim()) !== -1;
                 }
             });
         });
