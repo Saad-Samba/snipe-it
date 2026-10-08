@@ -58,6 +58,8 @@ class RequestableModelsPageTest extends TestCase
             ->assertSee('model-booking-discipline-'.$requestableModel->id, false)
             ->assertSee('model-booking-company-'.$requestableModel->id, false)
             ->assertSee('data-click-to-select="false"', false)
+            ->assertSee('data-field="id" data-visible="false" data-sortable="true"', false)
+            ->assertSee('data-sortable="true">'.trans('general.image').'</th>', false)
             ->assertDontSee('add-model-to-request-cart-modal', false)
             ->assertDontSeeText('Unavailable Model')
             ->assertDontSee('href="#assets"', false)

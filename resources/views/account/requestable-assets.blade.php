@@ -56,8 +56,8 @@
                             <thead>
                                 <tr>
                                     <th data-field="state" data-checkbox="true"></th>
-                                    <th data-field="id" data-visible="false">ID</th>
-                                    <th data-sortable="false">{{ trans('general.image') }}</th>
+                                    <th data-field="id" data-visible="false" data-sortable="true">ID</th>
+                                    <th data-sortable="true">{{ trans('general.image') }}</th>
                                     <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
                                     <th data-sortable="true">{{ trans('general.category') }}</th>
                                     <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
