@@ -31,6 +31,20 @@ class CreateAssetModelsTest extends TestCase
             ->assertSee('select[name="category_id"]', false);
     }
 
+    public function testCreatePageShowsTheFieldsetForItsInitiallySelectedCategory(): void
+    {
+        $fieldset = CustomFieldset::factory()->create(['name' => 'Initial Model Fieldset']);
+        $category = Category::factory()->forAssets()->create([
+            'fieldset_id' => $fieldset->id,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('models.create'))
+            ->assertOk()
+            ->assertSee($category->name)
+            ->assertSee('Initial Model Fieldset');
+    }
+
     public function testAfmCannotAccessCreatePageWithoutManagedCategories()
     {
         $afm = User::factory()->create();
