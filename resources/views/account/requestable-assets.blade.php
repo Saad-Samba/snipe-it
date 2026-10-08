@@ -48,12 +48,6 @@
                             </div>
                         </div>
 
-                        <form id="requestableModelsBulkForm" class="pull-right">
-                            <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>
-                                <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                                Add to Cart
-                            </button>
-                        </form>
                     </div>
 
                     <div class="table-responsive">
@@ -62,15 +56,12 @@
                             class="table table-striped snipe-table"
                             data-id-table="requestableModelsTable"
                             data-cookie-id-table="requestableModelsTable"
-                            data-bulk-button-id="#requestableModelsBulkAddButton"
-                            data-bulk-form-id="#requestableModelsBulkForm"
                             data-click-to-select="false"
                             data-advanced-search="false"
                             data-search="true"
                             data-pagination="true">
                             <thead>
                                 <tr>
-                                    <th data-field="state" data-checkbox="true"></th>
                                     <th data-field="id" data-visible="false" data-sortable="true">ID</th>
                                     <th data-sortable="true">{{ trans('general.image') }}</th>
                                     <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
@@ -87,7 +78,6 @@
                             <tbody>
                                 @foreach ($models as $requestableModel)
                                     <tr>
-                                        <td></td>
                                         <td>{{ $requestableModel->id }}</td>
                                         <td>
                                             @if ($requestableModel->image && $requestableModel->getImageUrl())
@@ -146,7 +136,7 @@
                                                 class="btn btn-primary btn-sm add-model-to-request-cart"
                                                 data-model-id="{{ $requestableModel->id }}">
                                                 <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                                                Add to Request
+                                                Add to Cart
                                             </button>
                                         </td>
                                     </tr>
@@ -206,32 +196,6 @@
                     addLinesToRequestCart([line], false);
                 }
             });
-
-        $('#requestableModelsBulkForm').on('submit', function (event) {
-            event.preventDefault();
-
-            var rows = $('#requestableModelsTable').bootstrapTable('getSelections');
-
-            if (!rows.length) {
-                window.alert('Select at least one model.');
-                return false;
-            }
-
-            var lines = [];
-
-            for (var i = 0; i < rows.length; i++) {
-                var line = requestLineForModel(parseInt(rows[i].id, 10));
-
-                if (!line) {
-                    return false;
-                }
-
-                lines.push(line);
-            }
-
-            addLinesToRequestCart(lines, false);
-            return false;
-        });
 
         $('#requestableModelsCategoryFilter').on('change', function () {
             var category = $(this).val();
