@@ -277,27 +277,10 @@ class AssetsController extends Controller
                 $asset = $request->handleImages($asset);
             }
 
-            // Update custom fields in the database.
-            // Validation for these fields is handled through the AssetRequest form request
-
-            if (($model) && ($model->fieldset)) {
-                foreach ($model->fieldset->fields as $field) {
-                    if ($field->field_encrypted == '1') {
-                        if (Gate::allows('assets.view.encrypted_custom_fields')) {
-                            if (is_array($request->input($field->db_column))) {
-                                $asset->{$field->db_column} = Crypt::encrypt(implode(', ', $request->input($field->db_column)));
-                            } else {
-                                $asset->{$field->db_column} = Crypt::encrypt($request->input($field->db_column));
-                            }
-                        }
-                    } else {
-                        if (is_array($request->input($field->db_column))) {
-                            $asset->{$field->db_column} = implode(', ', $request->input($field->db_column));
-                        } else {
-                            $asset->{$field->db_column} = $request->input($field->db_column);
-                        }
-                    }
-                }
+            // The model is the source of truth for technical custom fields on
+            // new assets. Ignore values submitted by the browser.
+            if ($model) {
+                $model->applyDefaultCustomFieldValues($asset);
             }
 
             // Validate the asset before saving

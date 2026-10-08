@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Watson\Validating\ValidatingTrait;
 
@@ -242,6 +243,31 @@ class AssetModel extends SnipeModel
     public function defaultValues()
     {
         return $this->belongsToMany(\App\Models\CustomField::class, 'models_custom_fields')->withPivot('default_value');
+    }
+
+    /**
+     * Apply this model's technical specifications to a newly created asset.
+     *
+     * Model defaults are copied when an asset is created. Existing assets are
+     * deliberately not changed when a model specification is edited later.
+     */
+    public function applyDefaultCustomFieldValues(Asset $asset): void
+    {
+        $this->loadMissing(['fieldset.fields', 'defaultValues']);
+
+        if (! $this->fieldset) {
+            return;
+        }
+
+        $defaultValues = $this->defaultValues->keyBy('id');
+
+        foreach ($this->fieldset->fields as $field) {
+            $value = $defaultValues->get($field->id)?->pivot?->default_value;
+
+            $asset->{$field->db_column} = $field->field_encrypted
+                ? (filled($value) ? Crypt::encrypt($value) : null)
+                : $value;
+        }
     }
 
     public function setObsoleteAttribute($value)
