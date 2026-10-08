@@ -5,6 +5,8 @@ namespace Tests\Feature\Assets\Ui;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Company;
+use App\Models\License;
+use App\Models\Location;
 use App\Models\StatusLabel;
 use App\Models\User;
 use Tests\TestCase;
@@ -15,7 +17,17 @@ class StoreAssetsTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('hardware.create'))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('platform_dongle_license')
+            ->assertSee('License entitlement');
+    }
+
+    public function testCompanySelectIsMarkedRequiredWhenCreatingAsset()
+    {
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('hardware.create'))
+            ->assertOk()
+            ->assertSeeHtml('id="company_select" required');
     }
 
     public function testAssetCanBeStoredWithSerialRequiredAndSerialProvided()
@@ -49,6 +61,32 @@ class StoreAssetsTest extends TestCase
         ]);
 
 
+    }
+
+    public function testPlatformDongleCanOnlyBeCreatedOneAtATimeWithALicense(): void
+    {
+        $user = User::factory()->superuser()->create();
+        $model = AssetModel::factory()->create(['name' => 'SIEMENS DONGLE']);
+        $license = License::factory()->create(['seats' => 1]);
+        $location = Location::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('hardware.store'), [
+            'company_id' => Company::factory()->create()->id,
+            'model_id' => $model->id,
+            'license_id' => $license->id,
+            'name' => 'Ignore this name',
+            'rtd_location_id' => $location->id,
+            'serials' => [1 => 'DONGLE-SERIAL'],
+            'asset_tags' => [1 => 'SIEMENS-001'],
+            'status_id' => StatusLabel::factory()->readyToDeploy()->create()->id,
+        ]);
+
+        $response->assertRedirect();
+        $asset = Asset::where('asset_tag', 'SIEMENS-001')->sole();
+        $this->assertNull($asset->name);
+        $this->assertNull($asset->location_id);
+        $this->assertNull($asset->rtd_location_id);
+        $this->assertDatabaseHas('license_seats', ['license_id' => $license->id, 'asset_id' => $asset->id]);
     }
 
     public function testAssetCannotBeStoredIfSerialRequiredAndMissing()
