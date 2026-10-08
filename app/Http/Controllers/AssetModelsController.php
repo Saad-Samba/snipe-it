@@ -309,12 +309,14 @@ class AssetModelsController extends Controller
      * @since [v2.0]
      * @param int $modelId
      */
-    public function getCustomFields($modelId) : View
+    public function getCustomFields(Request $request, $modelId) : View
     {
         $model = AssetModel::findOrFail($modelId);
         $this->authorize('view', $model);
 
-        return view('models.custom_fields_form')->with('model', $model);
+        return view('models.custom_fields_form')
+            ->with('model', $model)
+            ->with('read_only_model_values', $request->boolean('read_only_model_values'));
     }
 
     private function availableAssetCategories()

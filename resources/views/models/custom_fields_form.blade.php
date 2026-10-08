@@ -22,6 +22,22 @@
 
       <div class="col-md-7 col-sm-12">
 
+          @if ($read_only_model_values ?? false)
+              @php
+                  $defaultValue = $field->defaultValue($model->id);
+              @endphp
+              <p class="form-control-static">
+                  @if ($field->field_encrypted)
+                      {{ strtoupper(trans('admin/custom_fields/general.encrypted')) }}
+                  @elseif (filled($defaultValue))
+                      {{ $defaultValue }}
+                  @else
+                      &mdash;
+                  @endif
+              </p>
+              <p class="help-block">Set by the selected model.</p>
+          @else
+
           @if ($field->element!='text')
 
               @if ($field->element=='listbox')
@@ -84,6 +100,8 @@
 
           @endif
 
+          @endif
+
               @if ($field->help_text!='')
               <p class="help-block">{{ $field->help_text }}</p>
               @endif
@@ -109,6 +127,5 @@
     </fieldset>
     </div>
 @endif
-
 
 
