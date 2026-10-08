@@ -233,7 +233,12 @@
         $('#requestableModelsCategoryFilter').on('change', function () {
             var category = $(this).val();
 
-            $('#requestableModelsTable').bootstrapTable('filterBy', category ? { category: category } : {});
+            $('#requestableModelsTable').bootstrapTable('filterBy', category ? { category: category } : {}, {
+                filterAlgorithm: function (row, filters) {
+                    return !filters.category
+                        || $('<div>').html(row.category || '').text().trim() === filters.category;
+                }
+            });
         });
     </script>
 @stop

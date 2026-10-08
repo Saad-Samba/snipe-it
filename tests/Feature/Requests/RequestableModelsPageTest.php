@@ -48,7 +48,7 @@ class RequestableModelsPageTest extends TestCase
             ->assertSee('id="requestableModelsCategoryFilter"', false)
             ->assertSee('<option value="Communication">Communication</option>', false)
             ->assertSee('data-field="category" data-sortable="true"', false)
-            ->assertSee("bootstrapTable('filterBy', category ? { category: category } : {});", false)
+            ->assertSee("$('<div>').html(row.category || '').text().trim() === filters.category", false)
             ->assertSeeText('Add to Request')
             ->assertSeeText('Add Selected to Cart')
             ->assertSeeText('Request Cart')
