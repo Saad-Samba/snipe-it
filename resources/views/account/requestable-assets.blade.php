@@ -35,12 +35,20 @@
                         No models with reusable inventory are currently available.
                     </div>
                 @else
-                    <form id="requestableModelsBulkForm" class="form-inline" style="margin-bottom:10px;">
-                        <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>
-                            <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                            Add Selected to Cart
-                        </button>
-                    </form>
+                    <div id="requestableModelsToolbar" class="clearfix" style="margin-bottom:10px;">
+                        <div class="pull-left form-inline">
+                            <div class="form-group">
+                                <label for="requestableModelsCategoryFilter" class="control-label">{{ trans('general.category') }}</label>
+                                <select id="requestableModelsCategoryFilter" class="form-control input-sm">
+                                    <option value="">{{ trans('general.all') }} {{ trans('general.categories') }}</option>
+                                    @foreach ($models->pluck('category.name')->filter()->unique()->sort() as $categoryName)
+                                        <option value="{{ $categoryName }}">{{ $categoryName }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                    </div>
 
                     <div class="table-responsive">
                         <table
@@ -48,18 +56,16 @@
                             class="table table-striped snipe-table"
                             data-id-table="requestableModelsTable"
                             data-cookie-id-table="requestableModelsTable"
-                            data-bulk-button-id="#requestableModelsBulkAddButton"
-                            data-bulk-form-id="#requestableModelsBulkForm"
                             data-click-to-select="false"
+                            data-advanced-search="false"
                             data-search="true"
                             data-pagination="true">
                             <thead>
                                 <tr>
-                                    <th data-field="state" data-checkbox="true"></th>
                                     <th data-field="id" data-visible="false" data-sortable="true">ID</th>
                                     <th data-sortable="true">{{ trans('general.image') }}</th>
                                     <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
-                                    <th data-sortable="true">{{ trans('general.category') }}</th>
+                                    <th data-field="category" data-sortable="true">{{ trans('general.category') }}</th>
                                     <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
                                     <th data-sortable="true">Reusable Assets <x-new-feature-label /></th>
                                     <th data-sortable="true">Reference Price <x-new-feature-label /></th>
@@ -72,7 +78,6 @@
                             <tbody>
                                 @foreach ($models as $requestableModel)
                                     <tr>
-                                        <td></td>
                                         <td>{{ $requestableModel->id }}</td>
                                         <td>
                                             @if ($requestableModel->image && $requestableModel->getImageUrl())
@@ -131,7 +136,7 @@
                                                 class="btn btn-primary btn-sm add-model-to-request-cart"
                                                 data-model-id="{{ $requestableModel->id }}">
                                                 <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                                                Add to Request
+                                                Add to Cart
                                             </button>
                                         </td>
                                     </tr>
@@ -192,30 +197,42 @@
                 }
             });
 
-        $('#requestableModelsBulkForm').on('submit', function (event) {
-            event.preventDefault();
+        var $requestableModelsTable = $('#requestableModelsTable');
+        var $requestableModelsCategoryFilter = $('#requestableModelsCategoryFilter');
+        var requestableModelsCategoryFilterOptions = {
+            filterAlgorithm: function (row, filters) {
+                var selectedCategory = filters && filters.category;
 
-            var rows = $('#requestableModelsTable').bootstrapTable('getSelections');
-
-            if (!rows.length) {
-                window.alert('Select at least one model.');
-                return false;
+                return !selectedCategory
+                    || $('<div>').html(row.category || '').text().trim() === selectedCategory;
             }
+        };
 
-            var lines = [];
+        $requestableModelsCategoryFilter.on('change', function () {
+            var category = $(this).val();
 
-            for (var i = 0; i < rows.length; i++) {
-                var line = requestLineForModel(parseInt(rows[i].id, 10));
+            $requestableModelsTable.bootstrapTable(
+                'filterBy',
+                category ? { category: category } : {},
+                requestableModelsCategoryFilterOptions
+            );
+        });
 
-                if (!line) {
-                    return false;
-                }
+        $(function () {
+            var bootstrapTable = $requestableModelsTable.data('bootstrap.table');
+            var selectedCategory = bootstrapTable && bootstrapTable.filterColumns
+                ? bootstrapTable.filterColumns.category
+                : '';
 
-                lines.push(line);
+            $requestableModelsCategoryFilter.val(selectedCategory || '');
+
+            if (selectedCategory) {
+                $requestableModelsTable.bootstrapTable(
+                    'filterBy',
+                    { category: selectedCategory },
+                    requestableModelsCategoryFilterOptions
+                );
             }
-
-            addLinesToRequestCart(lines, false);
-            return false;
         });
     </script>
 @stop
