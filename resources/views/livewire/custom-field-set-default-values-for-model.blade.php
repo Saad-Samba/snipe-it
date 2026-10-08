@@ -10,26 +10,6 @@
                     {{ $this->inheritedFieldset?->name ?? trans('admin/models/general.no_category_fieldset') }}
                 </p>
             </div>
-            @if ($this->inheritedFieldset && $this->fields->isNotEmpty())
-                <div class="col-md-3">
-                    <label class="form-control">
-                        <input
-                            type="checkbox"
-                            name="add_default_values"
-                            value="1"
-                            id="add_default_values"
-                            wire:model.live="add_default_values"
-                            data-livewire-component="{{ $this->getId() }}"
-                        />
-                        {{ trans('admin/models/general.add_default_values') }}
-                    </label>
-                </div>
-                <div class="col-md-7 col-md-offset-3">
-                    <p class="help-block">
-                        {{ trans('admin/models/general.default_values_help') }}
-                    </p>
-                </div>
-            @endif
         </div>
     @else
     <div class="form-group{{ $errors->has('custom_fieldset') ? ' has-error' : '' }}">
@@ -50,22 +30,6 @@
              />
             {!! $errors->first('custom_fieldset', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
         </div>
-        <div class="col-md-3">
-            @if ($fieldset_id || $this->inheritedFieldset)
-                <label class="form-control">
-                    <input
-                        type="checkbox"
-                        name="add_default_values"
-                        value="1"
-                        id="add_default_values"
-                        wire:model.live="add_default_values"
-                        data-livewire-component="{{ $this->getId() }}"
-                        @disabled($this->fields->isEmpty())
-                    />
-                    {{ trans('admin/models/general.add_default_values') }}
-                </label>
-            @endif
-        </div>
         @if ($this->inheritedFieldset)
             <div class="col-md-7 col-md-offset-3">
                 <p class="help-block">
@@ -76,7 +40,14 @@
     </div>
     @endif
 
-    @if ($add_default_values && $this->fields->isNotEmpty())
+    @if ($this->fields->isNotEmpty())
+        <div class="form-group">
+            <div class="col-md-7 col-md-offset-3">
+                <p class="help-block">
+                    {{ trans('admin/models/general.default_values_help') }}
+                </p>
+            </div>
+        </div>
 
         @foreach ($this->fields as $field)
                     <div class="form-group" wire:key="field-{{ $field->id }}">

@@ -89,7 +89,6 @@ class CreateAssetModelsTest extends TestCase
             ->post(route('models.store'), [
                 'name' => 'Model With Category Defaults',
                 'category_id' => $category->id,
-                'add_default_values' => '1',
                 'default_values' => [$field->id => '24 VDC'],
             ])
             ->assertRedirect(route('models.index'));

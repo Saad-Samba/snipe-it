@@ -42,6 +42,7 @@ class CustomFieldSetDefaultValuesForModelTest extends TestCase
             ->assertSee('Governed Category Fieldset')
             ->assertDontSee('Hidden Model Override')
             ->assertDontSeeHtml('name="fieldset_id"')
-            ->assertSeeHtml('name="add_default_values"');
+            ->assertDontSeeHtml('name="add_default_values"')
+            ->assertSeeHtml('name="default_values[');
     }
 }
