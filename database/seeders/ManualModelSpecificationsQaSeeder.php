@@ -28,9 +28,8 @@ class ManualModelSpecificationsQaSeeder extends Seeder
         ]);
         $user->save();
 
-        $fieldset = CustomFieldset::withoutGlobalScopes()->updateOrCreate(
-            ['name' => 'QA Power Supply Specifications'],
-            ['notes' => 'Local-only fieldset for model technical-specification QA.']
+        $fieldset = CustomFieldset::withoutGlobalScopes()->firstOrCreate(
+            ['name' => 'QA Power Supply Specifications']
         );
 
         $voltage = $this->upsertField('QA Rated Voltage', 'text');
