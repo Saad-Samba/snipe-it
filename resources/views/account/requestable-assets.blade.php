@@ -197,15 +197,42 @@
                 }
             });
 
-        $('#requestableModelsCategoryFilter').on('change', function () {
+        var $requestableModelsTable = $('#requestableModelsTable');
+        var $requestableModelsCategoryFilter = $('#requestableModelsCategoryFilter');
+        var requestableModelsCategoryFilterOptions = {
+            filterAlgorithm: function (row, filters) {
+                var selectedCategory = filters && filters.category;
+
+                return !selectedCategory
+                    || $('<div>').html(row.category || '').text().trim() === selectedCategory;
+            }
+        };
+
+        $requestableModelsCategoryFilter.on('change', function () {
             var category = $(this).val();
 
-            $('#requestableModelsTable').bootstrapTable('filterBy', category ? { category: category } : {}, {
-                filterAlgorithm: function (row, filters) {
-                    return !filters.category
-                        || $('<div>').html(row.category || '').text().trim() === filters.category;
-                }
-            });
+            $requestableModelsTable.bootstrapTable(
+                'filterBy',
+                category ? { category: category } : {},
+                requestableModelsCategoryFilterOptions
+            );
+        });
+
+        $(function () {
+            var bootstrapTable = $requestableModelsTable.data('bootstrap.table');
+            var selectedCategory = bootstrapTable && bootstrapTable.filterColumns
+                ? bootstrapTable.filterColumns.category
+                : '';
+
+            $requestableModelsCategoryFilter.val(selectedCategory || '');
+
+            if (selectedCategory) {
+                $requestableModelsTable.bootstrapTable(
+                    'filterBy',
+                    { category: selectedCategory },
+                    requestableModelsCategoryFilterOptions
+                );
+            }
         });
     </script>
 @stop
