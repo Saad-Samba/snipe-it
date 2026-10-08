@@ -171,7 +171,7 @@
 
             const installCategorySync = () => {
                 const syncCategorySelection = () => {
-                    const categorySelect = $('#category_select_id, #category_id').first();
+                    const categorySelect = $('select[name="category_id"]').first();
                     if (! categorySelect.length) {
                         return;
                     }
