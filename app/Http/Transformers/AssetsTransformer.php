@@ -138,8 +138,10 @@ class AssetsTransformer
             $fields_array = [];
 
             foreach ($asset->model->fieldset->fields as $field) {
-                if ($field->isFieldDecryptable($asset->{$field->db_column})) {
-                    $decrypted = Helper::gracefulDecrypt($field, $asset->{$field->db_column});
+                $customFieldValue = $asset->customFieldValue($field);
+
+                if ($field->isFieldDecryptable($customFieldValue)) {
+                    $decrypted = Helper::gracefulDecrypt($field, $customFieldValue);
                     $value = (Gate::allows('assets.view.encrypted_custom_fields')) ? $decrypted : strtoupper(trans('admin/custom_fields/general.encrypted'));
 
                     if ($field->format == 'DATE'){
@@ -158,7 +160,7 @@ class AssetsTransformer
                         ];
 
                 } else {
-                    $value = $asset->{$field->db_column};
+                    $value = $customFieldValue;
 
                     if (($field->format == 'DATE') && (!is_null($value)) && ($value!='')){
                         $value = Helper::getFormattedDateObject($value, 'date', false);
@@ -342,7 +344,7 @@ class AssetsTransformer
                 // Only display this if it's allowed via the custom field setting
                 if (($field->field_encrypted == '0') && ($field->show_in_requestable_list == '1')) {
 
-                    $value = $asset->{$field->db_column};
+                    $value = $asset->customFieldValue($field);
                     if (($field->format == 'DATE') && (!is_null($value)) && ($value != '')) {
                         $value = Helper::getFormattedDateObject($value, 'date', false);
                     }

@@ -309,14 +309,12 @@ class AssetModelsController extends Controller
      * @since [v2.0]
      * @param int $modelId
      */
-    public function getCustomFields(Request $request, $modelId) : View
+    public function getCustomFields($modelId) : View
     {
         $model = AssetModel::findOrFail($modelId);
         $this->authorize('view', $model);
 
-        return view('models.custom_fields_form')
-            ->with('model', $model)
-            ->with('read_only_model_values', $request->boolean('read_only_model_values'));
+        return view('models.custom_fields_form')->with('model', $model);
     }
 
     private function availableAssetCategories()
@@ -469,7 +467,9 @@ class AssetModelsController extends Controller
      */
     private function assignCustomFieldsDefaultValues(AssetModel|SnipeModel $model, array $defaultValues): bool
     {
-        $fieldsetFields = $model->fieldset?->fields->keyBy('id') ?? collect();
+        $fieldsetFields = $model->fieldset?->fields
+            ->filter(fn (CustomField $field) => $model->ownsSpecification($field))
+            ->keyBy('id') ?? collect();
         $defaultValues = collect($defaultValues)
             ->filter(fn ($value, $customFieldId) => $fieldsetFields->has((int) $customFieldId))
             ->all();
@@ -481,7 +481,9 @@ class AssetModelsController extends Controller
             $data[$customField->db_column] = $defaultValue;
         }
 
-        $allRules = $model->fieldset->validation_rules();
+        $allRules = collect($model->fieldset->validation_rules())
+            ->only($fieldsetFields->pluck('db_column_name'))
+            ->all();
         $rules = array();
 
         foreach ($allRules as $field => $validation) {
@@ -495,7 +497,7 @@ class AssetModelsController extends Controller
         }
 
         $attributes = [];
-        foreach ($model->fieldset->fields as $field) {
+        foreach ($fieldsetFields as $field) {
             $attributes[$field->db_column] = trim(preg_replace('/_+|snipeit|\d+/', ' ', $field->db_column));
         }
 
@@ -509,7 +511,7 @@ class AssetModelsController extends Controller
         foreach ($defaultValues as $customFieldId => $defaultValue) {
             if(is_array($defaultValue)){
                 $model->defaultValues()->attach($customFieldId, ['default_value' => implode(', ', $defaultValue)]);
-            }elseif ($defaultValue) {
+            } elseif (filled($defaultValue)) {
                 $model->defaultValues()->attach($customFieldId, ['default_value' => $defaultValue]);
             }
         }

@@ -22,20 +22,20 @@
 
       <div class="col-md-7 col-sm-12">
 
-          @if ($read_only_model_values ?? false)
+          @if ($model->ownsSpecification($field))
               @php
-                  $defaultValue = $field->defaultValue($model->id);
+                  $specificationValue = $model->specificationValue($field);
               @endphp
               <p class="form-control-static">
                   @if ($field->field_encrypted)
                       {{ strtoupper(trans('admin/custom_fields/general.encrypted')) }}
-                  @elseif (filled($defaultValue))
-                      {{ $defaultValue }}
+                  @elseif (filled($specificationValue))
+                      {{ $specificationValue }}
                   @else
                       &mdash;
                   @endif
               </p>
-              <p class="help-block">Set by the selected model.</p>
+              <p class="help-block">Set by the model.</p>
           @else
 
           @if ($field->element!='text')

@@ -41,7 +41,7 @@ class CustomFieldSetDefaultValuesForModel extends Component
         $customFieldset = CustomFieldset::find($this->effectiveFieldsetId());
 
         if ($customFieldset) {
-            return $customFieldset?->fields;
+            return $customFieldset->fields->reject(fn (CustomField $field) => (bool) $field->is_unique || (bool) $field->field_encrypted);
         }
 
         return collect();
