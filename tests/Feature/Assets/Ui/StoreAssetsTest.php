@@ -146,7 +146,7 @@ class StoreAssetsTest extends TestCase
         ]);
     }
 
-    public function test_unique_custom_fields_remain_asset_owned(): void
+    public function test_unique_custom_fields_are_ignored_for_model_assets(): void
     {
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
 
@@ -155,6 +155,11 @@ class StoreAssetsTest extends TestCase
             'is_unique' => true,
         ]);
         $model = AssetModel::factory()->hasMultipleCustomFields([$field])->create();
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('hardware.create', ['model_id' => $model->id]))
+            ->assertOk()
+            ->assertDontSeeText('Factory Certificate');
 
         $this->actingAs(User::factory()->superuser()->create())
             ->post(route('hardware.store'), [
@@ -167,7 +172,8 @@ class StoreAssetsTest extends TestCase
             ->assertRedirect();
 
         $asset = Asset::where('asset_tag', 'MODEL-SPEC-UNIQUE-001')->firstOrFail();
-        $this->assertSame('FC-001', $asset->customFieldValue($field));
+        $this->assertNull($asset->customFieldValue($field));
+        $this->assertNull($asset->{$field->db_column});
     }
 
     public function testCompanyIsRequiredWhenStoringAsset()

@@ -752,7 +752,7 @@
                                     </div>
 
                                     @if (($asset->model) && ($asset->model->fieldset))
-                                        @foreach($asset->model->fieldset->fields as $field)
+                                        @foreach($asset->model->fieldset->fields->filter(fn ($field) => $asset->model->ownsSpecification($field)) as $field)
                                             @php($fieldValue = $asset->customFieldValue($field))
                                             <div class="row">
                                                 <div class="col-md-3">

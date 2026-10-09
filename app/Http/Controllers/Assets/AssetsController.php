@@ -25,9 +25,7 @@ use App\Models\User;
 use App\View\Label;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use League\Csv\Reader;
@@ -277,23 +275,6 @@ class AssetsController extends Controller
                 $asset = $request->handleImages($asset);
             }
 
-            // Catalogue specifications are model-owned. Unique and encrypted
-            // fields remain specific to a physical asset and are saved here.
-            if (($model) && ($model->fieldset)) {
-                foreach ($model->fieldset->fields->filter(fn ($field) => ! $model->ownsSpecification($field)) as $field) {
-                    if ($field->field_encrypted == '1') {
-                        if (Gate::allows('assets.view.encrypted_custom_fields')) {
-                            $value = $request->input($field->db_column);
-                            $asset->{$field->db_column} = Crypt::encrypt(is_array($value) ? implode(', ', $value) : $value);
-                        }
-                    } elseif (is_array($request->input($field->db_column))) {
-                        $asset->{$field->db_column} = implode(', ', $request->input($field->db_column));
-                    } else {
-                        $asset->{$field->db_column} = $request->input($field->db_column);
-                    }
-                }
-            }
-
             // Validate the asset before saving
             if ($asset->isValid() && $asset->save()) {
                 $target = null;
@@ -526,34 +507,7 @@ class AssetsController extends Controller
 
         $asset = $request->handleImages($asset);
 
-        // Update custom fields in the database.
-        // FIXME: No idea why this is returning a Builder error on db_column_name.
-        // Need to investigate and fix. Using static method for now.
         $model = AssetModel::find($request->get('model_id'));
-        if (($model) && ($model->fieldset)) {
-            foreach ($model->fieldset->fields->filter(fn ($field) => ! $model->ownsSpecification($field)) as $field) {
-                if ($field->element == 'checkbox' && !$request->has($field->db_column)) {
-                    $asset->{$field->db_column} = null;
-                }
-                if ($request->has($field->db_column)) {
-                    if ($field->field_encrypted == '1') {
-                        if (Gate::allows('assets.view.encrypted_custom_fields')) {
-                            if (is_array($request->input($field->db_column))) {
-                                $asset->{$field->db_column} = Crypt::encrypt(implode(', ', $request->input($field->db_column)));
-                            } else {
-                                $asset->{$field->db_column} = Crypt::encrypt($request->input($field->db_column));
-                            }
-                        }
-                    } else {
-                        if (is_array($request->input($field->db_column))) {
-                            $asset->{$field->db_column} = implode(', ', $request->input($field->db_column));
-                        } else {
-                            $asset->{$field->db_column} = $request->input($field->db_column);
-                        }
-                    }
-                }
-            }
-        }
         session()->put([
             'redirect_option' => $request->get('redirect_option'),
             'checkout_to_type' => $request->get('checkout_to_type'),
@@ -1070,29 +1024,6 @@ class AssetsController extends Controller
         // not just note it in the audit notes
         if ($request->input('update_location') == '1') {
             $asset->location_id = $request->input('location_id');
-        }
-
-        // Update custom fields in the database
-        if (($asset->model) && ($asset->model->fieldset)) {
-            foreach ($asset->model->fieldset->fields as $field) {
-                if (($field->display_audit=='1') && ($request->has($field->db_column))) {
-                    if ($field->field_encrypted == '1') {
-                        if (Gate::allows('assets.view.encrypted_custom_fields')) {
-                            if (is_array($request->input($field->db_column))) {
-                                $asset->{$field->db_column} = Crypt::encrypt(implode(', ', $request->input($field->db_column)));
-                            } else {
-                                $asset->{$field->db_column} = Crypt::encrypt($request->input($field->db_column));
-                            }
-                        }
-                    } else {
-                        if (is_array($request->input($field->db_column))) {
-                            $asset->{$field->db_column} = implode(', ', $request->input($field->db_column));
-                        } else {
-                            $asset->{$field->db_column} = $request->input($field->db_column);
-                        }
-                    }
-                }
-            }
         }
 
         // Invoke the validation to see if the audit will complete successfully
