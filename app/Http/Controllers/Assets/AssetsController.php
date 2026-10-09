@@ -277,10 +277,21 @@ class AssetsController extends Controller
                 $asset = $request->handleImages($asset);
             }
 
-            // The model is the source of truth for technical custom fields on
-            // new assets. Ignore values submitted by the browser.
-            if ($model) {
-                $model->applyDefaultCustomFieldValues($asset);
+            // Catalogue specifications are model-owned. Unique and encrypted
+            // fields remain specific to a physical asset and are saved here.
+            if (($model) && ($model->fieldset)) {
+                foreach ($model->fieldset->fields->filter(fn ($field) => ! $model->ownsSpecification($field)) as $field) {
+                    if ($field->field_encrypted == '1') {
+                        if (Gate::allows('assets.view.encrypted_custom_fields')) {
+                            $value = $request->input($field->db_column);
+                            $asset->{$field->db_column} = Crypt::encrypt(is_array($value) ? implode(', ', $value) : $value);
+                        }
+                    } elseif (is_array($request->input($field->db_column))) {
+                        $asset->{$field->db_column} = implode(', ', $request->input($field->db_column));
+                    } else {
+                        $asset->{$field->db_column} = $request->input($field->db_column);
+                    }
+                }
             }
 
             // Validate the asset before saving
@@ -520,7 +531,7 @@ class AssetsController extends Controller
         // Need to investigate and fix. Using static method for now.
         $model = AssetModel::find($request->get('model_id'));
         if (($model) && ($model->fieldset)) {
-            foreach ($model->fieldset->fields as $field) {
+            foreach ($model->fieldset->fields->filter(fn ($field) => ! $model->ownsSpecification($field)) as $field) {
                 if ($field->element == 'checkbox' && !$request->has($field->db_column)) {
                     $asset->{$field->db_column} = null;
                 }

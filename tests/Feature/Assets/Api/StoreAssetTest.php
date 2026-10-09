@@ -764,20 +764,19 @@ class StoreAssetTest extends TestCase
             ->assertMessagesContains('serial');
     }
 
-    public function testEncryptedCustomFieldUsesTheModelSpecification()
+    public function testEncryptedCustomFieldCanBeStored()
     {
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
 
         $status = Statuslabel::factory()->readyToDeploy()->create();
         $field = CustomField::factory()->testEncrypted()->create();
         $superuser = User::factory()->superuser()->create();
-        $model = AssetModel::factory()->hasEncryptedCustomField($field)->create();
-        $model->defaultValues()->attach($field->id, ['default_value' => 'Model encrypted field']);
+        $assetData = Asset::factory()->hasEncryptedCustomField($field)->make();
 
         $response = $this->actingAsForApi($superuser)
             ->postJson(route('api.assets.store'), $this->payloadWithCompany([
-                $field->db_column_name() => 'Ignored asset value',
-                'model_id' => $model->id,
+                $field->db_column_name() => 'This is encrypted field',
+                'model_id' => $assetData->model->id,
                 'status_id' => $status->id,
                 'asset_tag' => '1234',
             ]))
@@ -786,7 +785,7 @@ class StoreAssetTest extends TestCase
             ->json();
 
         $asset = Asset::findOrFail($response['payload']['id']);
-        $this->assertEquals('Model encrypted field', Crypt::decrypt($asset->{$field->db_column_name()}));
+        $this->assertEquals('This is encrypted field', Crypt::decrypt($asset->{$field->db_column_name()}));
     }
 
     public function test_encrypted_custom_field_validation_passes()
@@ -799,17 +798,14 @@ class StoreAssetTest extends TestCase
         $emailField = CustomField::factory()->encrypt()->email()->create();
         $fields = [$alphaField, $numericField, $emailField];
         $superuser = User::factory()->superuser()->create();
-        $model = AssetModel::factory()->hasMultipleCustomFields($fields)->create();
-        $model->defaultValues()->attach($alphaField->id, ['default_value' => 'Modelalphafield']);
-        $model->defaultValues()->attach($numericField->id, ['default_value' => '1234567890']);
-        $model->defaultValues()->attach($emailField->id, ['default_value' => 'model@example.com']);
+        $assetData = Asset::factory()->hasMultipleCustomFields($fields)->make();
 
         $response = $this->actingAsForApi($superuser)
             ->postJson(route('api.assets.store'), $this->payloadWithCompany([
-                $alphaField->db_column_name()   => 'Ignoredassetvalue',
-                $numericField->db_column_name() => '1',
-                $emailField->db_column_name()   => 'ignored@example.com',
-                'model_id'                      => $model->id,
+                $alphaField->db_column_name()   => 'Thisisencryptedfield',
+                $numericField->db_column_name() => '1234567890',
+                $emailField->db_column_name()   => 'poop@poop.com',
+                'model_id'                      => $assetData->model->id,
                 'status_id'                     => $status->id,
                 'asset_tag'                     => '1234',
             ]))
@@ -818,12 +814,12 @@ class StoreAssetTest extends TestCase
             ->json();
 
         $asset = Asset::findOrFail($response['payload']['id']);
-        $this->assertEquals('Modelalphafield', Crypt::decrypt($asset->{$alphaField->db_column_name()}));
+        $this->assertEquals('Thisisencryptedfield', Crypt::decrypt($asset->{$alphaField->db_column_name()}));
         $this->assertEquals('1234567890', Crypt::decrypt($asset->{$numericField->db_column_name()}));
-        $this->assertEquals('model@example.com', Crypt::decrypt($asset->{$emailField->db_column_name()}));
+        $this->assertEquals('poop@poop.com', Crypt::decrypt($asset->{$emailField->db_column_name()}));
     }
 
-    public function test_asset_creation_rejects_an_invalid_model_custom_field_value()
+    public function test_encrypted_custom_field_validation_fails()
     {
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
 
@@ -833,13 +829,13 @@ class StoreAssetTest extends TestCase
         $emailField = CustomField::factory()->encrypt()->email()->create();
         $fields = [$alphaField, $numericField, $emailField];
         $superuser = User::factory()->superuser()->create();
-        $model = AssetModel::factory()->hasMultipleCustomFields($fields)->create();
-        $model->defaultValues()->attach($alphaField->id, ['default_value' => 'Thisisencryptedfield123']);
+        $assetData = Asset::factory()->hasMultipleCustomFields($fields)->make();
         $cleaned_name = trim(preg_replace('/_+|snipeit|\d+/', ' ', $alphaField->db_column_name()));
 
         $response = $this->actingAsForApi($superuser)
             ->postJson(route('api.assets.store'), $this->payloadWithCompany([
-                'model_id'                    => $model->id,
+                $alphaField->db_column_name() => 'Thisisencryptedfield123',
+                'model_id'                    => $assetData->model->id,
                 'status_id'                   => $status->id,
                 'asset_tag'                   => '1234',
             ]))

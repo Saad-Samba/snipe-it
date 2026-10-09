@@ -188,6 +188,7 @@ class AssetsController extends Controller
                 'model.category',
                 'model.manufacturer',
                 'model.fieldset',
+                'model.defaultValues',
                 'model.depreciation',
                 'supplier'
             ); // it might be tempting to add 'assetlog' here, but don't. It blows up update-heavy users.
@@ -660,6 +661,7 @@ class AssetsController extends Controller
             'model.category',
             'model.depreciation',
             'model.fieldset',
+            'model.defaultValues',
             'model.manufacturer',
             'supplier',
         ]);
@@ -801,8 +803,24 @@ class AssetsController extends Controller
 
         $model = AssetModel::find($request->input('model_id'));
 
-        if ($model instanceof AssetModel) {
-            $model->applyDefaultCustomFieldValues($asset);
+        if (($model instanceof AssetModel) && $model->fieldset) {
+            foreach ($model->fieldset->fields->filter(fn ($field) => ! $model->ownsSpecification($field)) as $field) {
+                $fieldValue = $request->input($field->db_column);
+
+                if (is_array($fieldValue)) {
+                    $fieldValue = implode(',', $fieldValue);
+                }
+
+                if ($field->field_encrypted == '1') {
+                    if (! Gate::allows('assets.view.encrypted_custom_fields')) {
+                        continue;
+                    }
+
+                    $fieldValue = Crypt::encrypt($fieldValue);
+                }
+
+                $asset->{$field->db_column} = $fieldValue;
+            }
         }
 
         if ($asset->save()) {
@@ -867,7 +885,7 @@ class AssetsController extends Controller
         // Update custom fields
         $problems_updating_encrypted_custom_fields = false;
         if (($model) && (isset($model->fieldset))) {
-            foreach ($model->fieldset->fields as $field) {
+            foreach ($model->fieldset->fields->filter(fn ($field) => ! $model->ownsSpecification($field)) as $field) {
                 $field_val = $request->input($field->db_column, null);
 
                 if ($request->has($field->db_column)) {
@@ -1347,6 +1365,7 @@ class AssetsController extends Controller
                 'model.category',
                 'model.manufacturer',
                 'model.fieldset',
+                'model.defaultValues',
                 'supplier',
                 'requests'
             );

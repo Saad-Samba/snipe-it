@@ -105,10 +105,7 @@
             @endphp
         @endif
         @if (isset($model) && $model)
-        @include("models/custom_fields_form", [
-            "model" => $model,
-            "read_only_model_values" => ! $item->id,
-        ])
+        @include("models/custom_fields_form", ["model" => $model])
         @endif
     </div>
 
@@ -224,7 +221,7 @@
 
             $.ajax({
                 type: 'GET',
-                url: "{{ config('app.url') }}/models/" + modelid + "/custom_fields?read_only_model_values={{ $item->id ? '0' : '1' }}",
+                url: "{{ config('app.url') }}/models/" + modelid + "/custom_fields",
                 headers: {
                     "X-Requested-With": 'XMLHttpRequest',
                     "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content')

@@ -13,7 +13,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Watson\Validating\ValidatingTrait;
 
@@ -246,28 +245,30 @@ class AssetModel extends SnipeModel
     }
 
     /**
-     * Apply this model's technical specifications to a newly created asset.
+     * Return the catalogue-owned value for a non-unique custom field.
      *
-     * Model defaults are copied when an asset is created. Existing assets are
-     * deliberately not changed when a model specification is edited later.
+     * These values are deliberately resolved from the model instead of being
+     * copied into assets. Updating a model therefore updates every asset of
+     * that model immediately.
      */
-    public function applyDefaultCustomFieldValues(Asset $asset): void
+    public function specificationValue(CustomField $field): ?string
     {
-        $this->loadMissing(['fieldset.fields', 'defaultValues']);
-
-        if (! $this->fieldset) {
-            return;
+        if (! $this->ownsSpecification($field)) {
+            return null;
         }
 
-        $defaultValues = $this->defaultValues->keyBy('id');
+        $this->loadMissing('defaultValues');
 
-        foreach ($this->fieldset->fields as $field) {
-            $value = $defaultValues->get($field->id)?->pivot?->default_value;
+        return $this->defaultValues->firstWhere('id', $field->id)?->pivot?->default_value;
+    }
 
-            $asset->{$field->db_column} = $field->field_encrypted
-                ? (filled($value) ? Crypt::encrypt($value) : null)
-                : $value;
-        }
+    /**
+     * Catalogue specifications are shared, non-sensitive values. Unique and
+     * encrypted fields instead describe a particular physical asset.
+     */
+    public function ownsSpecification(CustomField $field): bool
+    {
+        return ! ((bool) $field->is_unique) && ! ((bool) $field->field_encrypted);
     }
 
     public function setObsoleteAttribute($value)

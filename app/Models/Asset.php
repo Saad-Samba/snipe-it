@@ -309,7 +309,7 @@ class Asset extends Depreciable
 
         if (($this->model) && ($this->model->fieldset)) {
 
-            foreach ($this->model->fieldset->fields as $field) {
+            foreach ($this->model->fieldset->fields->filter(fn (CustomField $field) => ! $this->model->ownsSpecification($field)) as $field) {
 
                 // this just casts booleans that may come through as strings to an actual boolean type
                 // adding !$field->field_encrypted because when the encrypted value comes through it
@@ -320,11 +320,28 @@ class Asset extends Depreciable
                 }
             }
 
-            $customFieldValidationRules += $this->model->fieldset->validation_rules();
+            $customFieldValidationRules += collect($this->model->fieldset->validation_rules())
+                ->only($this->model->fieldset->fields->filter(fn (CustomField $field) => ! $this->model->ownsSpecification($field))->pluck('db_column_name'))
+                ->all();
         }
 
         return $customFieldValidationRules;
 
+    }
+
+    /**
+     * Resolve a custom field from its correct owner.
+     *
+     * Unique and encrypted fields remain asset-owned. Other fields are
+     * catalogue specifications and are owned by the model.
+     */
+    public function customFieldValue(CustomField $field): mixed
+    {
+        if (($this->model) && $this->model->ownsSpecification($field)) {
+            return $this->model->specificationValue($field);
+        }
+
+        return $this->{$field->db_column};
     }
 
 
