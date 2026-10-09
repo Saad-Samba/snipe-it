@@ -264,7 +264,7 @@ class AssetModel extends SnipeModel
 
     /**
      * Catalogue specifications are shared, non-sensitive values. Unique and
-     * encrypted fields instead describe a particular physical asset.
+     * encrypted fields are not supported for model-backed assets yet.
      */
     public function ownsSpecification(CustomField $field): bool
     {

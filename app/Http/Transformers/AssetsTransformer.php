@@ -137,7 +137,7 @@ class AssetsTransformer
         if (($asset->model) && ($asset->model->fieldset) && ($asset->model->fieldset->fields->count() > 0)) {
             $fields_array = [];
 
-            foreach ($asset->model->fieldset->fields as $field) {
+            foreach ($asset->model->fieldset->fields->filter(fn ($field) => $asset->model->ownsSpecification($field)) as $field) {
                 $customFieldValue = $asset->customFieldValue($field);
 
                 if ($field->isFieldDecryptable($customFieldValue)) {
@@ -339,7 +339,7 @@ class AssetsTransformer
         if (($asset->model) && ($asset->model->fieldset) && ($asset->model->fieldset->fields->count() > 0)) {
             $fields_array = [];
 
-            foreach ($asset->model->fieldset->fields as $field) {
+            foreach ($asset->model->fieldset->fields->filter(fn ($field) => $asset->model->ownsSpecification($field)) as $field) {
 
                 // Only display this if it's allowed via the custom field setting
                 if (($field->field_encrypted == '0') && ($field->show_in_requestable_list == '1')) {

@@ -304,36 +304,16 @@ class Asset extends Depreciable
 
     public function customFieldValidationRules()
     {
-
-        $customFieldValidationRules = [];
-
-        if (($this->model) && ($this->model->fieldset)) {
-
-            foreach ($this->model->fieldset->fields->filter(fn (CustomField $field) => ! $this->model->ownsSpecification($field)) as $field) {
-
-                // this just casts booleans that may come through as strings to an actual boolean type
-                // adding !$field->field_encrypted because when the encrypted value comes through it
-                // screws things up for the encrypted validation rules (and the encrypted string
-                // is not a valid boolean type)
-                if ($field->format == 'BOOLEAN' && !$field->field_encrypted) {
-                    $this->{$field->db_column} = filter_var($this->{$field->db_column}, FILTER_VALIDATE_BOOLEAN);
-                }
-            }
-
-            $customFieldValidationRules += collect($this->model->fieldset->validation_rules())
-                ->only($this->model->fieldset->fields->filter(fn (CustomField $field) => ! $this->model->ownsSpecification($field))->pluck('db_column_name'))
-                ->all();
-        }
-
-        return $customFieldValidationRules;
-
+        // Model-backed custom fields are catalogue specifications. Their
+        // validation happens when the model is maintained, not per asset.
+        return [];
     }
 
     /**
      * Resolve a custom field from its correct owner.
      *
-     * Unique and encrypted fields remain asset-owned. Other fields are
-     * catalogue specifications and are owned by the model.
+     * Unsupported field types are deliberately ignored for model-backed
+     * assets in this initial catalogue-specification implementation.
      */
     public function customFieldValue(CustomField $field): mixed
     {
@@ -341,7 +321,7 @@ class Asset extends Depreciable
             return $this->model->specificationValue($field);
         }
 
-        return $this->{$field->db_column};
+        return null;
     }
 
 
@@ -647,36 +627,8 @@ class Asset extends Depreciable
 
     public function customFieldsForCheckinCheckout($checkin_checkout)
     {
-        // Check to see if any of the custom fields were included on the form and if they have any values
-        if (($this->model) && ($this->model->fieldset) && ($this->model->fieldset->fields)) {
-
-            foreach ($this->model->fieldset->fields as $field) {
-
-                if (($field->{$checkin_checkout} == 1) && (request()->has($field->db_column))) {
-
-                    if ($field->field_encrypted == '1') {
-
-                        if (Gate::allows('assets.view.encrypted_custom_fields')) {
-                            if (is_array(request()->input($field->db_column))) {
-                                $this->{$field->db_column} = Crypt::encrypt(implode(', ', request()->input($field->db_column)));
-                            } else {
-                                $this->{$field->db_column} = Crypt::encrypt(request()->get($field->db_column));
-                            }
-                        }
-
-                    } else {
-
-                        if (is_array(request()->input($field->db_column))) {
-                            $this->{$field->db_column} = implode(', ', request()->input($field->db_column));
-                        } else {
-                            $this->{$field->db_column} = request()->input($field->db_column);
-                        }
-
-                    }
-                }
-            }
-        }
-
+        // Model-backed custom fields are catalogue specifications and are not
+        // mutable during check-in or checkout.
     }
 
 
