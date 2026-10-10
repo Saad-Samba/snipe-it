@@ -13,7 +13,20 @@
 
 {{-- Page content --}}
 @section('inputFields')
-@include ('partials.forms.edit.name', ['translated_name' => trans('admin/licenses/form.name')])
+<div class="form-group {{ $errors->has('software_model_id') ? ' has-error' : '' }}">
+    <label for="software_model_id" class="col-md-3 control-label">Software Model{{ $item->exists ? '' : ' *' }}</label>
+    <div class="col-md-7">
+        <select class="form-control select2" name="software_model_id" id="software_model_id" data-placeholder="Select a Software Model" {{ $item->exists ? '' : 'required' }}>
+            <option value=""></option>
+            @foreach (\App\Models\SoftwareModel::where(fn ($query) => $query->where('active', true)->orWhere('id', $item->software_model_id))->with(['category', 'manufacturer', 'discipline'])->orderBy('name')->get() as $softwareModel)
+                <option value="{{ $softwareModel->id }}" data-name="{{ $softwareModel->name }}" data-category-id="{{ $softwareModel->category_id }}" data-manufacturer-id="{{ $softwareModel->manufacturer_id }}" data-discipline-id="{{ $softwareModel->discipline_id }}" @selected(old('software_model_id', $item->software_model_id) == $softwareModel->id)>{{ $softwareModel->name }}</option>
+            @endforeach
+        </select>
+        <span class="help-block">{{ $item->exists ? 'Select a Software Model to standardize this license. Legacy licenses can remain unlinked during the transition.' : 'Required. Its canonical name, category, manufacturer, and discipline are used for this license.' }}</span>
+        {!! $errors->first('software_model_id', '<span class="alert-msg">:message</span>') !!}
+    </div>
+</div>
+<input type="hidden" name="name" id="name" value="{{ old('name', $item->name) }}">
 
 <div class="form-group {{ $errors->has('software_version') ? ' has-error' : '' }}">
     <label for="software_version" class="col-md-3 control-label">{{ trans('admin/licenses/form.software_version') }}</label>
@@ -44,7 +57,7 @@
     <div class="form-group {{ $errors->has('serial') ? ' has-error' : '' }}">
         <label for="serial" class="col-md-3 control-label">{{ trans('admin/licenses/form.license_key') }}</label>
         <div class="col-md-7">
-            <textarea class="form-control" type="text" name="serial" id="serial" rows="5"{{  (Helper::checkIfRequired($item, 'serial')) ? ' required' : '' }}>{{ old('serial', $item->serial) }}</textarea>
+            <textarea class="form-control" type="text" name="serial" id="serial" rows="5" required>{{ old('serial', $item->serial) }}</textarea>
             {!! $errors->first('serial', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
         </div>
     </div>
@@ -58,7 +71,7 @@
     </div>
 </div>
 
-@include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id'])
+@include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id', 'field_req' => true])
 @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id'])
 @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id'])
 @include ('partials.forms.edit.manufacturer-select', ['translated_name' => trans('general.manufacturer'), 'fieldname' => 'manufacturer_id',])
@@ -97,7 +110,7 @@
 
 @include ('partials.forms.edit.supplier-select', ['translated_name' => trans('general.supplier'), 'fieldname' => 'supplier_id'])
 @include ('partials.forms.edit.order_number')
-@include ('partials.forms.edit.purchase_cost')
+@include ('partials.forms.edit.purchase_cost', ['currency_type' => 'USD', 'unit_cost' => trans('general.purchase_cost_usd')])
 @include ('partials.forms.edit.datepicker', ['translated_name' => trans('general.purchase_date'),'fieldname' => 'purchase_date'])
 
 <!-- Perpetual -->
@@ -131,7 +144,7 @@
     <div class="col-md-9">
         <div class="col-md-4" id="expiration_date_wrapper" style="padding-left:0px;">
             <div class="input-group date" id="expiration_date_picker" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
-                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expiration_date" id="expiration_date" value="{{ old('expiration_date', ($item->expiration_date) ? $item->expiration_date->format('Y-m-d') : '') }}" maxlength="10" @required(! old('perpetual', $item->perpetual))>
+                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expiration_date" id="expiration_date" value="{{ old('expiration_date', ($item->expiration_date) ? $item->expiration_date->format('Y-m-d') : '') }}" maxlength="10" required>
                 <span class="input-group-addon"><x-icon type="calendar" /></span>
             </div>
         </div>
@@ -143,6 +156,30 @@
         </div>
         <div class="col-md-12">
             {!! $errors->first('expiration_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
+    </div>
+
+</div>
+
+<!-- Last Physical Verification Date -->
+<div class="form-group {{ $errors->has('last_physical_verification_date') ? ' has-error' : '' }}">
+    <label for="last_physical_verification_date" class="col-md-3 control-label">{{ trans('admin/licenses/form.last_physical_verification_date') }}</label>
+
+    <div class="col-md-9">
+        <div class="col-md-4" style="padding-left:0px;">
+            <div class="input-group date" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
+                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="last_physical_verification_date" id="last_physical_verification_date" value="{{ old('last_physical_verification_date', ($item->last_physical_verification_date) ? $item->last_physical_verification_date->format('Y-m-d') : '') }}" maxlength="10" required>
+                <span class="input-group-addon"><x-icon type="calendar" /></span>
+            </div>
+        </div>
+        <div class="col-md-7" style="margin-left: -15px; padding-top: 8px;">
+            <a href="#" data-tooltip="true" title="{{ trans('admin/licenses/form.last_physical_verification_date_help') }}">
+                <x-icon type="info-circle" />
+                <span class="sr-only">{{ trans('admin/licenses/form.last_physical_verification_date_help') }}</span>
+            </a>
+        </div>
+        <div class="col-md-12">
+            {!! $errors->first('last_physical_verification_date', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
         </div>
     </div>
 
@@ -196,10 +233,45 @@
 
 @stop
 
-
 @section('moar_scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        function syncSoftwareModelFields() {
+            var select = $('#software_model_id');
+            var option = select.find(':selected');
+            var hasSoftwareModel = Boolean(option.val());
+
+            $('#name').prop('readonly', hasSoftwareModel);
+            $('#category_id, #manufacturer_id, #discipline_id').prop('disabled', hasSoftwareModel).trigger('change');
+
+            if (!hasSoftwareModel) {
+                return;
+            }
+
+            $('#name').val(option.data('name'));
+            $('#category_id').val(option.data('category-id')).trigger('change');
+            $('#manufacturer_id').val(option.data('manufacturer-id')).trigger('change');
+            $('#discipline_id').val(option.data('discipline-id') || '').trigger('change');
+        }
+
+        $('#software_model_id').on('change', function () {
+            var option = $(this).find(':selected');
+            if (!option.val()) {
+                syncSoftwareModelFields();
+                return;
+            }
+
+            $('#name').val(option.data('name'));
+            $('#category_id').val(option.data('category-id')).trigger('change');
+            $('#manufacturer_id').val(option.data('manufacturer-id')).trigger('change');
+            if (option.data('discipline-id')) {
+                $('#discipline_id').val(option.data('discipline-id')).trigger('change');
+            }
+            syncSoftwareModelFields();
+        });
+
+        syncSoftwareModelFields();
+
         var perpetualCheckbox = document.getElementById('perpetual');
         var expirationInput = document.getElementById('expiration_date');
         var expirationPicker = document.getElementById('expiration_date_picker');

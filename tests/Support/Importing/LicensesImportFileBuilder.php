@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
  * expirationDate?: string,
  * isMaintained?: bool,
  * isReassignAble?: bool,
+ * lastPhysicalVerificationDate?: string,
  * licensedToName?: string,
  * licensedToEmail?: email,
  * licenseName?: string,
@@ -28,12 +29,26 @@ use Illuminate\Support\Str;
  * serialNumber?: string,
  * softwareVersion?: string,
  * supplierName?: string
+ * softwareModel?: string
  * }
  *
  * @extends FileBuilder<Row>
  */
 class LicensesImportFileBuilder extends FileBuilder
 {
+    /**
+     * Keep the default model name aligned with a replaced legacy license name.
+     * Tests can still deliberately provide a different Software Model.
+     */
+    public function replace(array $replacement)
+    {
+        if (array_key_exists('licenseName', $replacement) && ! array_key_exists('softwareModel', $replacement)) {
+            $replacement['softwareModel'] = $replacement['licenseName'];
+        }
+
+        return parent::replace($replacement);
+    }
+
     /**
      * @inheritdoc
      */
@@ -45,6 +60,7 @@ class LicensesImportFileBuilder extends FileBuilder
             'expirationDate'   => 'expiration date',
             'isMaintained'     => 'maintained',
             'isReassignAble'   => 'reassignable',
+            'lastPhysicalVerificationDate' => 'Last Physical Verification Date',
             'licensedToName'   => 'Licensed To Name',
             'licensedToEmail'  => 'Licensed to Email',
             'licenseName'      => 'Item name',
@@ -56,6 +72,7 @@ class LicensesImportFileBuilder extends FileBuilder
             'productKey'       => 'Product Key',
             'seats'            => 'seats',
             'serialNumber'     => 'Serial number',
+            'softwareModel'    => 'Software Model',
             'softwareVersion'  => 'Software Version',
             'supplierName'     => 'supplier',
         ];
@@ -67,6 +84,7 @@ class LicensesImportFileBuilder extends FileBuilder
     public function definition(): array
     {
         $faker = fake();
+        $licenseName = $faker->company;
 
         return [
             'category'         => Str::random(),
@@ -74,9 +92,10 @@ class LicensesImportFileBuilder extends FileBuilder
             'expirationDate'   => $faker->date,
             'isMaintained'     => $faker->randomElement(['TRUE', 'FALSE']),
             'isReassignAble'   => $faker->randomElement(['TRUE', 'FALSE']),
+            'lastPhysicalVerificationDate' => $faker->date,
             'licensedToName'   => $faker->name,
             'licensedToEmail'  => $faker->email,
-            'licenseName'      => $faker->company,
+            'licenseName'      => $licenseName,
             'manufacturerName' => $faker->company,
             'notes'            => $faker->sentence,
             'orderNumber'      => "ON:LIC:{$faker->uuid}",
@@ -85,6 +104,7 @@ class LicensesImportFileBuilder extends FileBuilder
             'productKey'       => 'PK:LIC:' . Str::random(),
             'seats'            => rand(1, 10),
             'serialNumber'     => 'SN:LIC:' . Str::random(),
+            'softwareModel'    => $licenseName,
             'softwareVersion'  => $faker->numerify('##.#.#'),
             'supplierName'     => $faker->company,
         ];

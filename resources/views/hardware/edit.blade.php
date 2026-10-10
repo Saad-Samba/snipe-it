@@ -19,7 +19,7 @@
 {{-- Page content --}}
 @section('inputFields')
     
-    @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id'])
+    @include ('partials.forms.edit.company-select', ['translated_name' => trans('general.company'), 'fieldname' => 'company_id', 'field_req' => true])
     @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id'])
     @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id'])
     @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.owner'), 'fieldname' => 'owner_id', 'field_id' => 'owner_id_select', 'container_id' => 'asset_owner', 'hide_new' => 'true'])
@@ -161,14 +161,7 @@
                     @include ('partials.forms.edit.datepicker', ['translated_name' => trans('admin/hardware/form.eol_date'),'fieldname' => 'asset_eol_date'])
                     @include ('partials.forms.edit.supplier-select', ['translated_name' => trans('general.supplier'), 'fieldname' => 'supplier_id'])
 
-                    @php
-                        $currency_type = null;
-                        if ($item->id && $item->location) {
-                            $currency_type = $item->location->currency;
-                        }
-                    @endphp
-
-                    @include ('partials.forms.edit.purchase_cost', ['currency_type' => $currency_type])
+                    @include ('partials.forms.edit.purchase_cost', ['currency_type' => 'USD', 'unit_cost' => trans('general.purchase_cost_usd')])
 
                 </div> <!-- end order details -->
             </fieldset>

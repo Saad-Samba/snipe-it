@@ -4,7 +4,7 @@ namespace App\Importer;
 
 use App\Models\Asset;
 use App\Models\License;
-use Illuminate\Support\Facades\Auth;
+use App\Models\SoftwareModel;
 
 class LicenseImporter extends ItemImporter
 {
@@ -48,6 +48,40 @@ class LicenseImporter extends ItemImporter
         $serialNumber = trim((string) ($this->item['serial_number'] ?? ''));
         $this->item['serial'] = $productKey;
         $this->item['serial_number'] = $serialNumber;
+        $expirationDate = trim($this->findCsvMatch($row, 'expiration_date'));
+        $lastPhysicalVerificationDate = trim($this->findCsvMatch($row, 'last_physical_verification_date'));
+        $this->item['expiration_date'] = null;
+        $this->item['last_physical_verification_date'] = null;
+
+        if ($productKey === '') {
+            $this->addImportError($this->item['name'], 'serial', 'The product key field is required.');
+
+            return;
+        }
+
+        if (empty($this->item['company_id'])) {
+            $this->addImportError($this->item['name'], 'company_id', 'The site field is required.');
+
+            return;
+        }
+
+        if ($expirationDate === '') {
+            $this->addImportError($this->item['name'], 'expiration_date', 'The expiration date field is required.');
+
+            return;
+        }
+
+        if ($lastPhysicalVerificationDate === '') {
+            $this->addImportError($this->item['name'], 'last_physical_verification_date', 'The last physical verification date field is required.');
+            return;
+        }
+
+        $this->item['manufacturer'] = $this->createOrFetchManufacturer(trim($this->findCsvMatch($row, 'manufacturer')));
+        $this->item['min_amt'] = trim($this->findCsvMatch($row, 'min_amt'));
+
+        if (! $this->applySoftwareModel($row)) {
+            return;
+        }
 
         $licenseQuery = License::where('name', $this->item['name']);
         $hasProductKey = $productKey !== '';
@@ -103,10 +137,8 @@ class LicenseImporter extends ItemImporter
         }
         $asset_tag = $this->item['asset_tag'] = trim($this->findCsvMatch($row, 'asset_tag')); // used for checkout out to an asset.
 
-        $this->item["expiration_date"] = null;
-        if ($this->findCsvMatch($row, "expiration_date")!='') {
-            $this->item["expiration_date"] = date("Y-m-d 00:00:01", strtotime(trim($this->findCsvMatch($row, "expiration_date"))));
-        }
+        $this->item['expiration_date'] = date('Y-m-d 00:00:01', strtotime($expirationDate));
+        $this->item['last_physical_verification_date'] = date('Y-m-d 00:00:01', strtotime($lastPhysicalVerificationDate));
         $this->item['license_email'] = trim($this->findCsvMatch($row, 'license_email'));
         $this->item['license_name'] = trim($this->findCsvMatch($row, 'license_name'));
         $this->item['software_version'] = trim($this->findCsvMatch($row, 'software_version'));
@@ -114,9 +146,6 @@ class LicenseImporter extends ItemImporter
         $this->item['purchase_order'] = trim($this->findCsvMatch($row, 'purchase_order'));
         $this->item['order_number'] = trim($this->findCsvMatch($row, 'order_number'));
         $this->item['reassignable'] = trim($this->findCsvMatch($row, 'reassignable'));
-        $this->item['manufacturer'] = $this->createOrFetchManufacturer(trim($this->findCsvMatch($row, 'manufacturer')));
-        $this->item['min_amt'] = trim($this->findCsvMatch($row, 'min_amt'));
-
         if($this->item['reassignable'] == "")
         {
             $this->item['reassignable'] = 1;
@@ -188,6 +217,42 @@ class LicenseImporter extends ItemImporter
         return 'A matching License ' . $this->item['name'] . ' with ' . implode(' and ', $details) . ' already exists';
     }
 
+    /**
+     * Imports use an existing, active Software Model as the product definition.
+     */
+    private function applySoftwareModel(array $row): bool
+    {
+        $modelName = trim($this->findCsvMatch($row, 'software_model'));
+
+        if ($modelName === '') {
+            $this->log('An existing Software Model is required; import row skipped.');
+            $this->addSoftwareModelImportError('A Software Model is required.');
+            return false;
+        }
+
+        $softwareModel = SoftwareModel::where('active', true)->where('name', $modelName)->first();
+        if (! $softwareModel) {
+            $this->log('No active Software Model named '.$modelName.' was found; import row skipped.');
+            $this->addSoftwareModelImportError('No active Software Model named '.$modelName.' was found.');
+            return false;
+        }
+
+        $this->item['software_model_id'] = $softwareModel->id;
+        $this->item['name'] = $softwareModel->name;
+        $this->item['category_id'] = $softwareModel->category_id;
+        $this->item['manufacturer_id'] = $softwareModel->manufacturer_id;
+        $this->item['discipline_id'] = $softwareModel->discipline_id;
+
+        return true;
+    }
+
+    private function addSoftwareModelImportError(string $message): void
+    {
+        $license = new License;
+        $license->name = $this->item['name'] ?? 'License';
+        $this->addErrorToBag($license, 'software_model', $message);
+    }
+
     private function hasConflictingIdentifiers(License $license, string $productKey, string $serialNumber): bool
     {
         $existingProductKey = trim((string) $license->serial);
@@ -195,5 +260,19 @@ class LicenseImporter extends ItemImporter
 
         return ($productKey !== '' && $existingProductKey !== '' && $productKey !== $existingProductKey)
             || ($serialNumber !== '' && $existingSerialNumber !== '' && $serialNumber !== $existingSerialNumber);
+    }
+
+    private function addImportError(string $name, string $field, string $message): void
+    {
+        $this->log($message);
+
+        if ($this->errorCallback) {
+            call_user_func(
+                $this->errorCallback,
+                (object) ['name' => $name],
+                'License "'.$name.'"',
+                [$field => [$message]]
+            );
+        }
     }
 }

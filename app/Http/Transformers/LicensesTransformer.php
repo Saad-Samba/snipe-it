@@ -24,6 +24,10 @@ class LicensesTransformer
         $array = [
             'id' => (int) $license->id,
             'name' => e($license->name),
+            'software_model' => $license->softwareModel ? [
+                'id' => (int) $license->softwareModel->id,
+                'name' => e($license->softwareModel->name),
+            ] : null,
             'software_version' => ($license->software_version) ? e($license->software_version) : null,
             'company' => ($license->company) ? ['id' => (int) $license->company->id, 'name'=> e($license->company->name)] : null,
             'manufacturer' =>  ($license->manufacturer) ? [
@@ -46,8 +50,10 @@ class LicensesTransformer
             'purchase_date' => Helper::getFormattedDateObject($license->purchase_date, 'date'),
             'termination_date' => Helper::getFormattedDateObject($license->termination_date, 'date'),
             'expiration_date' => Helper::getFormattedDateObject($license->expiration_date, 'date'),
+            'last_physical_verification_date' => Helper::getFormattedDateObject($license->last_physical_verification_date, 'date'),
             'depreciation' => ($license->depreciation) ? ['id' => (int) $license->depreciation->id,'name'=> e($license->depreciation->name)] : null,
             'purchase_cost' => Helper::formatCurrencyOutput($license->purchase_cost),
+            'purchase_cost_currency' => 'USD',
             'purchase_cost_numeric' => $license->purchase_cost,
             'notes' => Helper::parseEscapedMarkedownInline($license->notes),
             'seats' => (int) $license->seats,

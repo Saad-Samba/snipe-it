@@ -254,6 +254,7 @@ return [
     'processing'			=> 'Processing',
     'profile'				=> 'Your Profile',
     'purchase_cost'                              => 'Purchase Cost',
+    'purchase_cost_usd'                          => 'Purchase Cost (USD)',
     'purchase_date'         => 'Purchase Date',
     'discipline'            => 'Discipline',
     'disciplines'           => 'Disciplines',

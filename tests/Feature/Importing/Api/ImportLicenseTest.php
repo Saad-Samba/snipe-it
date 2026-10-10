@@ -3,8 +3,10 @@
 namespace Tests\Feature\Importing\Api;
 
 use App\Models\Actionlog as ActivityLog;
+use App\Models\Category;
 use App\Models\Import;
 use App\Models\License;
+use App\Models\SoftwareModel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Str;
@@ -19,13 +21,43 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
     use CleansUpImportFiles;
     use WithFaker;
 
+    protected bool $seedSoftwareModelsForImport = true;
+
     protected function importFileResponse(array $parameters = []): TestResponse
     {
         if (!array_key_exists('import-type', $parameters)) {
             $parameters['import-type'] = 'license';
         }
 
+        if ($this->seedSoftwareModelsForImport && isset($parameters['import'])) {
+            $this->seedSoftwareModelsForImport(Import::find($parameters['import']));
+        }
+
         return parent::importFileResponse($parameters);
+    }
+
+    private function seedSoftwareModelsForImport(?Import $import): void
+    {
+        $path = $import ? config('app.private_uploads').'/imports/'.$import->file_path : null;
+        if (! $path || ! file_exists($path)) {
+            return;
+        }
+
+        foreach (ImportFileBuilder::fromFile($path)->all() as $row) {
+            if (empty($row['softwareModel']) || empty($row['category'])) {
+                continue;
+            }
+
+            $category = Category::firstOrCreate([
+                'name' => $row['category'],
+                'category_type' => 'license',
+            ]);
+
+            SoftwareModel::firstOrCreate(
+                ['name' => $row['softwareModel']],
+                ['category_id' => $category->id, 'active' => true]
+            );
+        }
     }
 
     #[Test]
@@ -90,6 +122,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertEquals($row['companyName'], $newLicense->company->name);
         $this->assertEquals($row['category'], $newLicense->category->name);
         $this->assertEquals($row['expirationDate'], $newLicense->expiration_date->toDateString());
+        $this->assertEquals($row['lastPhysicalVerificationDate'], $newLicense->last_physical_verification_date->toDateString());
         $this->assertEquals($row['isMaintained'] === 'TRUE', $newLicense->maintained);
         $this->assertEquals($row['isReassignAble'] === 'TRUE', $newLicense->reassignable);
         $this->assertEquals('', $newLicense->purchase_order);
@@ -97,6 +130,41 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertNull($newLicense->termination_date);
         $this->assertNull($newLicense->deprecate);
         $this->assertNull($newLicense->min_amt);
+        $this->assertSame($row['softwareModel'], $newLicense->softwareModel->name);
+    }
+
+    #[Test]
+    public function importUsesAnExistingSoftwareModelAsTheCanonicalProductDefinition(): void
+    {
+        $softwareModel = SoftwareModel::factory()->create(['name' => 'Canonical Import Product']);
+        $importFileBuilder = ImportFileBuilder::new([
+            'licenseName' => 'Uncontrolled CSV Name',
+            'softwareModel' => $softwareModel->name,
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])->assertOk();
+
+        $this->assertDatabaseHas('licenses', [
+            'software_model_id' => $softwareModel->id,
+            'name' => $softwareModel->name,
+            'category_id' => $softwareModel->category_id,
+        ]);
+    }
+
+    #[Test]
+    public function importRejectsAnUnknownSoftwareModel(): void
+    {
+        $this->seedSoftwareModelsForImport = false;
+        $importFileBuilder = ImportFileBuilder::new(['softwareModel' => 'Unknown Product Model']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])->assertInternalServerError();
+
+        $this->assertDatabaseMissing('licenses', ['serial' => $row['productKey']]);
     }
 
     #[Test]
@@ -112,6 +180,122 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
 
         $this->importFileResponse(['import' => $import->id])->assertOk();
+    }
+
+    #[Test]
+    public function licenseImportRequiresProductKey(): void
+    {
+        $importFileBuilder = ImportFileBuilder::times(1)->forget(['productKey']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'serial' => [
+                                'The product key field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('licenses', [
+            'name' => $row['licenseName'],
+        ]);
+    }
+
+    #[Test]
+    public function licenseImportRequiresCompany(): void
+    {
+        $importFileBuilder = ImportFileBuilder::times(1)->forget(['companyName']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create(['company_id' => null]));
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'company_id' => [
+                                'The site field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('licenses', [
+            'name' => $row['licenseName'],
+        ]);
+    }
+
+    #[Test]
+    public function licenseImportRequiresExpirationDate(): void
+    {
+        $importFileBuilder = ImportFileBuilder::times(1)->forget(['expirationDate']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'expiration_date' => [
+                                'The expiration date field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('licenses', [
+            'name' => $row['licenseName'],
+        ]);
+    }
+
+    #[Test]
+    public function licenseImportRequiresLastPhysicalVerificationDate(): void
+    {
+        $importFileBuilder = ImportFileBuilder::times(1)->forget(['lastPhysicalVerificationDate']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'last_physical_verification_date' => [
+                                'The last physical verification date field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('licenses', [
+            'name' => $row['licenseName'],
+        ]);
     }
 
     #[Test]
@@ -274,6 +458,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertEquals($row['companyName'], $updatedLicense->company->name);
         $this->assertEquals($row['category'], $updatedLicense->category->name);
         $this->assertEquals($row['expirationDate'], $updatedLicense->expiration_date->toDateString());
+        $this->assertEquals($row['lastPhysicalVerificationDate'], $updatedLicense->last_physical_verification_date->toDateString());
         $this->assertEquals($row['isMaintained'] === 'TRUE', $updatedLicense->maintained);
         $this->assertEquals($row['isReassignAble'] === 'TRUE', $updatedLicense->reassignable);
         $this->assertEquals($license->purchase_order, $updatedLicense->purchase_order);
@@ -401,13 +586,28 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
             'licenseName' => $license->name,
             'serialNumber' => 'SN-NEW',
         ])->forget('productKey');
+        $row = $importFileBuilder->firstRow();
         $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
 
         $this->actingAsForApi(User::factory()->superuser()->create());
-        $this->importFileResponse(['import' => $import->id, 'import-update' => true])->assertOk();
+        $this->importFileResponse(['import' => $import->id, 'import-update' => true])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'serial' => [
+                                'The product key field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
 
         $this->assertSame('SN-OLD', $license->fresh()->serial_number);
-        $this->assertDatabaseHas('licenses', [
+        $this->assertDatabaseMissing('licenses', [
             'name' => $license->name,
             'serial_number' => 'SN-NEW',
         ]);
@@ -423,14 +623,29 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $importFileBuilder = ImportFileBuilder::new([
             'licenseName' => $license->name,
         ])->forget(['productKey', 'serialNumber']);
+        $row = $importFileBuilder->firstRow();
         $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
 
         $this->actingAsForApi(User::factory()->superuser()->create());
-        $this->importFileResponse(['import' => $import->id, 'import-update' => true])->assertOk();
+        $this->importFileResponse(['import' => $import->id, 'import-update' => true])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['licenseName'] => [
+                        "License \"{$row['licenseName']}\"" => [
+                            'serial' => [
+                                'The product key field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
 
-        $this->assertSame(2, License::where('name', $license->name)->count());
+        $this->assertSame(1, License::where('name', $license->name)->count());
         $this->assertSame('PK-EXISTING', $license->fresh()->serial);
-        $this->assertDatabaseHas('licenses', [
+        $this->assertDatabaseMissing('licenses', [
             'name' => $license->name,
             'serial' => '',
             'serial_number' => '',
@@ -497,6 +712,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
             'expirationDate'   => $faker['seats'],
             'isMaintained'     => $faker['purchaseDate'],
             'isReassignAble'   => $faker['purchaseCost'],
+            'lastPhysicalVerificationDate' => $faker['purchaseDate'],
             'licensedToName'   => $faker['orderNumber'],
             'licensedToEmail'  => $faker['licensedToEmail'],
             'licenseName'      => $faker['licenseName'],
@@ -508,11 +724,16 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
             'productKey'       => $faker['category'],
             'seats'            => $faker['licensedToName'],
             'serialNumber'     => $faker['notes'],
+            'softwareModel'    => $faker['licenseName'],
             'supplierName'     => $faker['manufacturerName']
         ];
 
         $importFileBuilder = new ImportFileBuilder([$row]);
         $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->seedSoftwareModelsForImport = false;
+        $category = Category::firstOrCreate(['name' => $row['manufacturerName'], 'category_type' => 'license']);
+        SoftwareModel::factory()->create(['name' => $row['softwareModel'], 'category_id' => $category->id]);
 
         $this->actingAsForApi(User::factory()->superuser()->create());
 
@@ -526,11 +747,13 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
                 'reassignable'     => 'purchase_cost',
                 'Licensed To Name' => 'order_number',
                 'Licensed to Email' => 'license_email',
+                'Last Physical Verification Date' => 'last_physical_verification_date',
                 'Item name'        => 'name',
                 'manufacturer'     => 'category',
                 'Notes'            => 'notes',
                 'Product Key'      => 'serial',
                 'Serial number'    => 'serial_number',
+                'Software Model'   => 'software_model',
                 'Order Number'     => 'expiration_date',
                 'Purchase Cost'    => 'maintained',
                 'Purchase Date'    => 'reassignable',
@@ -558,6 +781,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
         $this->assertEquals($row['companyName'], $newLicense->company->name);
         $this->assertEquals($row['manufacturerName'], $newLicense->category->name);
         $this->assertEquals($row['orderNumber'], $newLicense->expiration_date->toDateString());
+        $this->assertEquals($row['lastPhysicalVerificationDate'], $newLicense->last_physical_verification_date->toDateString());
         $this->assertEquals($row['purchaseCost'] === 'TRUE', $newLicense->maintained);
         $this->assertEquals($row['purchaseDate'] === 'TRUE', $newLicense->reassignable);
         $this->assertEquals('', $newLicense->purchase_order);
