@@ -105,7 +105,7 @@
             @endphp
         @endif
         @if (isset($model) && $model)
-        @include("models/custom_fields_form",["model" => $model])
+        @include("models/custom_fields_form", ["model" => $model])
         @endif
     </div>
 

@@ -12,8 +12,6 @@ use App\Models\CheckoutAcceptance;
 use App\Models\LicenseSeat;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Gate;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AssetCheckoutRequest;
@@ -188,6 +186,7 @@ class AssetsController extends Controller
                 'model.category',
                 'model.manufacturer',
                 'model.fieldset',
+                'model.defaultValues',
                 'model.depreciation',
                 'supplier'
             ); // it might be tempting to add 'assetlog' here, but don't. It blows up update-heavy users.
@@ -660,6 +659,7 @@ class AssetsController extends Controller
             'model.category',
             'model.depreciation',
             'model.fieldset',
+            'model.defaultValues',
             'model.manufacturer',
             'supplier',
         ]);
@@ -799,49 +799,6 @@ class AssetsController extends Controller
 
         $asset = $request->handleImages($asset);
 
-        // Update custom fields in the database.
-        $model = AssetModel::find($request->input('model_id'));
-
-        // Check that it's an object and not a collection
-        // (Sometimes people send arrays here and they shouldn't
-        if (($model) && ($model instanceof AssetModel) && ($model->fieldset)) {
-            foreach ($model->fieldset->fields as $field) {
-
-                // Set the field value based on what was sent in the request
-                $field_val = $request->input($field->db_column, null);
-
-                // If input value is null, use custom field's default value
-                if ($field_val == null) {
-                    Log::debug('Field value for ' . $field->db_column . ' is null');
-                    $field_val = $field->defaultValue($request->get('model_id'));
-                    Log::debug('Use the default fieldset value of ' . $field->defaultValue($request->get('model_id')));
-                }
-
-                // if the field is set to encrypted, make sure we encrypt the value
-                if ($field->field_encrypted == '1') {
-                    Log::debug('This model field is encrypted in this fieldset.');
-
-                    if (Gate::allows('assets.view.encrypted_custom_fields')) {
-
-                        // If input value is null, use custom field's default value
-                        if (($field_val == null) && ($request->has('model_id') != '')) {
-                            $field_val = Crypt::encrypt($field->defaultValue($request->get('model_id')));
-                        } else {
-                            $field_val = Crypt::encrypt($request->input($field->db_column));
-                        }
-                    }
-                }
-                if ($field->element == 'checkbox') {
-                    if (is_array($field_val)) {
-                        $field_val = implode(',', $field_val);
-                    }
-                }
-
-
-                $asset->{$field->db_column} = $field_val;
-            }
-        }
-
         if ($asset->save()) {
             if ($request->get('assigned_user')) {
                 $target = User::find(request('assigned_user'));
@@ -899,32 +856,6 @@ class AssetsController extends Controller
         }
 
         $asset = $request->handleImages($asset);
-        $model = $asset->model;
-
-        // Update custom fields
-        $problems_updating_encrypted_custom_fields = false;
-        if (($model) && (isset($model->fieldset))) {
-            foreach ($model->fieldset->fields as $field) {
-                $field_val = $request->input($field->db_column, null);
-
-                if ($request->has($field->db_column)) {
-                    if ($field->element == 'checkbox') {
-                        if (is_array($field_val)) {
-                            $field_val = implode(',', $field_val);
-                        }
-                    }
-                    if ($field->field_encrypted == '1') {
-                        if (Gate::allows('assets.view.encrypted_custom_fields')) {
-                            $field_val = Crypt::encrypt($field_val);
-                        } else {
-                            $problems_updating_encrypted_custom_fields = true;
-                            continue;
-                        }
-                    }
-                    $asset->{$field->db_column} = $field_val;
-                }
-            }
-        }
         if ($asset->save()) {
             if (($request->filled('assigned_user')) && ($target = User::find($request->get('assigned_user')))) {
                 $location = $target->location_id;
@@ -945,15 +876,7 @@ class AssetsController extends Controller
                 $asset->image = $asset->getImageUrl();
             }
 
-            if ($problems_updating_encrypted_custom_fields) {
-                return response()->json(Helper::formatStandardApiResponse('success', $asset, trans('admin/hardware/message.update.encrypted_warning')));
-                // Below is the *correct* return since it uses the transformer, but we have to use the old, flat return for now until we can update Jamf2Snipe and Kanji2Snipe
-                // return response()->json(Helper::formatStandardApiResponse('success', (new AssetsTransformer)->transformAsset($asset), trans('admin/hardware/message.update.encrypted_warning')));
-            } else {
-                return response()->json(Helper::formatStandardApiResponse('success', $asset, trans('admin/hardware/message.update.success')));
-                // Below is the *correct* return since it uses the transformer, but we have to use the old, flat return for now until we can update Jamf2Snipe and Kanji2Snipe
-                /// return response()->json(Helper::formatStandardApiResponse('success', (new AssetsTransformer)->transformAsset($asset), trans('admin/hardware/message.update.success')));
-            }
+            return response()->json(Helper::formatStandardApiResponse('success', $asset, trans('admin/hardware/message.update.success')));
         }
         return response()->json(Helper::formatStandardApiResponse('error', null, $asset->getErrors()), 200);
     }
@@ -1270,36 +1193,6 @@ class AssetsController extends Controller
             ];
 
 
-            /**
-             * Update custom fields in the database.
-             * Validation for these fields is handled through the AssetRequest form request
-             * $model = AssetModel::find($request->get('model_id'));
-            */
-            if (($asset->model) && ($asset->model->fieldset)) {
-                $payload['custom_fields'] = [];
-                foreach ($asset->model->fieldset->fields as $field) {
-                    if (($field->display_audit=='1') && ($request->has($field->db_column))) {
-                        if ($field->field_encrypted == '1') {
-                            if (Gate::allows('assets.view.encrypted_custom_fields')) {
-                                if (is_array($request->input($field->db_column))) {
-                                    $asset->{$field->db_column} = Crypt::encrypt(implode(', ', $request->input($field->db_column)));
-                                } else {
-                                    $asset->{$field->db_column} = Crypt::encrypt($request->input($field->db_column));
-                                }
-                            }
-                        } else {
-                            if (is_array($request->input($field->db_column))) {
-                                $asset->{$field->db_column} = implode(', ', $request->input($field->db_column));
-                            } else {
-                                $asset->{$field->db_column} = $request->input($field->db_column);
-                            }
-                        }
-                        $payload['custom_fields'][$field->db_column] =  $request->input($field->db_column);
-                    }
-
-                }
-            }
-
             // Invoke the validation to see if the audit will complete successfully
             $asset->setRules($asset->getRules() + $asset->customFieldValidationRules());
 
@@ -1384,6 +1277,7 @@ class AssetsController extends Controller
                 'model.category',
                 'model.manufacturer',
                 'model.fieldset',
+                'model.defaultValues',
                 'supplier',
                 'requests'
             );

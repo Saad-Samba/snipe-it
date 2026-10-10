@@ -113,7 +113,7 @@ class AssetModelsController extends Controller
 
 
         if ($model->save()) {
-            if ($this->shouldAddDefaultValues($request->input(), $model)) {
+            if ($this->shouldSaveModelSpecifications($request->input(), $model)) {
                 if (!$this->assignCustomFieldsDefaultValues($model, $request->input('default_values'))){
                     return redirect()->back()->withInput()->with('error', trans('admin/custom_fields/message.fieldset_default_value.error'));
                 }
@@ -175,7 +175,7 @@ class AssetModelsController extends Controller
         if ($model->save()) {
             $this->removeCustomFieldsDefaultValues($model);
 
-            if ($this->shouldAddDefaultValues($request->input(), $model)) {
+            if ($this->shouldSaveModelSpecifications($request->input(), $model)) {
                 if (!$this->assignCustomFieldsDefaultValues($model, $request->input('default_values'))) {
                     return redirect()->back()->withInput()->withErrors($this->validatorErrors);
                 }
@@ -448,15 +448,14 @@ class AssetModelsController extends Controller
     }
 
     /**
-     * Returns true if a fieldset is set, 'add default values' is ticked and if
-     * any default values were entered into the form.
+     * Returns true when the model has a fieldset and specification values were
+     * entered into the form.
      *
      * @param  array  $input
      */
-    private function shouldAddDefaultValues(array $input, AssetModel $model) : bool
+    private function shouldSaveModelSpecifications(array $input, AssetModel $model) : bool
     {
-        return ! empty($input['add_default_values'])
-            && ! empty($input['default_values'])
+        return ! empty($input['default_values'])
             && ! is_null($model->fieldset);
     }
 
@@ -468,7 +467,9 @@ class AssetModelsController extends Controller
      */
     private function assignCustomFieldsDefaultValues(AssetModel|SnipeModel $model, array $defaultValues): bool
     {
-        $fieldsetFields = $model->fieldset?->fields->keyBy('id') ?? collect();
+        $fieldsetFields = $model->fieldset?->fields
+            ->filter(fn (CustomField $field) => $model->ownsSpecification($field))
+            ->keyBy('id') ?? collect();
         $defaultValues = collect($defaultValues)
             ->filter(fn ($value, $customFieldId) => $fieldsetFields->has((int) $customFieldId))
             ->all();
@@ -480,7 +481,9 @@ class AssetModelsController extends Controller
             $data[$customField->db_column] = $defaultValue;
         }
 
-        $allRules = $model->fieldset->validation_rules();
+        $allRules = collect($model->fieldset->validation_rules())
+            ->only($fieldsetFields->pluck('db_column_name'))
+            ->all();
         $rules = array();
 
         foreach ($allRules as $field => $validation) {
@@ -494,7 +497,7 @@ class AssetModelsController extends Controller
         }
 
         $attributes = [];
-        foreach ($model->fieldset->fields as $field) {
+        foreach ($fieldsetFields as $field) {
             $attributes[$field->db_column] = trim(preg_replace('/_+|snipeit|\d+/', ' ', $field->db_column));
         }
 
@@ -508,7 +511,7 @@ class AssetModelsController extends Controller
         foreach ($defaultValues as $customFieldId => $defaultValue) {
             if(is_array($defaultValue)){
                 $model->defaultValues()->attach($customFieldId, ['default_value' => implode(', ', $defaultValue)]);
-            }elseif ($defaultValue) {
+            } elseif (filled($defaultValue)) {
                 $model->defaultValues()->attach($customFieldId, ['default_value' => $defaultValue]);
             }
         }

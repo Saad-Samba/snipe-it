@@ -63,7 +63,8 @@ class UpdateAssetModelsTest extends TestCase
             ->assertSee('Category Governed Fieldset')
             ->assertDontSee('Stored Model Override')
             ->assertDontSeeHtml('name="fieldset_id"')
-            ->assertSeeHtml('name="add_default_values"');
+            ->assertDontSeeHtml('name="add_default_values"')
+            ->assertSeeHtml('name="default_values[');
     }
 
     public function testModelDefaultsCanBeSavedForTheInheritedCategoryFieldset(): void
@@ -86,7 +87,6 @@ class UpdateAssetModelsTest extends TestCase
             ->put(route('models.update', $model), [
                 'name' => $model->name,
                 'category_id' => $category->id,
-                'add_default_values' => '1',
                 'default_values' => [
                     $field->id => '1 Gbps',
                     $unrelatedField->id => 'Must not be attached',
@@ -123,7 +123,6 @@ class UpdateAssetModelsTest extends TestCase
             ->put(route('models.update', $model), [
                 'name' => $model->name,
                 'category_id' => $newCategory->id,
-                'add_default_values' => '1',
                 'default_values' => [$newField->id => 'New value'],
             ])
             ->assertRedirect(route('models.index'));
@@ -338,7 +337,6 @@ class UpdateAssetModelsTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->put(route('models.update', ['model' => $assetModel]), [
                 // should trigger validation error without name, etc, and NOT remove or change default values
-                'add_default_values' => '1',
                 'fieldset_id' => $customFieldset->id,
                 'default_values' => [
                     $customFieldOne->id => 'first changed value',
@@ -375,7 +373,6 @@ class UpdateAssetModelsTest extends TestCase
                 // should trigger validation error without name, etc, and NOT remove or change default values
                 'name' => 'Test Model Edited',
                 'category_id' => $assetModel->category_id,
-                'add_default_values' => '1',
                 'fieldset_id' => $customFieldset->id,
                 'default_values' => [
                     $customFieldOne->id => 'first changed value',

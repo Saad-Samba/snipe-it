@@ -39,8 +39,8 @@ class ComponentsAssetsTransformer
         $array += $permissions_array;
 
         if ($asset->model->fieldset) {
-            foreach ($asset->model->fieldset->fields as $field) {
-                $fields_array = [$field->name => $asset->{$field->db_column}];
+            foreach ($asset->model->fieldset->fields->filter(fn ($field) => $asset->model->ownsSpecification($field)) as $field) {
+                $fields_array = [$field->name => $asset->customFieldValue($field)];
                 $array += $fields_array;
             }
         }
