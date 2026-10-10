@@ -192,6 +192,29 @@
     </div>
 </div>
 
+<!-- Maintenance Expiry Date -->
+<div id="maintenance_expiry_group" class="form-group {{ $errors->has('maintenance_expires_at') ? ' has-error' : '' }}">
+    <label for="maintenance_expires_at" class="col-md-3 control-label">{{ trans('admin/licenses/form.maintenance_expires_at') }}</label>
+
+    <div class="col-md-9">
+        <div class="col-md-4" style="padding-left:0px;">
+            <div class="input-group date" id="maintenance_expiry_picker" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-autoclose="true" data-date-clear-btn="true">
+                <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="maintenance_expires_at" id="maintenance_expires_at" value="{{ old('maintenance_expires_at', ($item->maintenance_expires_at) ? $item->maintenance_expires_at->format('Y-m-d') : '') }}" maxlength="10">
+                <span class="input-group-addon"><x-icon type="calendar" /></span>
+            </div>
+        </div>
+        <div class="col-md-7" style="margin-left: -15px; padding-top: 8px;">
+            <a href="#" data-tooltip="true" title="{{ trans('admin/licenses/form.maintenance_expires_at_help') }}">
+                <x-icon type="info-circle" />
+                <span class="sr-only">{{ trans('admin/licenses/form.maintenance_expires_at_help') }}</span>
+            </a>
+        </div>
+        <div class="col-md-12">
+            {!! $errors->first('maintenance_expires_at', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
+        </div>
+    </div>
+</div>
+
 @include ('partials.forms.edit.notes')
 
 @stop
@@ -204,8 +227,11 @@
         var expirationInput = document.getElementById('expiration_date');
         var expirationPicker = document.getElementById('expiration_date_picker');
         var expirationWrapper = document.getElementById('expiration_date_wrapper');
+        var maintainedCheckbox = document.querySelector('input[name="maintained"]');
+        var maintenanceExpiryGroup = document.getElementById('maintenance_expiry_group');
+        var maintenanceExpiryInput = document.getElementById('maintenance_expires_at');
 
-        if (!perpetualCheckbox || !expirationInput || !expirationPicker || !expirationWrapper) {
+        if (!perpetualCheckbox || !expirationInput || !expirationPicker || !expirationWrapper || !maintainedCheckbox || !maintenanceExpiryGroup || !maintenanceExpiryInput) {
             return;
         }
 
@@ -219,9 +245,18 @@
             if (isPerpetual) {
                 expirationInput.value = '';
             }
+
+            var showMaintenanceExpiry = isPerpetual && maintainedCheckbox.checked;
+            maintenanceExpiryGroup.style.display = showMaintenanceExpiry ? '' : 'none';
+            maintenanceExpiryInput.disabled = !showMaintenanceExpiry;
+            maintenanceExpiryInput.required = showMaintenanceExpiry;
+            if (!showMaintenanceExpiry) {
+                maintenanceExpiryInput.value = '';
+            }
         }
 
         perpetualCheckbox.addEventListener('change', syncPerpetualState);
+        maintainedCheckbox.addEventListener('change', syncPerpetualState);
         syncPerpetualState();
     });
 </script>

@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -75,6 +76,7 @@ class LicensesController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', License::class);
+        $this->validateMaintenanceExpiry($request);
         // create a new model instance
         $license = new License();
         // Save the license data
@@ -86,6 +88,7 @@ class LicensesController extends Controller
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained', 0);
+        $license->maintenance_expires_at = $request->input('maintenance_expires_at');
         $license->manufacturer_id   = $request->input('manufacturer_id');
         $license->name              = $request->input('name');
         $license->software_version  = $request->input('software_version');
@@ -163,6 +166,7 @@ class LicensesController extends Controller
 
 
         $this->authorize('update', $license);
+        $this->validateMaintenanceExpiry($request, $license);
 
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->perpetual         = $request->boolean('perpetual');
@@ -170,6 +174,7 @@ class LicensesController extends Controller
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained',0);
+        $license->maintenance_expires_at = $request->input('maintenance_expires_at');
         $license->name              = $request->input('name');
         $license->software_version  = $request->input('software_version');
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
@@ -197,6 +202,21 @@ class LicensesController extends Controller
         }
         // If we can't adjust the number of seats, the error is flashed to the session by the event handler in License.php
         return redirect()->back()->withInput()->withErrors($license->getErrors());
+    }
+
+    private function validateMaintenanceExpiry(Request $request, ?License $license = null): void
+    {
+        $perpetual = $request->has('perpetual') ? $request->boolean('perpetual') : (bool) $license?->perpetual;
+        $maintained = $request->has('maintained') ? $request->boolean('maintained') : (bool) $license?->maintained;
+
+        $request->validate([
+            'maintenance_expires_at' => [
+                'nullable',
+                'date_format:Y-m-d',
+                'max:10',
+                Rule::requiredIf($perpetual && $maintained),
+            ],
+        ]);
     }
 
     /**
@@ -357,6 +377,7 @@ class LicensesController extends Controller
                         trans('general.email'),
                         trans('general.supplier'),
                         trans('admin/licenses/form.expiration'),
+                        trans('admin/licenses/form.maintenance_expires_at'),
                         trans('admin/licenses/form.purchase_order'),
                         trans('admin/licenses/form.termination_date'),
                         trans('admin/licenses/form.maintained'),
@@ -390,6 +411,7 @@ class LicensesController extends Controller
                             $license->email,
                             ($license->supplier) ? $license->supplier->name: '',
                             $license->expiration_date,
+                            $license->maintenance_expires_at,
                             $license->purchase_order,
                             $license->termination_date,
                             ( $license->maintained == '1') ? trans('general.yes') : trans('general.no'),

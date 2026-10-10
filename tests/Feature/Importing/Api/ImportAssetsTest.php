@@ -378,6 +378,36 @@ class ImportAssetsTest extends ImportDataTestCase implements TestsPermissionsReq
     }
 
     #[Test]
+    public function assetImportRequiresCompany(): void
+    {
+        $importFileBuilder = ImportFileBuilder::times(1)
+            ->forget(['companyName']);
+        $row = $importFileBuilder->firstRow();
+        $import = Import::factory()->asset()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create(['company_id' => null]));
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJson([
+                'status' => 'import-errors',
+                'payload' => null,
+                'messages' => [
+                    $row['itemName'] => [
+                        "Asset \"{$row['itemName']}\"" => [
+                            'company_id' => [
+                                'The site field is required.',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('assets', [
+            'serial' => $row['serialNumber'],
+        ]);
+    }
+
+    #[Test]
     public function updateAssetFromImport(): void
     {
         $asset = Asset::factory()->create()->refresh();
