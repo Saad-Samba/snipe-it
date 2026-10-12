@@ -6,6 +6,8 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\CustomField;
+use App\Models\CustomFieldset;
 use App\Models\Discipline;
 use App\Models\Group;
 use App\Models\Statuslabel;
@@ -74,8 +76,55 @@ class RequestableModelsPageTest extends TestCase
     public function test_user_without_model_request_permission_cannot_open_request_catalogue(): void
     {
         $this->actingAs(User::factory()->create())
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertForbidden();
+    }
+
+    public function test_category_catalogue_exposes_only_eligible_model_specification_filters(): void
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $fieldset = CustomFieldset::factory()->create();
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'QA Communication',
+            'fieldset_id' => $fieldset->id,
+        ]);
+        $networkSpeed = CustomField::factory()->create([
+            'name' => 'QA Network Speed',
+            'element' => 'listbox',
+            'field_values' => "100 Mbps\n1 Gbps\n10 Gbps",
+            'show_in_requestable_list' => true,
+        ]);
+        $serialNumber = CustomField::factory()->create([
+            'name' => 'QA Serial Number',
+            'is_unique' => true,
+            'show_in_requestable_list' => true,
+        ]);
+        $internalNote = CustomField::factory()->create([
+            'name' => 'QA Internal Note',
+            'show_in_requestable_list' => false,
+        ]);
+        $fieldset->fields()->attach([
+            $networkSpeed->id => ['order' => 1, 'required' => false],
+            $serialNumber->id => ['order' => 2, 'required' => false],
+            $internalNote->id => ['order' => 3, 'required' => false],
+        ]);
+        $model = AssetModel::factory()->create(['category_id' => $category->id]);
+        $model->defaultValues()->attach($networkSpeed->id, ['default_value' => '1 Gbps']);
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => Statuslabel::factory()->readyToDeploy(),
+            'requestable' => true,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('requestable-assets', ['category' => $category->id]))
+            ->assertOk()
+            ->assertSeeText('Technical filters')
+            ->assertSeeText('QA Network Speed')
+            ->assertSeeText('1 Gbps')
+            ->assertSee('data-field="spec-'.$networkSpeed->id.'"', false)
+            ->assertDontSeeText('QA Serial Number')
+            ->assertDontSeeText('QA Internal Note');
     }
 
     public function test_cross_company_catalogue_permission_shows_requestable_models_outside_the_epl_company_under_fmcs(): void
@@ -104,7 +153,7 @@ class RequestableModelsPageTest extends TestCase
         ]);
 
         $this->actingAs($epl)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertOk()
             ->assertSeeText('Cross-company reusable model');
     }
@@ -131,7 +180,7 @@ class RequestableModelsPageTest extends TestCase
         ]);
 
         $this->actingAs($requester)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertOk()
             ->assertDontSeeText('Other-company-only reusable model');
     }
@@ -166,7 +215,7 @@ class RequestableModelsPageTest extends TestCase
         $this->assertTrue($epl->hasAccess('models.request.all_companies'));
 
         $this->actingAs($epl)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertOk()
             ->assertSeeText('Group-visible cross-company model');
     }
