@@ -68,7 +68,8 @@ class ModelRequestsController extends Controller
         $includeAllCompanies = $user->hasAccess('models.request.all_companies');
 
         $models = AssetModel::with([
-            'category',
+            'category.fieldset.fields',
+            'defaultValues',
         ])
             ->withCount([
                 'availableAssets as reusable_assets_count' => function ($assetQuery) use ($includeAllCompanies) {
@@ -80,10 +81,41 @@ class ModelRequestsController extends Controller
             ->RequestableModels($includeAllCompanies)
             ->orderBy('name')
             ->get();
+
+        $categories = $models->pluck('category')
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+        $categoryModelCounts = $models->countBy('category_id');
+        $selectedCategory = null;
+
+        if (request()->filled('category')) {
+            $selectedCategory = $categories->firstWhere('id', request()->integer('category'));
+
+            abort_unless($selectedCategory, 404);
+        }
+
+        $showAllModels = request()->boolean('all');
+        $catalogueModels = $selectedCategory
+            ? $models->where('category_id', $selectedCategory->id)->values()
+            : ($showAllModels ? $models : collect());
+        $specificationFields = collect($selectedCategory?->fieldset?->fields)
+            ->filter(fn ($field) => $field->show_in_requestable_list && $selectedCategory && ! $field->is_unique && ! $field->field_encrypted)
+            ->values();
         $companies = Company::orderBy('name')->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
 
-        return view('account/requestable-assets', compact('companies', 'disciplines', 'models'));
+        return view('account/requestable-assets', compact(
+            'catalogueModels',
+            'categories',
+            'categoryModelCounts',
+            'companies',
+            'disciplines',
+            'selectedCategory',
+            'showAllModels',
+            'specificationFields',
+        ));
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse

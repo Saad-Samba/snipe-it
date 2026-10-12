@@ -37,7 +37,7 @@ class RequestableModelsPageTest extends TestCase
         Discipline::create(['name' => 'Operations', 'created_by' => $requester->id]);
 
         $this->actingAs($requester)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['category' => $category->id]))
             ->assertOk()
             ->assertSeeText('Request Models')
             ->assertDontSeeText('Enter the required quantity and destination scope')
@@ -47,12 +47,9 @@ class RequestableModelsPageTest extends TestCase
             ->assertSeeText('Destination Site')
             ->assertSee('id="requestableModelsToolbar"', false)
             ->assertSee('id="requestableModelsCategoryFilter"', false)
-            ->assertSee('<option value="Communication">Communication</option>', false)
-            ->assertSee('data-field="category" data-sortable="true"', false)
+            ->assertSee('<option value="'.$category->id.'" selected>Communication</option>', false)
             ->assertSee('data-advanced-search="false"', false)
-            ->assertSee("var selectedCategory = filters && filters.category", false)
-            ->assertSee("$('<div>').html(row.category || '').text().trim() === selectedCategory", false)
-            ->assertSee('bootstrapTable.filterColumns.category', false)
+            ->assertSee('Search models or technical specifications', false)
             ->assertSeeText('Add to Cart')
             ->assertDontSee('requestableModelsBulkForm', false)
             ->assertDontSee('requestableModelsBulkAddButton', false)
