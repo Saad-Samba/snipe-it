@@ -20,6 +20,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Pilot Mail Monitoring
+    |--------------------------------------------------------------------------
+    |
+    | Telescope is normally available only in the local environment. Enable
+    | this explicit, opt-in switch for a time-limited pilot when administrators
+    | need to inspect outgoing email without changing the configured mailer.
+    |
+    */
+
+    'pilot_mail_monitoring' => env('TELESCOPE_PILOT_MAIL_MONITORING', false),
+
+    'pilot_mail_retention_hours' => env('TELESCOPE_PILOT_MAIL_RETENTION_HOURS', 48),
+
+    /*
+    |--------------------------------------------------------------------------
     | Telescope Domain
     |--------------------------------------------------------------------------
     |

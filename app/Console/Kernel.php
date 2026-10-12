@@ -19,6 +19,10 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
+        if (config('telescope.pilot_mail_monitoring')) {
+            $schedule->command('telescope:prune --hours='.config('telescope.pilot_mail_retention_hours'))->daily();
+        }
+
         if(Setting::getSettings()?->alerts_enabled === 1) {
             $schedule->command('snipeit:inventory-alerts')->daily();
             $schedule->command('snipeit:expiring-alerts')->daily();
