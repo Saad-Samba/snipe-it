@@ -51,7 +51,7 @@ class RequestableModelsPageTest extends TestCase
             ->assertSee('id="requestableModelsCategoryFilter"', false)
             ->assertSee('<option value="Communication">Communication</option>', false)
             ->assertSee('data-advanced-search="false"', false)
-            ->assertSee('Search models or technical specifications', false)
+            ->assertSee('Search models or add a technical filter', false)
             ->assertSeeText('Add to Cart')
             ->assertDontSee('requestableModelsBulkForm', false)
             ->assertDontSee('requestableModelsBulkAddButton', false)
@@ -123,6 +123,8 @@ class RequestableModelsPageTest extends TestCase
             ->assertSeeText('QA Network Speed')
             ->assertSeeText('1 Gbps')
             ->assertSee('data-field="specifications"', false)
+            ->assertSee('requestableSpecificationSuggestions', false)
+            ->assertSee('requestableSpecificationChips', false)
             ->assertDontSeeText('QA Serial Number')
             ->assertDontSeeText('QA Internal Note');
     }

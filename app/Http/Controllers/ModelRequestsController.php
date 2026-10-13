@@ -82,10 +82,16 @@ class ModelRequestsController extends Controller
             ->orderBy('name')
             ->get();
 
+        $specificationFields = $models
+            ->flatMap(fn (AssetModel $model) => $model->fieldset?->fields ?? collect())
+            ->filter(fn ($field) => $field->show_in_requestable_list && ! $field->is_unique && ! $field->field_encrypted)
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
         $companies = Company::orderBy('name')->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
 
-        return view('account/requestable-assets', compact('companies', 'disciplines', 'models'));
+        return view('account/requestable-assets', compact('companies', 'disciplines', 'models', 'specificationFields'));
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse
