@@ -39,7 +39,7 @@ class RequestableModelsPageTest extends TestCase
         Discipline::create(['name' => 'Operations', 'created_by' => $requester->id]);
 
         $this->actingAs($requester)
-            ->get(route('requestable-assets', ['category' => $category->id]))
+            ->get(route('requestable-assets'))
             ->assertOk()
             ->assertSeeText('Request Models')
             ->assertDontSeeText('Enter the required quantity and destination scope')
@@ -49,7 +49,7 @@ class RequestableModelsPageTest extends TestCase
             ->assertSeeText('Destination Site')
             ->assertSee('id="requestableModelsToolbar"', false)
             ->assertSee('id="requestableModelsCategoryFilter"', false)
-            ->assertSee('<option value="'.$category->id.'" selected>Communication</option>', false)
+            ->assertSee('<option value="Communication">Communication</option>', false)
             ->assertSee('data-advanced-search="false"', false)
             ->assertSee('Search models or technical specifications', false)
             ->assertSeeText('Add to Cart')
@@ -80,7 +80,7 @@ class RequestableModelsPageTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_category_catalogue_exposes_only_eligible_model_specification_filters(): void
+    public function test_catalogue_displays_only_eligible_model_specifications(): void
     {
         $requester = User::factory()->requestAssetModels()->create();
         $fieldset = CustomFieldset::factory()->create();
@@ -117,12 +117,12 @@ class RequestableModelsPageTest extends TestCase
         ]);
 
         $this->actingAs($requester)
-            ->get(route('requestable-assets', ['category' => $category->id]))
+            ->get(route('requestable-assets'))
             ->assertOk()
-            ->assertSeeText('Technical filters')
+            ->assertSeeText('Technical specifications')
             ->assertSeeText('QA Network Speed')
             ->assertSeeText('1 Gbps')
-            ->assertSee('data-field="spec-'.$networkSpeed->id.'"', false)
+            ->assertSee('data-field="specifications"', false)
             ->assertDontSeeText('QA Serial Number')
             ->assertDontSeeText('QA Internal Note');
     }
