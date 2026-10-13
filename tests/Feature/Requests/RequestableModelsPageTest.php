@@ -94,6 +94,11 @@ class RequestableModelsPageTest extends TestCase
             'field_values' => "100 Mbps\n1 Gbps\n10 Gbps",
             'show_in_requestable_list' => true,
         ]);
+        $portCount = CustomField::factory()->create([
+            'name' => 'QA Port Count',
+            'format' => 'NUMERIC',
+            'show_in_requestable_list' => true,
+        ]);
         $serialNumber = CustomField::factory()->create([
             'name' => 'QA Serial Number',
             'is_unique' => true,
@@ -105,11 +110,13 @@ class RequestableModelsPageTest extends TestCase
         ]);
         $fieldset->fields()->attach([
             $networkSpeed->id => ['order' => 1, 'required' => false],
-            $serialNumber->id => ['order' => 2, 'required' => false],
-            $internalNote->id => ['order' => 3, 'required' => false],
+            $portCount->id => ['order' => 2, 'required' => false],
+            $serialNumber->id => ['order' => 3, 'required' => false],
+            $internalNote->id => ['order' => 4, 'required' => false],
         ]);
         $model = AssetModel::factory()->create(['category_id' => $category->id]);
         $model->defaultValues()->attach($networkSpeed->id, ['default_value' => '1 Gbps']);
+        $model->defaultValues()->attach($portCount->id, ['default_value' => '8']);
         Asset::factory()->create([
             'model_id' => $model->id,
             'status_id' => Statuslabel::factory()->readyToDeploy(),
@@ -122,6 +129,8 @@ class RequestableModelsPageTest extends TestCase
             ->assertSeeText('Technical specifications')
             ->assertSeeText('QA Network Speed')
             ->assertSeeText('1 Gbps')
+            ->assertSeeText('QA Port Count')
+            ->assertSee('"name":"QA Port Count","numeric":true', false)
             ->assertSee('data-field="specifications"', false)
             ->assertSee('requestableSpecificationSuggestions', false)
             ->assertSee('requestableSpecificationChips', false)

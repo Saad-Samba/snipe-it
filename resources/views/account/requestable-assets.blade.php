@@ -15,7 +15,7 @@
 @section('moar_scripts')
 @include('partials.bootstrap-table',['exportFile'=>'requestable-models-export','search'=>true,'clientSearch'=>true])
 <script nonce="{{ csrf_token() }}">
-var requestableSpecificationFields=@json($specificationFields->map(fn($field)=>['name'=>$field->name,'numeric'=>$field->format==='numeric','values'=>collect($field->formatFieldValuesAsArray())->except('')->values()])->values());
+var requestableSpecificationFields=@json($specificationFields->map(fn($field)=>['name'=>$field->name,'numeric'=>strtolower((string) $field->format)==='numeric','values'=>collect($field->formatFieldValuesAsArray())->except('')->values()])->values());
 function requestLineForModel(id){var q=parseInt($('#model-booking-quantity-'+id).val(),10),d=parseInt($('#model-booking-discipline-'+id).val(),10),c=parseInt($('#model-booking-company-'+id).val(),10);if(!q||!d||!c){window.alert('Enter a total needed quantity, discipline, and destination site for each model.');return null}return{model_id:id,quantity:q,discipline_id:d,company_id:c}}
 $(document).on('click','.add-model-to-request-cart',function(){var l=requestLineForModel(+$(this).data('model-id'));if(l)addLinesToRequestCart([l],false)});
 $(function(){
