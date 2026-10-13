@@ -14,6 +14,7 @@ Log in as `demo-EPL` with password `password`, then open
 | --- | --- |
 | Category selector | Choose **Communication** to limit the existing table to that category. |
 | Visible specifications | The two Communication models show Network Speed, Port Count, and Media Type in the **Technical specifications** column. |
+| Multiple fieldsets | Filter to **Embedded Development Tools** and use Communication Protocol is Ethernet. Only the TRACE32 model remains. Then filter to **Communication** and use Port Count >= 8; only the Vector model remains. |
 | Field suggestion | In the same search box, type **Network** and choose **Network Speed** from the suggestions. |
 | Controlled value chip | After selecting Network Speed, choose **1 Gbps**. It becomes a removable **Network Speed is 1 Gbps** chip and leaves only the Vector model. |
 | Numeric chip | Type **Port Count**, choose an operator such as **>=**, enter **8**, then press Enter. Only the Vector model remains. Use **<= 2** for the PEAK model. |

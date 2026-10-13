@@ -88,10 +88,27 @@ class ModelRequestsController extends Controller
             ->unique('id')
             ->sortBy('name')
             ->values();
+        $specificationFields->each(function ($field) use ($models): void {
+            $field->requestable_categories = $models
+                ->filter(fn (AssetModel $model) => $model->fieldset?->fields->contains('id', $field->id))
+                ->pluck('category.name')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        });
+        $specificationSearchFields = $specificationFields
+            ->map(fn ($field) => [
+                'name' => $field->name,
+                'numeric' => strtolower((string) $field->format) === 'numeric',
+                'values' => collect($field->formatFieldValuesAsArray())->except('')->values(),
+                'categories' => $field->requestable_categories,
+            ])
+            ->values();
         $companies = Company::orderBy('name')->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
 
-        return view('account/requestable-assets', compact('companies', 'disciplines', 'models', 'specificationFields'));
+        return view('account/requestable-assets', compact('companies', 'disciplines', 'models', 'specificationFields', 'specificationSearchFields'));
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse

@@ -131,6 +131,7 @@ class RequestableModelsPageTest extends TestCase
             ->assertSeeText('1 Gbps')
             ->assertSeeText('QA Port Count')
             ->assertSee('"name":"QA Port Count","numeric":true', false)
+            ->assertSee('"categories":["QA Communication"]', false)
             ->assertSee('data-field="specifications"', false)
             ->assertSee('requestableSpecificationSuggestions', false)
             ->assertSee('requestableSpecificationChips', false)

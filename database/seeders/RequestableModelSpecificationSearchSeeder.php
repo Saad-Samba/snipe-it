@@ -62,6 +62,45 @@ class RequestableModelSpecificationSearchSeeder extends Seeder
             ]);
         }
 
+        $automationFieldset = CustomFieldset::withoutGlobalScopes()
+            ->where('name', 'Automation and Control Equipment')
+            ->firstOrFail();
+        $automationFields = [
+            'Device Type' => [
+                'element' => 'listbox',
+                'format' => 'Device type',
+                'field_values' => "Debug Probe\nPower Supply",
+                'show_in_requestable_list' => true,
+            ],
+            'Communication Protocol' => [
+                'element' => 'listbox',
+                'format' => 'Communication protocol',
+                'field_values' => "USB\nEthernet",
+                'show_in_requestable_list' => true,
+            ],
+            'Digital I/O Count' => [
+                'element' => 'text',
+                'format' => 'numeric',
+                'field_values' => null,
+                'show_in_requestable_list' => true,
+            ],
+        ];
+        $automationOrder = 1;
+        foreach ($automationFields as $name => $attributes) {
+            $field = CustomField::withoutGlobalScopes()->updateOrCreate(
+                ['name' => $name],
+                $attributes + [
+                    'created_by' => $admin->id,
+                    'help_text' => 'Visible technical filter for automation catalogue QA.',
+                    'field_encrypted' => false,
+                    'is_unique' => false,
+                ]
+            );
+            $automationFieldset->fields()->syncWithoutDetaching([
+                $field->id => ['order' => $automationOrder++, 'required' => false],
+            ]);
+        }
+
         // These are deliberately configured as visible in the administration
         // screen but must never appear in the requestable catalogue.
         foreach ([
@@ -93,6 +132,21 @@ class RequestableModelSpecificationSearchSeeder extends Seeder
                 'Network Speed' => '100 Mbps',
                 'Port Count' => '2',
                 'Media Type' => 'Copper',
+            ],
+            'SEGGER J-Link PRO Debug Probe' => [
+                'Device Type' => 'Debug Probe',
+                'Communication Protocol' => 'USB',
+                'Digital I/O Count' => '0',
+            ],
+            'Lauterbach TRACE32 Debug Probe' => [
+                'Device Type' => 'Debug Probe',
+                'Communication Protocol' => 'Ethernet',
+                'Digital I/O Count' => '16',
+            ],
+            'Keysight E36313A DC Power Supply' => [
+                'Device Type' => 'Power Supply',
+                'Communication Protocol' => 'USB',
+                'Digital I/O Count' => '4',
             ],
         ];
 
