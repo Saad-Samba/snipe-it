@@ -107,7 +107,7 @@ class StoreAssetsTest extends TestCase
         $this->assertSame('110 V', $asset->customFieldValue($field));
     }
 
-    public function test_asset_preserves_asset_owned_custom_fields_without_a_model_specification(): void
+    public function test_blank_model_specification_ignores_asset_input(): void
     {
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
 
@@ -118,15 +118,15 @@ class StoreAssetsTest extends TestCase
             ->post(route('hardware.store'), [
                 'company_id' => Company::factory()->create()->id,
                 'model_id' => $model->id,
-                'asset_tags' => [1 => 'LEGACY-FIELD-001'],
+                'asset_tags' => [1 => 'BLANK-MODEL-SPEC-001'],
                 'status_id' => StatusLabel::factory()->create()->id,
                 $field->db_column => 'Calibrated 2026-10-14',
             ])
             ->assertRedirect();
 
-        $asset = Asset::where('asset_tag', 'LEGACY-FIELD-001')->firstOrFail();
-        $this->assertSame('Calibrated 2026-10-14', $asset->{$field->db_column});
-        $this->assertSame('Calibrated 2026-10-14', $asset->customFieldValue($field));
+        $asset = Asset::where('asset_tag', 'BLANK-MODEL-SPEC-001')->firstOrFail();
+        $this->assertNull($asset->{$field->db_column});
+        $this->assertNull($asset->customFieldValue($field));
     }
 
     public function test_asset_creation_shows_model_custom_fields_as_read_only(): void
@@ -168,7 +168,7 @@ class StoreAssetsTest extends TestCase
         ]);
     }
 
-    public function test_unique_custom_fields_remain_asset_owned_when_the_model_has_no_specification(): void
+    public function test_unique_custom_fields_are_ignored_for_model_assets(): void
     {
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
 
@@ -181,7 +181,7 @@ class StoreAssetsTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('hardware.create', ['model_id' => $model->id]))
             ->assertOk()
-            ->assertSeeText('Factory Certificate');
+            ->assertDontSeeText('Factory Certificate');
 
         $this->actingAs(User::factory()->superuser()->create())
             ->post(route('hardware.store'), [
@@ -194,8 +194,8 @@ class StoreAssetsTest extends TestCase
             ->assertRedirect();
 
         $asset = Asset::where('asset_tag', 'MODEL-SPEC-UNIQUE-001')->firstOrFail();
-        $this->assertSame('FC-001', $asset->customFieldValue($field));
-        $this->assertSame('FC-001', $asset->{$field->db_column});
+        $this->assertNull($asset->customFieldValue($field));
+        $this->assertNull($asset->{$field->db_column});
     }
 
     public function testCompanyIsRequiredWhenStoringAsset()

@@ -275,8 +275,6 @@ class AssetsController extends Controller
                 $asset = $request->handleImages($asset);
             }
 
-            $asset->fillAssetOwnedCustomFields($request);
-
             // Validate the asset before saving
             if ($asset->isValid() && $asset->save()) {
                 $target = null;
@@ -510,8 +508,6 @@ class AssetsController extends Controller
         $asset = $request->handleImages($asset);
 
         $model = AssetModel::find($request->get('model_id'));
-        $asset->setRelation('model', $model);
-        $asset->fillAssetOwnedCustomFields($request, true);
         session()->put([
             'redirect_option' => $request->get('redirect_option'),
             'checkout_to_type' => $request->get('checkout_to_type'),
@@ -1000,7 +996,6 @@ class AssetsController extends Controller
 
 
         // Invoke the validation to see if the audit will complete successfully
-        $asset->fillAssetOwnedCustomFields($request, true, true);
         $asset->setRules($asset->getRules() + $asset->customFieldValidationRules());
 
         if ($asset->isInvalid()) {
@@ -1032,7 +1027,6 @@ class AssetsController extends Controller
         }
 
         // Invoke the validation to see if the audit will complete successfully
-        $asset->fillAssetOwnedCustomFields($request, true, true);
         $asset->setRules($asset->getRules() + $asset->customFieldValidationRules());
 
         // Validate the rest of the data before we turn off the event dispatcher
