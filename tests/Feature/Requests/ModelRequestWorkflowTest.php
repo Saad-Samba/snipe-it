@@ -10,6 +10,7 @@ use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
 use App\Models\Discipline;
+use App\Models\License;
 use App\Models\Location;
 use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
@@ -309,7 +310,7 @@ class ModelRequestWorkflowTest extends TestCase
             ]);
 
         $this->artisan('snipeit:reconcile-rac-routing')
-            ->expectsOutput('1 active requests reconciled; 1 unrouted requests included in administrator alerts.')
+            ->expectsOutput('1 active requests reconciled; 1 unrouted requests included in administrator alerts; 0 coordinators initially notified.')
             ->assertSuccessful();
 
         $this->assertSame(
@@ -370,7 +371,7 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertSame(2, $checkoutRequest->remainingAllocationQuantity());
 
         $this->artisan('snipeit:reconcile-rac-routing')
-            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts.')
+            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts; 0 coordinators initially notified.')
             ->assertSuccessful();
 
         $checkoutRequest->refresh();
@@ -922,7 +923,7 @@ class ModelRequestWorkflowTest extends TestCase
             ->assertJsonPath('rows.0.project', 'Project One');
     }
 
-    public function test_project_requests_tab_shows_request_review_for_requester()
+    public function test_requester_cannot_open_project_request_overview()
     {
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Requests Tab Project']);
@@ -941,15 +942,204 @@ class ModelRequestWorkflowTest extends TestCase
 
         $this->actingAs($requester)
             ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertForbidden();
+    }
+
+    public function test_project_viewer_can_review_all_requests_for_a_project_without_submission_actions()
+    {
+        $rfqLead = User::factory()->create([
+            'permissions' => json_encode([
+                'projects.view' => '1',
+                'assets.view' => '1',
+            ]),
+        ]);
+        $requesterA = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Amina',
+            'last_name' => 'Electrical',
+        ]);
+        $requesterB = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Bilal',
+            'last_name' => 'Automation',
+        ]);
+        $project = Project::factory()->create(['name' => 'RFQ North Extension']);
+        $electrical = Discipline::create(['name' => 'Electrical', 'created_by' => $requesterA->id]);
+        $automation = Discipline::create(['name' => 'Automation', 'created_by' => $requesterA->id]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requesterA)->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requesterA->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $electrical->id,
+            'quantity' => 2,
+        ]);
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requesterB->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $automation->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($rfqLead)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
             ->assertOk()
-            ->assertSee('Requests')
-            ->assertSee('Reuse Summary')
-            ->assertSee('Reuse planning fields')
-            ->assertSee('Recently released feature')
-            ->assertSee('projectRequestsTable', false)
-            ->assertSee('Quantity')
-            ->assertSee('Reference Price')
-            ->assertDontSee('Potentially Coverable');
+            ->assertSee('Request Overview')
+            ->assertDontSee('Reuse Summary')
+            ->assertSee('project_overview=1', false)
+            ->assertDontSee('<th data-field="requested_by"', false)
+            ->assertSee('data-show-footer="true"', false)
+            ->assertSee('data-footer-formatter="requestProjectTotalLabelFormatter"', false);
+
+        $this->actingAsForApi($rfqLead)
+            ->getJson(route('api.requests.index', [
+                'project_id' => $project->id,
+                'project_overview' => 1,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonFragment(['requested_by' => 'Amina Electrical'])
+            ->assertJsonFragment(['requested_by' => 'Bilal Automation'])
+            ->assertJsonPath('rows.0.request_detail_url', null)
+            ->assertJsonPath('rows.0.reusable_now_url', null)
+            ->assertJsonPath('rows.0.request_update_url', null);
+    }
+
+    public function test_project_viewer_can_review_requests_grouped_by_discipline()
+    {
+        $rfqLead = User::factory()->create([
+            'permissions' => json_encode(['projects.view' => '1']),
+        ]);
+        $requester = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Amina',
+            'last_name' => 'Electrical',
+        ]);
+        $project = Project::factory()->create([
+            'name' => 'RFQ Grouped Review',
+            'is_rfq' => true,
+            'rfq_needed_by_date' => '2026-12-15',
+        ]);
+        $electrical = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
+        $automation = Discipline::create(['name' => 'Automation', 'created_by' => $requester->id]);
+        $secondRequester = User::factory()->viewAssets()->requestAssetModels()->create([
+            'first_name' => 'Bilal',
+            'last_name' => 'Electrical',
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+
+        CheckoutRequest::factory()->forAssetModel()->count(2)->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $electrical->id,
+            'quantity' => 1,
+            'needed_by_date' => '2026-11-30',
+        ]);
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $automation->id,
+            'quantity' => 3,
+            'needed_by_date' => '2026-12-02',
+        ]);
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $secondRequester->id,
+            'requestable_id' => $model->id,
+            'requestable_type' => AssetModel::class,
+            'project_id' => $project->id,
+            'requested_discipline_id' => $electrical->id,
+            'quantity' => 4,
+            'needed_by_date' => '2026-12-04',
+        ]);
+        $this->createEligibleAsset($model, Company::factory()->create()->id, $electrical->id);
+
+        $this->actingAs($rfqLead)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+            ->assertOk()
+            ->assertSee('RFQ Grouped Review (Needed by 15 Dec 2026)')
+            ->assertSee('projectRequestOverviewTable', false)
+            ->assertDontSee('Reuse Summary')
+            ->assertSee('data-show-footer="true"', false)
+            ->assertSee('data-footer-formatter="requestProjectTotalLabelFormatter"', false)
+            ->assertSee('data-footer-formatter="qtySumFormatter"', false)
+            ->assertDontSee('<th data-field="requested_by"', false)
+            ->assertDontSee('<th data-field="models_count"', false)
+            ->assertDontSee('<th data-field="requests_count"', false)
+            ->assertDontSee('<th data-field="needed_by"', false)
+            ->assertDontSee('Discipline request status')
+            ->assertDontSee("Each row combines all requests for one discipline.", false);
+
+        $this->actingAs($rfqLead)
+            ->get(route('projects.show', [
+                'project' => $project->id,
+                'tab' => 'requests',
+                'discipline_id' => $electrical->id,
+            ]))
+            ->assertOk()
+            ->assertDontSee('Showing the request lines for the selected requester and discipline.')
+            ->assertSee('projectRequestsTable', false);
+
+        $this->actingAsForApi($rfqLead)
+            ->getJson(route('api.requests.index', [
+                'project_id' => $project->id,
+                'project_overview' => 1,
+                'overview' => 'grouped',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonFragment([
+                'requested_discipline' => 'Electrical',
+                'total_needed' => 6,
+                'reusable_now' => 3,
+                'shortfall' => 3,
+            ])
+            ->assertJsonFragment([
+                'requested_discipline' => 'Automation',
+                'total_needed' => 3,
+            ]);
+    }
+
+    public function test_project_viewer_can_view_project_assets_and_licenses_without_global_permissions()
+    {
+        $projectViewer = User::factory()->create([
+            'permissions' => json_encode(['projects.view' => '1']),
+        ]);
+        $project = Project::factory()->create();
+        $asset = Asset::factory()->create([
+            'project_id' => $project->id,
+            'company_id' => Company::factory()->create()->id,
+        ]);
+        $license = License::factory()->create([
+            'project_id' => $project->id,
+            'company_id' => Company::factory()->create()->id,
+        ]);
+
+        $this->actingAs($projectViewer)
+            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'assets']))
+            ->assertOk()
+            ->assertSee('projectAssetsTable', false)
+            ->assertSee('projectLicensesTable', false);
+
+        $this->actingAsForApi($projectViewer)
+            ->getJson(route('api.assets.index', ['project_id' => $project->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $asset->id);
+
+        $this->actingAsForApi($projectViewer)
+            ->getJson(route('api.licenses.index', ['project_id' => $project->id]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $license->id);
     }
 
     public function test_requester_cannot_open_project_assets_tab_from_project_requests_view()
@@ -1735,15 +1925,21 @@ class ModelRequestWorkflowTest extends TestCase
     {
         $requester = User::factory()->requestAssetModels()->create();
         $coordinator = User::factory()->create();
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Processing Scope', 'created_by' => $requester->id]);
         $project = Project::factory()->create();
         $updatedProject = Project::factory()->create();
         $request = CheckoutRequest::factory()->forAssetModel()->create([
             'user_id' => $requester->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
             'project_id' => $project->id,
             'needed_by_date' => '2026-06-01',
         ]);
         $request->coordinatorTargets()->create([
             'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
             'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_IN_PROGRESS,
         ]);
 
@@ -2146,6 +2342,48 @@ class ModelRequestWorkflowTest extends TestCase
         $this->assertCount(2, $submittedRequests);
         $this->assertNotNull($submittedRequests->first()->submission_batch_id);
         $this->assertCount(1, $submittedRequests->pluck('submission_batch_id')->unique());
+    }
+
+    public function test_rfq_project_uses_its_configured_needed_by_date_for_cart_submission()
+    {
+        Notification::fake();
+
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create();
+        $project = Project::factory()->create([
+            'is_rfq' => true,
+            'rfq_needed_by_date' => '2026-12-15',
+        ]);
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        $discipline = Discipline::create(['name' => 'RFQ Deadline Discipline', 'created_by' => $requester->id]);
+        $companyId = Company::factory()->create()->id;
+
+        $this->actingAs($requester)
+            ->postJson(route('account.request-cart.items.add'), [
+                'lines' => [[
+                    'model_id' => $model->id,
+                    'quantity' => 2,
+                    'discipline_id' => $discipline->id,
+                    'company_id' => $companyId,
+                ]],
+            ])
+            ->assertOk();
+
+        $this->actingAs($requester)
+            ->post(route('account.request-cart.submit'), [
+                'project_id' => $project->id,
+                'needed_by_date' => '2026-10-01',
+            ])
+            ->assertRedirect();
+
+        $submittedRequest = CheckoutRequest::query()
+            ->where('user_id', $requester->id)
+            ->where('project_id', $project->id)
+            ->where('requestable_id', $model->id)
+            ->firstOrFail();
+
+        $this->assertSame('2026-12-15', $submittedRequest->needed_by_date->format('Y-m-d'));
     }
 
     public function test_request_cart_submit_creates_distinct_requests_for_same_model_and_discipline_across_companies()
@@ -2616,6 +2854,9 @@ class ModelRequestWorkflowTest extends TestCase
 
     public function test_project_requests_tab_shows_category_and_total_need_cost_columns()
     {
+        $projectViewer = User::factory()->create([
+            'permissions' => json_encode(['projects.view' => '1']),
+        ]);
         $requester = User::factory()->viewAssets()->requestAssetModels()->create();
         $project = Project::factory()->create(['name' => 'Requests Columns Project']);
         $discipline = Discipline::create([
@@ -2639,8 +2880,12 @@ class ModelRequestWorkflowTest extends TestCase
             'reference_price_snapshot' => 1200,
         ]);
 
-        $this->actingAs($requester)
-            ->get(route('projects.show', ['project' => $project->id, 'tab' => 'requests']))
+        $this->actingAs($projectViewer)
+            ->get(route('projects.show', [
+                'project' => $project->id,
+                'tab' => 'requests',
+                'discipline_id' => $discipline->id,
+            ]))
             ->assertOk()
             ->assertSee('data-field="category"', false)
             ->assertSee('data-field="total_need_cost"', false)
@@ -3126,6 +3371,158 @@ class ModelRequestWorkflowTest extends TestCase
             'user_id' => $coordinator->id,
             'resolution_status' => CheckoutRequestCoordinator::RESOLUTION_COMPLETED,
         ]);
+    }
+
+    public function test_fmcs_cross_site_reuse_request_routes_notifies_transfers_and_completes_at_destination()
+    {
+        Notification::fake();
+        $settings = Setting::getSettings();
+        $settings->full_multiple_companies_support = 1;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $sourceCompany = Company::factory()->create(['name' => 'Source Site']);
+        $destinationCompany = Company::factory()->create(['name' => 'Destination Site']);
+        $requester = User::factory()->requestAssetModels()->viewAssetModels()->create([
+            'company_id' => $destinationCompany->id,
+        ]);
+        $sourceCoordinator = User::factory()->viewAssets()->editAssets()->create([
+            'company_id' => $sourceCompany->id,
+            'email' => 'source-rac@example.com',
+        ]);
+        $destinationCoordinator = User::factory()->viewAssets()->checkoutAssets()->create([
+            'company_id' => $destinationCompany->id,
+        ]);
+        $discipline = Discipline::create(['name' => 'FMCS Network Reuse', 'created_by' => $requester->id]);
+        $project = Project::factory()->create();
+        $model = AssetModel::factory()->create([
+            'category_id' => $this->managedAssetCategoryFor($requester)->id,
+        ]);
+        Statuslabel::factory()->create([
+            'name' => 'In Transfer',
+            'deployable' => 0,
+            'pending' => 1,
+            'archived' => 0,
+        ]);
+        $ready = Statuslabel::factory()->rtd()->create();
+        $asset = $this->createEligibleAsset($model, $sourceCompany->id, $discipline->id);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $sourceCoordinator->id,
+            'company_id' => $sourceCompany->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->actingAs($requester)->post(route('account/request-item', [
+            'itemType' => 'asset_model',
+            'itemId' => $model->id,
+        ]), [
+            'request-quantity' => 1,
+            'requested_discipline_id' => $discipline->id,
+            'company_id' => $destinationCompany->id,
+            'project_id' => $project->id,
+            'needed_by_date' => now()->addMonth()->format('Y-m-d'),
+        ])->assertRedirect();
+
+        $checkoutRequest = CheckoutRequest::query()->where('user_id', $requester->id)->firstOrFail();
+        $this->assertSame(1, $checkoutRequest->reusable_quantity);
+        $this->assertSame(0, $checkoutRequest->procurement_shortfall);
+        $this->assertDatabaseHas('checkout_request_coordinators', [
+            'checkout_request_id' => $checkoutRequest->id,
+            'user_id' => $sourceCoordinator->id,
+            'company_id' => $sourceCompany->id,
+        ]);
+        Notification::assertSentTo($sourceCoordinator, RacScopedRequestSummaryNotification::class);
+
+        $this->actingAs($sourceCoordinator)->post(route('hardware.requests.start-transfer', [
+            'assetId' => $asset->id,
+            'checkoutRequestId' => $checkoutRequest->id,
+        ]))->assertRedirect();
+
+        // Existing controlled handoff: a superuser receives and reassigns the
+        // asset to its destination Site before the destination checkout.
+        Asset::withoutGlobalScopes()->findOrFail($asset->id)->forceFill([
+            'company_id' => $destinationCompany->id,
+            'location_id' => null,
+            'rtd_location_id' => null,
+            'status_id' => $ready->id,
+        ])->save();
+
+        $this->actingAs($destinationCoordinator)->post(route('hardware.checkout.store', $asset->id), [
+            'checkout_to_type' => 'user',
+            'assigned_user' => $requester->id,
+            'expected_checkin' => now()->addWeek()->format('Y-m-d'),
+        ])->assertRedirect();
+
+        $checkoutRequest->refresh();
+        $this->assertSame(CheckoutRequest::STATUS_FULLY_ALLOCATED, $checkoutRequest->status);
+        $this->assertNotNull($checkoutRequest->fulfilled_at);
+    }
+
+    public function test_reconciliation_initially_notifies_a_rac_added_after_submission()
+    {
+        Notification::fake();
+        $requester = User::factory()->create();
+        $coordinator = User::factory()->create(['email' => 'late-rac@example.com']);
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Late RAC Scope', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create();
+        $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'requestable_id' => $model->id,
+            'user_id' => $requester->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
+            'status' => CheckoutRequest::STATUS_PENDING,
+        ]);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->artisan('snipeit:reconcile-rac-routing')
+            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts; 1 coordinators initially notified.')
+            ->assertSuccessful();
+
+        $target = $checkoutRequest->coordinatorTargets()->where('user_id', $coordinator->id)->firstOrFail();
+        $this->assertNotNull($target->initial_notified_at);
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class);
+    }
+
+    public function test_reconciliation_reopens_a_not_allocated_request_when_it_adds_a_new_rac_target()
+    {
+        Notification::fake();
+        $requester = User::factory()->create();
+        $coordinator = User::factory()->create(['email' => 'reopened-rac@example.com']);
+        $company = Company::factory()->create();
+        $discipline = Discipline::create(['name' => 'Reopened RAC Scope', 'created_by' => $requester->id]);
+        $model = AssetModel::factory()->create();
+        $this->createEligibleAsset($model, $company->id, $discipline->id);
+        $checkoutRequest = CheckoutRequest::factory()->forAssetModel()->create([
+            'requestable_id' => $model->id,
+            'user_id' => $requester->id,
+            'company_id' => $company->id,
+            'requested_discipline_id' => $discipline->id,
+            'status' => CheckoutRequest::STATUS_NOT_ALLOCATED,
+        ]);
+        RegionalAssetCoordinatorAssignment::create([
+            'user_id' => $coordinator->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $requester->id,
+        ]);
+
+        $this->artisan('snipeit:reconcile-rac-routing')
+            ->expectsOutput('1 active requests reconciled; 0 unrouted requests included in administrator alerts; 1 coordinators initially notified.')
+            ->assertSuccessful();
+
+        $checkoutRequest->refresh();
+        $this->assertSame(CheckoutRequest::STATUS_PENDING, $checkoutRequest->status);
+        $this->assertNull($checkoutRequest->alternative_follow_up_notified_at);
+        $this->assertNotNull($checkoutRequest->coordinatorTargets()->firstOrFail()->initial_notified_at);
+        Notification::assertSentTo($coordinator, RacScopedRequestSummaryNotification::class);
     }
 
     public function test_destination_checkout_completes_a_request_linked_transfer()

@@ -26,6 +26,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
+use App\View\Composers\ImpersonationBannerComposer;
 
 /**
  * This service provider handles setting the observers on models
@@ -68,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         \Illuminate\Pagination\Paginator::useBootstrap();
+        View::composer('partials.impersonation-banner', ImpersonationBannerComposer::class);
 
         Schema::defaultStringLength(191);
         Asset::observe(AssetObserver::class);

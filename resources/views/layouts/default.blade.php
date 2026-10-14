@@ -865,6 +865,8 @@ dir="{{ Helper::determineLanguageDirection() }}">
 
             <div class="content-wrapper" role="main" id="setting-list">
 
+                @include('partials.impersonation-banner')
+
                 @if ($debug_in_production)
                     <div class="row" style="margin-bottom: 0px; background-color: red; color: white; font-size: 15px;">
                         <div class="col-md-12"

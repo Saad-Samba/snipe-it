@@ -330,6 +330,7 @@ class AssetModelsController extends Controller
             'models.model_number',
             'models.manufacturer_id',
             'models.category_id',
+            'models.require_serial',
         ])->with('manufacturer', 'category')
             ->managedBy(auth()->user());
 
@@ -361,6 +362,13 @@ class AssetModelsController extends Controller
             $assetmodel->use_image = ($settings->modellistCheckedValue('image') && ($assetmodel->image)) ? Storage::disk('public')->url('models/'.e($assetmodel->image)) : null;
         }
 
-        return (new SelectlistTransformer)->transformSelectlist($assetmodels);
+        $results = (new SelectlistTransformer)->transformSelectlist($assetmodels);
+        $modelsById = $assetmodels->getCollection()->keyBy('id');
+
+        foreach ($results['results'] as $index => $result) {
+            $results['results'][$index]['require_serial'] = (bool) $modelsById[$result['id']]->require_serial;
+        }
+
+        return $results;
     }
 }

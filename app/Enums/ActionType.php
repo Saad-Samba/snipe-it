@@ -22,6 +22,8 @@ enum ActionType: string
     // Users
     case TwoFactorReset = '2FA reset';
     case Merged = 'merged';
+    case Impersonated = 'impersonated';
+    case StoppedImpersonating = 'stopped impersonating';
 
     // Licenses
     case DeleteSeats = 'delete seats';

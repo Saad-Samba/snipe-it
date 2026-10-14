@@ -1,4 +1,4 @@
-@if (($model) && ($model->fieldset) && $model->fieldset->displayAnyFieldsInForm($show_custom_fields_type ?? ''))
+@if (($model) && ($model->fieldset) && $model->fieldset->fields->contains(fn ($field) => $model->ownsSpecification($field)) && $model->fieldset->displayAnyFieldsInForm($show_custom_fields_type ?? ''))
     <div class="col-md-12 col-sm-12">
 
     <fieldset name="custom-fields">
@@ -9,7 +9,7 @@
         </x-form-legend>
 
   @foreach($model->fieldset->fields as $field)
-    @if (!isset($show_custom_fields_type) || ($field->displayFieldInCurrentForm($show_custom_fields_type)))
+    @if ($model->ownsSpecification($field) && (!isset($show_custom_fields_type) || ($field->displayFieldInCurrentForm($show_custom_fields_type))))
 
 
     <div class="form-group{{ $errors->has($field->db_column_name()) ? ' has-error' : '' }}">
