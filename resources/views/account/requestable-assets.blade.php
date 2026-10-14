@@ -62,17 +62,18 @@
                                 data-pagination="true">
                                 <thead>
                                     <tr>
-                                        <th data-field="id" data-visible="false">ID</th>
-                                        <th>{{ trans('general.image') }}</th>
-                                        <th>Model</th>
-                                        <th data-field="category">Category</th>
+                                        <th data-field="id" data-visible="false" data-sortable="true">ID</th>
+                                        <th data-sortable="true">{{ trans('general.image') }}</th>
+                                        <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
+                                        <th data-field="category" data-sortable="true">{{ trans('general.category') }}</th>
+                                        <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
                                         <th data-field="specifications">Technical specifications</th>
-                                        <th>Reusable Assets <x-new-feature-label /></th>
-                                        <th>Reference Price <x-new-feature-label /></th>
-                                        <th>Total Needed <x-new-feature-label /></th>
-                                        <th>Discipline <x-new-feature-label /></th>
-                                        <th>Destination Site <x-new-feature-label /></th>
-                                        <th>Actions</th>
+                                        <th data-sortable="true">Reusable Assets <x-new-feature-label /></th>
+                                        <th data-sortable="true">Reference Price <x-new-feature-label /></th>
+                                        <th data-sortable="false">Total Needed <x-new-feature-label /></th>
+                                        <th data-sortable="false">Discipline <x-new-feature-label /></th>
+                                        <th data-sortable="false">Destination Site <x-new-feature-label /></th>
+                                        <th data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -98,6 +99,7 @@
                                             </td>
                                             <td>{{ $model->name }}</td>
                                             <td>{{ $model->category?->name }}</td>
+                                            <td>{{ $model->model_number }}</td>
                                             <td>
                                                 @forelse ($specs as $id => $value)
                                                     <span class="label label-default">
