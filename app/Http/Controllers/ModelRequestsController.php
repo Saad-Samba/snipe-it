@@ -78,7 +78,6 @@ class ModelRequestsController extends Controller
                     }
                 },
             ])
-            ->RequestableModels($includeAllCompanies)
             ->orderBy('name')
             ->get();
 

@@ -426,7 +426,7 @@ class AssetModel extends SnipeModel
         return (int) $managerId === (int) $user->id;
     }
 
-    public function scopeRequestableModels($query, bool $includeAllCompanies = false)
+    public function scopeWithAvailableReusableAssets($query, bool $includeAllCompanies = false)
     {
         return $query->whereHas('availableAssets', function (Builder $assetQuery) use ($includeAllCompanies) {
             if ($includeAllCompanies) {
