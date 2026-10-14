@@ -268,6 +268,17 @@ class AssetModel extends SnipeModel
      */
     public function ownsSpecification(CustomField $field): bool
     {
+        if ((bool) $field->is_unique || (bool) $field->field_encrypted) {
+            return false;
+        }
+
+        $this->loadMissing('defaultValues');
+
+        return $this->defaultValues->contains('id', $field->id);
+    }
+
+    public function supportsSpecification(CustomField $field): bool
+    {
         return ! ((bool) $field->is_unique) && ! ((bool) $field->field_encrypted);
     }
 

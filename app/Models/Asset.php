@@ -304,9 +304,28 @@ class Asset extends Depreciable
 
     public function customFieldValidationRules()
     {
-        // Model-backed custom fields are catalogue specifications. Their
-        // validation happens when the model is maintained, not per asset.
-        return [];
+        $customFieldValidationRules = [];
+
+        if (($this->model) && ($this->model->fieldset)) {
+            foreach ($this->model->fieldset->fields as $field) {
+                if ($this->model->ownsSpecification($field)) {
+                    continue;
+                }
+
+                if ($field->format == 'BOOLEAN' && ! $field->field_encrypted) {
+                    $this->{$field->db_column} = filter_var($this->{$field->db_column}, FILTER_VALIDATE_BOOLEAN);
+                }
+            }
+
+            $customFieldValidationRules += $this->model->fieldset->validation_rules();
+            foreach ($this->model->fieldset->fields as $field) {
+                if ($this->model->ownsSpecification($field)) {
+                    unset($customFieldValidationRules[$field->db_column]);
+                }
+            }
+        }
+
+        return $customFieldValidationRules;
     }
 
     /**
@@ -321,7 +340,47 @@ class Asset extends Depreciable
             return $this->model->specificationValue($field);
         }
 
-        return null;
+        return $this->{$field->db_column};
+    }
+
+    /**
+     * Apply submitted values only to asset-owned fields. Model-owned
+     * specifications stay read-only at the asset level.
+     */
+    public function fillAssetOwnedCustomFields(\Illuminate\Http\Request $request, bool $onlyWhenPresent = false, bool $auditOnly = false): void
+    {
+        if (! $this->model?->fieldset) {
+            return;
+        }
+
+        foreach ($this->model->fieldset->fields as $field) {
+            if ($this->model->ownsSpecification($field) || ($auditOnly && $field->display_audit != '1')) {
+                continue;
+            }
+
+            if ($onlyWhenPresent && ! $request->has($field->db_column)) {
+                if ($field->element == 'checkbox') {
+                    $this->{$field->db_column} = null;
+                }
+
+                continue;
+            }
+
+            $value = $request->input($field->db_column);
+            if ($field->element == 'checkbox' && is_array($value)) {
+                $value = implode(',', $value);
+            }
+
+            if ($field->field_encrypted == '1') {
+                if (! Gate::allows('assets.view.encrypted_custom_fields')) {
+                    continue;
+                }
+
+                $value = Crypt::encrypt($value);
+            }
+
+            $this->{$field->db_column} = $value;
+        }
     }
 
 
@@ -627,8 +686,30 @@ class Asset extends Depreciable
 
     public function customFieldsForCheckinCheckout($checkin_checkout)
     {
-        // Model-backed custom fields are catalogue specifications and are not
-        // mutable during check-in or checkout.
+        if (! $this->model?->fieldset) {
+            return;
+        }
+
+        foreach ($this->model->fieldset->fields as $field) {
+            if ($this->model->ownsSpecification($field) || $field->{$checkin_checkout} != 1 || ! request()->has($field->db_column)) {
+                continue;
+            }
+
+            $value = request()->input($field->db_column);
+            if ($field->element == 'checkbox' && is_array($value)) {
+                $value = implode(',', $value);
+            }
+
+            if ($field->field_encrypted == '1') {
+                if (! Gate::allows('assets.view.encrypted_custom_fields')) {
+                    continue;
+                }
+
+                $value = Crypt::encrypt($value);
+            }
+
+            $this->{$field->db_column} = $value;
+        }
     }
 
 

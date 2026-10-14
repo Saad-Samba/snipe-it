@@ -764,7 +764,7 @@ class StoreAssetTest extends TestCase
             ->assertMessagesContains('serial');
     }
 
-    public function testEncryptedCustomFieldIsIgnoredForModelAssets()
+    public function testEncryptedCustomFieldCanBeStored()
     {
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
 
@@ -785,10 +785,10 @@ class StoreAssetTest extends TestCase
             ->json();
 
         $asset = Asset::findOrFail($response['payload']['id']);
-        $this->assertNull($asset->{$field->db_column_name()});
+        $this->assertEquals('This is encrypted field', Crypt::decrypt($asset->{$field->db_column_name()}));
     }
 
-    public function testEncryptedCustomFieldValuesAreIgnoredForModelAssets()
+    public function test_encrypted_custom_field_validation_passes()
     {
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
 
@@ -814,12 +814,12 @@ class StoreAssetTest extends TestCase
             ->json();
 
         $asset = Asset::findOrFail($response['payload']['id']);
-        $this->assertNull($asset->{$alphaField->db_column_name()});
-        $this->assertNull($asset->{$numericField->db_column_name()});
-        $this->assertNull($asset->{$emailField->db_column_name()});
+        $this->assertEquals('Thisisencryptedfield', Crypt::decrypt($asset->{$alphaField->db_column_name()}));
+        $this->assertEquals('1234567890', Crypt::decrypt($asset->{$numericField->db_column_name()}));
+        $this->assertEquals('poop@poop.com', Crypt::decrypt($asset->{$emailField->db_column_name()}));
     }
 
-    public function testEncryptedCustomFieldValidationIsIgnoredForModelAssets()
+    public function test_encrypted_custom_field_validation_fails()
     {
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
 
@@ -830,6 +830,8 @@ class StoreAssetTest extends TestCase
         $fields = [$alphaField, $numericField, $emailField];
         $superuser = User::factory()->superuser()->create();
         $assetData = Asset::factory()->hasMultipleCustomFields($fields)->make();
+        $cleaned_name = trim(preg_replace('/_+|snipeit|\d+/', ' ', $alphaField->db_column_name()));
+
         $response = $this->actingAsForApi($superuser)
             ->postJson(route('api.assets.store'), $this->payloadWithCompany([
                 $alphaField->db_column_name() => 'Thisisencryptedfield123',
@@ -837,12 +839,8 @@ class StoreAssetTest extends TestCase
                 'status_id'                   => $status->id,
                 'asset_tag'                   => '1234',
             ]))
-            ->assertStatusMessageIs('success')
-            ->assertOk()
-            ->json();
-
-        $asset = Asset::findOrFail($response['payload']['id']);
-        $this->assertNull($asset->{$alphaField->db_column_name()});
+            ->assertStatusMessageIs('error')
+            ->assertJsonPath('messages.'.$alphaField->db_column_name(), [trans('validation.alpha', ['attribute' => $cleaned_name])]);
     }
 
 

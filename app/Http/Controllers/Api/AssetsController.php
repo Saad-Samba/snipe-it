@@ -784,6 +784,7 @@ class AssetsController extends Controller
         }
 
         $asset = $request->handleImages($asset);
+        $asset->fillAssetOwnedCustomFields($request);
 
         if ($asset->save()) {
             if ($request->get('assigned_user')) {
@@ -842,6 +843,7 @@ class AssetsController extends Controller
         }
 
         $asset = $request->handleImages($asset);
+        $asset->fillAssetOwnedCustomFields($request, true);
         if ($asset->save()) {
             if (($request->filled('assigned_user')) && ($target = User::find($request->get('assigned_user')))) {
                 $location = $target->location_id;
@@ -1180,6 +1182,7 @@ class AssetsController extends Controller
 
 
             // Invoke the validation to see if the audit will complete successfully
+            $asset->fillAssetOwnedCustomFields($request, true, true);
             $asset->setRules($asset->getRules() + $asset->customFieldValidationRules());
 
             // Validate the rest of the data before we turn off the event dispatcher

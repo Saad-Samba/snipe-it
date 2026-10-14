@@ -468,7 +468,7 @@ class AssetModelsController extends Controller
     private function assignCustomFieldsDefaultValues(AssetModel|SnipeModel $model, array $defaultValues): bool
     {
         $fieldsetFields = $model->fieldset?->fields
-            ->filter(fn (CustomField $field) => $model->ownsSpecification($field))
+            ->filter(fn (CustomField $field) => $model->supportsSpecification($field))
             ->keyBy('id') ?? collect();
         $defaultValues = collect($defaultValues)
             ->filter(fn ($value, $customFieldId) => $fieldsetFields->has((int) $customFieldId))
@@ -482,7 +482,7 @@ class AssetModelsController extends Controller
         }
 
         $allRules = collect($model->fieldset->validation_rules())
-            ->only($fieldsetFields->pluck('db_column_name'))
+            ->only($fieldsetFields->pluck('db_column'))
             ->all();
         $rules = array();
 
