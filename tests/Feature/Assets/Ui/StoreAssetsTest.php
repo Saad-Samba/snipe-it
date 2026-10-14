@@ -107,6 +107,28 @@ class StoreAssetsTest extends TestCase
         $this->assertSame('110 V', $asset->customFieldValue($field));
     }
 
+    public function test_blank_model_specification_ignores_asset_input(): void
+    {
+        $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');
+
+        $field = CustomField::factory()->create(['name' => 'Calibration Note']);
+        $model = AssetModel::factory()->hasMultipleCustomFields([$field])->create();
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->post(route('hardware.store'), [
+                'company_id' => Company::factory()->create()->id,
+                'model_id' => $model->id,
+                'asset_tags' => [1 => 'BLANK-MODEL-SPEC-001'],
+                'status_id' => StatusLabel::factory()->create()->id,
+                $field->db_column => 'Calibrated 2026-10-14',
+            ])
+            ->assertRedirect();
+
+        $asset = Asset::where('asset_tag', 'BLANK-MODEL-SPEC-001')->firstOrFail();
+        $this->assertNull($asset->{$field->db_column});
+        $this->assertNull($asset->customFieldValue($field));
+    }
+
     public function test_asset_creation_shows_model_custom_fields_as_read_only(): void
     {
         $this->markIncompleteIfMySQL('Custom Fields tests do not work on MySQL');

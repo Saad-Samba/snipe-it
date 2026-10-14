@@ -482,7 +482,7 @@ class AssetModelsController extends Controller
         }
 
         $allRules = collect($model->fieldset->validation_rules())
-            ->only($fieldsetFields->pluck('db_column_name'))
+            ->only($fieldsetFields->pluck('db_column'))
             ->all();
         $rules = array();
 

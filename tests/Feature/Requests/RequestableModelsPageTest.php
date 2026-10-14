@@ -6,6 +6,8 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\CustomField;
+use App\Models\CustomFieldset;
 use App\Models\Discipline;
 use App\Models\Group;
 use App\Models\Statuslabel;
@@ -48,11 +50,8 @@ class RequestableModelsPageTest extends TestCase
             ->assertSee('id="requestableModelsToolbar"', false)
             ->assertSee('id="requestableModelsCategoryFilter"', false)
             ->assertSee('<option value="Communication">Communication</option>', false)
-            ->assertSee('data-field="category" data-sortable="true"', false)
             ->assertSee('data-advanced-search="false"', false)
-            ->assertSee("var selectedCategory = filters && filters.category", false)
-            ->assertSee("$('<div>').html(row.category || '').text().trim() === selectedCategory", false)
-            ->assertSee('bootstrapTable.filterColumns.category', false)
+            ->assertSee('Search models or add a technical filter', false)
             ->assertSeeText('Add to Cart')
             ->assertDontSee('requestableModelsBulkForm', false)
             ->assertDontSee('requestableModelsBulkAddButton', false)
@@ -68,10 +67,9 @@ class RequestableModelsPageTest extends TestCase
             ->assertSee('model-booking-discipline-'.$requestableModel->id, false)
             ->assertSee('model-booking-company-'.$requestableModel->id, false)
             ->assertSee('data-click-to-select="false"', false)
-            ->assertSee('data-field="id" data-visible="false" data-sortable="true"', false)
-            ->assertSee('data-sortable="true">'.trans('general.image').'</th>', false)
             ->assertDontSee('add-model-to-request-cart-modal', false)
-            ->assertDontSeeText('Unavailable Model')
+            ->assertSeeText('Unavailable Model')
+            ->assertSee('<td>0</td>', false)
             ->assertDontSee('href="#assets"', false)
             ->assertDontSee(route('api.assets.requestable'), false);
     }
@@ -79,8 +77,67 @@ class RequestableModelsPageTest extends TestCase
     public function test_user_without_model_request_permission_cannot_open_request_catalogue(): void
     {
         $this->actingAs(User::factory()->create())
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertForbidden();
+    }
+
+    public function test_catalogue_displays_only_eligible_model_specifications(): void
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $fieldset = CustomFieldset::factory()->create();
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'QA Communication',
+            'fieldset_id' => $fieldset->id,
+        ]);
+        $networkSpeed = CustomField::factory()->create([
+            'name' => 'QA Network Speed',
+            'element' => 'listbox',
+            'field_values' => "100 Mbps\n1 Gbps\n10 Gbps",
+            'show_in_requestable_list' => true,
+        ]);
+        $portCount = CustomField::factory()->create([
+            'name' => 'QA Port Count',
+            'format' => 'NUMERIC',
+            'show_in_requestable_list' => true,
+        ]);
+        $serialNumber = CustomField::factory()->create([
+            'name' => 'QA Serial Number',
+            'is_unique' => true,
+            'show_in_requestable_list' => true,
+        ]);
+        $internalNote = CustomField::factory()->create([
+            'name' => 'QA Internal Note',
+            'show_in_requestable_list' => false,
+        ]);
+        $fieldset->fields()->attach([
+            $networkSpeed->id => ['order' => 1, 'required' => false],
+            $portCount->id => ['order' => 2, 'required' => false],
+            $serialNumber->id => ['order' => 3, 'required' => false],
+            $internalNote->id => ['order' => 4, 'required' => false],
+        ]);
+        $model = AssetModel::factory()->create(['category_id' => $category->id]);
+        $model->defaultValues()->attach($networkSpeed->id, ['default_value' => '1 Gbps']);
+        $model->defaultValues()->attach($portCount->id, ['default_value' => '8']);
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => Statuslabel::factory()->readyToDeploy(),
+            'requestable' => true,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('requestable-assets'))
+            ->assertOk()
+            ->assertSeeText('Technical specifications')
+            ->assertSeeText('QA Network Speed')
+            ->assertSeeText('1 Gbps')
+            ->assertSeeText('QA Port Count')
+            ->assertSee('"name":"QA Port Count","numeric":true', false)
+            ->assertSee('"categories":["QA Communication"]', false)
+            ->assertSee('data-field="specifications"', false)
+            ->assertSee('requestableSpecificationSuggestions', false)
+            ->assertSee('requestableSpecificationChips', false)
+            ->assertDontSeeText('QA Serial Number')
+            ->assertDontSeeText('QA Internal Note');
     }
 
     public function test_cross_company_catalogue_permission_shows_requestable_models_outside_the_epl_company_under_fmcs(): void
@@ -109,7 +166,7 @@ class RequestableModelsPageTest extends TestCase
         ]);
 
         $this->actingAs($epl)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertOk()
             ->assertSeeText('Cross-company reusable model');
     }
@@ -136,7 +193,7 @@ class RequestableModelsPageTest extends TestCase
         ]);
 
         $this->actingAs($requester)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertOk()
             ->assertDontSeeText('Other-company-only reusable model');
     }
@@ -171,7 +228,7 @@ class RequestableModelsPageTest extends TestCase
         $this->assertTrue($epl->hasAccess('models.request.all_companies'));
 
         $this->actingAs($epl)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertOk()
             ->assertSeeText('Group-visible cross-company model');
     }
