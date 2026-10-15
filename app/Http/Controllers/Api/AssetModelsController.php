@@ -325,7 +325,10 @@ class AssetModelsController extends Controller
             }
         }
 
-        DB::transaction(fn () => $model->defaultValues()->sync($values));
+        DB::transaction(function () use ($model, $fieldsetFields, $values) {
+            $model->defaultValues()->detach($fieldsetFields->keys()->all());
+            $model->defaultValues()->syncWithoutDetaching($values);
+        });
 
         $model->load('category.fieldset.fields');
 

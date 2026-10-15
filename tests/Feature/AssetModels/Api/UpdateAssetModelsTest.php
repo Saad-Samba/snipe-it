@@ -16,10 +16,21 @@ class UpdateAssetModelsTest extends TestCase
         $fieldset = CustomFieldset::factory()->create();
         $field = CustomField::factory()->create(['element' => 'text', 'format' => '', 'auto_add_to_fieldsets' => false]);
         $oldField = CustomField::factory()->create(['element' => 'text', 'format' => '', 'auto_add_to_fieldsets' => false]);
-        $fieldset->fields()->attach([$field->id => ['order' => 1, 'required' => false], $oldField->id => ['order' => 2, 'required' => false]]);
+        $unsupportedField = CustomField::factory()->create([
+            'element' => 'text',
+            'format' => '',
+            'is_unique' => true,
+            'auto_add_to_fieldsets' => false,
+        ]);
+        $fieldset->fields()->attach([
+            $field->id => ['order' => 1, 'required' => false],
+            $oldField->id => ['order' => 2, 'required' => false],
+            $unsupportedField->id => ['order' => 3, 'required' => false],
+        ]);
         $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
         $model = AssetModel::factory()->create(['category_id' => $category->id]);
         $model->defaultValues()->attach($oldField->id, ['default_value' => 'Replaced']);
+        $model->defaultValues()->attach($unsupportedField->id, ['default_value' => 'Preserved legacy value']);
 
         $this->actingAsForApi(User::factory()->superuser()->create())
             ->putJson(route('api.models.specs', $model), [
@@ -36,6 +47,11 @@ class UpdateAssetModelsTest extends TestCase
         $this->assertDatabaseMissing('models_custom_fields', [
             'asset_model_id' => $model->id,
             'custom_field_id' => $oldField->id,
+        ]);
+        $this->assertDatabaseHas('models_custom_fields', [
+            'asset_model_id' => $model->id,
+            'custom_field_id' => $unsupportedField->id,
+            'default_value' => 'Preserved legacy value',
         ]);
     }
 
