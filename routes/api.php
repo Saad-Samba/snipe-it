@@ -906,6 +906,11 @@ Route::group(['prefix' => 'v1', 'middleware' => ['api', 'api-throttle:api']], fu
 
         }); 
     
+        Route::put('models/{model}/specs', [
+            Api\AssetModelsController::class,
+            'replaceSpecs',
+        ])->name('api.models.specs');
+
         Route::resource('models', 
         Api\AssetModelsController::class,
         ['names' => [

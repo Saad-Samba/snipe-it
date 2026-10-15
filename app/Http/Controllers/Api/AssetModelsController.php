@@ -10,10 +10,14 @@ use App\Http\Transformers\AssetsTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\CustomField;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 /**
  * This class controls all actions related to asset models for
@@ -267,6 +271,69 @@ class AssetModelsController extends Controller
         }
 
         return response()->json(Helper::formatStandardApiResponse('error', null, $assetmodel->getErrors()));
+    }
+
+    /**
+     * Replace the model-owned catalogue specifications for the model's effective fieldset.
+     */
+    public function replaceSpecs(Request $request, AssetModel $model) : JsonResponse
+    {
+        $this->authorize('update', $model);
+
+        $specs = $request->validate([
+            'specs' => ['present', 'array'],
+        ])['specs'];
+
+        $fieldsetFields = $model->fieldset?->fields
+            ->filter(fn (CustomField $field) => $model->ownsSpecification($field))
+            ->keyBy('id') ?? collect();
+        $unsupportedFieldIds = collect(array_keys($specs))
+            ->map(fn ($fieldId) => (int) $fieldId)
+            ->reject(fn (int $fieldId) => $fieldsetFields->has($fieldId))
+            ->values();
+
+        if ($unsupportedFieldIds->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'specs' => ['Each specification must belong to the model category fieldset and support model-owned values.'],
+            ]);
+        }
+
+        $data = [];
+        foreach ($specs as $fieldId => $value) {
+            $field = $fieldsetFields->get((int) $fieldId);
+            $data[$field->db_column] = $value;
+        }
+
+        $rules = collect($model->fieldset?->validation_rules() ?? [])
+            ->only($fieldsetFields->pluck('db_column'))
+            ->map(function ($validation) {
+                $requiredIndex = array_search('required', $validation, true);
+                if ($requiredIndex !== false) {
+                    $validation[$requiredIndex] = 'nullable';
+                }
+
+                return $validation;
+            })
+            ->all();
+        Validator::make($data, $rules)->validate();
+
+        $values = [];
+        foreach ($specs as $fieldId => $value) {
+            $value = is_array($value) ? implode(', ', $value) : $value;
+            if (filled($value)) {
+                $values[(int) $fieldId] = ['default_value' => $value];
+            }
+        }
+
+        DB::transaction(fn () => $model->defaultValues()->sync($values));
+
+        $model->load('category.fieldset.fields');
+
+        return response()->json(Helper::formatStandardApiResponse(
+            'success',
+            (new AssetModelsTransformer)->transformAssetModel($model),
+            'Model specifications updated successfully.'
+        ));
     }
 
     private function modelAttributes(StoreAssetModelRequest $request): array
