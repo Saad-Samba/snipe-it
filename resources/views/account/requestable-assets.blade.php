@@ -210,7 +210,7 @@
                 return;
             }
 
-            var $input = $('.fixed-table-toolbar .search input').attr('placeholder', 'Search models or add a technical filter');
+            var $input = $('.fixed-table-toolbar .search input').attr('placeholder', 'Search models or specs');
             var $menu = $('<div class="dropdown-menu" id="requestableSpecificationSuggestions"></div>').css({
                 maxHeight: '240px',
                 overflowY: 'auto',
