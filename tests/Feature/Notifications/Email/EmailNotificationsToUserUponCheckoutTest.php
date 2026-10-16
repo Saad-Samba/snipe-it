@@ -39,7 +39,7 @@ class EmailNotificationsToUserUponCheckoutTest extends TestCase
         $this->user = User::factory()->create();
     }
 
-    public function test_email_sent_to_user_when_category_requires_acceptance()
+    public function test_email_sent_to_user_regardless_of_legacy_category_acceptance_flag()
     {
         $this->category->update(['require_acceptance' => true]);
 
@@ -48,7 +48,7 @@ class EmailNotificationsToUserUponCheckoutTest extends TestCase
         $this->assertUserSentEmail();
     }
 
-    public function test_email_sent_to_user_when_category_using_default_eula()
+    public function test_email_sent_to_user_regardless_of_legacy_default_eula_flag()
     {
         $this->settings->setEula();
 
@@ -59,7 +59,7 @@ class EmailNotificationsToUserUponCheckoutTest extends TestCase
         $this->assertUserSentEmail();
     }
 
-    public function test_email_sent_to_user_when_category_using_local_eula()
+    public function test_email_sent_to_user_regardless_of_legacy_local_eula()
     {
         $this->category->update(['eula_text' => 'Some EULA text']);
 
@@ -68,7 +68,7 @@ class EmailNotificationsToUserUponCheckoutTest extends TestCase
         $this->assertUserSentEmail();
     }
 
-    public function test_email_sent_to_user_when_category_set_to_explicitly_send_email()
+    public function test_email_sent_to_user_for_asset_category()
     {
         $this->category->update(['checkin_email' => true]);
 

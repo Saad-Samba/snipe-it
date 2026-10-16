@@ -3,6 +3,7 @@
 namespace Tests\Feature\Users\Api;
 
 use App\Models\Company;
+use App\Models\Discipline;
 use App\Models\LicenseSeat;
 use App\Models\Location;
 use App\Models\User;
@@ -151,5 +152,32 @@ class DeleteUsersTest extends TestCase implements TestsFullMultipleCompaniesSupp
             ->assertStatusMessageIs('success');
 
         $this->assertSoftDeleted($user);
+    }
+
+    public function testDeletingUserRemovesRacAssignment()
+    {
+        $deleter = User::factory()->deleteUsers()->create();
+        $discipline = Discipline::create([
+            'name' => 'Delete RAC Discipline '.uniqid(),
+            'created_by' => $deleter->id,
+        ]);
+        $company = Company::factory()->create();
+        $user = User::factory()->create(['company_id' => $company->id]);
+        $user->racAssignments()->create([
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+            'created_by' => $deleter->id,
+        ]);
+
+        $this->actingAsForApi($deleter)
+            ->deleteJson(route('api.users.destroy', $user))
+            ->assertOk()
+            ->assertStatusMessageIs('success');
+
+        $this->assertDatabaseMissing('regional_asset_coordinator_assignments', [
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'discipline_id' => $discipline->id,
+        ]);
     }
 }

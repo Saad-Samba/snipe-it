@@ -37,6 +37,16 @@ class AssetCheckoutRequest extends Request
                 'nullable',
                 'date'
             ],
+            'project_id' => [
+                'nullable',
+                'integer',
+                'exists:projects,id,deleted_at,NULL',
+            ],
+            'discipline_id' => [
+                'nullable',
+                'integer',
+                'exists:disciplines,id,deleted_at,NULL',
+            ],
             ];
 
             if($settings->require_checkinout_notes) {

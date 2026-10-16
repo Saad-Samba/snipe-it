@@ -56,6 +56,9 @@ class ImportCategoriesTest extends ImportDataTestCase implements TestsPermission
             ->sole();
 
         $this->assertEquals($row['name'], $newCategory->name);
+        $this->assertNull($newCategory->eula_text);
+        $this->assertEquals(0, $newCategory->use_default_eula);
+        $this->assertEquals(0, $newCategory->require_acceptance);
 
     }
 
@@ -122,9 +125,17 @@ class ImportCategoriesTest extends ImportDataTestCase implements TestsPermission
         $updatedCategory = Category::query()->find($category->id);
         $updatedAttributes = [
             'name',
+            'eula_text',
+            'use_default_eula',
+            'require_acceptance',
+            'alert_on_response',
         ];
 
         $this->assertEquals($row['name'], $updatedCategory->name);
+        $this->assertNull($updatedCategory->eula_text);
+        $this->assertEquals(0, $updatedCategory->use_default_eula);
+        $this->assertEquals(0, $updatedCategory->require_acceptance);
+        $this->assertFalse($updatedCategory->alert_on_response);
 
         $this->assertEquals(
             Arr::except($category->attributesToArray(), array_merge($updatedAttributes, $category->getDates())),

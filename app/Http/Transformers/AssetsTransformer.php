@@ -6,7 +6,9 @@ use App\Helpers\Helper;
 use App\Models\Accessory;
 use App\Models\AccessoryCheckout;
 use App\Models\Asset;
+use App\Models\CheckoutRequest;
 use App\Models\Setting;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Collection;
 use Carbon\Carbon;
@@ -14,20 +16,23 @@ use Illuminate\Support\Facades\Storage;
 
 class AssetsTransformer
 {
-    public function transformAssets(Collection $assets, $total)
+    public function transformAssets(Collection $assets, $total, ?Request $request = null)
     {
+        $requestContext = $this->resolveRequestContext($request);
         $array = [];
         foreach ($assets as $asset) {
-            $array[] = self::transformAsset($asset);
+            $array[] = $this->transformAsset($asset, $requestContext);
         }
 
         return (new DatatablesTransformer)->transformDatatables($array, $total);
     }
 
-    public function transformAsset(Asset $asset)
+    public function transformAsset(Asset $asset, $requestContext = null)
     {
         // This uses the getSettings() method so we're pulling from the cache versus querying the settings on single asset
         $setting = Setting::getSettings();
+        $resolvedRequestContext = $requestContext instanceof CheckoutRequest ? $requestContext : null;
+        $isClosestMatch = $this->isClosestReusableRequestMatch($asset, $resolvedRequestContext);
 
         $array = [
             'id' => (int) $asset->id,
@@ -125,15 +130,18 @@ class AssetsTransformer
             'requests_counter' => (int) $asset->requests_counter,
             'user_can_checkout' => (bool) $asset->availableForCheckout(),
             'book_value' => Helper::formatCurrencyOutput($asset->getDepreciatedValue()),
+            'is_closest_match' => $isClosestMatch,
         ];
 
 
         if (($asset->model) && ($asset->model->fieldset) && ($asset->model->fieldset->fields->count() > 0)) {
             $fields_array = [];
 
-            foreach ($asset->model->fieldset->fields as $field) {
-                if ($field->isFieldDecryptable($asset->{$field->db_column})) {
-                    $decrypted = Helper::gracefulDecrypt($field, $asset->{$field->db_column});
+            foreach ($asset->model->fieldset->fields->filter(fn ($field) => $asset->model->ownsSpecification($field)) as $field) {
+                $customFieldValue = $asset->customFieldValue($field);
+
+                if ($field->isFieldDecryptable($customFieldValue)) {
+                    $decrypted = Helper::gracefulDecrypt($field, $customFieldValue);
                     $value = (Gate::allows('assets.view.encrypted_custom_fields')) ? $decrypted : strtoupper(trans('admin/custom_fields/general.encrypted'));
 
                     if ($field->format == 'DATE'){
@@ -152,7 +160,7 @@ class AssetsTransformer
                         ];
 
                 } else {
-                    $value = $asset->{$field->db_column};
+                    $value = $customFieldValue;
 
                     if (($field->format == 'DATE') && (!is_null($value)) && ($value!='')){
                         $value = Helper::getFormattedDateObject($value, 'date', false);
@@ -180,6 +188,7 @@ class AssetsTransformer
             'update'        => ($asset->deleted_at=='' && Gate::allows('update', Asset::class)) ? true : false,
             'audit'        => Gate::allows('audit', Asset::class) ? true : false,
             'delete'        => ($asset->deleted_at=='' && $asset->assigned_to =='' && Gate::allows('delete', Asset::class) && ($asset->deleted_at == '')) ? true : false,
+            'start_transfer' => $this->canStartRequestTransfer($asset, $resolvedRequestContext),
         ];      
 
 
@@ -208,6 +217,52 @@ class AssetsTransformer
         $array += $permissions_array;
 
         return $array;
+    }
+
+    private function resolveRequestContext(?Request $request): ?CheckoutRequest
+    {
+        if (! $request || ! $request->filled('request_id') || $request->input('request_bucket') !== 'reusable_now') {
+            return null;
+        }
+
+        return CheckoutRequest::withoutGlobalScopes()->find($request->integer('request_id'));
+    }
+
+    private function isClosestReusableRequestMatch(Asset $asset, ?CheckoutRequest $requestContext): bool
+    {
+        if (! $requestContext || ! $requestContext->company_id) {
+            return false;
+        }
+
+        return (int) $asset->company_id === (int) $requestContext->company_id;
+    }
+
+    private function canStartRequestTransfer(Asset $asset, ?CheckoutRequest $requestContext): bool
+    {
+        $user = auth()->user();
+
+        if (
+            ! $user
+            || ! $requestContext
+            || ! Setting::getSettings()?->full_multiple_companies_support
+            || ! Gate::allows('update', $asset)
+            || ! $asset->availableForCheckout()
+            || ! $asset->company_id
+            || ! $requestContext->company_id
+            || (int) $asset->company_id === (int) $requestContext->company_id
+            || $requestContext->requestable_type !== \App\Models\AssetModel::class
+            || (int) $asset->model_id !== (int) $requestContext->requestable_id
+            || $requestContext->remainingAllocationQuantity() < 1
+            || \Illuminate\Support\Facades\DB::table('checkout_request_assets')->where('asset_id', $asset->id)->exists()
+        ) {
+            return false;
+        }
+
+        return $user->isSuperUser() || $requestContext->coordinatorTargets()
+            ->where('user_id', $user->id)
+            ->where('company_id', $asset->company_id)
+            ->where('discipline_id', $asset->discipline_id)
+            ->exists();
     }
 
     public function transformAssetsDatatable($assets)
@@ -284,12 +339,12 @@ class AssetsTransformer
         if (($asset->model) && ($asset->model->fieldset) && ($asset->model->fieldset->fields->count() > 0)) {
             $fields_array = [];
 
-            foreach ($asset->model->fieldset->fields as $field) {
+            foreach ($asset->model->fieldset->fields->filter(fn ($field) => $asset->model->ownsSpecification($field)) as $field) {
 
                 // Only display this if it's allowed via the custom field setting
                 if (($field->field_encrypted == '0') && ($field->show_in_requestable_list == '1')) {
 
-                    $value = $asset->{$field->db_column};
+                    $value = $asset->customFieldValue($field);
                     if (($field->format == 'DATE') && (!is_null($value)) && ($value != '')) {
                         $value = Helper::getFormattedDateObject($value, 'date', false);
                     }

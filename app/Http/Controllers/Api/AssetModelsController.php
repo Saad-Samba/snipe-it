@@ -10,10 +10,14 @@ use App\Http\Transformers\AssetsTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\CustomField;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 /**
  * This class controls all actions related to asset models for
@@ -40,6 +44,7 @@ class AssetModelsController extends Controller
                 'name',
                 'model_number',
                 'min_amt',
+                'reference_price',
                 'eol',
                 'notes',
                 'obsolete',
@@ -54,7 +59,6 @@ class AssetModelsController extends Controller
                 'deleted_at',
                 'updated_at',
                 'require_serial',
-                'requestable',
                 // These are *relationships* so we wouldn't normally include them in this array,
                 // since they would normally create a `column not found` error,
                 // BUT we account for them in the ordering switch down at the end of this method
@@ -69,6 +73,7 @@ class AssetModelsController extends Controller
             'models.name',
             'models.model_number',
             'models.min_amt',
+            'models.reference_price',
             'models.eol',
             'models.created_by',
             'models.notes',
@@ -81,7 +86,6 @@ class AssetModelsController extends Controller
             'models.deleted_at',
             'models.updated_at',
             'models.require_serial',
-            'models.requestable',
         ];
 
         $assetmodels = AssetModel::select($selectedColumns)
@@ -90,6 +94,8 @@ class AssetModelsController extends Controller
             ->withCount('availableAssets as remaining')
             ->withCount('assignedAssets as assets_assigned_count')
             ->withCount('archivedAssets as assets_archived_count');
+
+        $assetmodels->managedBy(auth()->user());
 
         $filter = [];
 
@@ -121,18 +127,16 @@ class AssetModelsController extends Controller
             $assetmodels = $assetmodels->where('models.model_number', '=', $request->input('model_number'));
         }
 
-        if ($request->input('requestable') == 'true') {
-            $assetmodels = $assetmodels->where('models.requestable', '=', '1');
-        } elseif ($request->input('requestable') == 'false') {
-            $assetmodels = $assetmodels->where('models.requestable', '=', '0');
-        }
-
         if ($request->filled('notes')) {
             $assetmodels = $assetmodels->where('models.notes', '=', $request->input('notes'));
         }
 
         if ($request->filled('category_id')) {
             $assetmodels = $assetmodels->where('models.category_id', '=', $request->input('category_id'));
+        }
+
+        if ($request->boolean('available_models')) {
+            $assetmodels = $assetmodels->whereHas('availableAssets');
         }
 
         if ($request->filled('obsolete')) {
@@ -190,7 +194,7 @@ class AssetModelsController extends Controller
     {
         $this->authorize('create', AssetModel::class);
         $assetmodel = new AssetModel;
-        $assetmodel->fill($request->all());
+        $assetmodel->fill($this->modelAttributes($request));
         $assetmodel = $request->handleImages($assetmodel);
 
         if ($assetmodel->save()) {
@@ -210,8 +214,8 @@ class AssetModelsController extends Controller
      */
     public function show($id) :  array
     {
-        $this->authorize('view', AssetModel::class);
         $assetmodel = AssetModel::withCount('assets as assets_count')->findOrFail($id);
+        $this->authorize('view', $assetmodel);
 
         return (new AssetModelsTransformer)->transformAssetModel($assetmodel);
     }
@@ -225,7 +229,8 @@ class AssetModelsController extends Controller
      */
     public function assets($id) : array
     {
-        $this->authorize('view', AssetModel::class);
+        $assetmodel = AssetModel::findOrFail($id);
+        $this->authorize('view', $assetmodel);
         $assets = Asset::where('model_id', '=', $id)->get();
 
         return (new AssetsTransformer)->transformAssets($assets, $assets->count());
@@ -243,9 +248,9 @@ class AssetModelsController extends Controller
      */
     public function update(StoreAssetModelRequest $request, $id) : JsonResponse
     {
-        $this->authorize('update', AssetModel::class);
         $assetmodel = AssetModel::findOrFail($id);
-        $assetmodel->fill($request->all());
+        $this->authorize('update', $assetmodel);
+        $assetmodel->fill($this->modelAttributes($request));
         $assetmodel = $request->handleImages($assetmodel);
 
         /**
@@ -256,7 +261,7 @@ class AssetModelsController extends Controller
          * in previous versions. I assume there was a good reason for
          * it, but I'll be damned if I can think of one. - snipe
          */
-        if ($request->filled('custom_fieldset_id')) {
+        if (config('leams.model_fieldset_overrides') && $request->filled('custom_fieldset_id')) {
             $assetmodel->fieldset_id = $request->get('custom_fieldset_id');
         }
 
@@ -269,6 +274,86 @@ class AssetModelsController extends Controller
     }
 
     /**
+     * Replace the model-owned catalogue specifications for the model's effective fieldset.
+     */
+    public function replaceSpecs(Request $request, AssetModel $model) : JsonResponse
+    {
+        $this->authorize('update', $model);
+
+        $specs = $request->validate([
+            'specs' => ['present', 'array'],
+        ])['specs'];
+
+        $fieldsetFields = $model->fieldset?->fields
+            ->filter(fn (CustomField $field) => $model->ownsSpecification($field))
+            ->keyBy('id') ?? collect();
+        $unsupportedFieldIds = collect(array_keys($specs))
+            ->map(fn ($fieldId) => (int) $fieldId)
+            ->reject(fn (int $fieldId) => $fieldsetFields->has($fieldId))
+            ->values();
+
+        if ($unsupportedFieldIds->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'specs' => ['Each specification must belong to the model category fieldset and support model-owned values.'],
+            ]);
+        }
+
+        $data = [];
+        foreach ($specs as $fieldId => $value) {
+            $field = $fieldsetFields->get((int) $fieldId);
+            $data[$field->db_column] = $value;
+        }
+
+        $rules = collect($model->fieldset?->validation_rules() ?? [])
+            ->only($fieldsetFields->pluck('db_column'))
+            ->map(function ($validation) {
+                $requiredIndex = array_search('required', $validation, true);
+                if ($requiredIndex !== false) {
+                    $validation[$requiredIndex] = 'nullable';
+                }
+
+                return $validation;
+            })
+            ->all();
+        Validator::make($data, $rules)->validate();
+
+        $values = [];
+        foreach ($specs as $fieldId => $value) {
+            $value = is_array($value) ? implode(', ', $value) : $value;
+            if (filled($value)) {
+                $values[(int) $fieldId] = ['default_value' => $value];
+            }
+        }
+
+        DB::transaction(function () use ($model, $fieldsetFields, $values) {
+            $model->defaultValues()->detach($fieldsetFields->keys()->all());
+            $model->defaultValues()->syncWithoutDetaching($values);
+        });
+
+        $model->load('category.fieldset.fields');
+
+        return response()->json(Helper::formatStandardApiResponse(
+            'success',
+            (new AssetModelsTransformer)->transformAssetModel($model),
+            'Model specifications updated successfully.'
+        ));
+    }
+
+    private function modelAttributes(StoreAssetModelRequest $request): array
+    {
+        if (config('leams.model_fieldset_overrides')) {
+            return $request->all();
+        }
+
+        return $request->except([
+            'fieldset_id',
+            'custom_fieldset_id',
+            'add_default_values',
+            'default_values',
+        ]);
+    }
+
+    /**
      * Remove the specified resource from storage.
      *
      * @author [A. Gianotto] [<snipe@snipe.net>]
@@ -277,7 +362,6 @@ class AssetModelsController extends Controller
      */
     public function destroy($id) : JsonResponse
     {
-        $this->authorize('delete', AssetModel::class);
         $assetmodel = AssetModel::findOrFail($id);
         $this->authorize('delete', $assetmodel);
 
@@ -316,7 +400,9 @@ class AssetModelsController extends Controller
             'models.model_number',
             'models.manufacturer_id',
             'models.category_id',
-        ])->with('manufacturer', 'category');
+            'models.require_serial',
+        ])->with('manufacturer', 'category')
+            ->managedBy(auth()->user());
 
         $settings = \App\Models\Setting::getSettings();
 
@@ -346,6 +432,13 @@ class AssetModelsController extends Controller
             $assetmodel->use_image = ($settings->modellistCheckedValue('image') && ($assetmodel->image)) ? Storage::disk('public')->url('models/'.e($assetmodel->image)) : null;
         }
 
-        return (new SelectlistTransformer)->transformSelectlist($assetmodels);
+        $results = (new SelectlistTransformer)->transformSelectlist($assetmodels);
+        $modelsById = $assetmodels->getCollection()->keyBy('id');
+
+        foreach ($results['results'] as $index => $result) {
+            $results['results'][$index]['require_serial'] = (bool) $modelsById[$result['id']]->require_serial;
+        }
+
+        return $results;
     }
 }

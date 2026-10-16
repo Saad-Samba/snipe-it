@@ -34,6 +34,7 @@ class AssetModelFactory extends Factory
             'model_number' => $this->faker->creditCardNumber(),
             'notes' => 'Created by demo seeder',
             'obsolete' => 0,
+            'reference_price' => $this->faker->randomFloat(2, 100, 10000),
             'require_serial' => 0,
 
         ];
@@ -436,8 +437,15 @@ class AssetModelFactory extends Factory
     public function hasEncryptedCustomField(CustomField $field = null)
     {
         return $this->state(function () use ($field) {
+            $fieldset = CustomFieldset::factory()->hasEncryptedCustomField($field);
+
+            if (config('leams.model_fieldset_overrides')) {
+                return ['fieldset_id' => $fieldset];
+            }
+
             return [
-                'fieldset_id' => CustomFieldset::factory()->hasEncryptedCustomField($field),
+                'category_id' => Category::factory()->state(['fieldset_id' => $fieldset]),
+                'fieldset_id' => null,
             ];
         });
     }
@@ -445,8 +453,15 @@ class AssetModelFactory extends Factory
     public function hasMultipleCustomFields(array $fields = null)
     {
         return $this->state(function () use ($fields) {
+            $fieldset = CustomFieldset::factory()->hasMultipleCustomFields($fields);
+
+            if (config('leams.model_fieldset_overrides')) {
+                return ['fieldset_id' => $fieldset];
+            }
+
             return [
-                'fieldset_id' => CustomFieldset::factory()->hasMultipleCustomFields($fields),
+                'category_id' => Category::factory()->state(['fieldset_id' => $fieldset]),
+                'fieldset_id' => null,
             ];
         });
     }
