@@ -275,6 +275,20 @@
                     </div>
                   </div>
 
+                  @if ($license->maintenance_expires_at)
+                    <div class="row">
+                      <div class="col-md-3">
+                        <strong>{{ trans('admin/licenses/form.maintenance_expires_at') }}</strong>
+                      </div>
+                      <div class="col-md-9">
+                        {{ Helper::getFormattedDateObject($license->maintenance_expires_at, 'date', false) }}
+                        @if ($license->perpetual)
+                          <p class="help-block">{{ trans('admin/licenses/form.maintenance_expiry_statement', ['date' => Helper::getFormattedDateObject($license->maintenance_expires_at, 'date', false)]) }}</p>
+                        @endif
+                      </div>
+                    </div>
+                  @endif
+
                   @if (isset($license->expiration_date))
                     <div class="row">
                       <div class="col-md-3">

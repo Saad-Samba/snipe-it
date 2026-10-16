@@ -66,6 +66,39 @@ class CreateLicenseTest extends TestCase
         $this->assertNull($license->expiration_date);
     }
 
+    public function testMaintainedPerpetualLicenseRequiresAndStoresMaintenanceExpiryDate()
+    {
+        $user = User::factory()->superuser()->create();
+        $category = Category::factory()->forLicenses()->create();
+
+        $this->actingAs($user)
+            ->from(route('licenses.create'))
+            ->post(route('licenses.store'), [
+                'name' => 'Perpetual License Without Maintenance Date',
+                'seats' => 1,
+                'category_id' => $category->id,
+                'perpetual' => '1',
+                'maintained' => '1',
+            ])
+            ->assertInvalid(['maintenance_expires_at']);
+
+        $this->actingAs($user)
+            ->post(route('licenses.store'), [
+                'name' => 'Perpetual License With Maintenance Date',
+                'seats' => 1,
+                'category_id' => $category->id,
+                'perpetual' => '1',
+                'maintained' => '1',
+                'maintenance_expires_at' => '2027-12-31',
+            ])
+            ->assertRedirect();
+
+        $license = License::where('name', 'Perpetual License With Maintenance Date')->sole();
+        $this->assertTrue($license->perpetual);
+        $this->assertTrue((bool) $license->maintained);
+        $this->assertSame('2027-12-31', $license->maintenance_expires_at->format('Y-m-d'));
+    }
+
     public function testNonPerpetualLicenseWithoutExpirationDateFailsValidation()
     {
         $response = $this->actingAs(User::factory()->superuser()->create())

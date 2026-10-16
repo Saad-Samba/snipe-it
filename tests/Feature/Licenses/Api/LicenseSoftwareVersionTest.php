@@ -41,4 +41,37 @@ class LicenseSoftwareVersionTest extends TestCase
 
         $this->assertSame('2026.2', $license->fresh()->software_version);
     }
+
+    public function testMaintainedPerpetualLicenseRequiresMaintenanceExpiryDate(): void
+    {
+        $category = Category::factory()->forLicenses()->create();
+        $user = User::factory()->createLicenses()->create();
+
+        $this->actingAsForApi($user)
+            ->postJson(route('api.licenses.store'), [
+                'name' => 'Missing Maintenance Date',
+                'seats' => 1,
+                'category_id' => $category->id,
+                'perpetual' => true,
+                'maintained' => true,
+            ])
+            ->assertStatusMessageIs('error')
+            ->assertJsonPath('messages.maintenance_expires_at.0', 'The maintenance expires at field is required.');
+
+        $this->actingAsForApi($user)
+            ->postJson(route('api.licenses.store'), [
+                'name' => 'API Maintenance Date',
+                'seats' => 1,
+                'category_id' => $category->id,
+                'perpetual' => true,
+                'maintained' => true,
+                'maintenance_expires_at' => '2027-12-31',
+            ])
+            ->assertStatusMessageIs('success');
+
+        $this->assertDatabaseHas('licenses', [
+            'name' => 'API Maintenance Date',
+            'maintenance_expires_at' => '2027-12-31 00:00:00',
+        ]);
+    }
 }
