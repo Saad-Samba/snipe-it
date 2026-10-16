@@ -20,7 +20,8 @@ class LicenseIndexTest extends TestCase
             ->assertOk()
             ->assertJsonPath('total', 1)
             ->assertJsonPath('rows.0.id', $licenseA->id)
-            ->assertJsonPath('rows.0.software_version', 'A');
+            ->assertJsonPath('rows.0.software_version', 'A')
+            ->assertJsonPath('rows.0.purchase_cost_currency', 'USD');
 
         $this->actingAsForApi($user)
             ->getJson(route('api.licenses.index', ['sort' => 'software_version', 'order' => 'asc']))

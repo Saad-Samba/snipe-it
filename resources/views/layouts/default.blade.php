@@ -706,6 +706,12 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                         </li>
                                     @endcan
 
+                                    @if (auth()->user()->hasAccess('licenses.view'))
+                                        <li {!! (request()->is('software-models*') ? ' class="active"' : '') !!}>
+                                            <a href="{{ route('software-models.index') }}">Software Models</a>
+                                        </li>
+                                    @endif
+
                                     @can('view', \App\Models\Category::class)
                                         <li {{!! (request()->is('categories') ? ' class="active"' : '') !!}}>
                                             <a href="{{ route('categories.index') }}">

@@ -29,6 +29,7 @@ use App\Http\Controllers\ReportTemplatesController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StatuslabelsController;
+use App\Http\Controllers\SoftwareModelsController;
 use App\Http\Controllers\SuppliersController;
 use App\Http\Controllers\ViewAssetsController;
 use App\Livewire\Importer;
@@ -113,6 +114,11 @@ Route::group(['middleware' => 'auth'], function () {
     * Disciplines
     */
     Route::resource('disciplines', DisciplinesController::class);
+
+    /*
+    * Software Models
+    */
+    Route::resource('software-models', SoftwareModelsController::class)->except(['show', 'destroy']);
 });
 
 /*
