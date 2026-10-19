@@ -190,7 +190,7 @@ class CategoriesController extends Controller
             'notes',
             ])
             ->with('adminuser', 'manager')
-            ->with(['fieldset' => fn ($fieldset) => $fieldset->withCount('fields')])
+            ->with(['fieldset' => fn ($fieldset) => $fieldset->withCount('fields')->with('fields')])
             ->withCount([
                 'accessories as accessories_count',
                 'consumables as consumables_count',

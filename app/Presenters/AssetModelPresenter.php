@@ -9,7 +9,7 @@ use App\Helpers\Helper;
  */
 class AssetModelPresenter extends Presenter
 {
-    public static function dataTableLayout()
+    public static function dataTableLayout($specificationFields = [])
     {
         $layout = [
             [
@@ -189,6 +189,18 @@ class AssetModelPresenter extends Presenter
             ],
 
         ];
+
+        foreach ($specificationFields as $field) {
+            $layout[] = [
+                'field' => 'specification_'.$field->id,
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => true,
+                'title' => $field->name,
+                'visible' => true,
+                'formatter' => 'modelSpecificationValueFormatter',
+            ];
+        }
 
         $layout[] = [
             'field' => 'actions',

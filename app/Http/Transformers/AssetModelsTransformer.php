@@ -34,6 +34,7 @@ class AssetModelsTransformer
                 }
 
                 $default_field_values[] = [
+                    'id' => (int) $field->id,
                     'name' => e($field->name),
                     'db_column_name' => e($field->db_column_name()),
                     'default_value' => ($field->defaultValue($assetmodel->id)) ? e($field->defaultValue($assetmodel->id)) : null,
@@ -92,6 +93,10 @@ class AssetModelsTransformer
             'deleted_at' => Helper::getFormattedDateObject($assetmodel->deleted_at, 'datetime'),
 
         ];
+
+        foreach ($default_field_values as $specification) {
+            $array['specification_'.$specification['id']] = $specification['default_value'];
+        }
 
         $permissions_array['available_actions'] = [
             'update' => (Gate::allows('update', $assetmodel) && ($assetmodel->deleted_at == '')),

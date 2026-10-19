@@ -1502,17 +1502,28 @@
         return '<div style="white-space:nowrap;">' + modelMetric + assetMetric + '</div>';
     }
 
-    function categoryAttributesFormatter(value) {
+    function categoryTechnicalSpecificationsFormatter(value) {
         if (!value || !value.id) {
-            return '<span class="text-muted">No attributes configured</span>';
+            return '<span class="text-muted">No technical specifications configured</span>';
         }
 
         var fieldsetLink = genericColumnObjLinkFormatter('fieldsets')(value);
-        var fieldCount = Number(value.fields_count) || 0;
-        var label = fieldCount === 1 ? 'attribute' : 'attributes';
+        var fields = Array.isArray(value.fields) ? value.fields : [];
+        var specificationNames = fields.length
+            ? '<div>' + fields.map(function (name) {
+                return '<span class="label label-default" style="display:inline-block; margin:2px 2px 2px 0;">' + name + '</span>';
+            }).join('') + '</div>'
+            : '<span class="text-muted">No technical specifications configured</span>';
 
-        return '<div>' + fieldsetLink
-            + '<br><small class="text-muted">' + fieldCount + ' configured ' + label + '</small></div>';
+        return '<div>' + specificationNames + '<small>' + fieldsetLink + '</small></div>';
+    }
+
+    function modelSpecificationValueFormatter(value) {
+        if (value === null || value === undefined || String(value).trim() === '') {
+            return '<span class="text-muted">—</span>';
+        }
+
+        return value;
     }
 
     function modelReusableAssetsFormatter(value, row) {

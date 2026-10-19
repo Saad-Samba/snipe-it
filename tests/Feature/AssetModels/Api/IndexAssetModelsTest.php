@@ -101,6 +101,7 @@ class IndexAssetModelsTest extends TestCase
             ->assertJsonCount(1, 'rows.0.default_fieldset_values')
             ->assertJsonPath('rows.0.default_fieldset_values.0.name', 'Output Voltage')
             ->assertJsonPath('rows.0.default_fieldset_values.0.default_value', '24 V')
+            ->assertJsonPath('rows.0.specification_'.$voltage->id, '24 V')
             ->assertJsonMissingPath('rows.0.default_fieldset_values.1');
     }
 

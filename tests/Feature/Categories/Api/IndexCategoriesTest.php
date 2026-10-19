@@ -116,7 +116,8 @@ class IndexCategoriesTest extends TestCase
             ->assertOk()
             ->assertJsonPath('rows.0.fieldset.id', $fieldset->id)
             ->assertJsonPath('rows.0.fieldset.name', 'Power Specifications')
-            ->assertJsonPath('rows.0.fieldset.fields_count', 2);
+            ->assertJsonPath('rows.0.fieldset.fields_count', 2)
+            ->assertJsonPath('rows.0.fieldset.fields.0', $fields[0]->name);
     }
 
     public function testUnassignedGlobalViewerIsNotTreatedAsAfm()

@@ -52,9 +52,9 @@ class CategoryPresenter extends Presenter
                 'searchable' => false,
                 'sortable' => false,
                 'switchable' => true,
-                'title' => 'Configured Attributes',
+                'title' => 'Technical Specifications',
                 'visible' => true,
-                'formatter' => 'categoryAttributesFormatter',
+                'formatter' => 'categoryTechnicalSpecificationsFormatter',
             ], [
                 'field' => 'manager',
                 'searchable' => false,

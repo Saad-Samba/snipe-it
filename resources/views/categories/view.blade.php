@@ -141,7 +141,15 @@
                         <div class="row">
                             <div class="col-md-12">
 
-                                <p class="text-muted">Expand a model row to review its category-specific technical specifications.</p>
+                                <p class="text-muted">This table includes one column for each technical specification configured for the category.</p>
+
+                                @php
+                                    $specificationFields = $category->fieldset
+                                        ? $category->fieldset->fields
+                                            ->filter(fn ($field) => ! $field->is_unique && ! $field->field_encrypted)
+                                            ->values()
+                                        : collect();
+                                @endphp
 
                                 @can('update', \App\Models\AssetModel::class)
                                 @if ($category->models->count() > 0)
@@ -152,7 +160,7 @@
                                 @endcan
 
                                     <table
-                                            data-columns="{{ \App\Presenters\AssetModelPresenter::dataTableLayout() }}"
+                                            data-columns="{{ \App\Presenters\AssetModelPresenter::dataTableLayout($specificationFields) }}"
                                             data-cookie-id-table="assetModelsTable"
                                             data-id-table="assetModelsTable"
                                             data-show-footer="true"
@@ -162,8 +170,6 @@
                                             data-bulk-form-id="#modelsBulkForm"
                                             data-sort-order="asc"
                                             id="assetModelsTable"
-                                            data-detail-view="true"
-                                            data-detail-formatter="categoryModelSpecificationsDetailFormatter"
                                             data-buttons="modelButtons"
                                             class="table table-striped snipe-table"
                                             data-url="{{ route('api.models.index', ['status' => request('status'), 'category_id' => $category->id]) }}"
@@ -188,27 +194,5 @@
 
 
 @section('moar_scripts')
-<script nonce="{{ csrf_token() }}">
-    function categoryModelSpecificationsDetailFormatter(index, row) {
-        var specifications = Array.isArray(row.default_fieldset_values) ? row.default_fieldset_values : [];
-
-        if (specifications.length === 0) {
-            return '<p class="text-muted">No model specifications are configured for this category.</p>';
-        }
-
-        var rows = specifications.map(function (specification) {
-            var value = specification.default_value;
-            var displayedValue = value !== null && value !== undefined && String(value).trim() !== ''
-                ? String(value).replace(/\r\n|\r|\n/g, '<br>')
-                : '<span class="text-muted">Not specified</span>';
-
-            return '<tr><th scope="row">' + (specification.name || '') + '</th><td>' + displayedValue + '</td></tr>';
-        }).join('');
-
-        return '<div class="table-responsive"><table class="table table-condensed table-striped">'
-            + '<thead><tr><th>Technical attribute</th><th>Model specification</th></tr></thead>'
-            + '<tbody>' + rows + '</tbody></table></div>';
-    }
-</script>
 @include ('partials.bootstrap-table')
 @stop
