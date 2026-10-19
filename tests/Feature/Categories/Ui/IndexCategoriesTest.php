@@ -23,6 +23,8 @@ class IndexCategoriesTest extends TestCase
             ->assertSee('Category Manager', false)
             ->assertSee('Technical Specifications', false)
             ->assertSee('categoryTechnicalSpecificationsFormatter', false)
+            ->assertSee('fa-rectangle-list', false)
+            ->assertSee('View custom fieldset', false)
             ->assertSee('Reusable Inventory', false)
             ->assertSee('Recently released feature', false)
             ->assertDontSee('&quot;title&quot;:&quot;Available Models&quot;', false)

@@ -39,4 +39,25 @@ class CatalogueCustomFieldConfigurationTest extends TestCase
             'custom_fieldset_id' => $fieldset->id,
         ]);
     }
+
+    public function test_fieldset_detail_shows_list_values_without_encrypted_or_required_columns(): void
+    {
+        $field = CustomField::factory()->create([
+            'name' => 'Network Speed',
+            'element' => 'listbox',
+            'field_values' => "1|Gigabit\n10|10 Gigabit",
+        ]);
+        $fieldset = CustomFieldset::factory()->create(['name' => 'Network Specifications']);
+        $fieldset->fields()->attach($field->id, ['order' => 0, 'required' => false]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('fieldsets.show', $fieldset))
+            ->assertOk()
+            ->assertSee('Field Values')
+            ->assertSee('Gigabit')
+            ->assertSee('(1)')
+            ->assertSee('10 Gigabit')
+            ->assertDontSee('Encrypted</th>', false)
+            ->assertDontSee('Required</th>', false);
+    }
 }

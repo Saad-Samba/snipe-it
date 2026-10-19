@@ -1507,7 +1507,12 @@
             return '<span class="text-muted">No technical specifications configured</span>';
         }
 
-        var fieldsetLink = genericColumnObjLinkFormatter('fieldsets')(value);
+        var fieldsetUrl = '{{ route('fieldsets.show', ['fieldset' => '__FIELDSET_ID__']) }}'
+            .replace('__FIELDSET_ID__', encodeURIComponent(value.id));
+        var fieldsetLink = '<a href="' + fieldsetUrl + '" class="btn btn-default btn-xs"'
+            + ' title="View custom fieldset" aria-label="View custom fieldset">'
+            + '<i class="fa-regular fa-rectangle-list" aria-hidden="true"></i>'
+            + '<span class="sr-only">View custom fieldset</span></a>';
         var fields = Array.isArray(value.fields) ? value.fields : [];
         var specificationNames = fields.length
             ? '<div>' + fields.map(function (name) {
@@ -1515,7 +1520,7 @@
             }).join('') + '</div>'
             : '<span class="text-muted">No technical specifications configured</span>';
 
-        return '<div>' + specificationNames + '<small>' + fieldsetLink + '</small></div>';
+        return '<div>' + specificationNames + '<div style="margin-top:4px;">' + fieldsetLink + '</div></div>';
     }
 
     function modelSpecificationValueFormatter(value) {
