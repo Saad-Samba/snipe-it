@@ -103,9 +103,13 @@ class IndexCategoriesTest extends TestCase
     {
         $fieldset = CustomFieldset::factory()->create(['name' => 'Power Specifications']);
         $fields = CustomField::factory()->count(2)->create();
+        $uniqueField = CustomField::factory()->create(['name' => 'Serial Number', 'is_unique' => true]);
+        $encryptedField = CustomField::factory()->create(['name' => 'Internal Secret', 'field_encrypted' => true]);
         $fieldset->fields()->attach($fields->mapWithKeys(fn ($field, $index) => [
             $field->id => ['order' => $index + 1, 'required' => false],
-        ])->all());
+        ])->put($uniqueField->id, ['order' => 3, 'required' => false])
+            ->put($encryptedField->id, ['order' => 4, 'required' => false])
+            ->all());
         $category = Category::factory()->forAssets()->create([
             'name' => 'Power Supplies',
             'fieldset_id' => $fieldset->id,
@@ -116,7 +120,8 @@ class IndexCategoriesTest extends TestCase
             ->assertOk()
             ->assertJsonPath('rows.0.fieldset.id', $fieldset->id)
             ->assertJsonPath('rows.0.fieldset.name', 'Power Specifications')
-            ->assertJsonPath('rows.0.fieldset.fields_count', 2)
+            ->assertJsonPath('rows.0.fieldset.fields_count', 4)
+            ->assertJsonCount(2, 'rows.0.fieldset.fields')
             ->assertJsonPath('rows.0.fieldset.fields.0', $fields[0]->name);
     }
 

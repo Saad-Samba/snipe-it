@@ -61,7 +61,10 @@ class CategoriesTransformer
                     'id' => (int) $category->fieldset->id,
                     'name' => e($category->fieldset->name),
                     'fields_count' => (int) ($category->fieldset->fields_count ?? $category->fieldset->fields()->count()),
-                    'fields' => $category->fieldset->fields->map(fn ($field) => e($field->name))->values(),
+                    'fields' => $category->fieldset->fields
+                        ->reject(fn ($field) => $field->is_unique || $field->field_encrypted)
+                        ->map(fn ($field) => e($field->name))
+                        ->values(),
                 ] : null,
                 'manager' => ($category->manager) ? [
                     'id' => (int) $category->manager->id,

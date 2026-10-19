@@ -196,7 +196,7 @@ class AssetModelPresenter extends Presenter
                 'searchable' => false,
                 'sortable' => false,
                 'switchable' => true,
-                'title' => $field->name,
+                'title' => e($field->name),
                 'visible' => true,
                 'formatter' => 'modelSpecificationValueFormatter',
             ];

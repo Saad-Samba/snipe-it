@@ -5,6 +5,7 @@ namespace Tests\Feature\Categories\Ui;
 use App\Models\Category;
 use App\Models\CustomField;
 use App\Models\CustomFieldset;
+use App\Presenters\AssetModelPresenter;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -34,5 +35,16 @@ class ShowCategoryTest extends TestCase
             ->assertSee('Output Voltage')
             ->assertSee('specification_'.$voltage->id, false)
             ->assertDontSee('data-detail-view="true"', false);
+    }
+
+    public function testSpecificationColumnTitlesEscapeCustomFieldNames()
+    {
+        $layout = json_decode(AssetModelPresenter::dataTableLayout([
+            (object) ['id' => 123, 'name' => '<script>alert(1)</script>'],
+        ]), true);
+
+        $specificationColumn = collect($layout)->firstWhere('field', 'specification_123');
+
+        $this->assertSame('&lt;script&gt;alert(1)&lt;/script&gt;', $specificationColumn['title']);
     }
 }

@@ -105,6 +105,36 @@ class IndexAssetModelsTest extends TestCase
             ->assertJsonMissingPath('rows.0.default_fieldset_values.1');
     }
 
+    public function testAssetModelSpecificationsUseTheCategoryFieldsetWhenModelOverridesAreEnabled()
+    {
+        $categoryFieldset = CustomFieldset::factory()->create(['name' => 'Category Specifications']);
+        $overrideFieldset = CustomFieldset::factory()->create(['name' => 'Model Override']);
+        $categoryField = CustomField::factory()->create(['name' => 'Output Voltage']);
+        $overrideField = CustomField::factory()->create(['name' => 'Override-only field']);
+        $categoryFieldset->fields()->attach($categoryField->id, ['order' => 1, 'required' => false]);
+        $overrideFieldset->fields()->attach($overrideField->id, ['order' => 1, 'required' => false]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $categoryFieldset->id]);
+        $model = AssetModel::factory()->create([
+            'name' => 'Overridden PSU Model',
+            'category_id' => $category->id,
+            'fieldset_id' => $overrideFieldset->id,
+        ]);
+        $model->defaultValues()->attach([
+            $categoryField->id => ['default_value' => '24 V'],
+            $overrideField->id => ['default_value' => 'Model-only value'],
+        ]);
+
+        config()->set('leams.model_fieldset_overrides', true);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.models.index', ['search' => 'Overridden PSU Model']))
+            ->assertOk()
+            ->assertJsonCount(1, 'rows.0.default_fieldset_values')
+            ->assertJsonPath('rows.0.default_fieldset_values.0.name', 'Output Voltage')
+            ->assertJsonPath('rows.0.specification_'.$categoryField->id, '24 V')
+            ->assertJsonMissingPath('rows.0.specification_'.$overrideField->id);
+    }
+
     public function testAfmAssetModelIndexOnlyReturnsManagedCategoryModels()
     {
         $afm = User::factory()->create();
