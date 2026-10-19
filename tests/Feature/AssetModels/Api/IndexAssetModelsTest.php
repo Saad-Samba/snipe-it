@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Statuslabel;
 use App\Models\User;
 use App\Models\Category;
+use App\Models\CustomField;
 use App\Models\CustomFieldset;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Tests\TestCase;
@@ -70,6 +71,37 @@ class IndexAssetModelsTest extends TestCase
                 ->where('rows.0.reference_price', 1499.99)
                 ->where('rows.0.reference_price_formatted', '1,499.99')
                 ->etc());
+    }
+
+    public function testAssetModelIndexIncludesModelSpecificationsButExcludesUniqueAndEncryptedFields()
+    {
+        $fieldset = CustomFieldset::factory()->create();
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+        $voltage = CustomField::factory()->create(['name' => 'Output Voltage']);
+        $serial = CustomField::factory()->create(['name' => 'Serial Number', 'is_unique' => true]);
+        $secret = CustomField::factory()->create(['name' => 'Internal Secret', 'field_encrypted' => true]);
+        $fieldset->fields()->attach([
+            $voltage->id => ['order' => 1, 'required' => false],
+            $serial->id => ['order' => 2, 'required' => false],
+            $secret->id => ['order' => 3, 'required' => false],
+        ]);
+        $model = AssetModel::factory()->create([
+            'name' => 'PSU Model',
+            'category_id' => $category->id,
+        ]);
+        $model->defaultValues()->attach([
+            $voltage->id => ['default_value' => '24 V'],
+            $serial->id => ['default_value' => 'SN-123'],
+            $secret->id => ['default_value' => 'hidden'],
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.models.index', ['search' => 'PSU Model']))
+            ->assertOk()
+            ->assertJsonCount(1, 'rows.0.default_fieldset_values')
+            ->assertJsonPath('rows.0.default_fieldset_values.0.name', 'Output Voltage')
+            ->assertJsonPath('rows.0.default_fieldset_values.0.default_value', '24 V')
+            ->assertJsonMissingPath('rows.0.default_fieldset_values.1');
     }
 
     public function testAfmAssetModelIndexOnlyReturnsManagedCategoryModels()

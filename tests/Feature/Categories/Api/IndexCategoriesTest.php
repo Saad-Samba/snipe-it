@@ -6,6 +6,8 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\CustomField;
+use App\Models\CustomFieldset;
 use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
@@ -95,6 +97,26 @@ class IndexCategoriesTest extends TestCase
             ->assertJsonPath('rows.0.available_models_count', 2)
             ->assertJsonPath('rows.0.assets_count', 2)
             ->assertJsonPath('rows.0.reusable_assets_count', 2);
+    }
+
+    public function testCategoryIndexIncludesConfiguredAttributeFieldsetAndCount()
+    {
+        $fieldset = CustomFieldset::factory()->create(['name' => 'Power Specifications']);
+        $fields = CustomField::factory()->count(2)->create();
+        $fieldset->fields()->attach($fields->mapWithKeys(fn ($field, $index) => [
+            $field->id => ['order' => $index + 1, 'required' => false],
+        ])->all());
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'Power Supplies',
+            'fieldset_id' => $fieldset->id,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.categories.index', ['name' => $category->name]))
+            ->assertOk()
+            ->assertJsonPath('rows.0.fieldset.id', $fieldset->id)
+            ->assertJsonPath('rows.0.fieldset.name', 'Power Specifications')
+            ->assertJsonPath('rows.0.fieldset.fields_count', 2);
     }
 
     public function testUnassignedGlobalViewerIsNotTreatedAsAfm()

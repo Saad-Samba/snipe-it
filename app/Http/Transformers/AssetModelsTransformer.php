@@ -29,6 +29,10 @@ class AssetModelsTransformer
         // Reach into the custom fields and models_custom_fields pivot table to find the default values for this model
         if ($assetmodel->fieldset) {
             foreach($assetmodel->fieldset->fields AS $field) {
+                if (! $assetmodel->ownsSpecification($field)) {
+                    continue;
+                }
+
                 $default_field_values[] = [
                     'name' => e($field->name),
                     'db_column_name' => e($field->db_column_name()),

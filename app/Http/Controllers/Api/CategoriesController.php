@@ -189,7 +189,8 @@ class CategoriesController extends Controller
             'tag_color',
             'notes',
             ])
-            ->with('adminuser', 'fieldset', 'manager')
+            ->with('adminuser', 'manager')
+            ->with(['fieldset' => fn ($fieldset) => $fieldset->withCount('fields')])
             ->withCount([
                 'accessories as accessories_count',
                 'consumables as consumables_count',

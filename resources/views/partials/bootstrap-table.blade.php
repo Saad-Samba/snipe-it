@@ -1502,6 +1502,19 @@
         return '<div style="white-space:nowrap;">' + modelMetric + assetMetric + '</div>';
     }
 
+    function categoryAttributesFormatter(value) {
+        if (!value || !value.id) {
+            return '<span class="text-muted">No attributes configured</span>';
+        }
+
+        var fieldsetLink = genericColumnObjLinkFormatter('fieldsets')(value);
+        var fieldCount = Number(value.fields_count) || 0;
+        var label = fieldCount === 1 ? 'attribute' : 'attributes';
+
+        return '<div>' + fieldsetLink
+            + '<br><small class="text-muted">' + fieldCount + ' configured ' + label + '</small></div>';
+    }
+
     function modelReusableAssetsFormatter(value, row) {
         var assets = Number(value) || 0;
 

@@ -21,6 +21,8 @@ class IndexCategoriesTest extends TestCase
             ->get(route('categories.index'))
             ->assertOk()
             ->assertSee('Category Manager', false)
+            ->assertSee('Configured Attributes', false)
+            ->assertSee('categoryAttributesFormatter', false)
             ->assertSee('Reusable Inventory', false)
             ->assertSee('Recently released feature', false)
             ->assertDontSee('&quot;title&quot;:&quot;Available Models&quot;', false)

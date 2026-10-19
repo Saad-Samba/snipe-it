@@ -60,6 +60,7 @@ class CategoriesTransformer
                 'fieldset' => ($category->fieldset) ? [
                     'id' => (int) $category->fieldset->id,
                     'name' => e($category->fieldset->name),
+                    'fields_count' => (int) ($category->fieldset->fields_count ?? $category->fieldset->fields()->count()),
                 ] : null,
                 'manager' => ($category->manager) ? [
                     'id' => (int) $category->manager->id,
