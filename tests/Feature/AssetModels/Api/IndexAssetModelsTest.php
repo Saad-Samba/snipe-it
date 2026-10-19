@@ -78,12 +78,14 @@ class IndexAssetModelsTest extends TestCase
         $fieldset = CustomFieldset::factory()->create();
         $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
         $voltage = CustomField::factory()->create(['name' => 'Output Voltage']);
+        $offset = CustomField::factory()->create(['name' => 'Voltage Offset']);
         $serial = CustomField::factory()->create(['name' => 'Serial Number', 'is_unique' => true]);
         $secret = CustomField::factory()->create(['name' => 'Internal Secret', 'field_encrypted' => true]);
         $fieldset->fields()->attach([
             $voltage->id => ['order' => 1, 'required' => false],
             $serial->id => ['order' => 2, 'required' => false],
             $secret->id => ['order' => 3, 'required' => false],
+            $offset->id => ['order' => 4, 'required' => false],
         ]);
         $model = AssetModel::factory()->create([
             'name' => 'PSU Model',
@@ -93,16 +95,20 @@ class IndexAssetModelsTest extends TestCase
             $voltage->id => ['default_value' => '24 V'],
             $serial->id => ['default_value' => 'SN-123'],
             $secret->id => ['default_value' => 'hidden'],
+            $offset->id => ['default_value' => '0'],
         ]);
 
         $this->actingAsForApi(User::factory()->superuser()->create())
             ->getJson(route('api.models.index', ['search' => 'PSU Model']))
             ->assertOk()
-            ->assertJsonCount(1, 'rows.0.default_fieldset_values')
+            ->assertJsonCount(2, 'rows.0.default_fieldset_values')
             ->assertJsonPath('rows.0.default_fieldset_values.0.name', 'Output Voltage')
             ->assertJsonPath('rows.0.default_fieldset_values.0.default_value', '24 V')
             ->assertJsonPath('rows.0.specification_'.$voltage->id, '24 V')
-            ->assertJsonMissingPath('rows.0.default_fieldset_values.1');
+            ->assertJsonPath('rows.0.default_fieldset_values.1.name', 'Voltage Offset')
+            ->assertJsonPath('rows.0.default_fieldset_values.1.default_value', '0')
+            ->assertJsonPath('rows.0.specification_'.$offset->id, '0')
+            ->assertJsonMissingPath('rows.0.default_fieldset_values.2');
     }
 
     public function testAssetModelSpecificationsUseTheCategoryFieldsetWhenModelOverridesAreEnabled()

@@ -1507,20 +1507,26 @@
             return '<span class="text-muted">No technical specifications configured</span>';
         }
 
-        var fieldsetUrl = '{{ route('fieldsets.show', ['fieldset' => '__FIELDSET_ID__']) }}'
-            .replace('__FIELDSET_ID__', encodeURIComponent(value.id));
-        var fieldsetLink = '<a href="' + fieldsetUrl + '" class="btn btn-default btn-xs"'
-            + ' title="View custom fieldset" aria-label="View custom fieldset">'
-            + '<i class="fa-regular fa-rectangle-list" aria-hidden="true"></i>'
-            + '<span class="sr-only">View custom fieldset</span></a>';
+        var fieldsetLink = '';
+        if (value.can_view) {
+            var fieldsetUrl = '{{ route('fieldsets.show', ['fieldset' => '__FIELDSET_ID__']) }}'
+                .replace('__FIELDSET_ID__', encodeURIComponent(value.id));
+            fieldsetLink = '<a href="' + fieldsetUrl + '" class="btn btn-default btn-xs"'
+                + ' title="View custom fieldset" aria-label="View custom fieldset">'
+                + '<i class="fa-regular fa-rectangle-list" aria-hidden="true"></i>'
+                + '<span class="sr-only">View custom fieldset</span></a>';
+        }
         var fields = Array.isArray(value.fields) ? value.fields : [];
         var specificationNames = fields.length
             ? '<div>' + fields.map(function (name) {
                 return '<span class="label label-default" style="display:inline-block; margin:2px 2px 2px 0;">' + name + '</span>';
             }).join('') + '</div>'
             : '<span class="text-muted">No technical specifications configured</span>';
+        var fieldsetLinkMarkup = fieldsetLink
+            ? '<div style="margin-top:4px;">' + fieldsetLink + '</div>'
+            : '';
 
-        return '<div>' + specificationNames + '<div style="margin-top:4px;">' + fieldsetLink + '</div></div>';
+        return '<div>' + specificationNames + fieldsetLinkMarkup + '</div>';
     }
 
     function modelSpecificationValueFormatter(value) {

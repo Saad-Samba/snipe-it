@@ -27,9 +27,11 @@ class IndexCategoriesTest extends TestCase
     public function testCategoryManagerCanViewOnlyManagedCategoriesWithoutGlobalCategoriesViewPermission()
     {
         $manager = User::factory()->create();
+        $fieldset = CustomFieldset::factory()->create(['name' => 'Managed Category Specifications']);
         $managedCategory = Category::factory()->forAssets()->create([
             'name' => 'Managed Category',
             'manager_id' => $manager->id,
+            'fieldset_id' => $fieldset->id,
         ]);
         Category::factory()->forAssets()->create([
             'name' => 'Unmanaged Category',
@@ -41,6 +43,7 @@ class IndexCategoriesTest extends TestCase
             ->assertJson(fn (AssertableJson $json) => $json
                 ->where('total', 1)
                 ->where('rows.0.id', $managedCategory->id)
+                ->where('rows.0.fieldset.can_view', false)
                 ->missing('rows.1')
                 ->etc());
     }
@@ -120,6 +123,7 @@ class IndexCategoriesTest extends TestCase
             ->assertOk()
             ->assertJsonPath('rows.0.fieldset.id', $fieldset->id)
             ->assertJsonPath('rows.0.fieldset.name', 'Power Specifications')
+            ->assertJsonPath('rows.0.fieldset.can_view', true)
             ->assertJsonPath('rows.0.fieldset.fields_count', 4)
             ->assertJsonCount(2, 'rows.0.fieldset.fields')
             ->assertJsonPath('rows.0.fieldset.fields.0', $fields[0]->name);
