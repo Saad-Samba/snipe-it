@@ -143,6 +143,43 @@ class IndexAssetModelsTest extends TestCase
             ->assertJsonMissingPath('rows.0.specification_'.$overrideField->id);
     }
 
+    public function testAssetModelIndexOnlyLoadsSpecificationValuesForTheCurrentPage()
+    {
+        $fieldset = CustomFieldset::factory()->create();
+        $field = CustomField::factory()->create(['name' => 'Page-scoped Voltage']);
+        $missingField = CustomField::factory()->create(['name' => 'Page-scoped Connector']);
+        $fieldset->fields()->attach([
+            $field->id => ['order' => 1, 'required' => false],
+            $missingField->id => ['order' => 2, 'required' => false],
+        ]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+        $firstModel = AssetModel::factory()->create(['name' => 'AAA Page Model', 'category_id' => $category->id]);
+        $offPageModel = AssetModel::factory()->create(['name' => 'ZZZ Page Model', 'category_id' => $category->id]);
+        $firstModel->defaultValues()->attach($field->id, ['default_value' => '0']);
+        $firstModel->defaultValues()->attach($field->id, ['default_value' => '48 V']);
+        $offPageModel->defaultValues()->attach($field->id, ['default_value' => '24 V']);
+
+        $specificationQueries = [];
+        DB::listen(function (QueryExecuted $query) use (&$specificationQueries) {
+            if (str_contains(strtolower($query->sql), 'models_custom_fields')) {
+                $specificationQueries[] = $query;
+            }
+        });
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.models.index', ['sort' => 'name', 'order' => 'asc', 'limit' => '1']))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonCount(1, 'rows')
+            ->assertJsonPath('rows.0.id', $firstModel->id)
+            ->assertJsonPath('rows.0.specification_'.$field->id, '0')
+            ->assertJsonPath('rows.0.specification_'.$missingField->id, null);
+
+        $this->assertCount(1, $specificationQueries);
+        $this->assertContains($firstModel->id, $specificationQueries[0]->bindings);
+        $this->assertNotContains($offPageModel->id, $specificationQueries[0]->bindings);
+    }
+
     public function testAssetModelIndexFiltersCategorySpecificationsBeforePagination()
     {
         $fieldset = CustomFieldset::factory()->create(['name' => 'Power Specifications']);

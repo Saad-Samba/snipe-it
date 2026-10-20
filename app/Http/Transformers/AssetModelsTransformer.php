@@ -7,21 +7,41 @@ use App\Models\AssetModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class AssetModelsTransformer
 {
     public function transformAssetModels(Collection $assetmodels, $total)
     {
+        $specificationValuesByModel = [];
+
+        if ($assetmodels->isNotEmpty()) {
+            // Fetch only the current page's values. Loading fields.defaultValues instead
+            // hydrates every model attached to those fields, including models off-page.
+            $values = DB::table('models_custom_fields')
+                ->whereIn('asset_model_id', $assetmodels->modelKeys())
+                ->orderBy('id')
+                ->get(['asset_model_id', 'custom_field_id', 'default_value']);
+
+            foreach ($values as $value) {
+                // Match CustomField::defaultValue(), which returns the first pivot
+                // value if legacy data contains duplicate model/field rows.
+                if (! array_key_exists($value->custom_field_id, $specificationValuesByModel[$value->asset_model_id] ?? [])) {
+                    $specificationValuesByModel[$value->asset_model_id][$value->custom_field_id] = $value->default_value;
+                }
+            }
+        }
+
         $array = [];
         foreach ($assetmodels as $assetmodel) {
-            $array[] = self::transformAssetModel($assetmodel);
+            $array[] = self::transformAssetModel($assetmodel, $specificationValuesByModel[$assetmodel->id] ?? []);
         }
 
         return (new DatatablesTransformer)->transformDatatables($array, $total);
     }
 
-    public function transformAssetModel(AssetModel $assetmodel)
+    public function transformAssetModel(AssetModel $assetmodel, ?array $specificationValues = null)
     {
 
         $default_field_values = array();
@@ -34,7 +54,9 @@ class AssetModelsTransformer
                     continue;
                 }
 
-                $defaultValue = $field->defaultValue($assetmodel->id);
+                $defaultValue = $specificationValues === null
+                    ? $field->defaultValue($assetmodel->id)
+                    : ($specificationValues[$field->id] ?? null);
 
                 $default_field_values[] = [
                     'id' => (int) $field->id,

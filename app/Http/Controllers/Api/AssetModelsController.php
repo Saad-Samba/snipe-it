@@ -92,7 +92,7 @@ class AssetModelsController extends Controller
         ];
 
         $assetmodels = AssetModel::select($selectedColumns)
-            ->with('category.fieldset.fields.defaultValues', 'depreciation', 'manufacturer', 'fieldset.fields.defaultValues', 'adminuser')
+            ->with('category.fieldset.fields', 'depreciation', 'manufacturer', 'fieldset.fields', 'adminuser')
             ->with(['requests' => function ($query) {
                 $query->where('user_id', auth()->id())
                     ->whereNull('canceled_at');
