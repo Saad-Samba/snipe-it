@@ -210,7 +210,11 @@ class CategoriesController extends Controller
                 'id' => (int) $field->id,
                 'name' => $field->name,
                 'numeric' => strtolower((string) $field->format) === 'numeric',
-                'values' => collect($field->formatFieldValuesAsArray())->except('')->values(),
+                'enumerated' => in_array($field->element, ['listbox', 'checkbox', 'radio'], true),
+                'values' => collect($field->formatFieldValuesAsArray())
+                    ->except('')
+                    ->map(fn ($label, $value) => ['value' => (string) $value, 'label' => (string) $label])
+                    ->values(),
             ])
             ->values() ?? collect();
 

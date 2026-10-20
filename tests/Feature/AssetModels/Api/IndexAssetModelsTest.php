@@ -145,7 +145,11 @@ class IndexAssetModelsTest extends TestCase
     {
         $fieldset = CustomFieldset::factory()->create(['name' => 'Power Specifications']);
         $power = CustomField::factory()->create(['name' => 'Power Output', 'format' => 'NUMERIC']);
-        $connector = CustomField::factory()->create(['name' => 'Connector']);
+        $connector = CustomField::factory()->create([
+            'name' => 'Connector',
+            'element' => 'listbox',
+            'field_values' => "USB-C|USB-C connector\nEthernet",
+        ]);
         $fieldset->fields()->attach([
             $power->id => ['order' => 1, 'required' => false],
             $connector->id => ['order' => 2, 'required' => false],
@@ -164,6 +168,10 @@ class IndexAssetModelsTest extends TestCase
             'name' => 'Power Adapter Low Output',
             'category_id' => $category->id,
         ]);
+        $differentNameModel = AssetModel::factory()->create([
+            'name' => 'Travel Charger',
+            'category_id' => $category->id,
+        ]);
 
         $matchingModel->defaultValues()->attach([
             $power->id => ['default_value' => '24'],
@@ -175,6 +183,10 @@ class IndexAssetModelsTest extends TestCase
         ]);
         $lowPowerModel->defaultValues()->attach([
             $power->id => ['default_value' => '12'],
+            $connector->id => ['default_value' => 'USB-C'],
+        ]);
+        $differentNameModel->defaultValues()->attach([
+            $power->id => ['default_value' => '24'],
             $connector->id => ['default_value' => 'USB-C'],
         ]);
 
@@ -192,6 +204,16 @@ class IndexAssetModelsTest extends TestCase
             ->assertJsonPath('rows.0.id', $matchingModel->id)
             ->assertJsonPath('rows.0.specification_'.$power->id, '24')
             ->assertJsonPath('rows.0.specification_'.$connector->id, 'USB-C');
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.models.index', [
+                'category_id' => $category->id,
+                'specification_filters' => json_encode([
+                    ['field_id' => $connector->id, 'operator' => ':', 'value' => 'USB'],
+                ]),
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 0);
     }
 
     public function testAssetModelIndexRejectsSpecificationFieldsOutsideTheSelectedCategory()

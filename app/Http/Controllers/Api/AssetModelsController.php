@@ -242,6 +242,7 @@ class AssetModelsController extends Controller
             }
 
             $isNumeric = strtolower((string) $field->format) === 'numeric';
+            $isEnumerated = in_array($field->element, ['listbox', 'checkbox', 'radio'], true);
             $allowedOperators = $isNumeric ? ['=', '>=', '<='] : [':', '='];
             if (! in_array($filter['operator'], $allowedOperators, true) || ($isNumeric && ! is_numeric($filter['value']))) {
                 throw ValidationException::withMessages([
@@ -253,7 +254,7 @@ class AssetModelsController extends Controller
             $operator = $filter['operator'];
             $value = $filter['value'];
 
-            $assetmodels->whereHas('defaultValues', function (Builder $fieldQuery) use ($fieldId, $operator, $value, $isNumeric): void {
+            $assetmodels->whereHas('defaultValues', function (Builder $fieldQuery) use ($fieldId, $operator, $value, $isNumeric, $isEnumerated): void {
                 $fieldQuery->where('custom_fields.id', $fieldId);
 
                 if ($isNumeric) {
@@ -261,7 +262,7 @@ class AssetModelsController extends Controller
                         'CAST(models_custom_fields.default_value AS DECIMAL(20, 6)) '.$operator.' ?',
                         [(float) $value]
                     );
-                } elseif ($operator === ':') {
+                } elseif ($operator === ':' && ! $isEnumerated) {
                     $fieldQuery->where('models_custom_fields.default_value', 'LIKE', '%'.$value.'%');
                 } else {
                     $fieldQuery->where('models_custom_fields.default_value', '=', $value);

@@ -204,9 +204,11 @@
 <script nonce="{{ csrf_token() }}">
     var categoryModelSpecificationFields = @json($specificationSearchFields);
     var categoryModelSpecificationTokens = [];
+    var categoryModelFreeTextSearch = '';
 
     window.categoryModelSpecificationQueryParams = function (params) {
         if (categoryModelSpecificationTokens.length) {
+            params.search = categoryModelFreeTextSearch;
             params.specification_filters = JSON.stringify(categoryModelSpecificationTokens.map(function (token) {
                 return {
                     field_id: token.field.id,
@@ -231,6 +233,7 @@
         });
         var hideSuggestionsTimer;
         var wasTypingSpecificationExpression = false;
+        var isResettingSearch = false;
 
         if (!$table.length || !$input.length) {
             return;
@@ -266,7 +269,9 @@
         }
 
         function clearFreeTextSearch() {
+            isResettingSearch = true;
             $table.bootstrapTable('resetSearch', '');
+            isResettingSearch = false;
         }
 
         function refreshResults() {
@@ -277,9 +282,14 @@
             $chips.empty();
 
             categoryModelSpecificationTokens.forEach(function (token, index) {
-                var operatorLabel = token.operator === ':' ? 'contains' : token.operator;
+                var operatorLabel = token.operator === ':'
+                    ? (token.field.enumerated ? 'is' : 'contains')
+                    : token.operator;
+                var displayValue = token.field.enumerated
+                    ? ((token.field.values.find(function (option) { return option.value === token.value; }) || {}).label || token.value)
+                    : token.value;
                 var $chip = $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
-                    .text(token.field.name + ' ' + operatorLabel + ' ' + token.value + ' ×')
+                    .text(token.field.name + ' ' + operatorLabel + ' ' + displayValue + ' ×')
                     .on('click', function () {
                         categoryModelSpecificationTokens.splice(index, 1);
                         renderChips();
@@ -288,6 +298,18 @@
 
                 $chips.append($chip);
             });
+
+            if (categoryModelSpecificationTokens.length && categoryModelFreeTextSearch) {
+                $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
+                    .text('Text contains ' + categoryModelFreeTextSearch + ' ×')
+                    .on('click', function () {
+                        categoryModelFreeTextSearch = '';
+                        clearFreeTextSearch();
+                        renderChips();
+                        refreshResults();
+                    })
+                    .appendTo($chips);
+            }
         }
 
         function addToken(field, operator, value) {
@@ -395,14 +417,14 @@
             if (field.values.length) {
                 showSuggestions(field.values
                     .filter(function (candidate) {
-                        return String(candidate).toLowerCase().indexOf(typedValue.toLowerCase()) !== -1;
+                        return candidate.label.toLowerCase().indexOf(typedValue.toLowerCase()) !== -1;
                     })
                     .slice(0, 8)
                     .map(function (candidate) {
                         return {
-                            label: candidate,
+                            label: candidate.label,
                             action: function () {
-                                addToken(field, operator || ':', candidate);
+                                addToken(field, operator || ':', candidate.value);
                             }
                         };
                     }));
@@ -444,8 +466,14 @@
                 suggest();
             } else {
                 wasTypingSpecificationExpression = false;
+                if (!isResettingSearch && categoryModelSpecificationTokens.length) {
+                    categoryModelFreeTextSearch = value;
+                    renderChips();
+                }
             }
         }, true);
+
+        categoryModelFreeTextSearch = $table.bootstrapTable('getOptions').searchText || '';
 
         $input[0].addEventListener('keyup', function (event) {
             if (isSpecificationExpression($.trim($input.val()))) {
