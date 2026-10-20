@@ -58,6 +58,7 @@
                 }
                 return default_value;
             }
+            var extraQueryParamsCallback = data_with_default('extra-query-params', null);
 
 
 
@@ -141,6 +142,10 @@
                         if (advancedFilters[filterKey] !== undefined && advancedFilters[filterKey] !== null && advancedFilters[filterKey] !== '') {
                             newParams[filterKey] = advancedFilters[filterKey];
                         }
+                    }
+
+                    if (extraQueryParamsCallback && typeof window[extraQueryParamsCallback] === 'function') {
+                        newParams = window[extraQueryParamsCallback](newParams) || newParams;
                     }
 
                     return newParams;

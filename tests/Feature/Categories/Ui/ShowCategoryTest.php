@@ -33,6 +33,8 @@ class ShowCategoryTest extends TestCase
             ->assertOk()
             ->assertSee('This table includes one column for each technical specification configured for the category.')
             ->assertSee('Output Voltage')
+            ->assertSee('assetModelSpecificationChips')
+            ->assertSee('categoryModelSpecificationQueryParams')
             ->assertSee('specification_'.$voltage->id, false)
             ->assertDontSee('data-detail-view="true"', false);
     }

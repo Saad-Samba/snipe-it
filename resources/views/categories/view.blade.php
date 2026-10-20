@@ -142,6 +142,10 @@
                             <div class="col-md-12">
 
                                 <p class="text-muted">This table includes one column for each technical specification configured for the category.</p>
+                                <div class="clearfix" style="margin-bottom:8px;">
+                                    <span class="pull-right text-muted">Type a technical field to add a filter.</span>
+                                </div>
+                                <div id="assetModelSpecificationChips" class="form-inline" style="margin-bottom:8px;" aria-live="polite"></div>
 
                                 @php
                                     $specificationFields = $category->fieldset
@@ -163,6 +167,7 @@
                                             data-columns="{{ \App\Presenters\AssetModelPresenter::dataTableLayout($specificationFields) }}"
                                             data-cookie-id-table="assetModelsTable"
                                             data-id-table="assetModelsTable"
+                                            data-extra-query-params="categoryModelSpecificationQueryParams"
                                             data-show-footer="true"
                                             data-side-pagination="server"
                                             data-toolbar="#modelsBulkEditToolbar"
@@ -195,4 +200,275 @@
 
 @section('moar_scripts')
 @include ('partials.bootstrap-table')
+
+<script nonce="{{ csrf_token() }}">
+    var categoryModelSpecificationFields = @json($specificationSearchFields);
+    var categoryModelSpecificationTokens = [];
+
+    window.categoryModelSpecificationQueryParams = function (params) {
+        if (categoryModelSpecificationTokens.length) {
+            params.specification_filters = JSON.stringify(categoryModelSpecificationTokens.map(function (token) {
+                return {
+                    field_id: token.field.id,
+                    operator: token.operator,
+                    value: token.value
+                };
+            }));
+        }
+
+        return params;
+    };
+
+    $(function () {
+        var $table = $('#assetModelsTable');
+        var $wrapper = $table.closest('.bootstrap-table');
+        var $input = $wrapper.find('.fixed-table-toolbar .search input');
+        var $chips = $('#assetModelSpecificationChips');
+        var $menu = $('<div class="dropdown-menu" id="categoryModelSpecificationSuggestions"></div>').css({
+            maxHeight: '240px',
+            overflowY: 'auto',
+            zIndex: 1050
+        });
+        var hideSuggestionsTimer;
+        var wasTypingSpecificationExpression = false;
+
+        if (!$table.length || !$input.length) {
+            return;
+        }
+
+        $input.attr('placeholder', 'Search models or add a technical field filter');
+        $input.parent().css('position', 'relative').append($menu);
+        $menu.on('mousedown', function (event) {
+            clearTimeout(hideSuggestionsTimer);
+            event.preventDefault();
+        });
+
+        function fieldFor(value) {
+            var lowerValue = value.toLowerCase();
+
+            return categoryModelSpecificationFields
+                .filter(function (field) {
+                    var remainder = lowerValue.slice(field.name.length);
+
+                    return lowerValue.indexOf(field.name.toLowerCase()) === 0
+                        && /^(?:\s|$|:|=|>|<)/.test(remainder);
+                })
+                .sort(function (first, second) {
+                    return second.name.length - first.name.length;
+                })[0];
+        }
+
+        function isSpecificationExpression(value) {
+            var field = fieldFor(value);
+
+            return !!field && (/^\s*$/.test(value.slice(field.name.length))
+                || /^(>=|<=|=|:)/.test($.trim(value.slice(field.name.length))));
+        }
+
+        function clearFreeTextSearch() {
+            $table.bootstrapTable('resetSearch', '');
+        }
+
+        function refreshResults() {
+            $table.bootstrapTable('refresh', { pageNumber: 1 });
+        }
+
+        function renderChips() {
+            $chips.empty();
+
+            categoryModelSpecificationTokens.forEach(function (token, index) {
+                var operatorLabel = token.operator === ':' ? 'contains' : token.operator;
+                var $chip = $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
+                    .text(token.field.name + ' ' + operatorLabel + ' ' + token.value + ' ×')
+                    .on('click', function () {
+                        categoryModelSpecificationTokens.splice(index, 1);
+                        renderChips();
+                        refreshResults();
+                    });
+
+                $chips.append($chip);
+            });
+        }
+
+        function addToken(field, operator, value) {
+            value = $.trim(value);
+
+            if (!value || (field.numeric && !isFinite(Number(value)))) {
+                return;
+            }
+
+            categoryModelSpecificationTokens.push({
+                field: field,
+                operator: operator,
+                value: value
+            });
+            clearFreeTextSearch();
+            $input.val('');
+            $menu.hide();
+            renderChips();
+            refreshResults();
+        }
+
+        function showSuggestions(items) {
+            clearTimeout(hideSuggestionsTimer);
+            $menu.empty();
+
+            items.forEach(function (item) {
+                $('<button type="button" class="dropdown-item btn btn-link btn-block text-left"></button>')
+                    .text(item.label)
+                    .on('click', item.action)
+                    .appendTo($menu);
+            });
+
+            $menu.toggle(items.length > 0);
+        }
+
+        function suggest() {
+            var value = $.trim($input.val());
+            var field = fieldFor(value);
+
+            if (!field) {
+                var matches = categoryModelSpecificationFields.filter(function (candidate) {
+                    return candidate.name.toLowerCase().indexOf(value.toLowerCase()) !== -1;
+                });
+
+                showSuggestions(matches.slice(0, 8).map(function (candidate) {
+                    return {
+                        label: candidate.name,
+                        action: function () {
+                            clearFreeTextSearch();
+                            $input.val(candidate.name + (candidate.numeric ? ' ' : ': ')).focus();
+                            suggest();
+                        }
+                    };
+                }));
+
+                return;
+            }
+
+            var remainder = $.trim(value.slice(field.name.length));
+            if (!remainder && field.numeric) {
+                showSuggestions(['>=', '<=', '='].map(function (operator) {
+                    return {
+                        label: operator,
+                        action: function () {
+                            clearFreeTextSearch();
+                            $input.val(field.name + ' ' + operator + ' ').focus();
+                            suggest();
+                        }
+                    };
+                }));
+
+                return;
+            }
+
+            if (!remainder) {
+                showSuggestions([{
+                    label: field.name + ': value',
+                    action: function () {
+                        clearFreeTextSearch();
+                        $input.val(field.name + ': ').focus();
+                        suggest();
+                    }
+                }]);
+
+                return;
+            }
+
+            var operator = (remainder.match(/^(>=|<=|=|:)/) || [])[1];
+            if (field.numeric && !operator) {
+                showSuggestions(['>=', '<=', '='].map(function (choice) {
+                    return {
+                        label: choice,
+                        action: function () {
+                            clearFreeTextSearch();
+                            $input.val(field.name + ' ' + choice + ' ').focus();
+                            suggest();
+                        }
+                    };
+                }));
+
+                return;
+            }
+
+            var typedValue = $.trim(remainder.replace(/^(>=|<=|=|:)/, ''));
+            if (field.values.length) {
+                showSuggestions(field.values
+                    .filter(function (candidate) {
+                        return String(candidate).toLowerCase().indexOf(typedValue.toLowerCase()) !== -1;
+                    })
+                    .slice(0, 8)
+                    .map(function (candidate) {
+                        return {
+                            label: candidate,
+                            action: function () {
+                                addToken(field, operator || ':', candidate);
+                            }
+                        };
+                    }));
+
+                return;
+            }
+
+            $menu.hide();
+        }
+
+        function commitSearch() {
+            var value = $.trim($input.val());
+            var field = fieldFor(value);
+
+            if (!field) {
+                return false;
+            }
+
+            var remainder = $.trim(value.slice(field.name.length));
+            var match = remainder.match(/^(>=|<=|=|:)\s*(.+)$/);
+            if (!match) {
+                return false;
+            }
+
+            addToken(field, match[1], match[2]);
+
+            return true;
+        }
+
+        $input[0].addEventListener('input', function (event) {
+            var value = $.trim($input.val());
+            if (isSpecificationExpression(value)) {
+                event.stopImmediatePropagation();
+                if (!wasTypingSpecificationExpression) {
+                    clearFreeTextSearch();
+                    $input.val(value);
+                }
+                wasTypingSpecificationExpression = true;
+                suggest();
+            } else {
+                wasTypingSpecificationExpression = false;
+            }
+        }, true);
+
+        $input[0].addEventListener('keyup', function (event) {
+            if (isSpecificationExpression($.trim($input.val()))) {
+                event.stopImmediatePropagation();
+            }
+        }, true);
+
+        $input
+            .on('input', suggest)
+            .on('keydown', function (event) {
+                if (event.key === 'Enter' && commitSearch()) {
+                    event.preventDefault();
+                }
+
+                if (event.key === 'Escape') {
+                    $menu.hide();
+                }
+            })
+            .on('blur', function () {
+                hideSuggestionsTimer = setTimeout(function () {
+                    $menu.hide();
+                }, 150);
+            });
+    });
+</script>
 @stop

@@ -141,6 +141,79 @@ class IndexAssetModelsTest extends TestCase
             ->assertJsonMissingPath('rows.0.specification_'.$overrideField->id);
     }
 
+    public function testAssetModelIndexFiltersCategorySpecificationsBeforePagination()
+    {
+        $fieldset = CustomFieldset::factory()->create(['name' => 'Power Specifications']);
+        $power = CustomField::factory()->create(['name' => 'Power Output', 'format' => 'NUMERIC']);
+        $connector = CustomField::factory()->create(['name' => 'Connector']);
+        $fieldset->fields()->attach([
+            $power->id => ['order' => 1, 'required' => false],
+            $connector->id => ['order' => 2, 'required' => false],
+        ]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+
+        $matchingModel = AssetModel::factory()->create([
+            'name' => 'Power Adapter USB-C',
+            'category_id' => $category->id,
+        ]);
+        $wrongConnectorModel = AssetModel::factory()->create([
+            'name' => 'Power Adapter Ethernet',
+            'category_id' => $category->id,
+        ]);
+        $lowPowerModel = AssetModel::factory()->create([
+            'name' => 'Power Adapter Low Output',
+            'category_id' => $category->id,
+        ]);
+
+        $matchingModel->defaultValues()->attach([
+            $power->id => ['default_value' => '24'],
+            $connector->id => ['default_value' => 'USB-C'],
+        ]);
+        $wrongConnectorModel->defaultValues()->attach([
+            $power->id => ['default_value' => '30'],
+            $connector->id => ['default_value' => 'Ethernet'],
+        ]);
+        $lowPowerModel->defaultValues()->attach([
+            $power->id => ['default_value' => '12'],
+            $connector->id => ['default_value' => 'USB-C'],
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.models.index', [
+                'category_id' => $category->id,
+                'search' => 'Power Adapter',
+                'specification_filters' => json_encode([
+                    ['field_id' => $power->id, 'operator' => '>=', 'value' => '24'],
+                    ['field_id' => $connector->id, 'operator' => ':', 'value' => 'USB-C'],
+                ]),
+            ]))
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('rows.0.id', $matchingModel->id)
+            ->assertJsonPath('rows.0.specification_'.$power->id, '24')
+            ->assertJsonPath('rows.0.specification_'.$connector->id, 'USB-C');
+    }
+
+    public function testAssetModelIndexRejectsSpecificationFieldsOutsideTheSelectedCategory()
+    {
+        $categoryFieldset = CustomFieldset::factory()->create();
+        $otherFieldset = CustomFieldset::factory()->create();
+        $otherField = CustomField::factory()->create(['name' => 'Other Category Field']);
+        $otherFieldset->fields()->attach($otherField->id, ['order' => 1, 'required' => false]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $categoryFieldset->id]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.models.index', [
+                'category_id' => $category->id,
+                'specification_filters' => json_encode([
+                    ['field_id' => $otherField->id, 'operator' => ':', 'value' => 'value'],
+                ]),
+            ]))
+            ->assertOk()
+            ->assertJsonPath('status', 'error')
+            ->assertJsonPath('messages.specification_filters.0', 'Each field must be a supported specification for the selected category.');
+    }
+
     public function testAfmAssetModelIndexOnlyReturnsManagedCategoryModels()
     {
         $afm = User::factory()->create();

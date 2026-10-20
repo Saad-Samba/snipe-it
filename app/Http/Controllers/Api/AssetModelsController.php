@@ -10,13 +10,16 @@ use App\Http\Transformers\AssetsTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\Category;
 use App\Models\CustomField;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -110,8 +113,6 @@ class AssetModelsController extends Controller
 
         if ((! is_null($filter)) && (count($filter)) > 0) {
             $assetmodels->ByFilter($filter);
-        } elseif ($request->filled('search')) {
-            $assetmodels->TextSearch($request->input('search'));
         }
 
 
@@ -147,8 +148,10 @@ class AssetModelsController extends Controller
             $assetmodels = $assetmodels->where('models.depreciation_id', '=', $request->input('depreciation_id'));
         }
 
+        $this->applySpecificationFilters($assetmodels, $request);
+
         if ($request->filled('search')) {
-            $assetmodels->TextSearch($request->input('search'));
+            $assetmodels->where(fn (Builder $query) => $query->TextSearch($request->input('search')));
         }
 
         // Make sure the offset and limit are actually integers and do not exceed system limits
@@ -180,6 +183,91 @@ class AssetModelsController extends Controller
         $assetmodels = $assetmodels->skip($offset)->take($limit)->get();
 
         return (new AssetModelsTransformer)->transformAssetModels($assetmodels, $total);
+    }
+
+    /**
+     * Apply category-owned specification filters to the server-side models table.
+     */
+    private function applySpecificationFilters(Builder $assetmodels, Request $request): void
+    {
+        if (! $request->exists('specification_filters')) {
+            return;
+        }
+
+        $filters = $request->input('specification_filters');
+        if (is_string($filters)) {
+            $filters = json_decode($filters, true);
+        }
+
+        $validatedFilters = Validator::make(['specification_filters' => $filters], [
+            'specification_filters' => ['required', 'array', 'max:10'],
+            'specification_filters.*.field_id' => ['required', 'integer', 'min:1'],
+            'specification_filters.*.operator' => ['required', Rule::in([':', '=', '>=', '<='])],
+            'specification_filters.*.value' => ['required', 'string', 'max:255'],
+        ])->validate()['specification_filters'];
+
+        if (count($validatedFilters) === 0) {
+            return;
+        }
+
+        if (! $request->filled('category_id') || ! filter_var($request->input('category_id'), FILTER_VALIDATE_INT)) {
+            throw ValidationException::withMessages([
+                'specification_filters' => ['Specification filters require an asset category.'],
+            ]);
+        }
+
+        $category = Category::query()
+            ->where('category_type', 'asset')
+            ->find((int) $request->input('category_id'));
+
+        if (! $category) {
+            throw ValidationException::withMessages([
+                'category_id' => ['The selected asset category is invalid.'],
+            ]);
+        }
+
+        $this->authorize('view', $category);
+        $category->loadMissing('fieldset.fields');
+
+        $supportedFields = $category->fieldset?->fields
+            ->filter(fn (CustomField $field) => ! $field->is_unique && ! $field->field_encrypted)
+            ->keyBy('id') ?? collect();
+
+        foreach ($validatedFilters as $filter) {
+            $field = $supportedFields->get((int) $filter['field_id']);
+            if (! $field) {
+                throw ValidationException::withMessages([
+                    'specification_filters' => ['Each field must be a supported specification for the selected category.'],
+                ]);
+            }
+
+            $isNumeric = strtolower((string) $field->format) === 'numeric';
+            $allowedOperators = $isNumeric ? ['=', '>=', '<='] : [':', '='];
+            if (! in_array($filter['operator'], $allowedOperators, true) || ($isNumeric && ! is_numeric($filter['value']))) {
+                throw ValidationException::withMessages([
+                    'specification_filters' => ['The operator and value must be valid for the selected specification.'],
+                ]);
+            }
+
+            $fieldId = (int) $field->id;
+            $operator = $filter['operator'];
+            $value = $filter['value'];
+
+            $assetmodels->whereHas('defaultValues', function (Builder $fieldQuery) use ($fieldId, $operator, $value, $isNumeric): void {
+                $fieldQuery->where('custom_fields.id', $fieldId);
+
+                if ($isNumeric) {
+                    $fieldQuery->whereRaw(
+                        'CAST(models_custom_fields.default_value AS DECIMAL(20, 6)) '.$operator.' ?',
+                        [(float) $value]
+                    );
+                } elseif ($operator === ':') {
+                    $fieldQuery->where('models_custom_fields.default_value', 'LIKE', '%'.$value.'%');
+                } else {
+                    $fieldQuery->where('models_custom_fields.default_value', '=', $value);
+                }
+            });
+        }
     }
 
 
