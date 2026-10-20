@@ -93,6 +93,10 @@ class AssetModelsController extends Controller
 
         $assetmodels = AssetModel::select($selectedColumns)
             ->with('category.fieldset.fields.defaultValues', 'depreciation', 'manufacturer', 'fieldset.fields.defaultValues', 'adminuser')
+            ->with(['requests' => function ($query) {
+                $query->where('user_id', auth()->id())
+                    ->whereNull('canceled_at');
+            }])
             ->withCount('assets as assets_count')
             ->withCount('availableAssets as remaining')
             ->withCount('assignedAssets as assets_assigned_count')

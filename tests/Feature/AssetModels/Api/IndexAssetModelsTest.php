@@ -12,6 +12,8 @@ use App\Models\User;
 use App\Models\Category;
 use App\Models\CustomField;
 use App\Models\CustomFieldset;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Tests\TestCase;
 
@@ -563,6 +565,39 @@ class IndexAssetModelsTest extends TestCase
                 ->where('rows.0.requested_project_id', null)
                 ->where('rows.0.requested_needed_by_date', null)
                 ->etc());
+    }
+
+    public function testAssetModelIndexLoadsCurrentUsersRequestsInOneQuery()
+    {
+        $requester = User::factory()->superuser()->create();
+        $models = AssetModel::factory()->count(3)->create();
+        $requestedModel = $models->first();
+
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $requester->id,
+            'requestable_id' => $requestedModel->id,
+            'requestable_type' => AssetModel::class,
+            'quantity' => 2,
+        ]);
+
+        $checkoutRequestQueries = [];
+
+        DB::listen(function (QueryExecuted $query) use (&$checkoutRequestQueries) {
+            if (str_contains(strtolower($query->sql), 'checkout_requests')) {
+                $checkoutRequestQueries[] = $query->sql;
+            }
+        });
+
+        $response = $this->actingAsForApi($requester)
+            ->getJson(route('api.models.index', ['limit' => '20']))
+            ->assertOk();
+
+        $this->assertCount(1, $checkoutRequestQueries);
+
+        $rows = collect($response->json('rows'))->keyBy('id');
+
+        $this->assertSame(2, $rows->get($requestedModel->id)['requested_quantity']);
+        $this->assertNull($rows->get($models->last()->id)['requested_quantity']);
     }
 
     public function testAssetModelIndexSortsByCategoryFieldsetAndIgnoresStoredModelOverride()
