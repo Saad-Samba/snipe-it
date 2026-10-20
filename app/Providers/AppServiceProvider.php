@@ -19,11 +19,8 @@ use App\Observers\ConsumableObserver;
 use App\Observers\LicenseObserver;
 use App\Observers\SettingObserver;
 use App\Observers\MaintenanceObserver;
-use Illuminate\Database\Connection;
-use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Routing\UrlGenerator;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -97,22 +94,6 @@ class AppServiceProvider extends ServiceProvider
                 $message->html(str_replace('Snipe-IT', 'LEAMS', $htmlBody));
             }
         });
-
-        DB::whenQueryingForLongerThan(
-            1000,
-            function (Connection $connection, QueryExecuted $event): void {
-                if (! request()->is('api/v1/models')) {
-                    return;
-                }
-
-                Log::warning('Models API exceeded 1 second of database time', [
-                    'path' => request()->path(),
-                    'database_connection' => $connection->getName(),
-                    'cumulative_database_ms' => $connection->totalQueryDuration(),
-                    'query_at_threshold_ms' => $event->time,
-                ]);
-            }
-        );
     }
 
     /**
