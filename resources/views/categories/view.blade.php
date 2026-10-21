@@ -304,6 +304,12 @@
         function renderChips() {
             $chips.empty();
 
+            if (categoryModelSpecificationTokens.length || categoryModelFreeTextSearch) {
+                $('<span class="text-primary" style="margin-right:8px; font-weight:600"></span>')
+                    .text('Active filters:')
+                    .appendTo($chips);
+            }
+
             categoryModelSpecificationTokens.forEach(function (token, index) {
                 var operatorLabel = token.operator === ':'
                     ? (token.field.multiple ? 'includes' : (token.field.enumerated ? 'is' : 'contains'))
@@ -311,7 +317,7 @@
                 var displayValue = token.field.enumerated
                     ? ((token.field.values.find(function (option) { return option.value === token.value; }) || {}).label || token.value)
                     : token.value;
-                var $chip = $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
+                var $chip = $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
                     .text(token.field.name + ' ' + operatorLabel + ' ' + displayValue + ' ×')
                     .on('click', function () {
                         categoryModelSpecificationTokens.splice(index, 1);
@@ -323,7 +329,7 @@
             });
 
             if (categoryModelFreeTextSearch) {
-                $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
+                $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
                     .text('Text contains ' + categoryModelFreeTextSearch + ' ×')
                     .on('click', function () {
                         categoryModelFreeTextSearch = '';
@@ -497,6 +503,15 @@
         }, true);
 
         categoryModelFreeTextSearch = $table.bootstrapTable('getOptions').searchText || '';
+        renderChips();
+
+        $wrapper.find('.search')[0].addEventListener('click', function (event) {
+            if (event.target.closest('button[name="clearSearch"]')) {
+                categoryModelFreeTextSearch = '';
+                wasTypingSpecificationExpression = false;
+                renderChips();
+            }
+        }, true);
 
         $input[0].addEventListener('keyup', function (event) {
             if (isSpecificationExpression($.trim($input.val())) || isPotentialSpecificationField($.trim($input.val()))) {

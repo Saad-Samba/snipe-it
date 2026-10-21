@@ -351,11 +351,17 @@
             function renderChips() {
                 $chips.empty();
 
+                if (tokens.length || freeTextSearch) {
+                    $('<span class="text-primary" style="margin-right:8px; font-weight:600"></span>')
+                        .text('Active filters:')
+                        .appendTo($chips);
+                }
+
                 tokens.forEach(function (token, index) {
                     var operatorLabel = token.operator === ':'
                         ? (token.field.multiple ? 'includes' : (token.field.values.length ? 'is' : 'contains'))
                         : token.operator;
-                    var $chip = $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
+                    var $chip = $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
                         .text(token.field.name + ' ' + operatorLabel + ' ' + token.value + ' ×')
                         .on('click', function () {
                             tokens.splice(index, 1);
@@ -367,7 +373,7 @@
                 });
 
                 if (freeTextSearch) {
-                    $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
+                    $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
                         .text('Text contains ' + freeTextSearch + ' ×')
                         .on('click', function () {
                             freeTextSearch = '';
@@ -552,6 +558,15 @@
                 }
             }, true);
 
+            $input.closest('.search')[0].addEventListener('click', function (event) {
+                if (event.target.closest('button[name="clearSearch"]')) {
+                    freeTextSearch = '';
+                    wasTypingTechnicalExpression = false;
+                    renderChips();
+                    applyFilters();
+                }
+            }, true);
+
             $input[0].addEventListener('keyup', function (event) {
                 if (isTechnicalExpression($.trim($input.val())) || isPotentialTechnicalField($.trim($input.val()))) {
                     event.stopImmediatePropagation();
@@ -583,6 +598,9 @@
                         $menu.hide();
                     }, 150);
                 });
+
+            freeTextSearch = $table.bootstrapTable('getOptions').searchText || '';
+            renderChips();
 
             var bootstrapTable = $table.data('bootstrap.table');
             var selectedCategory = bootstrapTable && bootstrapTable.filterColumns
