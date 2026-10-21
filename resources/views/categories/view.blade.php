@@ -8,6 +8,16 @@
 @parent
 @stop
 
+@push('css')
+    <style nonce="{{ csrf_token() }}">
+        /* Wide specification tables should scroll sideways, not grow tall as
+           every short value wraps into several lines. */
+        #assetModelsTable tbody td {
+            white-space: nowrap;
+        }
+    </style>
+@endpush
+
 {{-- Page content --}}
 @section('content')
 
