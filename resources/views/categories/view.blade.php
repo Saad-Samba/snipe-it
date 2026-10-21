@@ -306,7 +306,7 @@
 
             categoryModelSpecificationTokens.forEach(function (token, index) {
                 var operatorLabel = token.operator === ':'
-                    ? (token.field.enumerated ? 'is' : 'contains')
+                    ? (token.field.multiple ? 'includes' : (token.field.enumerated ? 'is' : 'contains'))
                     : token.operator;
                 var displayValue = token.field.enumerated
                     ? ((token.field.values.find(function (option) { return option.value === token.value; }) || {}).label || token.value)

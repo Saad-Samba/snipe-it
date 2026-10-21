@@ -275,6 +275,43 @@ class IndexAssetModelsTest extends TestCase
             ->assertJsonPath('messages.specification_filters.0', 'Each field must be a supported specification for the selected category.');
     }
 
+    public function testCheckboxSpecificationFiltersMatchIndividualSelections()
+    {
+        $fieldset = CustomFieldset::factory()->create();
+        $features = CustomField::factory()->create([
+            'name' => 'Features',
+            'element' => 'checkbox',
+            'field_values' => "Blue\nBlue%\nRed",
+        ]);
+        $fieldset->fields()->attach($features->id, ['order' => 1, 'required' => false]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+
+        $multiSelection = AssetModel::factory()->create(['category_id' => $category->id]);
+        $multiSelection->defaultValues()->attach($features->id, ['default_value' => 'Blue, Red']);
+        $percentSelection = AssetModel::factory()->create(['category_id' => $category->id]);
+        $percentSelection->defaultValues()->attach($features->id, ['default_value' => 'Blue%']);
+        $redSelection = AssetModel::factory()->create(['category_id' => $category->id]);
+        $redSelection->defaultValues()->attach($features->id, ['default_value' => 'Red']);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+
+        foreach ([
+            ['Blue', ':', [$multiSelection->id]],
+            ['Blue%', ':', [$percentSelection->id]],
+            ['Red', '=', [$multiSelection->id, $redSelection->id]],
+            ['Blu', ':', []],
+        ] as [$value, $operator, $expectedIds]) {
+            $response = $this->getJson(route('api.models.index', [
+                'category_id' => $category->id,
+                'specification_filters' => json_encode([
+                    ['field_id' => $features->id, 'operator' => $operator, 'value' => $value],
+                ]),
+            ]))->assertOk()->assertJsonPath('total', count($expectedIds));
+
+            $this->assertEqualsCanonicalizing($expectedIds, collect($response->json('rows'))->pluck('id')->all());
+        }
+    }
+
     public function testAfmAssetModelIndexOnlyReturnsManagedCategoryModels()
     {
         $afm = User::factory()->create();

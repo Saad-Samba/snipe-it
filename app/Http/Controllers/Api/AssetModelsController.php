@@ -245,7 +245,8 @@ class AssetModelsController extends Controller
                 ]);
             }
 
-            $isNumeric = strtolower((string) $field->format) === 'numeric';
+            $isCheckbox = $field->element === 'checkbox';
+            $isNumeric = ! $isCheckbox && strtolower((string) $field->format) === 'numeric';
             $isEnumerated = in_array($field->element, ['listbox', 'checkbox', 'radio'], true);
             $allowedOperators = $isNumeric ? ['=', '>=', '<='] : [':', '='];
             if (! in_array($filter['operator'], $allowedOperators, true) || ($isNumeric && ! is_numeric($filter['value']))) {
@@ -258,7 +259,7 @@ class AssetModelsController extends Controller
             $operator = $filter['operator'];
             $value = $filter['value'];
 
-            $assetmodels->whereHas('defaultValues', function (Builder $fieldQuery) use ($fieldId, $operator, $value, $isNumeric, $isEnumerated): void {
+            $assetmodels->whereHas('defaultValues', function (Builder $fieldQuery) use ($fieldId, $operator, $value, $isNumeric, $isCheckbox, $isEnumerated): void {
                 $fieldQuery->where('custom_fields.id', $fieldId);
 
                 if ($isNumeric) {
@@ -268,6 +269,16 @@ class AssetModelsController extends Controller
                     );
                 } elseif ($operator === ':' && ! $isEnumerated) {
                     $fieldQuery->where('models_custom_fields.default_value', 'LIKE', '%'.$value.'%');
+                } elseif ($isCheckbox) {
+                    // Model checkbox selections are stored as "value, value". Match a
+                    // complete selection, not a substring or the entire combined value.
+                    $escapedValue = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
+                    $fieldQuery->where(function (Builder $checkboxQuery) use ($value, $escapedValue): void {
+                        $checkboxQuery->where('models_custom_fields.default_value', '=', $value)
+                            ->orWhereRaw("models_custom_fields.default_value LIKE ? ESCAPE '!'", [$escapedValue.', %'])
+                            ->orWhereRaw("models_custom_fields.default_value LIKE ? ESCAPE '!'", ['%, '.$escapedValue])
+                            ->orWhereRaw("models_custom_fields.default_value LIKE ? ESCAPE '!'", ['%, '.$escapedValue.', %']);
+                    });
                 } else {
                     $fieldQuery->where('models_custom_fields.default_value', '=', $value);
                 }

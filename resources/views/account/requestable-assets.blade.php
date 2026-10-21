@@ -332,6 +332,12 @@
                                 return number === token.number;
                             }
 
+                            if (token.field.multiple) {
+                                return specification.split(', ').some(function (selectedValue) {
+                                    return selectedValue.toLowerCase() === token.value.toLowerCase();
+                                });
+                            }
+
                             if (token.field.values.length || token.operator === '=') {
                                 return specification.toLowerCase() === token.value.toLowerCase();
                             }
@@ -347,7 +353,7 @@
 
                 tokens.forEach(function (token, index) {
                     var operatorLabel = token.operator === ':'
-                        ? (token.field.values.length ? 'is' : 'contains')
+                        ? (token.field.multiple ? 'includes' : (token.field.values.length ? 'is' : 'contains'))
                         : token.operator;
                     var $chip = $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
                         .text(token.field.name + ' ' + operatorLabel + ' ' + token.value + ' ×')
