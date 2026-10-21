@@ -15,6 +15,10 @@
         #assetModelsTable tbody td {
             white-space: nowrap;
         }
+        #assetModelsTable tbody tr {
+            content-visibility: auto;
+            contain-intrinsic-size: auto 48px;
+        }
     </style>
 @endpush
 
@@ -217,8 +221,11 @@
     var categoryModelFreeTextSearch = '';
 
     window.categoryModelSpecificationQueryParams = function (params) {
-        if (categoryModelSpecificationTokens.length) {
+        if (categoryModelFreeTextSearch) {
             params.search = categoryModelFreeTextSearch;
+        }
+
+        if (categoryModelSpecificationTokens.length) {
             params.specification_filters = JSON.stringify(categoryModelSpecificationTokens.map(function (token) {
                 return {
                     field_id: token.field.id,
@@ -278,6 +285,12 @@
                 || /^(>=|<=|=|:)/.test($.trim(value.slice(field.name.length))));
         }
 
+        function isPotentialSpecificationField(value) {
+            return !!value && categoryModelSpecificationFields.some(function (field) {
+                return field.name.toLowerCase().indexOf(value.toLowerCase()) === 0;
+            });
+        }
+
         function clearFreeTextSearch() {
             isResettingSearch = true;
             $table.bootstrapTable('resetSearch', '');
@@ -309,7 +322,7 @@
                 $chips.append($chip);
             });
 
-            if (categoryModelSpecificationTokens.length && categoryModelFreeTextSearch) {
+            if (categoryModelFreeTextSearch) {
                 $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
                     .text('Text contains ' + categoryModelFreeTextSearch + ' ×')
                     .on('click', function () {
@@ -466,7 +479,7 @@
 
         $input[0].addEventListener('input', function (event) {
             var value = $.trim($input.val());
-            if (isSpecificationExpression(value)) {
+            if (isSpecificationExpression(value) || isPotentialSpecificationField(value)) {
                 event.stopImmediatePropagation();
                 if (!wasTypingSpecificationExpression) {
                     clearFreeTextSearch();
@@ -476,7 +489,7 @@
                 suggest();
             } else {
                 wasTypingSpecificationExpression = false;
-                if (!isResettingSearch && categoryModelSpecificationTokens.length) {
+                if (!isResettingSearch) {
                     categoryModelFreeTextSearch = value;
                     renderChips();
                 }
@@ -486,7 +499,7 @@
         categoryModelFreeTextSearch = $table.bootstrapTable('getOptions').searchText || '';
 
         $input[0].addEventListener('keyup', function (event) {
-            if (isSpecificationExpression($.trim($input.val()))) {
+            if (isSpecificationExpression($.trim($input.val())) || isPotentialSpecificationField($.trim($input.val()))) {
                 event.stopImmediatePropagation();
             }
         }, true);
@@ -494,8 +507,16 @@
         $input
             .on('input', suggest)
             .on('keydown', function (event) {
-                if (event.key === 'Enter' && commitSearch()) {
-                    event.preventDefault();
+                if (event.key === 'Enter') {
+                    if (commitSearch()) {
+                        event.preventDefault();
+                    } else if (isPotentialSpecificationField($.trim($input.val()))) {
+                        categoryModelFreeTextSearch = $.trim($input.val());
+                        $table.bootstrapTable('resetSearch', categoryModelFreeTextSearch);
+                        renderChips();
+                        $menu.hide();
+                        event.preventDefault();
+                    }
                 }
 
                 if (event.key === 'Escape') {
@@ -508,5 +529,6 @@
                 }, 150);
             });
     });
+
 </script>
 @stop
