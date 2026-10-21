@@ -155,7 +155,25 @@ class AssetModelsController extends Controller
         $this->applySpecificationFilters($assetmodels, $request);
 
         if ($request->filled('search')) {
-            $assetmodels->where(fn (Builder $query) => $query->TextSearch($request->input('search')));
+            $search = $request->input('search');
+            $category = $request->filled('category_id')
+                ? Category::with('fieldset.fields')->find($request->input('category_id'))
+                : null;
+            $specificationFieldIds = $category?->fieldset?->fields
+                ->filter(fn (CustomField $field) => ! $field->is_unique && ! $field->field_encrypted)
+                ->pluck('id')->all() ?? [];
+
+            $assetmodels->where(function (Builder $query) use ($search, $specificationFieldIds): void {
+                $query->TextSearch($search);
+
+                if ($specificationFieldIds) {
+                    $escapedSearch = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search);
+                    $query->orWhereHas('defaultValues', function (Builder $fieldQuery) use ($specificationFieldIds, $escapedSearch): void {
+                        $fieldQuery->whereIn('custom_fields.id', $specificationFieldIds)
+                            ->whereRaw("models_custom_fields.default_value LIKE ? ESCAPE '!'", ['%'.$escapedSearch.'%']);
+                    });
+                }
+            });
         }
 
         // Make sure the offset and limit are actually integers and do not exceed system limits

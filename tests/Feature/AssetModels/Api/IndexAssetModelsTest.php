@@ -255,6 +255,47 @@ class IndexAssetModelsTest extends TestCase
             ->assertJsonPath('total', 0);
     }
 
+    public function testAssetModelTextSearchIncludesOnlyVisibleCategorySpecificationValues()
+    {
+        $fieldset = CustomFieldset::factory()->create();
+        $notes = CustomField::factory()->create(['name' => 'Waveform', 'element' => 'textarea']);
+        $unrelated = CustomField::factory()->create(['name' => 'Unrelated Field']);
+        $unique = CustomField::factory()->create(['name' => 'Unique Field', 'is_unique' => true]);
+        $fieldset->fields()->attach([
+            $notes->id => ['order' => 1, 'required' => false],
+            $unique->id => ['order' => 2, 'required' => false],
+        ]);
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+
+        $specificationMatch = AssetModel::factory()->create(['name' => 'Generator A', 'category_id' => $category->id]);
+        $specificationMatch->defaultValues()->attach($notes->id, ['default_value' => "Pure sine wave\n230 V"]);
+        $nameMatch = AssetModel::factory()->create(['name' => 'Sine generator', 'category_id' => $category->id]);
+        $unrelatedFieldModel = AssetModel::factory()->create(['name' => 'Generator B', 'category_id' => $category->id]);
+        $unrelatedFieldModel->defaultValues()->attach($unrelated->id, ['default_value' => 'Sine']);
+        $uniqueFieldModel = AssetModel::factory()->create(['name' => 'Generator C', 'category_id' => $category->id]);
+        $uniqueFieldModel->defaultValues()->attach($unique->id, ['default_value' => 'Sine']);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+
+        $response = $this->getJson(route('api.models.index', [
+            'category_id' => $category->id,
+            'search' => 'sine',
+        ]))->assertOk()->assertJsonPath('total', 2);
+
+        $this->assertEqualsCanonicalizing(
+            [$specificationMatch->id, $nameMatch->id],
+            collect($response->json('rows'))->pluck('id')->all()
+        );
+
+        $this->getJson(route('api.models.index', [
+            'category_id' => $category->id,
+            'search' => 'sine',
+            'specification_filters' => json_encode([
+                ['field_id' => $notes->id, 'operator' => ':', 'value' => '230 V'],
+            ]),
+        ]))->assertOk()->assertJsonPath('total', 1)->assertJsonPath('rows.0.id', $specificationMatch->id);
+    }
+
     public function testAssetModelIndexRejectsSpecificationFieldsOutsideTheSelectedCategory()
     {
         $categoryFieldset = CustomFieldset::factory()->create();
