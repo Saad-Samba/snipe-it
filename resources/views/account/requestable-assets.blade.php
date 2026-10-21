@@ -552,6 +552,12 @@
                     suggest();
                 } else if (!isResettingSearch) {
                     wasTypingTechnicalExpression = false;
+                    // Deleting the text in the shared input makes room for the
+                    // next field; the applied text chip stays until explicitly removed.
+                    if (freeTextSearch && /^delete/.test(event.inputType || '')) {
+                        event.stopImmediatePropagation();
+                        return;
+                    }
                     freeTextSearch = value;
                     renderChips();
                     applyFilters();

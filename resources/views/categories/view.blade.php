@@ -496,6 +496,12 @@
             } else {
                 wasTypingSpecificationExpression = false;
                 if (!isResettingSearch) {
+                    // Deleting the text in the shared input makes room for the
+                    // next field; the applied text chip stays until explicitly removed.
+                    if (categoryModelFreeTextSearch && /^delete/.test(event.inputType || '')) {
+                        event.stopImmediatePropagation();
+                        return;
+                    }
                     categoryModelFreeTextSearch = value;
                     renderChips();
                 }
