@@ -287,7 +287,7 @@
 
             function searchableText(row) {
                 return $('<div>')
-                    .html(Object.keys(row).map(function (key) { return row[key]; }).join(' '))
+                    .html([row['2'], row.category, row['4'], row.specifications, row['6'], row['7']].join(' '))
                     .text()
                     .replace(/\s+/g, ' ')
                     .toLowerCase();
