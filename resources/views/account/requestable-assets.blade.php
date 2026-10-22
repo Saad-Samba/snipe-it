@@ -44,6 +44,20 @@
                                         <option value="{{ $categoryName }}">{{ $categoryName }}</option>
                                     @endforeach
                                 </select>
+                                <label for="requestableModelsDiscipline" style="margin-left:12px">Discipline</label>
+                                <select id="requestableModelsDiscipline" class="form-control input-sm">
+                                    <option value="">{{ trans('general.select_discipline') }}</option>
+                                    @foreach ($disciplines as $discipline)
+                                        <option value="{{ $discipline->id }}">{{ $discipline->name }}</option>
+                                    @endforeach
+                                </select>
+                                <label for="requestableModelsCompany" style="margin-left:12px">Destination Site</label>
+                                <select id="requestableModelsCompany" class="form-control input-sm">
+                                    <option value="">{{ trans('general.select_company') }}</option>
+                                    @foreach ($companies as $company)
+                                        <option value="{{ $company->id }}">{{ $company->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="pull-right text-muted">Type a technical field to add a filter.</div>
                         </div>
@@ -71,8 +85,6 @@
                                         <th data-sortable="true">Reusable Assets <x-new-feature-label /></th>
                                         <th data-sortable="true">Reference Price <x-new-feature-label /></th>
                                         <th data-sortable="false">Total Needed <x-new-feature-label /></th>
-                                        <th data-sortable="false">Discipline <x-new-feature-label /></th>
-                                        <th data-sortable="false">Destination Site <x-new-feature-label /></th>
                                         <th data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
                                     </tr>
                                 </thead>
@@ -127,22 +139,6 @@
                                                     style="width:70px">
                                             </td>
                                             <td>
-                                                <select id="model-booking-discipline-{{ $model->id }}" class="form-control input-sm">
-                                                    <option value="">{{ trans('general.select_discipline') }}</option>
-                                                    @foreach ($disciplines as $discipline)
-                                                        <option value="{{ $discipline->id }}">{{ $discipline->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <select id="model-booking-company-{{ $model->id }}" class="form-control input-sm">
-                                                    <option value="">{{ trans('general.select_company') }}</option>
-                                                    @foreach ($companies as $company)
-                                                        <option value="{{ $company->id }}">{{ $company->name }}</option>
-                                                    @endforeach
-                                                </select>
-                                            </td>
-                                            <td>
                                                 <button
                                                     type="button"
                                                     class="btn btn-primary btn-sm add-model-to-request-cart"
@@ -175,11 +171,11 @@
 
         function requestLineForModel(id) {
             var quantity = parseInt($('#model-booking-quantity-' + id).val(), 10);
-            var disciplineId = parseInt($('#model-booking-discipline-' + id).val(), 10);
-            var companyId = parseInt($('#model-booking-company-' + id).val(), 10);
+            var disciplineId = parseInt($('#requestableModelsDiscipline').val(), 10);
+            var companyId = parseInt($('#requestableModelsCompany').val(), 10);
 
             if (!quantity || !disciplineId || !companyId) {
-                window.alert('Enter a total needed quantity, discipline, and destination site for each model.');
+                window.alert('Choose a discipline and destination site before adding a model to the request cart.');
 
                 return null;
             }
