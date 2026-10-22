@@ -415,9 +415,6 @@ Route::group(['prefix' => 'account', 'middleware' => ['auth']], function () {
         $trail->parent('home')
             ->push(trans('general.requestable_models'), route('requestable-assets')));
 
-    Route::get('requestable-assets/catalogue', [ModelRequestsController::class, 'getRequestableModels'])
-        ->name('account.requestable-assets.data');
-
 
     Route::post('request-asset/{asset}', [ModelRequestsController::class, 'store'])
         ->name('account.request-asset');

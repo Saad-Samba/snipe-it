@@ -29,7 +29,7 @@
                 </div>
 
                 <div class="box-body">
-                    @if ($categories->isEmpty())
+                    @if ($models->isEmpty())
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle" aria-hidden="true"></i>
                             No models with reusable inventory are currently available.
@@ -40,8 +40,8 @@
                                 <label for="requestableModelsCategoryFilter">Category</label>
                                 <select id="requestableModelsCategoryFilter" class="form-control input-sm">
                                     <option value="">All categories</option>
-                                    @foreach ($categories as $category)
-                                        <option value="{{ $category->name }}">{{ $category->name }}</option>
+                                    @foreach ($models->pluck('category.name')->filter()->unique()->sort() as $categoryName)
+                                        <option value="{{ $categoryName }}">{{ $categoryName }}</option>
                                     @endforeach
                                 </select>
                                 <label for="requestableModelsDiscipline" style="margin-left:12px">Discipline</label>
@@ -73,26 +73,83 @@
                                 data-click-to-select="false"
                                 data-advanced-search="false"
                                 data-search="true"
-                                data-pagination="true"
-                                data-side-pagination="server"
-                                data-sort-name="name"
-                                data-sort-order="asc"
-                                data-extra-query-params="requestableModelsQueryParams"
-                                data-url="{{ route('account.requestable-assets.data') }}">
+                                data-pagination="true">
                                 <thead>
                                     <tr>
                                         <th data-field="id" data-visible="false" data-sortable="true">ID</th>
-                                        <th data-field="image" data-sortable="false">{{ trans('general.image') }}</th>
-                                        <th data-field="name" data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
+                                        <th data-sortable="true">{{ trans('general.image') }}</th>
+                                        <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
                                         <th data-field="category" data-sortable="true">{{ trans('general.category') }}</th>
-                                        <th data-field="model_number" data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
+                                        <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
                                         <th data-field="specifications">Technical specifications</th>
-                                        <th data-field="reusable_assets_count" data-sortable="true">Reusable Assets <x-new-feature-label /></th>
-                                        <th data-field="reference_price" data-sortable="true">Reference Price <x-new-feature-label /></th>
-                                        <th data-field="quantity" data-sortable="false">Total Needed <x-new-feature-label /></th>
-                                        <th data-field="actions" data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
+                                        <th data-sortable="true">Reusable Assets <x-new-feature-label /></th>
+                                        <th data-sortable="true">Reference Price <x-new-feature-label /></th>
+                                        <th data-sortable="false">Total Needed <x-new-feature-label /></th>
+                                        <th data-sortable="false" class="text-right">{{ trans('table.actions') }}</th>
                                     </tr>
                                 </thead>
+                                <tbody>
+                                    @foreach ($models as $model)
+                                        @php
+                                            $modelSpecificationFields = collect($model->fieldset?->fields)
+                                                ->filter(fn ($field) => $field->show_in_requestable_list && ! $field->is_unique && ! $field->field_encrypted)
+                                                ->values();
+                                            $specs = $modelSpecificationFields
+                                                ->mapWithKeys(fn ($field) => [$field->id => $model->specificationValue($field)])
+                                                ->filter(fn ($value) => filled($value));
+                                        @endphp
+                                        <tr>
+                                            <td>{{ $model->id }}</td>
+                                            <td>
+                                                @if ($model->image && $model->getImageUrl())
+                                                    <img
+                                                        src="{{ $model->getImageUrl() }}"
+                                                        alt=""
+                                                        style="max-height: {{ $snipeSettings->thumbnail_max_h }}px; width:auto;"
+                                                        class="img-responsive">
+                                                @endif
+                                            </td>
+                                            <td>{{ $model->name }}</td>
+                                            <td>{{ $model->category?->name }}</td>
+                                            <td>{{ $model->model_number }}</td>
+                                            <td>
+                                                @forelse ($specs as $id => $value)
+                                                    <span class="label label-default">
+                                                        {{ $modelSpecificationFields->firstWhere('id', $id)?->name }}: {{ $value }}
+                                                    </span>
+                                                @empty
+                                                    &mdash;
+                                                @endforelse
+                                            </td>
+                                            <td>{{ $model->reusable_assets_count }}</td>
+                                            <td>
+                                                @if ($model->reference_price !== null)
+                                                    {{ App\Helpers\Helper::formatCurrencyOutput($model->reference_price) }}
+                                                @else
+                                                    &mdash;
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value="1"
+                                                    id="model-booking-quantity-{{ $model->id }}"
+                                                    class="form-control input-sm"
+                                                    style="width:70px">
+                                            </td>
+                                            <td>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-primary btn-sm add-model-to-request-cart"
+                                                    data-model-id="{{ $model->id }}">
+                                                    <i class="fas fa-cart-plus" aria-hidden="true"></i>
+                                                    Add to Cart
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
                             </table>
                         </div>
                     @endif
@@ -106,26 +163,11 @@
     @include('partials.bootstrap-table', [
         'exportFile' => 'requestable-models-export',
         'search' => true,
-        'clientSearch' => false,
+        'clientSearch' => true,
     ])
 
     <script nonce="{{ csrf_token() }}">
         var requestableSpecificationFields = @json($specificationSearchFields);
-        window.requestableSpecificationTokens = [];
-        window.requestableModelsSearch = '';
-        window.requestableModelsQueryParams = function (params) {
-            params.category = $('#requestableModelsCategoryFilter').val() || '';
-            params.search = window.requestableModelsSearch || params.search || '';
-            params.specification_filters = JSON.stringify(window.requestableSpecificationTokens.map(function (token) {
-                return {
-                    field_id: token.field.id,
-                    operator: token.operator,
-                    value: token.value
-                };
-            }));
-
-            return params;
-        };
 
         function requestLineForModel(id) {
             var quantity = parseInt($('#model-booking-quantity-' + id).val(), 10);
@@ -157,7 +199,7 @@
         $(function () {
             var $table = $('#requestableModelsTable');
             var $category = $('#requestableModelsCategoryFilter');
-            var tokens = window.requestableSpecificationTokens;
+            var tokens = [];
             var freeTextSearch = '';
             var hideSuggestionsTimer;
             var isResettingSearch = false;
@@ -180,6 +222,19 @@
                 clearTimeout(hideSuggestionsTimer);
                 event.preventDefault();
             });
+
+            function specificationValues(row) {
+                var values = {};
+                $('<div>').html(row.specifications || '').find('.label').each(function () {
+                    var text = $(this).text().trim();
+                    var separator = text.indexOf(': ');
+                    if (separator !== -1) {
+                        values[text.slice(0, separator).toLowerCase()] = text.slice(separator + 2).trim();
+                    }
+                });
+
+                return values;
+            }
 
             function availableFields() {
                 var category = $category.val();
@@ -226,10 +281,67 @@
                 isResettingSearch = false;
             }
 
+            function searchableText(row) {
+                return $('<div>')
+                    .html([row['2'], row.category, row['4'], row.specifications, row['6'], row['7']].join(' '))
+                    .text()
+                    .replace(/\s+/g, ' ')
+                    .toLowerCase();
+            }
+
             function applyFilters() {
-                window.requestableModelsSearch = freeTextSearch;
-                $table.bootstrapTable('selectPage', 1);
-                $table.bootstrapTable('refresh');
+                var category = $category.val();
+                var filters = category ? { category: category } : {};
+
+                $table.bootstrapTable('filterBy', filters, {
+                    filterAlgorithm: function (row) {
+                        if (category && $('<div>').html(row.category || '').text().trim() !== category) {
+                            return false;
+                        }
+
+                        if (freeTextSearch && searchableText(row).indexOf(freeTextSearch.toLowerCase()) === -1) {
+                            return false;
+                        }
+
+                        var specifications = specificationValues(row);
+
+                        return tokens.every(function (token) {
+                            var specification = specifications[token.field.name.toLowerCase()];
+                            if (specification === undefined) {
+                                return false;
+                            }
+
+                            if (token.field.numeric) {
+                                var number = Number(specification);
+                                if (!isFinite(number)) {
+                                    return false;
+                                }
+
+                                if (token.operator === '>=') {
+                                    return number >= token.number;
+                                }
+
+                                if (token.operator === '<=') {
+                                    return number <= token.number;
+                                }
+
+                                return number === token.number;
+                            }
+
+                            if (token.field.multiple) {
+                                return specification.split(', ').some(function (selectedValue) {
+                                    return selectedValue.toLowerCase() === token.value.toLowerCase();
+                                });
+                            }
+
+                            if (token.field.values.length || token.operator === '=') {
+                                return specification.toLowerCase() === token.value.toLowerCase();
+                            }
+
+                            return specification.toLowerCase().indexOf(token.value.toLowerCase()) !== -1;
+                        });
+                    },
+                });
             }
 
             function renderChips() {
@@ -492,7 +604,16 @@
             freeTextSearch = $table.bootstrapTable('getOptions').searchText || '';
             renderChips();
 
-            $category.on('change', applyFilters);
+            var bootstrapTable = $table.data('bootstrap.table');
+            var selectedCategory = bootstrapTable && bootstrapTable.filterColumns
+                ? bootstrapTable.filterColumns.category
+                : '';
+
+            $category.val(selectedCategory || '').on('change', applyFilters);
+
+            if (selectedCategory) {
+                applyFilters();
+            }
         });
     </script>
 @stop

@@ -43,7 +43,7 @@ class RequestableModelsPageTest extends TestCase
             ->assertOk()
             ->assertSeeText('Request Models')
             ->assertDontSeeText('Enter the required quantity and destination scope')
-            ->assertDontSeeText('Industrial Ethernet Switch')
+            ->assertSeeText('Industrial Ethernet Switch')
             ->assertSeeText('Communication')
             ->assertSeeText('Reusable Assets')
             ->assertSeeText('Destination Site')
@@ -70,29 +70,10 @@ class RequestableModelsPageTest extends TestCase
             ->assertDontSee('model-booking-company-'.$requestableModel->id, false)
             ->assertSee('data-click-to-select="false"', false)
             ->assertDontSee('add-model-to-request-cart-modal', false)
-            ->assertDontSeeText('Unavailable Model')
-            ->assertSee(route('account.requestable-assets.data'), false)
+            ->assertSeeText('Unavailable Model')
+            ->assertSee('<td>0</td>', false)
             ->assertDontSee('href="#assets"', false)
             ->assertDontSee(route('api.assets.requestable'), false);
-    }
-
-    public function test_catalogue_data_endpoint_returns_one_server_paginated_page(): void
-    {
-        $requester = User::factory()->requestAssetModels()->create();
-        $category = Category::factory()->forAssets()->create();
-        $first = AssetModel::factory()->create(['name' => 'First remote catalogue model', 'category_id' => $category->id]);
-        $second = AssetModel::factory()->create(['name' => 'Second remote catalogue model', 'category_id' => $category->id]);
-        $ready = Statuslabel::factory()->readyToDeploy();
-
-        Asset::factory()->create(['model_id' => $first->id, 'status_id' => $ready, 'requestable' => true]);
-        Asset::factory()->create(['model_id' => $second->id, 'status_id' => $ready, 'requestable' => true]);
-
-        $this->actingAs($requester)
-            ->getJson(route('account.requestable-assets.data', ['limit' => 1, 'offset' => 0, 'sort' => 'name', 'order' => 'asc']))
-            ->assertOk()
-            ->assertJsonPath('total', 2)
-            ->assertJsonCount(1, 'rows')
-            ->assertJsonStructure(['rows' => [['id', 'name', 'category', 'specifications', 'quantity', 'actions']]]);
     }
 
     public function test_user_without_model_request_permission_cannot_open_request_catalogue(): void

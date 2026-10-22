@@ -15,10 +15,8 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
-use App\Models\Category;
 use App\Models\Company;
 use App\Models\CompanyableScope;
-use App\Models\CustomField;
 use App\Models\Discipline;
 use App\Models\Project;
 use App\Models\Setting;
@@ -31,7 +29,6 @@ use App\Notifications\UnroutedRacRequestNotification;
 use Exception;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,8 +36,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ModelRequestsController extends Controller
@@ -70,22 +65,32 @@ class ModelRequestsController extends Controller
             throw new AuthorizationException('You are not authorized to request models.');
         }
 
-        $categories = Category::query()
-            ->whereHas('models')
-            ->with('fieldset.fields')
-            ->orderBy('name')
-            ->get(['id', 'name', 'fieldset_id']);
+        $includeAllCompanies = $user->hasAccess('models.request.all_companies');
 
-        $specificationFields = $categories
-            ->flatMap(fn (Category $category) => $category->fieldset?->fields ?? collect())
+        $models = AssetModel::with([
+            'category.fieldset.fields',
+            'defaultValues',
+        ])
+            ->withCount([
+                'availableAssets as reusable_assets_count' => function ($assetQuery) use ($includeAllCompanies) {
+                    if ($includeAllCompanies) {
+                        $assetQuery->withoutGlobalScope(CompanyableScope::class);
+                    }
+                },
+            ])
+            ->orderBy('name')
+            ->get();
+
+        $specificationFields = $models
+            ->flatMap(fn (AssetModel $model) => $model->fieldset?->fields ?? collect())
             ->filter(fn ($field) => $field->show_in_requestable_list && ! $field->is_unique && ! $field->field_encrypted)
             ->unique('id')
             ->sortBy('name')
             ->values();
-        $specificationFields->each(function ($field) use ($categories): void {
-            $field->requestable_categories = $categories
-                ->filter(fn (Category $category) => $category->fieldset?->fields->contains('id', $field->id))
-                ->pluck('name')
+        $specificationFields->each(function ($field) use ($models): void {
+            $field->requestable_categories = $models
+                ->filter(fn (AssetModel $model) => $model->fieldset?->fields->contains('id', $field->id))
+                ->pluck('category.name')
                 ->filter()
                 ->unique()
                 ->values()
@@ -93,7 +98,6 @@ class ModelRequestsController extends Controller
         });
         $specificationSearchFields = $specificationFields
             ->map(fn ($field) => [
-                'id' => $field->id,
                 'name' => $field->name,
                 'numeric' => $field->element !== 'checkbox' && strtolower((string) $field->format) === 'numeric',
                 'multiple' => $field->element === 'checkbox',
@@ -104,116 +108,7 @@ class ModelRequestsController extends Controller
         $companies = Company::orderBy('name')->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
 
-        return view('account/requestable-assets', compact('categories', 'companies', 'disciplines', 'specificationSearchFields'));
-    }
-
-    public function getRequestableModels(Request $request): JsonResponse
-    {
-        $user = auth()->user();
-        if (! $user?->hasAccess('models.request')) {
-            throw new AuthorizationException('You are not authorized to request models.');
-        }
-
-        $includeAllCompanies = $user->hasAccess('models.request.all_companies');
-        $models = AssetModel::with(['category.fieldset.fields', 'defaultValues'])
-            ->withCount([
-                'availableAssets as reusable_assets_count' => function ($assetQuery) use ($includeAllCompanies) {
-                    if ($includeAllCompanies) {
-                        $assetQuery->withoutGlobalScope(CompanyableScope::class);
-                    }
-                },
-            ]);
-
-        if ($request->filled('category')) {
-            $models->whereHas('category', fn (Builder $query) => $query->where('name', $request->input('category')));
-        }
-
-        $this->applyRequestableSpecificationFilters($models, $request);
-
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $models->where(function (Builder $query) use ($search): void {
-                $query->where('models.name', 'like', '%'.$search.'%')
-                    ->orWhere('models.model_number', 'like', '%'.$search.'%')
-                    ->orWhereHas('category', fn (Builder $categoryQuery) => $categoryQuery->where('name', 'like', '%'.$search.'%'))
-                    ->orWhereHas('defaultValues', function (Builder $fieldQuery) use ($search): void {
-                        $fieldQuery->where('show_in_requestable_list', true)
-                            ->where('is_unique', false)
-                            ->where('field_encrypted', false)
-                            ->where('models_custom_fields.default_value', 'like', '%'.$search.'%');
-                    });
-            });
-        }
-
-        $sorts = [
-            'id' => 'models.id', 'name' => 'models.name', 'model_number' => 'models.model_number',
-            'reusable_assets_count' => 'reusable_assets_count', 'reference_price' => 'models.reference_price',
-        ];
-        $sort = $sorts[$request->input('sort')] ?? 'models.name';
-        $order = $request->input('order') === 'desc' ? 'desc' : 'asc';
-        $total = $models->count();
-        $limit = min(max((int) $request->input('limit', 25), 1), 200);
-        $offset = min(max((int) $request->input('offset', 0), 0), $total);
-        $models = $models->orderBy($sort, $order)->skip($offset)->take($limit)->get();
-
-        return response()->json([
-            'total' => $total,
-            'rows' => $models->map(fn (AssetModel $model) => $this->requestableModelRow($model))->values(),
-        ]);
-    }
-
-    private function applyRequestableSpecificationFilters(Builder $models, Request $request): void
-    {
-        if (! $request->filled('specification_filters')) {
-            return;
-        }
-
-        $filters = Validator::make(['filters' => json_decode($request->input('specification_filters'), true)], [
-            'filters' => ['required', 'array', 'max:10'],
-            'filters.*.field_id' => ['required', 'integer'],
-            'filters.*.operator' => ['required', Rule::in([':', '=', '>=', '<='])],
-            'filters.*.value' => ['required', 'string', 'max:255'],
-        ])->validate()['filters'];
-        $fields = CustomField::query()->whereIn('id', collect($filters)->pluck('field_id'))
-            ->where('show_in_requestable_list', true)->where('is_unique', false)->where('field_encrypted', false)->get()->keyBy('id');
-
-        foreach ($filters as $filter) {
-            $field = $fields->get($filter['field_id']);
-            if (! $field) {
-                throw ValidationException::withMessages(['specification_filters' => ['An unsupported specification filter was selected.']]);
-            }
-            $isNumeric = $field->element !== 'checkbox' && strtolower((string) $field->format) === 'numeric';
-            $operator = $filter['operator'];
-            if (($isNumeric && ! in_array($operator, ['=', '>=', '<='], true)) || (! $isNumeric && ! in_array($operator, [':', '='], true))) {
-                throw ValidationException::withMessages(['specification_filters' => ['The specification filter operator is invalid.']]);
-            }
-            $models->whereHas('defaultValues', function (Builder $query) use ($field, $filter, $isNumeric, $operator): void {
-                $query->where('custom_fields.id', $field->id);
-                $isNumeric
-                    ? $query->whereRaw('CAST(models_custom_fields.default_value AS DECIMAL(20, 6)) '.$operator.' ?', [(float) $filter['value']])
-                    : $query->where('models_custom_fields.default_value', $operator === ':' ? 'like' : '=', $operator === ':' ? '%'.$filter['value'].'%' : $filter['value']);
-            });
-        }
-    }
-
-    private function requestableModelRow(AssetModel $model): array
-    {
-        $fields = collect($model->fieldset?->fields)->filter(fn (CustomField $field) => $field->show_in_requestable_list && ! $field->is_unique && ! $field->field_encrypted);
-        $specifications = $fields->map(function (CustomField $field) use ($model): string {
-            $value = $model->specificationValue($field);
-
-            return filled($value) ? '<span class="label label-default">'.e($field->name).': '.e($value).'</span>' : '';
-        })->filter()->implode(' ');
-
-        return [
-            'id' => $model->id,
-            'image' => $model->image && $model->getImageUrl() ? '<img src="'.e($model->getImageUrl()).'" alt="" class="img-responsive" style="max-height:'.e((string) Setting::getSettings()->thumbnail_max_h).'px;width:auto;">' : '',
-            'name' => e($model->name), 'category' => e($model->category?->name), 'model_number' => e($model->model_number),
-            'specifications' => $specifications ?: '&mdash;', 'reusable_assets_count' => $model->reusable_assets_count,
-            'reference_price' => $model->reference_price === null ? '&mdash;' : \App\Helpers\Helper::formatCurrencyOutput($model->reference_price),
-            'quantity' => '<input type="number" min="1" value="1" id="model-booking-quantity-'.$model->id.'" class="form-control input-sm" style="width:70px">',
-            'actions' => '<button type="button" class="btn btn-primary btn-sm add-model-to-request-cart" data-model-id="'.$model->id.'"><i class="fas fa-cart-plus" aria-hidden="true"></i> Add to Cart</button>',
-        ];
+        return view('account/requestable-assets', compact('companies', 'disciplines', 'models', 'specificationSearchFields'));
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse
