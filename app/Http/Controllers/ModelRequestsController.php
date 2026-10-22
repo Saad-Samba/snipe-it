@@ -99,7 +99,8 @@ class ModelRequestsController extends Controller
         $specificationSearchFields = $specificationFields
             ->map(fn ($field) => [
                 'name' => $field->name,
-                'numeric' => strtolower((string) $field->format) === 'numeric',
+                'numeric' => $field->element !== 'checkbox' && strtolower((string) $field->format) === 'numeric',
+                'multiple' => $field->element === 'checkbox',
                 'values' => collect($field->formatFieldValuesAsArray())->except('')->values(),
                 'categories' => $field->requestable_categories,
             ])

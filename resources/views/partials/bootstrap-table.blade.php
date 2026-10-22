@@ -1,5 +1,30 @@
 @push('css')
     <link rel="stylesheet" href="{{ url(mix('css/dist/bootstrap-table.css')) }}">
+    <style nonce="{{ csrf_token() }}">
+        .snipe-top-scrollbar { position: relative; }
+        .snipe-top-scrollbar-indicator {
+            position: absolute;
+            top: 1px;
+            left: 0;
+            right: 0;
+            height: 7px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.09);
+            cursor: pointer;
+            touch-action: none;
+        }
+        .snipe-top-scrollbar-thumb {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 7px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.50);
+        }
+        .snipe-top-scrollbar-indicator:hover .snipe-top-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.70);
+        }
+    </style>
 @endpush
 
 @push('js')
@@ -58,6 +83,7 @@
                 }
                 return default_value;
             }
+            var extraQueryParamsCallback = data_with_default('extra-query-params', null);
 
 
 
@@ -141,6 +167,10 @@
                         if (advancedFilters[filterKey] !== undefined && advancedFilters[filterKey] !== null && advancedFilters[filterKey] !== '') {
                             newParams[filterKey] = advancedFilters[filterKey];
                         }
+                    }
+
+                    if (extraQueryParamsCallback && typeof window[extraQueryParamsCallback] === 'function') {
+                        newParams = window[extraQueryParamsCallback](newParams) || newParams;
                     }
 
                     return newParams;
@@ -1500,6 +1530,41 @@
         }
 
         return '<div style="white-space:nowrap;">' + modelMetric + assetMetric + '</div>';
+    }
+
+    function categoryTechnicalSpecificationsFormatter(value) {
+        if (!value || !value.id) {
+            return '<span class="text-muted">No technical specifications configured</span>';
+        }
+
+        var fieldsetLink = '';
+        if (value.can_view) {
+            var fieldsetUrl = '{{ route('fieldsets.show', ['fieldset' => '__FIELDSET_ID__']) }}'
+                .replace('__FIELDSET_ID__', encodeURIComponent(value.id));
+            fieldsetLink = '<a href="' + fieldsetUrl + '" class="btn btn-default btn-xs"'
+                + ' title="View custom fieldset" aria-label="View custom fieldset">'
+                + '<i class="fa-regular fa-rectangle-list" aria-hidden="true"></i>'
+                + '<span class="sr-only">View custom fieldset</span></a>';
+        }
+        var fields = Array.isArray(value.fields) ? value.fields : [];
+        var specificationNames = fields.length
+            ? '<div>' + fields.map(function (name) {
+                return '<span class="label label-default" style="display:inline-block; margin:2px 2px 2px 0;">' + name + '</span>';
+            }).join('') + '</div>'
+            : '<span class="text-muted">No technical specifications configured</span>';
+        var fieldsetLinkMarkup = fieldsetLink
+            ? '<div style="margin-top:4px;">' + fieldsetLink + '</div>'
+            : '';
+
+        return '<div>' + specificationNames + fieldsetLinkMarkup + '</div>';
+    }
+
+    function modelSpecificationValueFormatter(value) {
+        if (value === null || value === undefined || String(value).trim() === '') {
+            return '<span class="text-muted">—</span>';
+        }
+
+        return value;
     }
 
     function modelReusableAssetsFormatter(value, row) {
@@ -3309,7 +3374,7 @@
             }
 
             if (! $topScrollbar.length) {
-                $topScrollbar = $('<div class="snipe-top-scrollbar" aria-hidden="true"><div class="snipe-top-scrollbar-inner"></div></div>');
+                $topScrollbar = $('<div class="snipe-top-scrollbar" aria-hidden="true"><div class="snipe-top-scrollbar-inner"></div><div class="snipe-top-scrollbar-indicator"><div class="snipe-top-scrollbar-thumb"></div></div></div>');
                 $container.before($topScrollbar);
             } else {
                 $topScrollbar.show();
@@ -3326,18 +3391,70 @@
                 if (syncing) return;
                 syncing = true;
                 primaryBody.scrollLeft = topScrollbar.scrollLeft;
+                updateTopScrollbarThumb($topScrollbar);
                 syncing = false;
             });
             $primaryBody.off('scroll.snipeScrollSync').on('scroll.snipeScrollSync', function () {
                 if (syncing) return;
                 syncing = true;
                 topScrollbar.scrollLeft = primaryBody.scrollLeft;
+                updateTopScrollbarThumb($topScrollbar);
                 syncing = false;
             });
 
             $topScrollbar.children('.snipe-top-scrollbar-inner').css('width', primaryTable.scrollWidth + 'px');
+            var trackWidth = topScrollbar.clientWidth;
+            var thumbWidth = Math.max(48, Math.round(trackWidth * trackWidth / primaryTable.scrollWidth));
+            $topScrollbar.data('snipeScrollMetrics', {
+                maxScroll: Math.max(1, primaryTable.scrollWidth - trackWidth),
+                maxThumbLeft: Math.max(0, trackWidth - thumbWidth)
+            });
+            $topScrollbar.find('.snipe-top-scrollbar-thumb').css('width', thumbWidth + 'px');
+            updateTopScrollbarThumb($topScrollbar);
+
+            $topScrollbar.find('.snipe-top-scrollbar-indicator')
+                .off('pointerdown.snipeScrollSync')
+                .on('pointerdown.snipeScrollSync', function (event) {
+                    if (event.button !== 0) return;
+                    event.preventDefault();
+
+                    var indicator = this;
+                    var metrics = $topScrollbar.data('snipeScrollMetrics');
+                    var thumb = $topScrollbar.find('.snipe-top-scrollbar-thumb')[0];
+                    var bounds = indicator.getBoundingClientRect();
+                    var thumbLeft = parseFloat(thumb.style.left) || 0;
+                    var offset = event.target === thumb ? event.clientX - bounds.left - thumbLeft : thumb.offsetWidth / 2;
+
+                    function move(pointerEvent) {
+                        var nextLeft = Math.max(0, Math.min(metrics.maxThumbLeft, pointerEvent.clientX - bounds.left - offset));
+                        topScrollbar.scrollLeft = nextLeft / Math.max(1, metrics.maxThumbLeft) * metrics.maxScroll;
+                    }
+
+                    function stop() {
+                        indicator.removeEventListener('pointermove', move);
+                        indicator.removeEventListener('pointerup', stop);
+                        indicator.removeEventListener('pointercancel', stop);
+                    }
+
+                    indicator.setPointerCapture(event.originalEvent.pointerId);
+                    indicator.addEventListener('pointermove', move);
+                    indicator.addEventListener('pointerup', stop);
+                    indicator.addEventListener('pointercancel', stop);
+                    move(event);
+                });
             pinTopScrollbarIfScrolled($topScrollbar, $container);
         });
+    }
+
+    function updateTopScrollbarThumb($topScrollbar) {
+        var metrics = $topScrollbar.data('snipeScrollMetrics');
+        if (!metrics) return;
+
+        var left = Math.round($topScrollbar[0].scrollLeft / metrics.maxScroll * metrics.maxThumbLeft);
+        var thumb = $topScrollbar.find('.snipe-top-scrollbar-thumb')[0];
+        if (thumb && thumb.style.left !== left + 'px') {
+            thumb.style.left = left + 'px';
+        }
     }
 
     function updateStickyHeaderOffset($table, offset) {
@@ -3357,23 +3474,28 @@
         if (! $topScrollbar.length || ! $container.length || $topScrollbar.css('display') === 'none') return;
 
         var containerRect = $container[0].getBoundingClientRect();
-        var scrollbarHeight = $topScrollbar.outerHeight();
+        var scrollbarHeight = $topScrollbar[0].offsetHeight;
         var shouldPin = containerRect.top < 0 && containerRect.bottom >= scrollbarHeight;
 
         if (shouldPin) {
-            $topScrollbar.addClass('is-pinned').css({
-                position: 'fixed',
-                top: 0,
-                left: Math.round(containerRect.left) + 'px',
-                width: Math.round(containerRect.width) + 'px'
-            });
+            var left = Math.round(containerRect.left);
+            var width = Math.round(containerRect.width);
+            var geometry = left + ':' + width;
+            if (! $topScrollbar.hasClass('is-pinned') || $topScrollbar.data('snipePinnedGeometry') !== geometry) {
+                $topScrollbar.addClass('is-pinned').css({
+                    position: 'fixed',
+                    top: 0,
+                    left: left + 'px',
+                    width: width + 'px'
+                }).data('snipePinnedGeometry', geometry);
+            }
         } else if ($topScrollbar.hasClass('is-pinned')) {
             $topScrollbar.removeClass('is-pinned').css({
                 position: '',
                 top: '',
                 left: '',
                 width: ''
-            });
+            }).removeData('snipePinnedGeometry');
         }
     }
 

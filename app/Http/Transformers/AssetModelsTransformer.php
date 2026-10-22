@@ -7,32 +7,62 @@ use App\Models\AssetModel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class AssetModelsTransformer
 {
     public function transformAssetModels(Collection $assetmodels, $total)
     {
+        $specificationValuesByModel = [];
+
+        if ($assetmodels->isNotEmpty()) {
+            // Fetch only the current page's values. Loading fields.defaultValues instead
+            // hydrates every model attached to those fields, including models off-page.
+            $values = DB::table('models_custom_fields')
+                ->whereIn('asset_model_id', $assetmodels->modelKeys())
+                ->orderBy('id')
+                ->get(['asset_model_id', 'custom_field_id', 'default_value']);
+
+            foreach ($values as $value) {
+                // Match CustomField::defaultValue(), which returns the first pivot
+                // value if legacy data contains duplicate model/field rows.
+                if (! array_key_exists($value->custom_field_id, $specificationValuesByModel[$value->asset_model_id] ?? [])) {
+                    $specificationValuesByModel[$value->asset_model_id][$value->custom_field_id] = $value->default_value;
+                }
+            }
+        }
+
         $array = [];
         foreach ($assetmodels as $assetmodel) {
-            $array[] = self::transformAssetModel($assetmodel);
+            $array[] = self::transformAssetModel($assetmodel, $specificationValuesByModel[$assetmodel->id] ?? []);
         }
 
         return (new DatatablesTransformer)->transformDatatables($array, $total);
     }
 
-    public function transformAssetModel(AssetModel $assetmodel)
+    public function transformAssetModel(AssetModel $assetmodel, ?array $specificationValues = null)
     {
 
         $default_field_values = array();
+        $specificationFieldset = $assetmodel->category?->fieldset ?? $assetmodel->fieldset;
 
         // Reach into the custom fields and models_custom_fields pivot table to find the default values for this model
-        if ($assetmodel->fieldset) {
-            foreach($assetmodel->fieldset->fields AS $field) {
+        if ($specificationFieldset) {
+            foreach($specificationFieldset->fields AS $field) {
+                if (! $assetmodel->ownsSpecification($field)) {
+                    continue;
+                }
+
+                $defaultValue = $specificationValues === null
+                    ? $field->defaultValue($assetmodel->id)
+                    : ($specificationValues[$field->id] ?? null);
+
                 $default_field_values[] = [
+                    'id' => (int) $field->id,
                     'name' => e($field->name),
                     'db_column_name' => e($field->db_column_name()),
-                    'default_value' => ($field->defaultValue($assetmodel->id)) ? e($field->defaultValue($assetmodel->id)) : null,
+                    'default_value' => ($defaultValue !== null && $defaultValue !== '') ? e($defaultValue) : null,
                     'format' =>  e($field->format),
                     'required' => ($field->pivot->required == '1') ? true : false,
                 ];
@@ -88,6 +118,10 @@ class AssetModelsTransformer
             'deleted_at' => Helper::getFormattedDateObject($assetmodel->deleted_at, 'datetime'),
 
         ];
+
+        foreach ($default_field_values as $specification) {
+            $array['specification_'.$specification['id']] = $specification['default_value'];
+        }
 
         $permissions_array['available_actions'] = [
             'update' => (Gate::allows('update', $assetmodel) && ($assetmodel->deleted_at == '')),

@@ -10,13 +10,16 @@ use App\Http\Transformers\AssetsTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\Category;
 use App\Models\CustomField;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -89,7 +92,11 @@ class AssetModelsController extends Controller
         ];
 
         $assetmodels = AssetModel::select($selectedColumns)
-            ->with('category.fieldset.fields.defaultValues', 'depreciation', 'manufacturer', 'fieldset.fields.defaultValues', 'adminuser')
+            ->with('category.fieldset.fields', 'depreciation', 'manufacturer', 'fieldset.fields', 'adminuser')
+            ->with(['requests' => function ($query) {
+                $query->where('user_id', auth()->id())
+                    ->whereNull('canceled_at');
+            }])
             ->withCount('assets as assets_count')
             ->withCount('availableAssets as remaining')
             ->withCount('assignedAssets as assets_assigned_count')
@@ -110,8 +117,6 @@ class AssetModelsController extends Controller
 
         if ((! is_null($filter)) && (count($filter)) > 0) {
             $assetmodels->ByFilter($filter);
-        } elseif ($request->filled('search')) {
-            $assetmodels->TextSearch($request->input('search'));
         }
 
 
@@ -147,8 +152,28 @@ class AssetModelsController extends Controller
             $assetmodels = $assetmodels->where('models.depreciation_id', '=', $request->input('depreciation_id'));
         }
 
+        $this->applySpecificationFilters($assetmodels, $request);
+
         if ($request->filled('search')) {
-            $assetmodels->TextSearch($request->input('search'));
+            $search = $request->input('search');
+            $category = $request->filled('category_id')
+                ? Category::with('fieldset.fields')->find($request->input('category_id'))
+                : null;
+            $specificationFieldIds = $category?->fieldset?->fields
+                ->filter(fn (CustomField $field) => ! $field->is_unique && ! $field->field_encrypted)
+                ->pluck('id')->all() ?? [];
+
+            $assetmodels->where(function (Builder $query) use ($search, $specificationFieldIds): void {
+                $query->TextSearch($search);
+
+                if ($specificationFieldIds) {
+                    $escapedSearch = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search);
+                    $query->orWhereHas('defaultValues', function (Builder $fieldQuery) use ($specificationFieldIds, $escapedSearch): void {
+                        $fieldQuery->whereIn('custom_fields.id', $specificationFieldIds)
+                            ->whereRaw("models_custom_fields.default_value LIKE ? ESCAPE '!'", ['%'.$escapedSearch.'%']);
+                    });
+                }
+            });
         }
 
         // Make sure the offset and limit are actually integers and do not exceed system limits
@@ -180,6 +205,103 @@ class AssetModelsController extends Controller
         $assetmodels = $assetmodels->skip($offset)->take($limit)->get();
 
         return (new AssetModelsTransformer)->transformAssetModels($assetmodels, $total);
+    }
+
+    /**
+     * Apply category-owned specification filters to the server-side models table.
+     */
+    private function applySpecificationFilters(Builder $assetmodels, Request $request): void
+    {
+        if (! $request->exists('specification_filters')) {
+            return;
+        }
+
+        $filters = $request->input('specification_filters');
+        if (is_string($filters)) {
+            $filters = json_decode($filters, true);
+        }
+
+        $validatedFilters = Validator::make(['specification_filters' => $filters], [
+            'specification_filters' => ['required', 'array', 'max:10'],
+            'specification_filters.*.field_id' => ['required', 'integer', 'min:1'],
+            'specification_filters.*.operator' => ['required', Rule::in([':', '=', '>=', '<='])],
+            'specification_filters.*.value' => ['required', 'string', 'max:255'],
+        ])->validate()['specification_filters'];
+
+        if (count($validatedFilters) === 0) {
+            return;
+        }
+
+        if (! $request->filled('category_id') || ! filter_var($request->input('category_id'), FILTER_VALIDATE_INT)) {
+            throw ValidationException::withMessages([
+                'specification_filters' => ['Specification filters require an asset category.'],
+            ]);
+        }
+
+        $category = Category::query()
+            ->where('category_type', 'asset')
+            ->find((int) $request->input('category_id'));
+
+        if (! $category) {
+            throw ValidationException::withMessages([
+                'category_id' => ['The selected asset category is invalid.'],
+            ]);
+        }
+
+        $this->authorize('view', $category);
+        $category->loadMissing('fieldset.fields');
+
+        $supportedFields = $category->fieldset?->fields
+            ->filter(fn (CustomField $field) => ! $field->is_unique && ! $field->field_encrypted)
+            ->keyBy('id') ?? collect();
+
+        foreach ($validatedFilters as $filter) {
+            $field = $supportedFields->get((int) $filter['field_id']);
+            if (! $field) {
+                throw ValidationException::withMessages([
+                    'specification_filters' => ['Each field must be a supported specification for the selected category.'],
+                ]);
+            }
+
+            $isCheckbox = $field->element === 'checkbox';
+            $isNumeric = ! $isCheckbox && strtolower((string) $field->format) === 'numeric';
+            $isEnumerated = in_array($field->element, ['listbox', 'checkbox', 'radio'], true);
+            $allowedOperators = $isNumeric ? ['=', '>=', '<='] : [':', '='];
+            if (! in_array($filter['operator'], $allowedOperators, true) || ($isNumeric && ! is_numeric($filter['value']))) {
+                throw ValidationException::withMessages([
+                    'specification_filters' => ['The operator and value must be valid for the selected specification.'],
+                ]);
+            }
+
+            $fieldId = (int) $field->id;
+            $operator = $filter['operator'];
+            $value = $filter['value'];
+
+            $assetmodels->whereHas('defaultValues', function (Builder $fieldQuery) use ($fieldId, $operator, $value, $isNumeric, $isCheckbox, $isEnumerated): void {
+                $fieldQuery->where('custom_fields.id', $fieldId);
+
+                if ($isNumeric) {
+                    $fieldQuery->whereRaw(
+                        'CAST(models_custom_fields.default_value AS DECIMAL(20, 6)) '.$operator.' ?',
+                        [(float) $value]
+                    );
+                } elseif ($operator === ':' && ! $isEnumerated) {
+                    $fieldQuery->where('models_custom_fields.default_value', 'LIKE', '%'.$value.'%');
+                } elseif ($isCheckbox) {
+                    // Model checkbox selections are stored as "value, value". Match a
+                    // complete selection, not a substring or the entire combined value.
+                    $escapedValue = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
+                    $fieldQuery->where(function (Builder $checkboxQuery) use ($value, $escapedValue): void {
+                        $checkboxQuery->where('models_custom_fields.default_value', '=', $value)
+                            ->orWhereRaw("models_custom_fields.default_value LIKE ? ESCAPE '!'", [$escapedValue.', %'])
+                            ->orWhereRaw("models_custom_fields.default_value LIKE ? ESCAPE '!'", ['%, '.$escapedValue])
+                            ->orWhereRaw("models_custom_fields.default_value LIKE ? ESCAPE '!'", ['%, '.$escapedValue.', %']);
+                    });
+                } else {
+                    $fieldQuery->where('models_custom_fields.default_value', '=', $value);
+                }
+            });
+        }
     }
 
 

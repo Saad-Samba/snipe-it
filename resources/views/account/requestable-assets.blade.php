@@ -204,7 +204,10 @@
             var $table = $('#requestableModelsTable');
             var $category = $('#requestableModelsCategoryFilter');
             var tokens = [];
+            var freeTextSearch = '';
             var hideSuggestionsTimer;
+            var isResettingSearch = false;
+            var wasTypingTechnicalExpression = false;
 
             if (!$table.length) {
                 return;
@@ -224,12 +227,17 @@
                 event.preventDefault();
             });
 
-            function specificationText(row) {
-                return $('<div>')
-                    .html(row.specifications || '')
-                    .text()
-                    .replace(/\s+/g, ' ')
-                    .trim();
+            function specificationValues(row) {
+                var values = {};
+                $('<div>').html(row.specifications || '').find('.label').each(function () {
+                    var text = $(this).text().trim();
+                    var separator = text.indexOf(': ');
+                    if (separator !== -1) {
+                        values[text.slice(0, separator).toLowerCase()] = text.slice(separator + 2).trim();
+                    }
+                });
+
+                return values;
             }
 
             function availableFields() {
@@ -247,7 +255,7 @@
                     .filter(function (field) {
                         var remainder = lowerValue.slice(field.name.length);
 
-                        return lowerValue.indexOf(field.name.toLowerCase()) === 0 && /^(?:$|:|=|>|<)/.test(remainder);
+                        return lowerValue.indexOf(field.name.toLowerCase()) === 0 && /^(?:\s|$|:|=|>|<)/.test(remainder);
                     })
                     .sort(function (first, second) {
                         return second.name.length - first.name.length;
@@ -261,11 +269,28 @@
                     return false;
                 }
 
-                return /^(>=|<=|=|:)/.test($.trim(value.slice(field.name.length)));
+                return /^\s*$/.test(value.slice(field.name.length))
+                    || /^(>=|<=|=|:)/.test($.trim(value.slice(field.name.length)));
+            }
+
+            function isPotentialTechnicalField(value) {
+                return !!value && availableFields().some(function (field) {
+                    return field.name.toLowerCase().indexOf(value.toLowerCase()) === 0;
+                });
             }
 
             function clearFreeTextSearch() {
+                isResettingSearch = true;
                 $table.bootstrapTable('resetSearch', '');
+                isResettingSearch = false;
+            }
+
+            function searchableText(row) {
+                return $('<div>')
+                    .html([row['2'], row.category, row['4'], row.specifications, row['6'], row['7']].join(' '))
+                    .text()
+                    .replace(/\s+/g, ' ')
+                    .toLowerCase();
             }
 
             function applyFilters() {
@@ -278,18 +303,23 @@
                             return false;
                         }
 
-                        var specifications = specificationText(row);
+                        if (freeTextSearch && searchableText(row).indexOf(freeTextSearch.toLowerCase()) === -1) {
+                            return false;
+                        }
+
+                        var specifications = specificationValues(row);
 
                         return tokens.every(function (token) {
-                            if (token.field.numeric) {
-                                var escapedFieldName = token.field.name.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
-                                var match = specifications.match(new RegExp(escapedFieldName + ':\\s*([0-9.]+)', 'i'));
+                            var specification = specifications[token.field.name.toLowerCase()];
+                            if (specification === undefined) {
+                                return false;
+                            }
 
-                                if (!match) {
+                            if (token.field.numeric) {
+                                var number = Number(specification);
+                                if (!isFinite(number)) {
                                     return false;
                                 }
-
-                                var number = parseFloat(match[1]);
 
                                 if (token.operator === '>=') {
                                     return number >= token.number;
@@ -302,7 +332,17 @@
                                 return number === token.number;
                             }
 
-                            return specifications.toLowerCase().indexOf((token.field.name + ': ' + token.value).toLowerCase()) !== -1;
+                            if (token.field.multiple) {
+                                return specification.split(', ').some(function (selectedValue) {
+                                    return selectedValue.toLowerCase() === token.value.toLowerCase();
+                                });
+                            }
+
+                            if (token.field.values.length || token.operator === '=') {
+                                return specification.toLowerCase() === token.value.toLowerCase();
+                            }
+
+                            return specification.toLowerCase().indexOf(token.value.toLowerCase()) !== -1;
                         });
                     },
                 });
@@ -311,9 +351,17 @@
             function renderChips() {
                 $chips.empty();
 
+                if (tokens.length || freeTextSearch) {
+                    $('<span class="text-primary" style="margin-right:8px; font-weight:600"></span>')
+                        .text('Active filters:')
+                        .appendTo($chips);
+                }
+
                 tokens.forEach(function (token, index) {
-                    var operatorLabel = token.operator === ':' ? 'is' : token.operator;
-                    var $chip = $('<button type="button" class="btn btn-default btn-sm" style="margin-right:5px"></button>')
+                    var operatorLabel = token.operator === ':'
+                        ? (token.field.multiple ? 'includes' : (token.field.values.length ? 'is' : 'contains'))
+                        : token.operator;
+                    var $chip = $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
                         .text(token.field.name + ' ' + operatorLabel + ' ' + token.value + ' ×')
                         .on('click', function () {
                             tokens.splice(index, 1);
@@ -323,6 +371,18 @@
 
                     $chips.append($chip);
                 });
+
+                if (freeTextSearch) {
+                    $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
+                        .text('Text contains ' + freeTextSearch + ' ×')
+                        .on('click', function () {
+                            freeTextSearch = '';
+                            clearFreeTextSearch();
+                            renderChips();
+                            applyFilters();
+                        })
+                        .appendTo($chips);
+                }
             }
 
             function addToken(field, operator, value) {
@@ -339,7 +399,7 @@
                     number: parseFloat(value)
                 };
 
-                if (field.numeric && isNaN(token.number)) {
+                if (field.numeric && !isFinite(Number(value))) {
                     return;
                 }
 
@@ -480,18 +540,41 @@
             }
 
             $input[0].addEventListener('input', function (event) {
-                var value = $input.val();
+                var value = $.trim($input.val());
 
-                if (isTechnicalExpression($.trim(value))) {
+                if (isTechnicalExpression(value) || isPotentialTechnicalField(value)) {
                     event.stopImmediatePropagation();
-                    clearFreeTextSearch();
-                    $input.val(value);
+                    if (!wasTypingTechnicalExpression) {
+                        clearFreeTextSearch();
+                        $input.val(value);
+                    }
+                    wasTypingTechnicalExpression = true;
                     suggest();
+                } else if (!isResettingSearch) {
+                    wasTypingTechnicalExpression = false;
+                    // Deleting the text in the shared input makes room for the
+                    // next field; the applied text chip stays until explicitly removed.
+                    if (freeTextSearch && /^delete/.test(event.inputType || '')) {
+                        event.stopImmediatePropagation();
+                        return;
+                    }
+                    freeTextSearch = value;
+                    renderChips();
+                    applyFilters();
+                }
+            }, true);
+
+            $input.closest('.search')[0].addEventListener('click', function (event) {
+                if (event.target.closest('button[name="clearSearch"]')) {
+                    freeTextSearch = '';
+                    wasTypingTechnicalExpression = false;
+                    renderChips();
+                    applyFilters();
                 }
             }, true);
 
             $input[0].addEventListener('keyup', function (event) {
-                if (isTechnicalExpression($.trim($input.val()))) {
+                if (isTechnicalExpression($.trim($input.val())) || isPotentialTechnicalField($.trim($input.val()))) {
                     event.stopImmediatePropagation();
                 }
             }, true);
@@ -499,8 +582,17 @@
             $input
                 .on('input', suggest)
                 .on('keydown', function (event) {
-                    if (event.key === 'Enter' && commitSearch()) {
-                        event.preventDefault();
+                    if (event.key === 'Enter') {
+                        if (commitSearch()) {
+                            event.preventDefault();
+                        } else if (isPotentialTechnicalField($.trim($input.val()))) {
+                            freeTextSearch = $.trim($input.val());
+                            $table.bootstrapTable('resetSearch', freeTextSearch);
+                            renderChips();
+                            applyFilters();
+                            $menu.hide();
+                            event.preventDefault();
+                        }
                     }
 
                     if (event.key === 'Escape') {
@@ -512,6 +604,9 @@
                         $menu.hide();
                     }, 150);
                 });
+
+            freeTextSearch = $table.bootstrapTable('getOptions').searchText || '';
+            renderChips();
 
             var bootstrapTable = $table.data('bootstrap.table');
             var selectedCategory = bootstrapTable && bootstrapTable.filterColumns
