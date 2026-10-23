@@ -35,15 +35,18 @@
                             No models with reusable inventory are currently available.
                         </div>
                     @else
-                        <div class="clearfix" id="requestableModelsToolbar" style="margin-bottom:15px">
+                        <form class="clearfix" id="requestableModelsToolbar" style="margin-bottom:15px" method="get" action="{{ route('requestable-assets') }}">
                             <div class="pull-left form-inline">
                                 <label for="requestableModelsCategoryFilter">Category</label>
-                                <select id="requestableModelsCategoryFilter" class="form-control input-sm">
+                                <select id="requestableModelsCategoryFilter" name="category" class="form-control input-sm">
                                     <option value="">All categories</option>
-                                    @foreach ($models->pluck('category.name')->filter()->unique()->sort() as $categoryName)
-                                        <option value="{{ $categoryName }}">{{ $categoryName }}</option>
+                                    @foreach ($categories as $category)
+                                        <option value="{{ $category->name }}" @selected(request('category') === $category->name)>{{ $category->name }}</option>
                                     @endforeach
                                 </select>
+                                <label for="requestableModelsSearch" style="margin-left:12px">Search</label>
+                                <input id="requestableModelsSearch" name="search" class="form-control input-sm" value="{{ request('search') }}" placeholder="Model, specification, or Field: value">
+                                <button type="submit" class="btn btn-default btn-sm">Search</button>
                                 <label for="requestableModelsDiscipline" style="margin-left:12px">Discipline</label>
                                 <select id="requestableModelsDiscipline" class="form-control input-sm">
                                     <option value="">{{ trans('general.select_discipline') }}</option>
@@ -59,10 +62,8 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="pull-right text-muted">Type a technical field to add a filter.</div>
-                        </div>
-
-                        <div id="requestableSpecificationChips" class="form-inline" style="margin-bottom:8px" aria-live="polite"></div>
+                            <div class="pull-right text-muted">Technical search supports <code>Field: value</code>, <code>Field = value</code>, <code>Field &gt;= value</code>, and <code>Field &lt;= value</code>.</div>
+                        </form>
 
                         <div class="table-responsive">
                             <table
@@ -72,8 +73,8 @@
                                 data-cookie-id-table="requestableModelsTable"
                                 data-click-to-select="false"
                                 data-advanced-search="false"
-                                data-search="true"
-                                data-pagination="true">
+                                data-search="false"
+                                data-pagination="false">
                                 <thead>
                                     <tr>
                                         <th data-field="id" data-visible="false" data-sortable="true">ID</th>
@@ -152,6 +153,9 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div class="text-center">
+                            {{ $models->links() }}
+                        </div>
                     @endif
                 </div>
             </div>
@@ -162,13 +166,11 @@
 @section('moar_scripts')
     @include('partials.bootstrap-table', [
         'exportFile' => 'requestable-models-export',
-        'search' => true,
-        'clientSearch' => true,
+        'search' => false,
+        'clientSearch' => false,
     ])
 
     <script nonce="{{ csrf_token() }}">
-        var requestableSpecificationFields = @json($specificationSearchFields);
-
         function requestLineForModel(id) {
             var quantity = parseInt($('#model-booking-quantity-' + id).val(), 10);
             var disciplineId = parseInt($('#requestableModelsDiscipline').val(), 10);
@@ -197,6 +199,10 @@
         });
 
         $(function () {
+            // Search and pagination are server-rendered so a large catalogue never
+            // transfers every row to the browser. The legacy client filter code is
+            // intentionally bypassed until it can be removed in a focused cleanup.
+            return;
             var $table = $('#requestableModelsTable');
             var $category = $('#requestableModelsCategoryFilter');
             var tokens = [];

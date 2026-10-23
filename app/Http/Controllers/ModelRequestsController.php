@@ -13,6 +13,7 @@ use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\Category;
 use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
@@ -58,7 +59,7 @@ class ModelRequestsController extends Controller
         ]);
     }
 
-    public function getRequestableIndex(): View
+    public function getRequestableIndex(Request $request): View
     {
         $user = auth()->user();
         if (! $user?->hasAccess('models.request')) {
@@ -67,7 +68,7 @@ class ModelRequestsController extends Controller
 
         $includeAllCompanies = $user->hasAccess('models.request.all_companies');
 
-        $models = AssetModel::with([
+        $modelsQuery = AssetModel::with([
             'category.fieldset.fields',
             'defaultValues',
         ])
@@ -78,37 +79,65 @@ class ModelRequestsController extends Controller
                     }
                 },
             ])
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
 
-        $specificationFields = $models
-            ->flatMap(fn (AssetModel $model) => $model->fieldset?->fields ?? collect())
-            ->filter(fn ($field) => $field->show_in_requestable_list && ! $field->is_unique && ! $field->field_encrypted)
-            ->unique('id')
-            ->sortBy('name')
-            ->values();
-        $specificationFields->each(function ($field) use ($models): void {
-            $field->requestable_categories = $models
-                ->filter(fn (AssetModel $model) => $model->fieldset?->fields->contains('id', $field->id))
-                ->pluck('category.name')
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
-        });
-        $specificationSearchFields = $specificationFields
-            ->map(fn ($field) => [
-                'name' => $field->name,
-                'numeric' => $field->element !== 'checkbox' && strtolower((string) $field->format) === 'numeric',
-                'multiple' => $field->element === 'checkbox',
-                'values' => collect($field->formatFieldValuesAsArray())->except('')->values(),
-                'categories' => $field->requestable_categories,
-            ])
-            ->values();
+        if ($request->filled('category')) {
+            $modelsQuery->whereHas('category', fn ($query) => $query->where('name', $request->string('category')->toString()));
+        }
+
+        $search = trim($request->string('search')->toString());
+        if ($search !== '') {
+            $technicalSearch = $this->parseRequestableSpecificationSearch($search);
+
+            if ($technicalSearch) {
+                $modelsQuery->whereHas('defaultValues', function ($query) use ($technicalSearch): void {
+                    $query->where('custom_fields.id', $technicalSearch['field']->id);
+
+                    if ($technicalSearch['operator'] === '=') {
+                        $query->where('models_custom_fields.default_value', $technicalSearch['value']);
+                    } elseif (in_array($technicalSearch['operator'], ['>=', '<='], true)) {
+                        $query->whereRaw('CAST(models_custom_fields.default_value AS DECIMAL(20, 4)) '.$technicalSearch['operator'].' ?', [(float) $technicalSearch['value']]);
+                    } else {
+                        $query->where('models_custom_fields.default_value', 'like', '%'.$technicalSearch['value'].'%');
+                    }
+                });
+            } else {
+                $modelsQuery->where(function ($query) use ($search): void {
+                    $query->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('model_number', 'like', '%'.$search.'%')
+                        ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('name', 'like', '%'.$search.'%'))
+                        ->orWhereHas('defaultValues', fn ($valueQuery) => $valueQuery->where('models_custom_fields.default_value', 'like', '%'.$search.'%'));
+                });
+            }
+        }
+
+        $models = $modelsQuery->paginate(25)->withQueryString();
+
         $companies = Company::orderBy('name')->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
+        $categories = Category::whereHas('models')->orderBy('name')->get(['id', 'name']);
 
-        return view('account/requestable-assets', compact('companies', 'disciplines', 'models', 'specificationSearchFields'));
+        return view('account/requestable-assets', compact('categories', 'companies', 'disciplines', 'models'));
+    }
+
+    private function parseRequestableSpecificationSearch(string $search): ?array
+    {
+        if (! preg_match('/^(.+?)\\s*(>=|<=|=|:)\\s*(.+)$/', $search, $matches)) {
+            return null;
+        }
+
+        $field = \App\Models\CustomField::query()
+            ->where('show_in_requestable_list', true)
+            ->where('is_unique', false)
+            ->where('field_encrypted', false)
+            ->whereRaw('LOWER(name) = ?', [strtolower(trim($matches[1]))])
+            ->first();
+
+        if (! $field || (in_array($matches[2], ['>=', '<='], true) && ! is_numeric(trim($matches[3])))) {
+            return null;
+        }
+
+        return ['field' => $field, 'operator' => $matches[2], 'value' => trim($matches[3])];
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse

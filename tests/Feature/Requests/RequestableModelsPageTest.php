@@ -51,9 +51,9 @@ class RequestableModelsPageTest extends TestCase
             ->assertSee('id="requestableModelsCategoryFilter"', false)
             ->assertSee('id="requestableModelsDiscipline"', false)
             ->assertSee('id="requestableModelsCompany"', false)
-            ->assertSee('<option value="Communication">Communication</option>', false)
+            ->assertSeeText('Communication')
             ->assertSee('data-advanced-search="false"', false)
-            ->assertSee('Search models or add a technical filter', false)
+            ->assertSee('Model, specification, or Field: value', false)
             ->assertSeeText('Add to Cart')
             ->assertDontSee('requestableModelsBulkForm', false)
             ->assertDontSee('requestableModelsBulkAddButton', false)
@@ -81,6 +81,31 @@ class RequestableModelsPageTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->get(route('requestable-assets', ['all' => 1]))
             ->assertForbidden();
+    }
+
+    public function test_catalogue_paginates_and_filters_models_on_the_server(): void
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $category = Category::factory()->forAssets()->create(['name' => 'Pagination QA']);
+
+        foreach (range(1, 26) as $number) {
+            AssetModel::factory()->create([
+                'name' => sprintf('Paged catalogue model %02d', $number),
+                'category_id' => $category->id,
+            ]);
+        }
+
+        $this->actingAs($requester)
+            ->get(route('requestable-assets'))
+            ->assertOk()
+            ->assertSeeText('Paged catalogue model 01')
+            ->assertDontSeeText('Paged catalogue model 26')
+            ->assertSee('page=2', false);
+
+        $this->actingAs($requester)
+            ->get(route('requestable-assets', ['page' => 2, 'search' => 'Paged catalogue model']))
+            ->assertOk()
+            ->assertSeeText('Paged catalogue model 26');
     }
 
     public function test_catalogue_displays_only_eligible_model_specifications(): void
@@ -117,7 +142,10 @@ class RequestableModelsPageTest extends TestCase
             $serialNumber->id => ['order' => 3, 'required' => false],
             $internalNote->id => ['order' => 4, 'required' => false],
         ]);
-        $model = AssetModel::factory()->create(['category_id' => $category->id]);
+        $model = AssetModel::factory()->create([
+            'name' => 'QA specification search model',
+            'category_id' => $category->id,
+        ]);
         $model->defaultValues()->attach($networkSpeed->id, ['default_value' => '1 Gbps']);
         $model->defaultValues()->attach($portCount->id, ['default_value' => '8']);
         Asset::factory()->create([
@@ -133,13 +161,16 @@ class RequestableModelsPageTest extends TestCase
             ->assertSeeText('QA Network Speed')
             ->assertSeeText('1 Gbps')
             ->assertSeeText('QA Port Count')
-            ->assertSee('"name":"QA Port Count","numeric":true', false)
-            ->assertSee('"categories":["QA Communication"]', false)
             ->assertSee('data-field="specifications"', false)
-            ->assertSee('requestableSpecificationSuggestions', false)
-            ->assertSee('requestableSpecificationChips', false)
+            ->assertSee('name="search"', false)
+            ->assertSee('Field: value', false)
             ->assertDontSeeText('QA Serial Number')
             ->assertDontSeeText('QA Internal Note');
+
+        $this->actingAs($requester)
+            ->get(route('requestable-assets', ['search' => 'QA Network Speed: 1 Gbps']))
+            ->assertOk()
+            ->assertSeeText('QA specification search model');
     }
 
     public function test_cross_company_catalogue_permission_shows_requestable_models_outside_the_epl_company_under_fmcs(): void
