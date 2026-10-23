@@ -6,11 +6,13 @@ use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\License;
+use App\Models\SoftwareModel;
 use App\Models\LicenseSeat;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\MessageBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -75,14 +77,24 @@ class LicensesController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', License::class);
+        $errors = $this->validateRequiredLicenseFields($request);
+        if ($errors->isNotEmpty()) {
+            return redirect()->back()->withInput()->withErrors($errors);
+        }
+        $request->validate([
+            'software_model_id' => 'required|exists:software_models,id,deleted_at,NULL,active,1',
+        ]);
+
         // create a new model instance
         $license = new License();
         // Save the license data
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
+        $license->software_model_id = $request->input('software_model_id');
         $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
+        $license->last_physical_verification_date = $request->input('last_physical_verification_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained', 0);
@@ -104,6 +116,8 @@ class LicensesController extends Controller
         $license->termination_date  = $request->input('termination_date');
         $license->created_by           = auth()->id();
         $license->min_amt           = $request->input('min_amt');
+
+        $this->applySoftwareModel($license);
 
         if($request->get('redirect_option') === 'back'){
             session()->put(['redirect_option' => 'index']);
@@ -163,10 +177,15 @@ class LicensesController extends Controller
 
 
         $this->authorize('update', $license);
+        $errors = $this->validateRequiredLicenseFields($request, $license);
+        if ($errors->isNotEmpty()) {
+            return redirect()->back()->withInput()->withErrors($errors);
+        }
 
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
+        $license->last_physical_verification_date = $request->input('last_physical_verification_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained',0);
@@ -174,6 +193,7 @@ class LicensesController extends Controller
         $license->software_version  = $request->input('software_version');
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
+        $license->software_model_id = $request->filled('software_model_id') ? $request->input('software_model_id') : null;
         $license->notes             = $request->input('notes');
         $license->order_number      = $request->input('order_number');
         $license->purchase_cost     = $request->input('purchase_cost');
@@ -189,6 +209,8 @@ class LicensesController extends Controller
         $license->category_id       = $request->input('category_id');
         $license->min_amt           = $request->input('min_amt');
 
+        $this->applySoftwareModel($license);
+
         session()->put(['redirect_option' => $request->get('redirect_option')]);
 
         if ($license->save()) {
@@ -197,6 +219,53 @@ class LicensesController extends Controller
         }
         // If we can't adjust the number of seats, the error is flashed to the session by the event handler in License.php
         return redirect()->back()->withInput()->withErrors($license->getErrors());
+    }
+
+    private function validateRequiredLicenseFields(Request $request, ?License $license = null): MessageBag
+    {
+        $errors = new MessageBag();
+
+        $serial = $request->has('serial') ? $request->input('serial') : optional($license)->serial;
+        if (trim((string) $serial) === '') {
+            $errors->add('serial', 'The product key field is required.');
+        }
+
+        $requestedCompanyId = $request->has('company_id') ? $request->input('company_id') : optional($license)->company_id;
+        if (is_null(Company::getIdForCurrentUser($requestedCompanyId))) {
+            $errors->add('company_id', 'The site field is required.');
+        }
+
+        $expirationDate = $request->has('expiration_date') ? $request->input('expiration_date') : optional($license)->expiration_date;
+        if (trim((string) $expirationDate) === '') {
+            $errors->add('expiration_date', 'The expiration date field is required.');
+        }
+
+        $lastPhysicalVerificationDate = $request->has('last_physical_verification_date')
+            ? $request->input('last_physical_verification_date')
+            : optional($license)->last_physical_verification_date;
+        if (trim((string) $lastPhysicalVerificationDate) === '') {
+            $errors->add('last_physical_verification_date', 'The last physical verification date field is required.');
+        }
+
+        return $errors;
+    }
+
+    private function applySoftwareModel(License $license): void
+    {
+        if (! $license->software_model_id) {
+            return;
+        }
+
+        $softwareModel = SoftwareModel::find($license->software_model_id);
+
+        if (! $softwareModel) {
+            return;
+        }
+
+        $license->name = $softwareModel->name;
+        $license->category_id = $softwareModel->category_id;
+        $license->manufacturer_id = $softwareModel->manufacturer_id;
+        $license->discipline_id = $softwareModel->discipline_id ?? $license->discipline_id;
     }
 
     /**
@@ -347,7 +416,7 @@ class LicensesController extends Controller
                         trans('admin/licenses/form.license_key'),
                         trans('general.serial_number'),
                         trans('general.purchase_date'),
-                        trans('general.purchase_cost'),
+                        trans('general.purchase_cost_usd'),
                         trans('general.order_number'),
                         trans('general.licenses_available'),
                         trans('admin/licenses/table.seats'),
@@ -357,6 +426,7 @@ class LicensesController extends Controller
                         trans('general.email'),
                         trans('general.supplier'),
                         trans('admin/licenses/form.expiration'),
+                        trans('admin/licenses/form.last_physical_verification_date'),
                         trans('admin/licenses/form.purchase_order'),
                         trans('admin/licenses/form.termination_date'),
                         trans('admin/licenses/form.maintained'),
@@ -380,7 +450,7 @@ class LicensesController extends Controller
                             $license->serial,
                             $license->serial_number,
                             $license->purchase_date,
-                            $license->purchase_cost,
+                            ($license->purchase_cost) ? 'USD'.Helper::formatCurrencyOutput($license->purchase_cost) : '',
                             $license->order_number,
                             $license->free_seat_count,
                             $license->seats,
@@ -390,6 +460,7 @@ class LicensesController extends Controller
                             $license->email,
                             ($license->supplier) ? $license->supplier->name: '',
                             $license->expiration_date,
+                            $license->last_physical_verification_date,
                             $license->purchase_order,
                             $license->termination_date,
                             ( $license->maintained == '1') ? trans('general.yes') : trans('general.no'),

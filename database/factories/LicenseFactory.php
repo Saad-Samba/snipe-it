@@ -36,6 +36,7 @@ class LicenseFactory extends Factory
             'purchase_date' => $this->faker->dateTimeBetween('-1 years', 'now', date_default_timezone_get())->format('Y-m-d'),
             'order_number' => $this->faker->numberBetween(1000000, 50000000),
             'expiration_date' => $this->faker->dateTimeBetween('now', '+2 years', date_default_timezone_get())->format('Y-m-d'),
+            'last_physical_verification_date' => $this->faker->dateTimeBetween('-1 years', 'now', date_default_timezone_get())->format('Y-m-d'),
             'perpetual' => false,
             'reassignable' => $this->faker->boolean(),
             'termination_date' => null,

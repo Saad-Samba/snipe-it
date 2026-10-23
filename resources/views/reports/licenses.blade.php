@@ -34,7 +34,7 @@
                                 <th class="col-sm-1">{{ trans('admin/licenses/form.expiration') }}</th>
                                 <th class="col-sm-1">{{ trans('admin/licenses/form.termination_date') }}</th>
                                 <th class="col-sm-1">{{ trans('general.purchase_date') }}</th>
-                                <th class="col-sm-1 text-right" class="col-sm-1">{{ trans('general.purchase_cost') }}</th>
+                                <th class="col-sm-1 text-right" class="col-sm-1">{{ trans('general.purchase_cost_usd') }}</th>
                             </tr>
                         </thead>
 
@@ -61,7 +61,7 @@
                                     @endif</td>
                                 <td>{{ $license->purchase_date }}</td>
                                 <td class="text-right">
-                                    {{ $snipeSettings->default_currency }}{{ Helper::formatCurrencyOutput($license->purchase_cost) }}
+                                    USD{{ Helper::formatCurrencyOutput($license->purchase_cost) }}
                                 </td>
                             </tr>
                             @endforeach

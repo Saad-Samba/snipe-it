@@ -154,7 +154,7 @@ class ReportsController extends Controller
             trans('admin/hardware/table.checkoutto'),
             trans('admin/hardware/table.location'),
             trans('admin/hardware/table.purchase_date'),
-            trans('admin/hardware/table.purchase_cost'),
+            trans('general.purchase_cost_usd'),
             trans('admin/hardware/table.book_value'),
             trans('admin/hardware/table.diff'),
         ];
@@ -187,11 +187,7 @@ class ReportsController extends Controller
                 $row[] = '';  // Empty string if location is not set
             }
 
-            if ($asset->location) {
-                $currency = e($asset->location->currency);
-            } else {
-                $currency = e(Setting::getSettings()->default_currency);
-            }
+            $currency = 'USD';
 
             $row[] = Helper::getFormattedDateObject($asset->purchase_date, 'date', false);
             $row[] = $currency.Helper::formatCurrencyOutput($asset->purchase_cost);
@@ -503,7 +499,7 @@ class ReportsController extends Controller
             }
 
             if ($request->filled('purchase_cost')) {
-                $header[] = trans('admin/hardware/table.purchase_cost');
+                $header[] = trans('general.purchase_cost_usd');
             }
 
             if ($request->filled('eol')) {
@@ -841,7 +837,7 @@ class ReportsController extends Controller
                     }
 
                     if ($request->filled('purchase_cost')) {
-                        $row[] = ($asset->purchase_cost) ? Helper::formatCurrencyOutput($asset->purchase_cost) : '';
+                        $row[] = ($asset->purchase_cost) ? 'USD'.Helper::formatCurrencyOutput($asset->purchase_cost) : '';
                     }
 
                     if ($request->filled('eol')) {
