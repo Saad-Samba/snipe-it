@@ -158,6 +158,26 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
     }
 
     #[Test]
+    public function importsMaintenanceExpiryForMaintainedPerpetualLicense(): void
+    {
+        $importFileBuilder = ImportFileBuilder::new([
+            'isMaintained' => 'TRUE',
+            'isPerpetual' => 'TRUE',
+            'maintenanceExpiryDate' => '2027/12/31',
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])->assertOk();
+
+        $license = License::query()->where('serial', $importFileBuilder->firstRow()['productKey'])->sole();
+        $this->assertTrue($license->perpetual);
+        $this->assertTrue((bool) $license->maintained);
+        $this->assertNull($license->expiration_date);
+        $this->assertSame('2027-12-31', $license->maintenance_expires_at->format('Y-m-d'));
+    }
+
+    #[Test]
     public function willNotCreateNewCompanyWhenCompanyExists(): void
     {
         $importFileBuilder = ImportFileBuilder::times(4)->replace(['companyName' => Str::random()]);
