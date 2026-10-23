@@ -6,6 +6,8 @@
   @if (Request::get('status')=='deleted')
     {{ trans('admin/models/general.view_deleted') }}
     {{ trans('admin/models/table.title') }}
+  @elseif (($filterCategory ?? null) && request()->boolean('available_models'))
+    Available Models — {{ $filterCategory->name }}
     @else
     {{ trans('admin/models/general.view_models') }}
   @endif
@@ -20,6 +22,30 @@
   <div class="col-md-12">
     <div class="box box-default">
       <div class="box-body">
+
+        @php
+            $activeTableFilters = [];
+
+            if ($filterCategory ?? null) {
+                $activeTableFilters[] = [
+                    'label' => 'Category: '.$filterCategory->name,
+                    'remove_url' => route('models.index', request()->except('category_id')),
+                ];
+            }
+
+            if (request()->boolean('available_models')) {
+                $activeTableFilters[] = [
+                    'label' => 'Availability: Reusable',
+                    'remove_url' => route('models.index', request()->except('available_models')),
+                ];
+            }
+
+            $clearFiltersUrl = route('models.index');
+            $backToContextUrl = ($filterCategory ?? null) ? route('categories.show', $filterCategory) : null;
+            $backToContextLabel = ($filterCategory ?? null) ? 'Back to '.$filterCategory->name : null;
+        @endphp
+
+        @include('partials.table-filter-context')
 
         @include('partials.models-bulk-actions')
                 <table
@@ -38,6 +64,8 @@
                         class="table table-striped snipe-table"
                         data-url="{{ route('api.models.index', [
                             'status' => e(request('status')),
+                            'category_id' => e(request('category_id')),
+                            'available_models' => e(request('available_models')),
                             'obsolete' => e(request('obsolete')),
                         ]) }}"
                         data-export-options='{

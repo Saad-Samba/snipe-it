@@ -53,6 +53,8 @@ class CustomFieldRequest extends FormRequest
         }
 
         $rules['custom_format'] = 'valid_regex';
+        $rules['field_encrypted'] = 'prohibited';
+        $rules['is_unique'] = 'prohibited';
 
         return  $rules;
     }

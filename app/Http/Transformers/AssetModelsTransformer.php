@@ -4,34 +4,65 @@ namespace App\Http\Transformers;
 
 use App\Helpers\Helper;
 use App\Models\AssetModel;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class AssetModelsTransformer
 {
     public function transformAssetModels(Collection $assetmodels, $total)
     {
+        $specificationValuesByModel = [];
+
+        if ($assetmodels->isNotEmpty()) {
+            // Fetch only the current page's values. Loading fields.defaultValues instead
+            // hydrates every model attached to those fields, including models off-page.
+            $values = DB::table('models_custom_fields')
+                ->whereIn('asset_model_id', $assetmodels->modelKeys())
+                ->orderBy('id')
+                ->get(['asset_model_id', 'custom_field_id', 'default_value']);
+
+            foreach ($values as $value) {
+                // Match CustomField::defaultValue(), which returns the first pivot
+                // value if legacy data contains duplicate model/field rows.
+                if (! array_key_exists($value->custom_field_id, $specificationValuesByModel[$value->asset_model_id] ?? [])) {
+                    $specificationValuesByModel[$value->asset_model_id][$value->custom_field_id] = $value->default_value;
+                }
+            }
+        }
+
         $array = [];
         foreach ($assetmodels as $assetmodel) {
-            $array[] = self::transformAssetModel($assetmodel);
+            $array[] = self::transformAssetModel($assetmodel, $specificationValuesByModel[$assetmodel->id] ?? []);
         }
 
         return (new DatatablesTransformer)->transformDatatables($array, $total);
     }
 
-    public function transformAssetModel(AssetModel $assetmodel)
+    public function transformAssetModel(AssetModel $assetmodel, ?array $specificationValues = null)
     {
 
         $default_field_values = array();
+        $specificationFieldset = $assetmodel->category?->fieldset ?? $assetmodel->fieldset;
 
         // Reach into the custom fields and models_custom_fields pivot table to find the default values for this model
-        if ($assetmodel->fieldset) {
-            foreach($assetmodel->fieldset->fields AS $field) {
+        if ($specificationFieldset) {
+            foreach($specificationFieldset->fields AS $field) {
+                if (! $assetmodel->ownsSpecification($field)) {
+                    continue;
+                }
+
+                $defaultValue = $specificationValues === null
+                    ? $field->defaultValue($assetmodel->id)
+                    : ($specificationValues[$field->id] ?? null);
+
                 $default_field_values[] = [
+                    'id' => (int) $field->id,
                     'name' => e($field->name),
                     'db_column_name' => e($field->db_column_name()),
-                    'default_value' => ($field->defaultValue($assetmodel->id)) ? e($field->defaultValue($assetmodel->id)) : null,
+                    'default_value' => ($defaultValue !== null && $defaultValue !== '') ? e($defaultValue) : null,
                     'format' =>  e($field->format),
                     'required' => ($field->pivot->required == '1') ? true : false,
                 ];
@@ -49,6 +80,10 @@ class AssetModelsTransformer
             'image' => ($assetmodel->image != '') ? Storage::disk('public')->url('models/'.e($assetmodel->image)) : null,
             'model_number' => ($assetmodel->model_number ? e($assetmodel->model_number): null),
             'min_amt'   => ($assetmodel->min_amt) ? (int) $assetmodel->min_amt : null,
+            'reference_price' => $assetmodel->reference_price,
+            'reference_price_formatted' => $assetmodel->reference_price !== null
+                ? Helper::formatCurrencyOutput($assetmodel->reference_price)
+                : null,
 
             'depreciation' => ($assetmodel->depreciation) ? [
                 'id' => (int) $assetmodel->depreciation->id,
@@ -57,7 +92,9 @@ class AssetModelsTransformer
             'assets_count' => (int) $assetmodel->assets_count,
             'assets_assigned_count' => (int) $assetmodel->assets_assigned_count,
             'assets_archived_count' => (int) $assetmodel->assets_archived_count,
-            'remaining' => (int) ($assetmodel->assets_count - (int) $assetmodel->assets_assigned_count) - (int) $assetmodel->assets_archived_count,
+            'remaining' => isset($assetmodel->remaining)
+                ? (int) $assetmodel->remaining
+                : (int) ($assetmodel->assets_count - (int) $assetmodel->assets_assigned_count) - (int) $assetmodel->assets_archived_count,
             'category' => ($assetmodel->category) ? [
                 'id' => (int) $assetmodel->category->id,
                 'name'=> e($assetmodel->category->name),
@@ -70,7 +107,6 @@ class AssetModelsTransformer
             'default_fieldset_values' => $default_field_values,
             'eol' => ($assetmodel->eol > 0) ? $assetmodel->eol.' months' : 'None',
             'obsolete' => (bool) $assetmodel->obsolete,
-            'requestable' => ($assetmodel->requestable == '1') ? true : false,
             'require_serial' => ($assetmodel->require_serial == '1') ? true : false,
             'notes' => Helper::parseEscapedMarkedownInline($assetmodel->notes),
             'created_by' => ($assetmodel->adminuser) ? [
@@ -83,12 +119,36 @@ class AssetModelsTransformer
 
         ];
 
+        foreach ($default_field_values as $specification) {
+            $array['specification_'.$specification['id']] = $specification['default_value'];
+        }
+
         $permissions_array['available_actions'] = [
-            'update' => (Gate::allows('update', AssetModel::class) && ($assetmodel->deleted_at == '')),
-            'delete' => $assetmodel->isDeletable(),
+            'update' => (Gate::allows('update', $assetmodel) && ($assetmodel->deleted_at == '')),
+            'delete' => (Gate::allows('delete', $assetmodel) && $assetmodel->isDeletable()),
             'clone' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at == '')),
-            'restore' => (Gate::allows('create', AssetModel::class) && ($assetmodel->deleted_at != '')),
+            'restore' => (Gate::allows('update', $assetmodel) && ($assetmodel->deleted_at != '')),
         ];
+
+        $requestingUser = Auth::user();
+        $canRequestModels = $requestingUser
+            && Gate::allows('request', $assetmodel)
+            && $assetmodel->deleted_at == '';
+
+        $activeRequests = $requestingUser
+            ? $assetmodel->requests->where('canceled_at', null)->where('user_id', $requestingUser->id)
+            : collect();
+        $activeRequest = $activeRequests->count() === 1 ? $activeRequests->first() : null;
+        $permissions_array['available_actions']['request'] = $canRequestModels;
+        $permissions_array['available_actions']['cancel_request'] = false;
+        $permissions_array['available_actions']['update_request'] = false;
+        $array['requested_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
+        $array['requested_company_id'] = $activeRequest ? (int) $activeRequest->company_id : null;
+        $array['requested_project_id'] = $activeRequest ? (int) $activeRequest->project_id : null;
+        $array['requested_total_quantity'] = $activeRequest ? (int) $activeRequest->quantity : null;
+        $array['requested_needed_by_date'] = $activeRequest && $activeRequest->needed_by_date
+            ? $activeRequest->needed_by_date->format('Y-m-d')
+            : null;
 
         $array += $permissions_array;
 

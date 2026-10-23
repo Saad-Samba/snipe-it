@@ -12,7 +12,9 @@ class UpdateGroupTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('groups.edit', Group::factory()->create()->id))
-            ->assertOk();
+            ->assertOk()
+            ->assertSeeText('Request Models Across All Companies')
+            ->assertSee('permission[models.request.all_companies]', false);
     }
 
     public function testUserCanEditGroups()
@@ -31,5 +33,25 @@ class UpdateGroupTest extends TestCase
 
         $this->followRedirects($response)->assertSee('Success');
         $this->assertTrue(Group::where('name', 'Test Group Edited')->where('notes', 'Test Note Edited')->exists());
+    }
+
+    public function testCrossCompanyModelRequestPermissionCanBeSavedForAGroup()
+    {
+        $group = Group::factory()->create(['name' => 'EPL']);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->put(route('groups.update', ['group' => $group]), [
+                'name' => 'EPL',
+                'permission' => [
+                    'models.request' => '1',
+                    'models.request.all_companies' => '1',
+                ],
+            ])
+            ->assertRedirect(route('groups.index'))
+            ->assertSessionHasNoErrors();
+
+        $permissions = $group->fresh()->decodePermissions();
+        $this->assertSame(1, $permissions['models.request']);
+        $this->assertSame(1, $permissions['models.request.all_companies']);
     }
 }

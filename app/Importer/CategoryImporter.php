@@ -65,10 +65,11 @@ class CategoryImporter extends ItemImporter
         // Pull the records from the CSV to determine their values
         $this->item['name'] = trim($this->findCsvMatch($row, 'name'));
         $this->item['notes'] = trim($this->findCsvMatch($row, 'notes'));
-        $this->item['eula_text'] = trim($this->findCsvMatch($row, 'eula_text'));
         $this->item['category_type'] = trim(strtolower($this->findCsvMatch($row, 'category_type')));
-        $this->item['use_default_eula'] = trim(($this->fetchHumanBoolean($this->findCsvMatch($row, 'use_default_eula'))) == 1) ? 1 : 0;
-        $this->item['require_acceptance'] = trim(($this->fetchHumanBoolean($this->findCsvMatch($row, 'require_acceptance'))) == 1) ? 1 : 0;
+        $this->item['eula_text'] = null;
+        $this->item['use_default_eula'] = 0;
+        $this->item['require_acceptance'] = 0;
+        $this->item['alert_on_response'] = 0;
         $this->item['checkin_email'] = trim(($this->fetchHumanBoolean($this->findCsvMatch($row, 'checkin_email'))) == 1) ? 1 : 0;
 
 
@@ -83,6 +84,11 @@ class CategoryImporter extends ItemImporter
             Log::debug('Creating category');
             $category->fill($this->sanitizeItemForStoring($category));
         }
+
+        $category->eula_text = null;
+        $category->use_default_eula = false;
+        $category->require_acceptance = false;
+        $category->alert_on_response = false;
 
         if ($category->save()) {
             $this->log('Category '.$category->name.' created or updated from CSV import');

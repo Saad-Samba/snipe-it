@@ -18,7 +18,7 @@
 {{ $snipeSettings->site_name }}
 @endif
 @else
-Snipe-IT
+LEAMS
 @endif
 @endcomponent
 @endslot

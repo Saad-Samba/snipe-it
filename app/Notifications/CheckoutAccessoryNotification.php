@@ -215,7 +215,7 @@ class CheckoutAccessoryNotification extends Notification
             ->subject(trans('mail.Confirm_accessory_delivery'))
             ->withSymfonyMessage(function (Email $message) {
                 $message->getHeaders()->addTextHeader(
-                    'X-System-Sender', 'Snipe-IT'
+                    'X-System-Sender', 'LEAMS'
                 );
             });
     }
