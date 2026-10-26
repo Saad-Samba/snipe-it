@@ -74,6 +74,12 @@ class AssetsController extends Controller
                 ->find($request->integer('request_id'));
         }
 
+        if ($request->input('request_bucket') === 'assigned_candidates') {
+            abort_if(! $requestContext, 404);
+            abort_unless($requestContext->canViewAssignedCandidates($request->user()), 403);
+            $request->attributes->set('assigned_candidate_request', $requestContext);
+        }
+
         /**
          * This looks MAD janky (and it is), but the AssetsController@index does a LOT of heavy lifting throughout the 
          * app. This bit here just makes sure that someone without permission to view assets doesn't 
@@ -438,6 +444,9 @@ class AssetsController extends Controller
                             $requestContext->company_id,
                         ]);
                     }
+                    break;
+                case 'assigned_candidates':
+                    $assets->whereIn('assets.id', $requestContext->assignedCandidatesQuery($request->user())->select('assets.id'));
                     break;
                 case 'due_back':
                     $assets->whereNotNull('assets.assigned_to')

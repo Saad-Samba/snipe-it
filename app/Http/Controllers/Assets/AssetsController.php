@@ -100,7 +100,14 @@ class AssetsController extends Controller
                 || $requestContext->candidateCoordinators()->where('users.id', auth()->id())->exists(),
                 403
             );
+            if ($request->input('request_bucket') === 'assigned_candidates') {
+                abort_unless($requestContext->canViewAssignedCandidates($request->user()), 403);
+            }
             session(['back_url' => $request->fullUrl()]);
+        }
+
+        if ($request->input('request_bucket') === 'assigned_candidates') {
+            abort_if(! $requestContext, 404);
         }
 
         return view('hardware/index')

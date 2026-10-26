@@ -225,7 +225,7 @@
 
                 },
                 formatNoMatches: function () {
-                    return '{{ trans('table.no_matching_records') }}';
+                    return data_with_default('empty-message', '{{ trans('table.no_matching_records') }}');
                 }
 
             });
@@ -2460,6 +2460,10 @@
 
     function requestReusableNowFormatter(value, row) {
         return requestAvailabilityLinkFormatter(value, row, 'reusable_now_url');
+    }
+
+    function requestAssignedCandidatesFormatter(value, row) {
+        return requestAvailabilityLinkFormatter(value, row, 'assigned_candidates_url');
     }
 
     function requestDueBackFormatter(value, row) {

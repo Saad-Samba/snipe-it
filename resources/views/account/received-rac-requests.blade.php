@@ -36,6 +36,7 @@
                             <th data-field="company" data-sortable="true">Destination Site <x-new-feature-label /></th>
                             <th data-field="inventory_disciplines" data-sortable="true">Inventory Discipline(s) <x-new-feature-label /></th>
                             <th data-field="qty" data-sortable="true">Quantity</th>
+                            <th data-field="assigned_candidates_count" data-sortable="false" data-formatter="requestAssignedCandidatesFormatter" title="Matching assigned assets requiring release confirmation; excludes Due Back.">Assigned — release required</th>
                             <th data-field="remaining_quantity" data-sortable="true">Remaining</th>
                             <th data-field="needed_by_date" data-sortable="true" data-formatter="dateDisplayFormatter">Needed By</th>
                             <th data-field="rac_status" data-sortable="true" data-formatter="requestStatusFormatter">Status</th>

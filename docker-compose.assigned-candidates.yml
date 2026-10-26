@@ -1,0 +1,84 @@
+# Isolated local QA stack. Never point these settings at an existing database.
+name: assigned-request-candidates
+services:
+  app:
+    image: ${SNIPEIT_QA_IMAGE:-assigned-request-candidates-runtime}
+    build:
+      context: .
+      dockerfile: Dockerfile.alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rm -f bootstrap/cache/config.php
+        mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
+        mkdir -p /var/lib/snipeit/keys
+        if [ ! -s storage/oauth-private.key ]; then php artisan passport:keys; fi
+        chown -R apache:root storage bootstrap/cache /var/lib/snipeit/keys
+        exec httpd -DNO_DETACH
+    environment:
+      APACHE_LOG_DIR: /var/log/apache2
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:glJpcM7BYwWiBggp3SQ/+NlRkqsBQMaGEOjemXqJzOU=
+      APP_URL: http://localhost:8136
+      APP_TIMEZONE: Africa/Casablanca
+      APP_LOCALE: en-US
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: assigned_candidates_qa
+      DB_USERNAME: assigned_qa
+      DB_PASSWORD: assigned-qa-local
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      QUEUE_DRIVER: sync
+      MAIL_MAILER: smtp
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      MAIL_FROM_ADDR: qa@example.test
+      MAIL_FROM_NAME: LEAMS QA
+      COOKIE_NAME: assigned_candidates_qa
+      SECURE_COOKIES: "false"
+      ALLOW_IFRAMING: "false"
+    ports:
+      - "127.0.0.1:8136:80"
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+      - storage:/var/www/html/storage
+      - cache:/var/www/html/bootstrap/cache
+      - uploads:/var/www/html/public/uploads
+      - data:/var/lib/snipeit
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: mariadb:11.4.7
+    environment:
+      MARIADB_DATABASE: assigned_candidates_qa
+      MARIADB_USER: assigned_qa
+      MARIADB_PASSWORD: assigned-qa-local
+      MARIADB_ROOT_PASSWORD: assigned-qa-root-local
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 2s
+      retries: 15
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "127.0.0.1:8236:8025"
+volumes:
+  db:
+  vendor:
+  storage:
+  cache:
+  uploads:
+  data:
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${ASSIGNED_QA_SUBNET:-10.251.36.0/24}

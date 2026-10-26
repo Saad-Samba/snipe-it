@@ -173,6 +173,33 @@ class CheckoutRequest extends Model
         return $this->status ?: self::STATUS_PENDING;
     }
 
+    public function canViewAssignedCandidates(User $user): bool
+    {
+        return $this->requestable_type === AssetModel::class
+            && $user->can('index', Asset::class)
+            && ($user->isSuperUser() || $this->canBeViewedBy($user));
+    }
+
+    public function assignedCandidatesQuery(User $user): Builder
+    {
+        $reservedStatusId = Setting::rfqReservedStatusId();
+
+        return Asset::visibleTo($user)
+            ->whereNull('assets.deleted_at')
+            ->where('assets.model_id', $this->requestable_id)
+            ->whereNotNull('assets.assigned_to')
+            ->whereHas('assetstatus', function ($query) {
+                $query->where('deployable', 1)->where('pending', 0)->where('archived', 0);
+            })
+            ->when($reservedStatusId, fn ($query) => $query->where('assets.status_id', '!=', $reservedStatusId))
+            ->when($this->needed_by_date, function ($query) {
+                $query->where(function ($query) {
+                    $query->whereNull('assets.expected_checkin')
+                        ->orWhereDate('assets.expected_checkin', '>', $this->needed_by_date);
+                });
+            });
+    }
+
     public function canBeProcessedBy(User $user): bool
     {
         return $this->canBeViewedBy($user)

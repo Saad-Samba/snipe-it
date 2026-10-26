@@ -15,7 +15,7 @@ class AssetPresenter extends Presenter
      * Json Column Layout for bootstrap table
      * @return string
      */
-    public static function dataTableLayout(bool $showCenterMatchInCompanyColumn = false)
+    public static function dataTableLayout(bool $showCenterMatchInCompanyColumn = false, bool $assignedCandidates = false)
     {
         $layout = [
             [
@@ -376,6 +376,24 @@ class AssetPresenter extends Presenter
             'formatter' => 'hardwareActionsFormatter',
             'printIgnore' => true,
         ];
+
+        if ($assignedCandidates) {
+            $layout = array_values(array_filter($layout, fn ($column) => ! in_array($column['field'], ['checkbox', 'checkincheckout', 'actions'])));
+            foreach ($layout as &$column) {
+                $column['visible'] = in_array($column['field'], ['asset_tag', 'model', 'status_label', 'assigned_to', 'company', 'location', 'project', 'expected_checkin']);
+                if ($column['visible']) {
+                    $column['switchable'] = false;
+                }
+            }
+            unset($column);
+            $layout[] = [
+                'field' => 'project_relationship',
+                'title' => 'Project relationship',
+                'sortable' => false,
+                'switchable' => false,
+                'visible' => true,
+            ];
+        }
 
         return json_encode($layout);
     }

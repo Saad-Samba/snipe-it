@@ -54,6 +54,7 @@
 @section('content')
 
 @php
+    $assignedCandidates = request()->input('request_bucket') === 'assigned_candidates';
     $coordinatorTarget = null;
     if (isset($requestContext) && $requestContext && auth()->check()) {
         $coordinatorTarget = $requestContext->coordinatorTargets->firstWhere('user_id', auth()->id());
@@ -95,7 +96,22 @@
 
           @include('partials.table-filter-context')
 
-          @if ($coordinatorTarget)
+          @if ($requestContext && $requestContext->canViewAssignedCandidates(auth()->user()))
+            <nav aria-label="Request asset review" style="margin-bottom:15px;">
+                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'reusable_now']) }}">Reusable Now</a>
+                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'due_back']) }}">Due Back</a>
+                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'assigned_candidates']) }}">Assigned — release required ({{ $requestContext->assignedCandidatesQuery(auth()->user())->count() }})</a>
+            </nav>
+          @endif
+
+          @if ($assignedCandidates)
+            <div class="alert alert-info">
+                <strong>Assigned — release required</strong>
+                <p>These matching assets require assessment and release confirmation. Inclusion does not confirm availability or authorize reassignment. Assets expected back by the needed-by date appear under Due Back instead.</p>
+            </div>
+          @endif
+
+          @if ($coordinatorTarget && ! $assignedCandidates)
             <div class="alert alert-info">
                 <strong>Coordinator review</strong>
                 <p style="margin:8px 0 12px;">
@@ -134,10 +150,12 @@
                     }
                 @endphp
 
-                @include('partials.asset-bulk-actions', ['status' => Request::get('status')])
+                @unless ($assignedCandidates)
+                    @include('partials.asset-bulk-actions', ['status' => Request::get('status')])
+                @endunless
                    
               <table
-                data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout(Request::get('request_bucket') === 'reusable_now') }}"
+                data-columns="{{ \App\Presenters\AssetPresenter::dataTableLayout(Request::get('request_bucket') === 'reusable_now', $assignedCandidates) }}"
                 data-cookie-id-table="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 data-id-table="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 data-side-pagination="server"
@@ -147,10 +165,14 @@
                 data-sort-name="name"
                 data-search-text="{{ Request::filled('request_id') ? '' : session()->get('search') }}"
                 data-show-columns-search="true"
+                @if ($assignedCandidates)
+                data-empty-message="No eligible assigned candidates match the current filters."
+                @else
                 data-toolbar="#assetsBulkEditToolbar"
                 data-bulk-button-id="#bulkAssetEditButton"
                 data-bulk-form-id="#assetsBulkForm"
                 data-buttons="assetButtons"
+                @endif
                 id="{{ $requestTableCookieId ?: (request()->has('status') ? e(request()->input('status')) : '').'assetsListingTable' }}"
                 class="table table-striped snipe-table"
                 data-url="{{ route('api.assets.index',

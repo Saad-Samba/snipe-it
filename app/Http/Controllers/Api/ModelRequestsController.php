@@ -85,6 +85,12 @@ class ModelRequestsController extends Controller
                         ->implode(', '),
                     'qty' => (int) $checkoutRequest->quantity,
                     'remaining_quantity' => $checkoutRequest->remainingAllocationQuantity(),
+                    'assigned_candidates_count' => $checkoutRequest->canViewAssignedCandidates($user)
+                        ? $checkoutRequest->assignedCandidatesQuery($user)->count()
+                        : null,
+                    'assigned_candidates_url' => $checkoutRequest->canViewAssignedCandidates($user)
+                        ? route('hardware.index', ['request_id' => $checkoutRequest->id, 'request_bucket' => 'assigned_candidates'])
+                        : null,
                     'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
                     'rac_status' => $racStatus,
                     'received_at' => Helper::getFormattedDateObject($targets->min('created_at'), 'datetime'),
