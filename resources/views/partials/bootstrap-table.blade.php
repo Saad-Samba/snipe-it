@@ -1933,30 +1933,14 @@
             + '                  <th>Discipline</th>'
             + '                  <th>{{ trans('general.company') }}</th>'
             + '                  <th>Quantity</th>'
-            + '                  <th>Reusable Now</th>'
-            + '                  <th>Due Back</th>'
-            + '                  <th>Reserved by Other Project</th>'
-            + '                  <th>Shortfall</th>'
-            + '                  <th>Estimated Savings</th>'
-            + '                  <th>Amount to Buy</th>'
             + '                  <th></th>'
             + '                </tr>'
             + '              </thead>'
             + '              <tbody id="model-request-cart-lines"></tbody>'
             + '            </table>'
             + '          </div>'
-            + '          <div class="well well-sm" style="margin-bottom:0;">'
-            + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Planning Totals</div>'
-            + '            <div style="display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:6px;">'
-            + '              <span>Total Needed</span><span id="model-request-cart-total-requested">0</span>'
-            + '              <span>Reusable Now</span><span id="model-request-cart-total-reusable">0</span>'
-            + '              <span>Due Back</span><span id="model-request-cart-total-due-back">0</span>'
-            + '              <span>Reserved by Other Project</span><span id="model-request-cart-total-reserved-other">0</span>'
-            + '              <span>Shortfall</span><span id="model-request-cart-total-shortfall">0</span>'
-            + '              <span>Estimated Savings</span><span id="model-request-cart-total-savings">0.00</span>'
-            + '              <span>Amount to Buy</span><span id="model-request-cart-total-buy">0.00</span>'
-            + '            </div>'
-            + '          </div>'
+            + '          <p><strong>Total requested quantity:</strong> <span id="model-request-cart-total-requested">0</span></p>'
+            + '          <p class="text-muted">Review your needs before submitting. Sourcing estimates are available after submission.</p>'
             + '        </div>'
             + '        <div class="modal-footer">'
             + '          <button type="button" class="btn btn-danger pull-left" id="model-request-cart-clear">Clear Cart</button>'
@@ -2113,11 +2097,11 @@
         estimateModelRequestModal();
     }
 
-    function renderModelRequestCartLines(lines, metadataReady) {
+    function renderModelRequestCartLines(lines) {
         var rows = [];
 
         if (!lines.length) {
-            rows.push('<tr><td colspan="11" class="text-muted">Your request cart is empty.</td></tr>');
+            rows.push('<tr><td colspan="5" class="text-muted">Your request cart is empty.</td></tr>');
         }
 
         lines.forEach(function (line) {
@@ -2127,12 +2111,6 @@
                 + '<td>' + escapeHtml(line.discipline_name) + '</td>'
                 + '<td>' + escapeHtml(line.company_name) + '</td>'
                 + '<td>' + line.quantity + '</td>'
-                + '<td>' + (metadataReady ? line.reusable_quantity : '&mdash;') + '</td>'
-                + '<td>' + (metadataReady ? line.due_back_before_needed_by_quantity : '&mdash;') + '</td>'
-                + '<td>' + (metadataReady ? line.reserved_by_other_rfqs_count : '&mdash;') + '</td>'
-                + '<td>' + (metadataReady ? line.procurement_shortfall : '&mdash;') + '</td>'
-                + '<td>' + (metadataReady ? line.estimated_savings_formatted : '&mdash;') + '</td>'
-                + '<td>' + (metadataReady ? line.amount_to_buy_formatted : '&mdash;') + '</td>'
                 + '<td><button type="button" class="btn btn-danger btn-xs" onclick="removeLineFromModelRequestCart(' + line.model_id + ', ' + line.discipline_id + ', ' + line.company_id + ')"><i class="fas fa-times" aria-hidden="true"></i></button></td>'
                 + '</tr>'
             );
@@ -2145,20 +2123,9 @@
         return $('<div>').text(value || '').html();
     }
 
-    function renderModelRequestCartTotals(totals, formattedTotals, metadataReady) {
-        $('#model-request-cart-total-requested').text(totals.quantity || 0);
-        $('#model-request-cart-total-reusable').html(metadataReady ? (totals.reusable_quantity || 0) : '&mdash;');
-        $('#model-request-cart-total-due-back').html(metadataReady ? (totals.due_back_before_needed_by_quantity || 0) : '&mdash;');
-        $('#model-request-cart-total-reserved-other').html(metadataReady ? (totals.reserved_by_other_rfqs_count || 0) : '&mdash;');
-        $('#model-request-cart-total-shortfall').html(metadataReady ? (totals.procurement_shortfall || 0) : '&mdash;');
-        $('#model-request-cart-total-savings').html(metadataReady ? formattedTotals.estimated_savings : '&mdash;');
-        $('#model-request-cart-total-buy').html(metadataReady ? formattedTotals.amount_to_buy : '&mdash;');
-    }
-
     function refreshModelRequestCartPreview() {
         var projectId = $('#model-request-cart-project').val();
         var neededByDate = $('#model-request-cart-needed-by-date').val();
-        var metadataReady = Boolean(projectId && neededByDate);
 
         $.ajax({
             url: modelRequestCartPreviewUrl,
@@ -2172,8 +2139,8 @@
         }).done(function (response) {
             $('#model-request-cart-modal-error').hide().text('');
             updateModelRequestCartCount(response.cart_count || 0);
-            renderModelRequestCartLines(response.lines || [], metadataReady);
-            renderModelRequestCartTotals(response.totals || {}, response.totals_formatted || {}, metadataReady);
+            renderModelRequestCartLines(response.lines || []);
+            $('#model-request-cart-total-requested').text((response.totals || {}).quantity || 0);
             $('#model-request-cart-submit').prop('disabled', !response.cart_count);
         }).fail(function (xhr) {
             var message = 'Unable to load the request cart.';

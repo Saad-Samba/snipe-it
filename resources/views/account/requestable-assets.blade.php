@@ -29,10 +29,24 @@
             </div>
 
             <div class="box-body">
+                <p class="text-muted">Request the model and quantity your project needs. Reuse and procurement options are assessed after submission.</p>
+                <form method="GET" action="{{ route('requestable-assets') }}" class="form-inline" style="margin-bottom:15px;">
+                    <label for="catalogue-search">Search models</label>
+                    <input id="catalogue-search" name="search" class="form-control" value="{{ $search }}" placeholder="Model, number, or manufacturer">
+                    <label for="catalogue-category">Category</label>
+                    <select id="catalogue-category" name="category_id" class="form-control">
+                        <option value="">All categories</option>
+                        @foreach ($categories as $category)
+                            <option value="{{ $category->id }}" {{ (string) $categoryId === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                        @endforeach
+                    </select>
+                    <button type="submit" class="btn btn-default">Search</button>
+                    <a href="{{ route('requestable-assets') }}" class="btn btn-link">Clear filters</a>
+                </form>
                 @if ($models->isEmpty())
                     <div class="alert alert-info fade in" style="margin-bottom:0;">
                         <i class="fas fa-info-circle" aria-hidden="true"></i>
-                        No models with reusable inventory are currently available.
+                        No catalogue models match your search.
                     </div>
                 @else
                     <form id="requestableModelsBulkForm" class="form-inline" style="margin-bottom:10px;">
@@ -47,12 +61,12 @@
                             id="requestableModelsTable"
                             class="table table-striped snipe-table"
                             data-id-table="requestableModelsTable"
-                            data-cookie-id-table="requestableModelsTable"
+                            data-cookie-id-table="requestableModelsDemandTable"
                             data-bulk-button-id="#requestableModelsBulkAddButton"
                             data-bulk-form-id="#requestableModelsBulkForm"
                             data-click-to-select="false"
-                            data-search="true"
-                            data-pagination="true">
+                            data-search="false"
+                            data-pagination="false">
                             <thead>
                                 <tr>
                                     <th data-field="state" data-checkbox="true"></th>
@@ -61,8 +75,7 @@
                                     <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
                                     <th data-sortable="true">{{ trans('general.category') }}</th>
                                     <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
-                                    <th data-sortable="true">Reusable Assets <x-new-feature-label /></th>
-                                    <th data-sortable="true">Reference Price <x-new-feature-label /></th>
+                                    <th data-sortable="false">Specifications</th>
                                     <th data-sortable="false">Total Needed <x-new-feature-label /></th>
                                     <th data-sortable="false">Discipline <x-new-feature-label /></th>
                                     <th data-sortable="false">Destination Site <x-new-feature-label /></th>
@@ -83,15 +96,29 @@
                                                     class="img-responsive">
                                             @endif
                                         </td>
-                                        <td>{{ $requestableModel->name }}</td>
+                                        <td>
+                                            {{ $requestableModel->name }}
+                                            @if ($requestableModel->obsolete)<span class="label label-warning">Obsolete</span>@endif
+                                        </td>
                                         <td>{{ $requestableModel->category?->name }}</td>
                                         <td>{{ $requestableModel->model_number }}</td>
-                                        <td>{{ $requestableModel->reusable_assets_count }}</td>
                                         <td>
-                                            @if ($requestableModel->reference_price !== null)
-                                                {{ App\Helpers\Helper::formatCurrencyOutput($requestableModel->reference_price) }}
+                                            @php
+                                                $specificationFields = ($requestableModel->fieldset?->fields ?? collect())->filter(fn ($field) => $field->show_in_requestable_list && ! $field->field_encrypted);
+                                                $modelDefaults = $requestableModel->defaultValues->keyBy('id');
+                                            @endphp
+                                            @if ($specificationFields->isNotEmpty())
+                                                <details>
+                                                    <summary>View specifications</summary>
+                                                    <dl>
+                                                        @foreach ($specificationFields as $field)
+                                                            <dt>{{ $field->name }}</dt>
+                                                            <dd>{{ $modelDefaults->get($field->id)?->pivot?->default_value ?? '—' }}</dd>
+                                                        @endforeach
+                                                    </dl>
+                                                </details>
                                             @else
-                                                &mdash;
+                                                <span class="text-muted">No specifications recorded</span>
                                             @endif
                                         </td>
                                         <td>
@@ -139,6 +166,8 @@
                             </tbody>
                         </table>
                     </div>
+                    <p class="text-muted">Showing {{ $models->firstItem() }}–{{ $models->lastItem() }} of {{ $models->total() }} models. Selection applies to this page; your cart is retained across pages.</p>
+                    {{ $models->links() }}
                 @endif
             </div>
         </div>
@@ -149,8 +178,8 @@
 @section('moar_scripts')
     @include('partials.bootstrap-table', [
         'exportFile' => 'requestable-models-export',
-        'search' => true,
-        'clientSearch' => true,
+        'search' => false,
+        'clientSearch' => false,
     ])
 
     <script nonce="{{ csrf_token() }}">

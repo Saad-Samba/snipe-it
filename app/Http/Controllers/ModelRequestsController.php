@@ -13,10 +13,10 @@ use App\Exceptions\AssetNotRequestable;
 use App\Models\Actionlog;
 use App\Models\Asset;
 use App\Models\AssetModel;
+use App\Models\Category;
 use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\Company;
-use App\Models\CompanyableScope;
 use App\Models\Discipline;
 use App\Models\Project;
 use App\Models\Setting;
@@ -58,32 +58,38 @@ class ModelRequestsController extends Controller
         ]);
     }
 
-    public function getRequestableIndex(): View
+    public function getRequestableIndex(Request $request): View
     {
         $user = auth()->user();
         if (! $user?->hasAccess('models.request')) {
             throw new AuthorizationException('You are not authorized to request models.');
         }
 
-        $includeAllCompanies = $user->hasAccess('models.request.all_companies');
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+        ]);
+        $search = trim($filters['search'] ?? '');
+        $categoryId = $filters['category_id'] ?? null;
 
-        $models = AssetModel::with([
-            'category',
-        ])
-            ->withCount([
-                'availableAssets as reusable_assets_count' => function ($assetQuery) use ($includeAllCompanies) {
-                    if ($includeAllCompanies) {
-                        $assetQuery->withoutGlobalScope(CompanyableScope::class);
-                    }
-                },
-            ])
-            ->RequestableModels($includeAllCompanies)
+        $models = AssetModel::with(['category.fieldset.fields', 'fieldset.fields', 'defaultValues', 'manufacturer'])
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('models.name', 'like', '%'.$search.'%')
+                        ->orWhere('models.model_number', 'like', '%'.$search.'%')
+                        ->orWhereHas('manufacturer', fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
+                });
+            })
+            ->when($categoryId, fn ($query) => $query->where('category_id', $categoryId))
             ->orderBy('name')
-            ->get();
+            ->orderBy('id')
+            ->paginate(25)
+            ->withQueryString();
+        $categories = Category::where('category_type', 'asset')->orderBy('name')->get(['id', 'name']);
         $companies = Company::orderBy('name')->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
 
-        return view('account/requestable-assets', compact('companies', 'disciplines', 'models'));
+        return view('account/requestable-assets', compact('companies', 'disciplines', 'models', 'categories', 'search', 'categoryId'));
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse
@@ -371,7 +377,7 @@ class ModelRequestsController extends Controller
 
     public function previewRequestCart(Request $request): JsonResponse
     {
-        $validated = $request->validate([
+        $request->validate([
             'project_id' => ['nullable', 'integer', 'exists:projects,id,deleted_at,NULL'],
             'needed_by_date' => ['nullable', 'date'],
         ]);
@@ -381,20 +387,9 @@ class ModelRequestsController extends Controller
             throw new AuthorizationException('You are not authorized to request models.');
         }
 
-        $projectId = isset($validated['project_id']) ? (int) $validated['project_id'] : null;
-        $neededByDate = $validated['needed_by_date'] ?? null;
         $cart = $this->getModelRequestCart($request);
         $lines = [];
-        $totals = [
-            'quantity' => 0,
-            'reusable_quantity' => 0,
-            'due_back_before_needed_by_quantity' => 0,
-            'reserved_count' => 0,
-            'reserved_by_other_rfqs_count' => 0,
-            'procurement_shortfall' => 0,
-            'estimated_savings' => 0.0,
-            'amount_to_buy' => 0.0,
-        ];
+        $totals = ['quantity' => 0];
 
         foreach ($cart as $line) {
             $model = AssetModel::findOrFail((int) $line['model_id']);
@@ -402,38 +397,16 @@ class ModelRequestsController extends Controller
             $discipline = Discipline::findOrFail((int) $line['discipline_id']);
             $company = Company::findOrFail((int) $line['company_id']);
 
-            $previewLine = $this->buildModelRequestPreviewLine(
-                $model,
-                $discipline,
-                $company,
-                (int) $line['quantity'],
-                $projectId,
-                $neededByDate
-            );
-
+            $previewLine = $this->buildModelRequestPreviewLine($model, $discipline, $company, (int) $line['quantity']);
             $lines[] = $previewLine;
             $totals['quantity'] += $previewLine['quantity'];
-            $totals['reusable_quantity'] += $previewLine['reusable_quantity'];
-            $totals['due_back_before_needed_by_quantity'] += $previewLine['due_back_before_needed_by_quantity'];
-            $totals['reserved_count'] += $previewLine['reserved_count'];
-            $totals['reserved_by_other_rfqs_count'] += $previewLine['reserved_by_other_rfqs_count'];
-            $totals['procurement_shortfall'] += $previewLine['procurement_shortfall'];
-            $totals['estimated_savings'] += $previewLine['estimated_savings'];
-            $totals['amount_to_buy'] += $previewLine['amount_to_buy'];
         }
-
-        $totals['estimated_savings'] = round($totals['estimated_savings'], 2);
-        $totals['amount_to_buy'] = round($totals['amount_to_buy'], 2);
 
         return response()->json([
             'status' => 'success',
             'cart_count' => count($cart),
             'lines' => $lines,
             'totals' => $totals,
-            'totals_formatted' => [
-                'estimated_savings' => \App\Helpers\Helper::formatCurrencyOutput($totals['estimated_savings']),
-                'amount_to_buy' => \App\Helpers\Helper::formatCurrencyOutput($totals['amount_to_buy']),
-            ],
         ]);
     }
 
@@ -1091,32 +1064,8 @@ class ModelRequestsController extends Controller
         ]);
     }
 
-    private function buildModelRequestPreviewLine(AssetModel $model, Discipline $discipline, Company $company, int $quantity, ?int $projectId, ?string $neededByDate): array
+    private function buildModelRequestPreviewLine(AssetModel $model, Discipline $discipline, Company $company, int $quantity): array
     {
-        $estimate = $neededByDate
-            ? $this->estimateAssetModelRequest($model, $quantity, $neededByDate)
-            : [
-                'reusable_quantity' => 0,
-                'due_back_before_needed_by_quantity' => 0,
-                'procurement_shortfall' => 0,
-                'estimated_savings' => 0,
-                'reference_price_snapshot' => $model->reference_price !== null ? (float) $model->reference_price : null,
-            ];
-
-        $requestContext = new CheckoutRequest([
-            'project_id' => $projectId,
-            'requested_discipline_id' => $discipline->id,
-            'quantity' => $quantity,
-            'procurement_shortfall' => $estimate['procurement_shortfall'] ?? 0,
-            'reference_price_snapshot' => $estimate['reference_price_snapshot'] ?? null,
-        ]);
-        $requestContext->requestable_id = $model->id;
-        $requestContext->requestable_type = AssetModel::class;
-
-        $reservedCount = $projectId ? $requestContext->reservedAssetsCount() : 0;
-        $reservedByOtherProjectsCount = $projectId ? $requestContext->reservedByOtherRfqsCount() : 0;
-        $amountToBuy = round(((float) ($estimate['procurement_shortfall'] ?? 0)) * ((float) ($estimate['reference_price_snapshot'] ?? 0)), 2);
-
         return [
             'model_id' => (int) $model->id,
             'model_name' => $model->name,
@@ -1125,15 +1074,6 @@ class ModelRequestsController extends Controller
             'company_id' => (int) $company->id,
             'company_name' => $company->name,
             'quantity' => $quantity,
-            'reusable_quantity' => (int) ($estimate['reusable_quantity'] ?? 0),
-            'due_back_before_needed_by_quantity' => (int) ($estimate['due_back_before_needed_by_quantity'] ?? 0),
-            'reserved_count' => $reservedCount,
-            'reserved_by_other_rfqs_count' => $reservedByOtherProjectsCount,
-            'procurement_shortfall' => (int) ($estimate['procurement_shortfall'] ?? 0),
-            'estimated_savings' => round((float) ($estimate['estimated_savings'] ?? 0), 2),
-            'estimated_savings_formatted' => \App\Helpers\Helper::formatCurrencyOutput((float) ($estimate['estimated_savings'] ?? 0)),
-            'amount_to_buy' => $amountToBuy,
-            'amount_to_buy_formatted' => \App\Helpers\Helper::formatCurrencyOutput($amountToBuy),
         ];
     }
 

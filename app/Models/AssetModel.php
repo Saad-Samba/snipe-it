@@ -399,15 +399,6 @@ class AssetModel extends SnipeModel
         return (int) $managerId === (int) $user->id;
     }
 
-    public function scopeRequestableModels($query, bool $includeAllCompanies = false)
-    {
-        return $query->whereHas('availableAssets', function (Builder $assetQuery) use ($includeAllCompanies) {
-            if ($includeAllCompanies) {
-                $assetQuery->withoutGlobalScope(CompanyableScope::class);
-            }
-        });
-    }
-
     /**
      * Query builder scope to search on text, including catgeory and manufacturer name
      *

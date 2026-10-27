@@ -75,6 +75,10 @@ class LearAssignedCandidatesQaSeeder extends Seeder
         $onlyAssignedModel = AssetModel::updateOrCreate(['name' => 'QA ECU Debug Probe'], [
             'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id, 'reference_price' => 800,
         ]);
+        AssetModel::updateOrCreate(['name' => 'QA Programmable DC Supply'], [
+            'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id,
+            'model_number' => 'QA-PSU-60V', 'reference_price' => 1900,
+        ]);
         RegionalAssetCoordinatorAssignment::updateOrCreate([
             'company_id' => $site->id, 'discipline_id' => $discipline->id,
         ], ['user_id' => $users['coordinator']->id, 'created_by' => $admin->id]);

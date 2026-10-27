@@ -5,6 +5,7 @@
         <span class="small">Reusable Now, Due Back, Reserved, Estimated Savings, Shortfall, and Pending to Buy.</span>
     </div>
 @endif
+<p class="text-muted small">Availability, shortfall, savings, and purchase amounts are sourcing estimates. Assigned candidates require release confirmation; confirmed allocations are tracked separately.</p>
 <table
         data-cookie-id-table="{{ $tableId }}"
         data-id-table="{{ $tableId }}"
