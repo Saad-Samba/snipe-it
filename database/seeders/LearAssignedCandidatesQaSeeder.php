@@ -20,15 +20,11 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
-/** Synthetic electronics-lab scenarios, intended only for a dedicated local QA database. */
+/** Synthetic electronics-lab scenarios for a dedicated QA database. */
 class LearAssignedCandidatesQaSeeder extends Seeder
 {
     public function run(): void
     {
-        if (! app()->environment(['local', 'testing'])) {
-            throw new \RuntimeException('This seeder is restricted to local and testing environments.');
-        }
-
         $users = [];
         foreach ([
             'admin' => ['superuser' => '1'],

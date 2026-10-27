@@ -27,7 +27,7 @@ docker compose -f docker-compose.assigned-candidates.yml exec -T app php artisan
 docker compose -f docker-compose.assigned-candidates.yml exec -T app php artisan db:seed --class=LearAssignedCandidatesQaSeeder --force
 ```
 
-Startup creates OAuth keys if missing and gives Apache ownership of keys and runtime storage. The seeder is repeatable, restricted to local/testing, and uses synthetic electronics-lab data inspired by Lear. No real company records or personal data are used.
+Startup creates OAuth keys if missing and gives Apache ownership of keys and runtime storage. The seeder is repeatable, can run in any application environment, and uses synthetic electronics-lab data inspired by Lear. No real company records or personal data are used.
 
 ## Accounts and scenarios
 

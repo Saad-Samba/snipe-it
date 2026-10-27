@@ -241,8 +241,9 @@ class AssignedCandidatesTest extends TestCase
             ->assertOk()->assertJsonPath('total', 0)->assertJsonCount(0, 'rows');
     }
 
-    public function test_demo_seeder_is_repeatable_and_keeps_assigned_only_request_unrouted(): void
+    public function test_demo_seeder_runs_in_staging_is_repeatable_and_keeps_assigned_only_request_unrouted(): void
     {
+        $this->app->instance('env', 'staging');
         $this->seed(\Database\Seeders\LearAssignedCandidatesQaSeeder::class);
         $this->seed(\Database\Seeders\LearAssignedCandidatesQaSeeder::class);
         $coordinator = User::where('username', 'le-qa-coordinator')->firstOrFail();
