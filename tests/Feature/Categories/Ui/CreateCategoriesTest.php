@@ -78,7 +78,7 @@ class CreateCategoriesTest extends TestCase
             'notes' => 'My Note',
             'require_acceptance' => 0,
             'alert_on_response' => 0,
-            'checkin_email' => 1,
+            'checkin_email' => 0,
         ]);
     }
 

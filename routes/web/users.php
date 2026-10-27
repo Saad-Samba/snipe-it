@@ -107,6 +107,22 @@ Route::group(['prefix' => 'users', 'middleware' => ['auth']], function () {
         ]
     )->name('users.transfer.assets.all');
 
+    Route::post(
+        '{user}/impersonate',
+        [
+            Users\ImpersonateController::class,
+            'start',
+        ]
+    )->name('users.impersonate.start');
+
+    Route::post(
+        'impersonate/stop',
+        [
+            Users\ImpersonateController::class,
+            'stop',
+        ]
+    )->name('users.impersonate.stop');
+
     Route::get(
         '{user}/checkin-assets',
         [

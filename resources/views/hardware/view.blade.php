@@ -752,56 +752,57 @@
                                     </div>
 
                                     @if (($asset->model) && ($asset->model->fieldset))
-                                        @foreach($asset->model->fieldset->fields as $field)
+                                        @foreach($asset->model->fieldset->fields->filter(fn ($field) => $asset->model->ownsSpecification($field)) as $field)
+                                            @php($fieldValue = $asset->customFieldValue($field))
                                             <div class="row">
                                                 <div class="col-md-3">
                                                     <strong>
                                                         {{ $field->name }}
                                                     </strong>
                                                 </div>
-                                                <div class="col-md-9{{ (($field->format=='URL') && ($asset->{$field->db_column_name()}!='')) ? ' ellipsis': '' }}">
+                                                <div class="col-md-9{{ (($field->format=='URL') && ($fieldValue!='')) ? ' ellipsis': '' }}">
 
-                                                    @if (!empty($asset->{$field->db_column_name()}))
+                                                    @if (!empty($fieldValue))
                                                         <x-copy-to-clipboard copy_what="{{ $field->id }}">
                                                         </x-copy-to-clipboard>
                                                         {{-- Hidden span used as copy target --}}
                                                         {{-- It's tempting to break out the HTML into separate lines for this, but it results in extra spaces being added onto the end of the copied value --}}
                                                         @if (($field->field_encrypted=='1') && (Gate::allows('assets.view.encrypted_custom_fields')))
-                                                            <span class="js-copy-{{ $field->id }} visually-hidden hidden-print" style="font-size: 0px;">{{ ($field->isFieldDecryptable($asset->{$field->db_column_name()}) ? Helper::gracefulDecrypt($field, $asset->{$field->db_column_name()}) : $asset->{$field->db_column_name()}) }}</span>
+                                                            <span class="js-copy-{{ $field->id }} visually-hidden hidden-print" style="font-size: 0px;">{{ ($field->isFieldDecryptable($fieldValue) ? Helper::gracefulDecrypt($field, $fieldValue) : $fieldValue) }}</span>
                                                         @elseif (($field->field_encrypted=='1') && (Gate::denies('assets.view.encrypted_custom_fields')))
                                                             <span class="js-copy-{{ $field->id }} visually-hidden hidden-print" style="font-size: 0px;">{{ strtoupper(trans('admin/custom_fields/general.encrypted')) }}</span>
                                                         @else
-                                                            <span class="js-copy-{{ $field->id }} visually-hidden hidden-print" style="font-size: 0px;">{{ $asset->{$field->db_column_name()} }}</span>
+                                                            <span class="js-copy-{{ $field->id }} visually-hidden hidden-print" style="font-size: 0px;">{{ $fieldValue }}</span>
                                                         @endif
 
 
                                                         @endif
-                                                        @if (($field->field_encrypted=='1') && ($asset->{$field->db_column_name()}!='') && (Gate::allows('assets.view.encrypted_custom_fields')))
+                                                        @if (($field->field_encrypted=='1') && ($fieldValue!='') && (Gate::allows('assets.view.encrypted_custom_fields')))
                                                             <i class="fas fa-lock" data-tooltip="true" data-placement="top" title="{{ trans('admin/custom_fields/general.value_encrypted') }}" onclick="showHideEncValue(this)" id="text-{{ $field->id }}"></i>
                                                         @endif
 
-                                                        @if ($field->isFieldDecryptable($asset->{$field->db_column_name()} ))
+                                                        @if ($field->isFieldDecryptable($fieldValue))
                                                             @can('assets.view.encrypted_custom_fields')
                                                                 @php
-                                                                    $fieldSize = strlen(Helper::gracefulDecrypt($field, $asset->{$field->db_column_name()}))
+                                                                    $fieldSize = strlen(Helper::gracefulDecrypt($field, $fieldValue))
                                                                 @endphp
                                                                 @if ($fieldSize > 0)
                                                                     <span id="text-{{ $field->id }}-to-hide">***********</span>
-                                                                        @if (($field->format=='URL') && ($asset->{$field->db_column_name()}!=''))
+                                                                        @if (($field->format=='URL') && ($fieldValue!=''))
                                                                             <span class="js-copy-{{ $field->id }} hidden-print"
                                                                                   id="text-{{ $field->id }}-to-show"
                                                                                   style="font-size: 0px;">
-                                                                                <a href="{{ Helper::gracefulDecrypt($field, $asset->{$field->db_column_name()}) }}"
-                                                                                        target="_new">{{ Helper::gracefulDecrypt($field, $asset->{$field->db_column_name()}) }}</a>
+                                                                                <a href="{{ Helper::gracefulDecrypt($field, $fieldValue) }}"
+                                                                                        target="_new">{{ Helper::gracefulDecrypt($field, $fieldValue) }}</a>
                                                                             </span>
-                                                                        @elseif (($field->format=='DATE') && ($asset->{$field->db_column_name()}!=''))
+                                                                        @elseif (($field->format=='DATE') && ($fieldValue!=''))
                                                                             <span class="js-copy-{{ $field->id }} hidden-print"
                                                                                   id="text-{{ $field->id }}-to-show"
-                                                                                  style="font-size: 0px;">{{ \App\Helpers\Helper::gracefulDecrypt($field, \App\Helpers\Helper::getFormattedDateObject($asset->{$field->db_column_name()}, 'date', false)) }}</span>
+                                                                                  style="font-size: 0px;">{{ \App\Helpers\Helper::gracefulDecrypt($field, \App\Helpers\Helper::getFormattedDateObject($fieldValue, 'date', false)) }}</span>
                                                                         @else
                                                                             <span class="js-copy-{{ $field->id }} hidden-print"
                                                                                   id="text-{{ $field->id }}-to-show"
-                                                                                  style="font-size: 0px;">{{ Helper::gracefulDecrypt($field, $asset->{$field->db_column_name()}) }}</span>
+                                                                                  style="font-size: 0px;">{{ Helper::gracefulDecrypt($field, $fieldValue) }}</span>
                                                                         @endif
                                                                 @endif
                                                             @else
@@ -809,19 +810,19 @@
                                                             @endcan
 
                                                         @else
-                                                            @if (($field->format=='BOOLEAN') && ($asset->{$field->db_column_name()}!=''))
-                                                                {!! ($asset->{$field->db_column_name()} == 1) ? "<span class='fas fa-check-circle' style='color:green' />" : "<span class='fas fa-times-circle' style='color:red' />" !!}
-                                                            @elseif (($field->format=='URL') && ($asset->{$field->db_column_name()}!=''))
-                                                                <a href="{{ $asset->{$field->db_column_name()} }}" target="_new">{{ $asset->{$field->db_column_name()} }}</a>
-                                                            @elseif (($field->format=='DATE') && ($asset->{$field->db_column_name()}!=''))
-                                                                {{ \App\Helpers\Helper::getFormattedDateObject($asset->{$field->db_column_name()}, 'date', false) }}
+                                                            @if (($field->format=='BOOLEAN') && ($fieldValue!=''))
+                                                                {!! ($fieldValue == 1) ? "<span class='fas fa-check-circle' style='color:green' />" : "<span class='fas fa-times-circle' style='color:red' />" !!}
+                                                            @elseif (($field->format=='URL') && ($fieldValue!=''))
+                                                                <a href="{{ $fieldValue }}" target="_new">{{ $fieldValue }}</a>
+                                                            @elseif (($field->format=='DATE') && ($fieldValue!=''))
+                                                                {{ \App\Helpers\Helper::getFormattedDateObject($fieldValue, 'date', false) }}
                                                             @else
-                                                                {!! nl2br(e($asset->{$field->db_column_name()})) !!}
+                                                                {!! nl2br(e($fieldValue)) !!}
                                                             @endif
 
                                                         @endif
 
-                                                        @if ($asset->{$field->db_column_name()}=='')
+                                                        @if ($fieldValue=='')
                                                             &nbsp;
                                                         @endif
                                                     </div>

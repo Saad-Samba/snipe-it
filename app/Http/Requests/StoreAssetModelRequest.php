@@ -49,7 +49,6 @@ class StoreAssetModelRequest extends ImageUploadRequest
         $rules = array_merge(
             [
                 'category_type' => 'in:asset',
-                'add_default_values' => 'nullable|boolean',
                 'default_values' => 'nullable|array',
             ],
             parent::rules(),

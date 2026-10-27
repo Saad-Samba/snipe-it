@@ -362,6 +362,26 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
         return $this->checkPermissionSection('superuser');
     }
 
+    public function canImpersonate(): bool
+    {
+        if (! $this->isSuperUser()) {
+            return false;
+        }
+
+        $allowed = array_map('mb_strtolower', (array) config('app.user_impersonation_usernames'));
+
+        return in_array(mb_strtolower((string) $this->username), $allowed, true);
+    }
+
+    public function mayImpersonate(User $target): bool
+    {
+        return $this->canImpersonate()
+            && $target->id !== $this->id
+            && ! $target->isSuperUser()
+            && $target->deleted_at === null
+            && $target->activated == 1;
+    }
+
     /**
      * Checks if the user is an admin
      *

@@ -1,5 +1,30 @@
 @push('css')
     <link rel="stylesheet" href="{{ url(mix('css/dist/bootstrap-table.css')) }}">
+    <style nonce="{{ csrf_token() }}">
+        .snipe-top-scrollbar { position: relative; }
+        .snipe-top-scrollbar-indicator {
+            position: absolute;
+            top: 1px;
+            left: 0;
+            right: 0;
+            height: 7px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.09);
+            cursor: pointer;
+            touch-action: none;
+        }
+        .snipe-top-scrollbar-thumb {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 7px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.50);
+        }
+        .snipe-top-scrollbar-indicator:hover .snipe-top-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.70);
+        }
+    </style>
 @endpush
 
 @push('js')
@@ -58,6 +83,7 @@
                 }
                 return default_value;
             }
+            var extraQueryParamsCallback = data_with_default('extra-query-params', null);
 
 
 
@@ -141,6 +167,10 @@
                         if (advancedFilters[filterKey] !== undefined && advancedFilters[filterKey] !== null && advancedFilters[filterKey] !== '') {
                             newParams[filterKey] = advancedFilters[filterKey];
                         }
+                    }
+
+                    if (extraQueryParamsCallback && typeof window[extraQueryParamsCallback] === 'function') {
+                        newParams = window[extraQueryParamsCallback](newParams) || newParams;
                     }
 
                     return newParams;
@@ -1502,6 +1532,41 @@
         return '<div style="white-space:nowrap;">' + modelMetric + assetMetric + '</div>';
     }
 
+    function categoryTechnicalSpecificationsFormatter(value) {
+        if (!value || !value.id) {
+            return '<span class="text-muted">No technical specifications configured</span>';
+        }
+
+        var fieldsetLink = '';
+        if (value.can_view) {
+            var fieldsetUrl = '{{ route('fieldsets.show', ['fieldset' => '__FIELDSET_ID__']) }}'
+                .replace('__FIELDSET_ID__', encodeURIComponent(value.id));
+            fieldsetLink = '<a href="' + fieldsetUrl + '" class="btn btn-default btn-xs"'
+                + ' title="View custom fieldset" aria-label="View custom fieldset">'
+                + '<i class="fa-regular fa-rectangle-list" aria-hidden="true"></i>'
+                + '<span class="sr-only">View custom fieldset</span></a>';
+        }
+        var fields = Array.isArray(value.fields) ? value.fields : [];
+        var specificationNames = fields.length
+            ? '<div>' + fields.map(function (name) {
+                return '<span class="label label-default" style="display:inline-block; margin:2px 2px 2px 0;">' + name + '</span>';
+            }).join('') + '</div>'
+            : '<span class="text-muted">No technical specifications configured</span>';
+        var fieldsetLinkMarkup = fieldsetLink
+            ? '<div style="margin-top:4px;">' + fieldsetLink + '</div>'
+            : '';
+
+        return '<div>' + specificationNames + fieldsetLinkMarkup + '</div>';
+    }
+
+    function modelSpecificationValueFormatter(value) {
+        if (value === null || value === undefined || String(value).trim() === '') {
+            return '<span class="text-muted">—</span>';
+        }
+
+        return value;
+    }
+
     function modelReusableAssetsFormatter(value, row) {
         var assets = Number(value) || 0;
 
@@ -1628,7 +1693,10 @@
 
     }
 
-    var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
+    @php
+        $modelRequestProjects = \App\Models\Project::orderBy('name')->get(['id', 'name', 'is_rfq', 'rfq_needed_by_date']);
+    @endphp
+    var modelRequestProjects = @json($modelRequestProjects);
     var modelRequestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name']));
     var modelRequestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name']));
     var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
@@ -1649,6 +1717,21 @@
         });
 
         return options.join('');
+    }
+
+    function applyRfqProjectNeededByDate(projectSelect, neededByDateInput, notice) {
+        var project = modelRequestProjects.find(function (candidate) {
+            return String(candidate.id) === String($(projectSelect).val());
+        });
+        var neededByDate = project && project.is_rfq ? project.rfq_needed_by_date : null;
+
+        if (neededByDate) {
+            $(neededByDateInput).val(neededByDate).prop('readonly', true);
+            $(notice).text('This RFQ project has one official Needed By date: ' + neededByDate + '.').show();
+        } else {
+            $(neededByDateInput).prop('readonly', false);
+            $(notice).hide().text('');
+        }
     }
 
     function buildModelRequestDisciplineOptions(selectedDisciplineId) {
@@ -1800,6 +1883,7 @@
             + '          <div class="form-group" id="model-request-modal-needed-by-group">'
             + '            <label for="model-request-modal-needed-by-date">Needed By</label>'
             + '            <input type="date" name="needed_by_date" id="model-request-modal-needed-by-date" class="form-control" required>'
+            + '            <span class="help-block" id="model-request-modal-rfq-notice" style="display:none;"></span>'
             + '          </div>'
             + '          <div id="model-request-modal-estimate" class="well well-sm" style="margin-bottom:0;">'
             + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Estimate <span class="label label-info" data-tooltip="true" title="Recently released feature">NEW</span></div>'
@@ -1824,6 +1908,10 @@
         $('body').append(modalHtml);
 
         $('#model-request-modal-project, #model-request-modal-needed-by-date, #model-request-modal-quantity, #model-request-modal-company').on('change keyup', function () {
+            updateModelRequestEstimateSummary();
+        });
+        $('#model-request-modal-project').on('change', function () {
+            applyRfqProjectNeededByDate('#model-request-modal-project', '#model-request-modal-needed-by-date', '#model-request-modal-rfq-notice');
             updateModelRequestEstimateSummary();
         });
 
@@ -1862,6 +1950,7 @@
             + '          <div class="form-group">'
             + '            <label for="request-submission-modal-needed-by-date">Needed By</label>'
             + '            <input type="date" name="needed_by_date" id="request-submission-modal-needed-by-date" class="form-control" required>'
+            + '            <span class="help-block" id="request-submission-modal-rfq-notice" style="display:none;"></span>'
             + '          </div>'
             + '        </div>'
             + '        <div class="modal-footer">'
@@ -1877,6 +1966,9 @@
         $('#request-submission-modal-create-project').on('click', function () {
             createProjectFromRequestModal('#request-submission-modal-project', '#request-submission-modal-error');
         });
+        $('#request-submission-modal-project').on('change', function () {
+            applyRfqProjectNeededByDate('#request-submission-modal-project', '#request-submission-modal-needed-by-date', '#request-submission-modal-rfq-notice');
+        });
     }
 
     function openRequestSubmissionModal(updateUrl, projectId, neededByDate) {
@@ -1885,6 +1977,7 @@
         $('#request-submission-modal-project').html(buildModelRequestProjectOptions(projectId || ''));
         $('#request-submission-modal-project').val(String(projectId || ''));
         $('#request-submission-modal-needed-by-date').val(neededByDate || '');
+        applyRfqProjectNeededByDate('#request-submission-modal-project', '#request-submission-modal-needed-by-date', '#request-submission-modal-rfq-notice');
         $('#request-submission-modal-error').hide().text('');
         $('#request-submission-modal').modal('show');
     }
@@ -1924,6 +2017,7 @@
             + '              <div class="form-group">'
             + '                <label for="model-request-cart-needed-by-date">Needed By</label>'
             + '                <input type="date" name="needed_by_date" id="model-request-cart-needed-by-date" class="form-control" required>'
+            + '                <span class="help-block" id="model-request-cart-rfq-notice" style="display:none;"></span>'
             + '              </div>'
             + '            </div>'
             + '          </div>'
@@ -1973,6 +2067,10 @@
         $('body').append(modalHtml);
 
         $('#model-request-cart-project, #model-request-cart-needed-by-date').on('change keyup', function () {
+            refreshModelRequestCartPreview();
+        });
+        $('#model-request-cart-project').on('change', function () {
+            applyRfqProjectNeededByDate('#model-request-cart-project', '#model-request-cart-needed-by-date', '#model-request-cart-rfq-notice');
             refreshModelRequestCartPreview();
         });
 
@@ -2041,6 +2139,7 @@
         $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
         $('#model-request-modal-project').val(String(options.projectId || ''));
         $('#model-request-modal-needed-by-date').val(options.neededByDate || '');
+        applyRfqProjectNeededByDate('#model-request-modal-project', '#model-request-modal-needed-by-date', '#model-request-modal-rfq-notice');
         $('#model-request-modal-project-group, #model-request-modal-needed-by-group').toggle(options.showSharedContext !== false);
         $('#model-request-modal-submit').text(options.submitLabel);
         resetModelRequestEstimateState();
@@ -2193,6 +2292,7 @@
 
     function openModelRequestCartModal() {
         ensureModelRequestCartModal();
+        applyRfqProjectNeededByDate('#model-request-cart-project', '#model-request-cart-needed-by-date', '#model-request-cart-rfq-notice');
         $('#model-request-cart-modal').modal('show');
         refreshModelRequestCartPreview();
     }
@@ -2254,7 +2354,9 @@
 
             modelRequestProjects.push({
                 id: response.payload.id,
-                name: response.payload.name
+                name: response.payload.name,
+                is_rfq: false,
+                rfq_needed_by_date: null
             });
             modelRequestProjects.sort(function (a, b) {
                 return a.name.localeCompare(b.name);
@@ -3272,7 +3374,7 @@
             }
 
             if (! $topScrollbar.length) {
-                $topScrollbar = $('<div class="snipe-top-scrollbar" aria-hidden="true"><div class="snipe-top-scrollbar-inner"></div></div>');
+                $topScrollbar = $('<div class="snipe-top-scrollbar" aria-hidden="true"><div class="snipe-top-scrollbar-inner"></div><div class="snipe-top-scrollbar-indicator"><div class="snipe-top-scrollbar-thumb"></div></div></div>');
                 $container.before($topScrollbar);
             } else {
                 $topScrollbar.show();
@@ -3289,18 +3391,70 @@
                 if (syncing) return;
                 syncing = true;
                 primaryBody.scrollLeft = topScrollbar.scrollLeft;
+                updateTopScrollbarThumb($topScrollbar);
                 syncing = false;
             });
             $primaryBody.off('scroll.snipeScrollSync').on('scroll.snipeScrollSync', function () {
                 if (syncing) return;
                 syncing = true;
                 topScrollbar.scrollLeft = primaryBody.scrollLeft;
+                updateTopScrollbarThumb($topScrollbar);
                 syncing = false;
             });
 
             $topScrollbar.children('.snipe-top-scrollbar-inner').css('width', primaryTable.scrollWidth + 'px');
+            var trackWidth = topScrollbar.clientWidth;
+            var thumbWidth = Math.max(48, Math.round(trackWidth * trackWidth / primaryTable.scrollWidth));
+            $topScrollbar.data('snipeScrollMetrics', {
+                maxScroll: Math.max(1, primaryTable.scrollWidth - trackWidth),
+                maxThumbLeft: Math.max(0, trackWidth - thumbWidth)
+            });
+            $topScrollbar.find('.snipe-top-scrollbar-thumb').css('width', thumbWidth + 'px');
+            updateTopScrollbarThumb($topScrollbar);
+
+            $topScrollbar.find('.snipe-top-scrollbar-indicator')
+                .off('pointerdown.snipeScrollSync')
+                .on('pointerdown.snipeScrollSync', function (event) {
+                    if (event.button !== 0) return;
+                    event.preventDefault();
+
+                    var indicator = this;
+                    var metrics = $topScrollbar.data('snipeScrollMetrics');
+                    var thumb = $topScrollbar.find('.snipe-top-scrollbar-thumb')[0];
+                    var bounds = indicator.getBoundingClientRect();
+                    var thumbLeft = parseFloat(thumb.style.left) || 0;
+                    var offset = event.target === thumb ? event.clientX - bounds.left - thumbLeft : thumb.offsetWidth / 2;
+
+                    function move(pointerEvent) {
+                        var nextLeft = Math.max(0, Math.min(metrics.maxThumbLeft, pointerEvent.clientX - bounds.left - offset));
+                        topScrollbar.scrollLeft = nextLeft / Math.max(1, metrics.maxThumbLeft) * metrics.maxScroll;
+                    }
+
+                    function stop() {
+                        indicator.removeEventListener('pointermove', move);
+                        indicator.removeEventListener('pointerup', stop);
+                        indicator.removeEventListener('pointercancel', stop);
+                    }
+
+                    indicator.setPointerCapture(event.originalEvent.pointerId);
+                    indicator.addEventListener('pointermove', move);
+                    indicator.addEventListener('pointerup', stop);
+                    indicator.addEventListener('pointercancel', stop);
+                    move(event);
+                });
             pinTopScrollbarIfScrolled($topScrollbar, $container);
         });
+    }
+
+    function updateTopScrollbarThumb($topScrollbar) {
+        var metrics = $topScrollbar.data('snipeScrollMetrics');
+        if (!metrics) return;
+
+        var left = Math.round($topScrollbar[0].scrollLeft / metrics.maxScroll * metrics.maxThumbLeft);
+        var thumb = $topScrollbar.find('.snipe-top-scrollbar-thumb')[0];
+        if (thumb && thumb.style.left !== left + 'px') {
+            thumb.style.left = left + 'px';
+        }
     }
 
     function updateStickyHeaderOffset($table, offset) {
@@ -3320,23 +3474,28 @@
         if (! $topScrollbar.length || ! $container.length || $topScrollbar.css('display') === 'none') return;
 
         var containerRect = $container[0].getBoundingClientRect();
-        var scrollbarHeight = $topScrollbar.outerHeight();
+        var scrollbarHeight = $topScrollbar[0].offsetHeight;
         var shouldPin = containerRect.top < 0 && containerRect.bottom >= scrollbarHeight;
 
         if (shouldPin) {
-            $topScrollbar.addClass('is-pinned').css({
-                position: 'fixed',
-                top: 0,
-                left: Math.round(containerRect.left) + 'px',
-                width: Math.round(containerRect.width) + 'px'
-            });
+            var left = Math.round(containerRect.left);
+            var width = Math.round(containerRect.width);
+            var geometry = left + ':' + width;
+            if (! $topScrollbar.hasClass('is-pinned') || $topScrollbar.data('snipePinnedGeometry') !== geometry) {
+                $topScrollbar.addClass('is-pinned').css({
+                    position: 'fixed',
+                    top: 0,
+                    left: left + 'px',
+                    width: width + 'px'
+                }).data('snipePinnedGeometry', geometry);
+            }
         } else if ($topScrollbar.hasClass('is-pinned')) {
             $topScrollbar.removeClass('is-pinned').css({
                 position: '',
                 top: '',
                 left: '',
                 width: ''
-            });
+            }).removeData('snipePinnedGeometry');
         }
     }
 

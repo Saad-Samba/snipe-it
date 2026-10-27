@@ -48,6 +48,14 @@ class CategoryPresenter extends Presenter
                 'title' => trans('general.type'),
                 'visible' => true,
             ], [
+                'field' => 'fieldset',
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => true,
+                'title' => 'Technical Specifications',
+                'visible' => true,
+                'formatter' => 'categoryTechnicalSpecificationsFormatter',
+            ], [
                 'field' => 'manager',
                 'searchable' => false,
                 'sortable' => true,

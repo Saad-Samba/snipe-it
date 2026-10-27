@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\CheckoutRequests\EstimateAssetModelReuseAction;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
@@ -97,11 +98,19 @@ class ModelRequestsController extends Controller
 
     public function index(Request $request): array
     {
-        if (! auth()->user()->hasAccess('models.request')) {
+        $isProjectOverview = $request->boolean('project_overview');
+        $project = null;
+
+        if ($isProjectOverview) {
+            $project = Project::findOrFail($request->integer('project_id'));
+            $this->authorize('view', $project);
+        } elseif (! auth()->user()->hasAccess('models.request')) {
             abort(403, 'You are not authorized to view submitted requests.');
         }
 
-        $checkoutRequests = CheckoutRequest::requesterScopedQuery(auth()->user())
+        $checkoutRequests = ($isProjectOverview
+            ? CheckoutRequest::query()->whereNull('canceled_at')
+            : CheckoutRequest::requesterScopedQuery(auth()->user()))
             ->with([
                 'requestedItem',
                 'project',
@@ -123,6 +132,16 @@ class ModelRequestsController extends Controller
             $checkoutRequests->where('project_id', (int) $request->input('project_id'));
         }
 
+        if ($isProjectOverview && $request->filled('requester_id')) {
+            $checkoutRequests->where('user_id', (int) $request->input('requester_id'));
+        }
+
+        if ($isProjectOverview && $request->boolean('unassigned_discipline')) {
+            $checkoutRequests->whereNull('requested_discipline_id');
+        } elseif ($isProjectOverview && $request->filled('discipline_id')) {
+            $checkoutRequests->where('requested_discipline_id', (int) $request->input('discipline_id'));
+        }
+
         if ($request->filled('project')) {
             $projectSearch = trim((string) $request->input('project'));
             $checkoutRequests->whereHas('project', function ($query) use ($projectSearch) {
@@ -139,7 +158,18 @@ class ModelRequestsController extends Controller
         }
 
         $checkoutRequests = $checkoutRequests->get();
-        $submissionEditable = $checkoutRequests
+
+        if ($isProjectOverview
+            && $request->input('overview') === 'grouped'
+            && ! $request->filled('requester_id')
+            && ! $request->filled('discipline_id')
+            && ! $request->boolean('unassigned_discipline')) {
+            return $this->projectOverviewGroupResults($checkoutRequests);
+        }
+
+        $submissionEditable = $isProjectOverview
+            ? collect()
+            : $checkoutRequests
             ->groupBy(fn (CheckoutRequest $checkoutRequest) => $this->submissionKey($checkoutRequest))
             ->map(fn (Collection $submissionRequests) => $this->submissionIsEditable($submissionRequests));
 
@@ -150,7 +180,8 @@ class ModelRequestsController extends Controller
         $results = [];
         $results['total'] = $checkoutRequests->count();
         $showableFields = [];
-        $canViewAssets = auth()->user()->can('index', Asset::class);
+        $user = auth()->user();
+        $canViewAssets = $user->can('index', Asset::class);
 
         foreach (CustomField::all() as $field) {
             if (($field->field_encrypted == '0') && ($field->show_in_requestable_list == '1')) {
@@ -181,7 +212,13 @@ class ModelRequestsController extends Controller
                 $checkoutRequest->requestable_type === AssetModel::class
                 && $requestedItem instanceof AssetModel
             ) ? $requestedItem : null;
-            $canEditSubmission = (bool) ($submissionEditable[$this->submissionKey($checkoutRequest)] ?? false);
+            $canEditSubmission = ! $isProjectOverview
+                && (bool) ($submissionEditable[$this->submissionKey($checkoutRequest)] ?? false);
+            $canViewRequestAssets = $canViewAssets && (
+                $user->isSuperUser()
+                || (int) $checkoutRequest->user_id === (int) $user->id
+                || $checkoutRequest->coordinatorTargets->contains('user_id', $user->id)
+            );
 
             $assets = [
                 'request_id' => (int) $checkoutRequest->id,
@@ -241,17 +278,17 @@ class ModelRequestsController extends Controller
                     ? route('requests.index', ['model_id' => $checkoutRequest->requestable_id])
                     : null,
                 'project_requests_url' => $this->projectRequestsUrl($checkoutRequest->project),
-                'request_detail_url' => $canViewAssets ? route('hardware.index', $requestDetailQuery) : null,
-                'reusable_now_url' => $canViewAssets
+                'request_detail_url' => $canViewRequestAssets ? route('hardware.index', $requestDetailQuery) : null,
+                'reusable_now_url' => $canViewRequestAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reusable_now']))
                     : null,
-                'due_back_url' => $canViewAssets
+                'due_back_url' => $canViewRequestAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'due_back']))
                     : null,
-                'reserved_assets_url' => $canViewAssets
+                'reserved_assets_url' => $canViewRequestAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved']))
                     : null,
-                'reserved_by_other_project_url' => $canViewAssets
+                'reserved_by_other_project_url' => $canViewRequestAssets
                     ? route('hardware.index', array_merge($requestAssetBucketBaseQuery, ['request_bucket' => 'reserved_other_project']))
                     : null,
                 'request_update_url' => $canEditSubmission ? route('requests.update', $checkoutRequest) : null,
@@ -267,6 +304,82 @@ class ModelRequestsController extends Controller
         }
 
         return $results;
+    }
+
+    private function projectOverviewGroupResults(Collection $checkoutRequests): array
+    {
+        $rows = $checkoutRequests
+            ->groupBy(function (CheckoutRequest $checkoutRequest) {
+                return $checkoutRequest->requested_discipline_id ?: 'unassigned';
+            })
+            ->map(function (Collection $requests) {
+                /** @var CheckoutRequest $firstRequest */
+                $firstRequest = $requests->sortBy('id')->first();
+                $summary = $this->projectOverviewGroupSummary($requests);
+                $statusValues = $requests
+                    ->map(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requesterAllocationStatus())
+                    ->unique()
+                    ->values();
+
+                return [
+                    'requested_discipline' => e(optional($firstRequest->requestedDiscipline)->name ?: 'Not specified'),
+                    'total_needed' => $summary['total_needed'],
+                    'reusable_now' => $summary['reusable_now'],
+                    'shortfall' => $summary['shortfall'],
+                    'status' => $statusValues->count() === 1
+                        ? e(ucfirst(str_replace('_', ' ', $statusValues->first())))
+                        : 'Mixed',
+                    'drill_down_url' => route('projects.show', [
+                        'project' => $firstRequest->project_id,
+                        'tab' => 'requests',
+                        'discipline_id' => $firstRequest->requested_discipline_id,
+                        'unassigned_discipline' => $firstRequest->requested_discipline_id ? null : 1,
+                    ]),
+                ];
+            })
+            ->sortBy('requested_discipline')
+            ->values();
+
+        return [
+            'total' => $rows->count(),
+            'rows' => $rows->all(),
+        ];
+    }
+
+    private function projectOverviewGroupSummary(Collection $requests): array
+    {
+        return $requests
+            ->groupBy(fn (CheckoutRequest $checkoutRequest) => $checkoutRequest->requestable_type.':'.$checkoutRequest->requestable_id)
+            ->reduce(function (array $summary, Collection $modelRequests) {
+                /** @var CheckoutRequest $firstRequest */
+                $firstRequest = $modelRequests->first();
+                $quantity = (int) $modelRequests->sum('quantity');
+
+                if ($firstRequest->requestable_type === AssetModel::class && $firstRequest->requestedItem instanceof AssetModel) {
+                    $neededByDate = $modelRequests
+                        ->pluck('needed_by_date')
+                        ->filter()
+                        ->map(fn ($date) => $date->format('Y-m-d'))
+                        ->sort()
+                        ->first();
+                    $estimate = EstimateAssetModelReuseAction::run($firstRequest->requestedItem, $quantity, $neededByDate);
+
+                    $summary['reusable_now'] += (int) $estimate['reusable_quantity'];
+                    $summary['shortfall'] += (int) $estimate['procurement_shortfall'];
+                } else {
+                    $lineSummary = CheckoutRequest::summarizeRequests($modelRequests);
+                    $summary['reusable_now'] += (int) $lineSummary['reusable_now'];
+                    $summary['shortfall'] += (int) $lineSummary['shortfall'];
+                }
+
+                $summary['total_needed'] += $quantity;
+
+                return $summary;
+            }, [
+                'total_needed' => 0,
+                'reusable_now' => 0,
+                'shortfall' => 0,
+            ]);
     }
 
     private function batchResults(Collection $checkoutRequests): array
