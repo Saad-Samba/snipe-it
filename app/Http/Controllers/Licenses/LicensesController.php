@@ -206,7 +206,6 @@ class LicensesController extends Controller
 
     private function validateMaintenanceExpiry(Request $request, ?License $license = null): void
     {
-        $perpetual = $request->has('perpetual') ? $request->boolean('perpetual') : (bool) $license?->perpetual;
         $maintained = $request->has('maintained') ? $request->boolean('maintained') : (bool) $license?->maintained;
 
         $request->validate([
@@ -214,7 +213,7 @@ class LicensesController extends Controller
                 'nullable',
                 'date_format:Y-m-d',
                 'max:10',
-                Rule::requiredIf($perpetual && $maintained),
+                Rule::requiredIf($maintained),
             ],
         ]);
     }

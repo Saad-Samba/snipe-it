@@ -117,10 +117,9 @@ class LicenseImporter extends ItemImporter
             $this->item['maintenance_expires_at'] = date('Y-m-d 00:00:01', strtotime($this->findCsvMatch($row, 'maintenance_expires_at')));
         }
 
-        if (filter_var($this->item['perpetual'], FILTER_VALIDATE_BOOLEAN)
-            && filter_var($this->item['maintained'], FILTER_VALIDATE_BOOLEAN)
+        if (filter_var($this->item['maintained'], FILTER_VALIDATE_BOOLEAN)
             && is_null($this->item['maintenance_expires_at'])) {
-            $message = 'Maintenance expiry date is required for a maintained perpetual license.';
+            $message = 'Maintenance expiry date is required for a maintained license.';
             $this->log($message);
             $this->addErrorToBag($license, 'maintenance_expires_at', $message);
 

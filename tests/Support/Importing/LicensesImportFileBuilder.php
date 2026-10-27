@@ -76,7 +76,7 @@ class LicensesImportFileBuilder extends FileBuilder
             'category'         => Str::random(),
             'companyName'      => Str::random() . " {$faker->companySuffix}",
             'expirationDate'   => $faker->date,
-            'maintenanceExpiryDate' => null,
+            'maintenanceExpiryDate' => '2027-12-31',
             'isMaintained'     => $faker->randomElement(['TRUE', 'FALSE']),
             'isPerpetual'      => 'FALSE',
             'isReassignAble'   => $faker->randomElement(['TRUE', 'FALSE']),

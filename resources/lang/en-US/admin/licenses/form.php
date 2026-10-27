@@ -9,7 +9,7 @@ return array(
     'license_key'       => 'Product Key',
     'maintained'        => 'Maintained',
     'maintenance_expires_at' => 'Maintenance Expiry Date',
-    'maintenance_expires_at_help' => 'Required when a perpetual license is maintained. This is the end of support and upgrade coverage, not the end of the right to use the software.',
+    'maintenance_expires_at_help' => 'Required when a license is maintained, whether perpetual or time-limited. This is the end of support and upgrade coverage, not the end of the right to use the software.',
     'maintenance_expiry_statement' => 'The license remains perpetual; maintenance is valid until :date.',
     'name'              => 'Software Name',
     'software_version'  => 'Software Version',

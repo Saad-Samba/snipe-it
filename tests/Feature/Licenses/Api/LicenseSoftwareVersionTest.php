@@ -74,4 +74,36 @@ class LicenseSoftwareVersionTest extends TestCase
             'maintenance_expires_at' => '2027-12-31 00:00:00',
         ]);
     }
+    public function testMaintainedTermLicenseHasIndependentMaintenanceExpiry(): void
+    {
+        $category = Category::factory()->forLicenses()->create();
+        $payload = [
+            'name' => 'Term License With Support',
+            'seats' => 1,
+            'category_id' => $category->id,
+            'perpetual' => false,
+            'expiration_date' => '2028-12-31',
+            'maintained' => true,
+        ];
+        $this->actingAsForApi(User::factory()->createLicenses()->editLicenses()->create())
+            ->postJson(route('api.licenses.store'), $payload)
+            ->assertStatusMessageIs('error')
+            ->assertJsonPath('messages.maintenance_expires_at.0', 'The maintenance expires at field is required.');
+
+        $this->postJson(route('api.licenses.store'), $payload + ['maintenance_expires_at' => '2027-12-31'])
+            ->assertStatusMessageIs('success');
+        $license = License::where('name', $payload['name'])->sole();
+        $this->assertSame('2028-12-31', $license->expiration_date->toDateString());
+        $this->assertSame('2027-12-31', $license->maintenance_expires_at->toDateString());
+
+        $this->patchJson(route('api.licenses.update', $license), ['software_version' => '2027.1'])
+            ->assertStatusMessageIs('success');
+        $this->assertSame('2027-12-31', $license->fresh()->maintenance_expires_at->toDateString());
+
+        $this->patchJson(route('api.licenses.update', $license), ['maintained' => false])
+            ->assertStatusMessageIs('success');
+        $this->assertNull($license->fresh()->maintenance_expires_at);
+        $this->assertSame('2028-12-31', $license->fresh()->expiration_date->toDateString());
+    }
+
 }

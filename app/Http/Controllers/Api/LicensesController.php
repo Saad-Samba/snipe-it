@@ -279,14 +279,17 @@ class LicensesController extends Controller
 
     private function maintenanceExpiryErrors(Request $request, ?License $license = null): array
     {
-        $perpetual = $request->has('perpetual') ? $request->boolean('perpetual') : (bool) $license?->perpetual;
         $maintained = $request->has('maintained') ? $request->boolean('maintained') : (bool) $license?->maintained;
-        $validator = Validator::make($request->all(), [
+        $data = $request->all();
+        if ($license && ! $request->has('maintenance_expires_at')) {
+            $data['maintenance_expires_at'] = $license->maintenance_expires_at?->format('Y-m-d');
+        }
+        $validator = Validator::make($data, [
             'maintenance_expires_at' => [
                 'nullable',
                 'date_format:Y-m-d',
                 'max:10',
-                Rule::requiredIf($perpetual && $maintained),
+                Rule::requiredIf($maintained),
             ],
         ]);
 

@@ -178,6 +178,40 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
     }
 
     #[Test]
+    public function rejectsMaintainedTermLicenseWithoutMaintenanceExpiry(): void
+    {
+        $builder = ImportFileBuilder::new([
+            'isMaintained' => 'TRUE',
+            'isPerpetual' => 'FALSE',
+            'maintenanceExpiryDate' => '',
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $builder->saveToImportsDirectory()]);
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJsonPath('status', 'import-errors');
+        $this->assertDatabaseMissing('licenses', ['serial' => $builder->firstRow()['productKey']]);
+    }
+
+    #[Test]
+    public function importsIndependentMaintenanceExpiryForMaintainedTermLicense(): void
+    {
+        $builder = ImportFileBuilder::new([
+            'isMaintained' => 'TRUE',
+            'isPerpetual' => 'FALSE',
+            'expirationDate' => '2028/12/31',
+            'maintenanceExpiryDate' => '2027/12/31',
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $builder->saveToImportsDirectory()]);
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])->assertOk();
+        $license = License::where('serial', $builder->firstRow()['productKey'])->sole();
+        $this->assertFalse($license->perpetual);
+        $this->assertSame('2028-12-31', $license->expiration_date->toDateString());
+        $this->assertSame('2027-12-31', $license->maintenance_expires_at->toDateString());
+    }
+
+    #[Test]
     public function willNotCreateNewCompanyWhenCompanyExists(): void
     {
         $importFileBuilder = ImportFileBuilder::times(4)->replace(['companyName' => Str::random()]);

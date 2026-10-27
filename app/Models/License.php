@@ -167,7 +167,7 @@ class License extends Depreciable
                     $license->expiration_date = null;
                 }
 
-                if (! $license->perpetual || ! $license->maintained) {
+                if (! $license->maintained) {
                     $license->maintenance_expires_at = null;
                 }
             }

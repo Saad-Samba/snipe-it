@@ -246,7 +246,7 @@
                 expirationInput.value = '';
             }
 
-            var showMaintenanceExpiry = isPerpetual && maintainedCheckbox.checked;
+            var showMaintenanceExpiry = maintainedCheckbox.checked;
             maintenanceExpiryGroup.style.display = showMaintenanceExpiry ? '' : 'none';
             maintenanceExpiryInput.disabled = !showMaintenanceExpiry;
             maintenanceExpiryInput.required = showMaintenanceExpiry;
