@@ -158,6 +158,78 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
     }
 
     #[Test]
+    public function importsMaintenanceExpiryForMaintainedPerpetualLicense(): void
+    {
+        $importFileBuilder = ImportFileBuilder::new([
+            'isMaintained' => 'TRUE',
+            'isPerpetual' => 'TRUE',
+            'maintenanceExpiryDate' => '2027/12/31',
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])->assertOk();
+
+        $license = License::query()->where('serial', $importFileBuilder->firstRow()['productKey'])->sole();
+        $this->assertTrue($license->perpetual);
+        $this->assertTrue((bool) $license->maintained);
+        $this->assertNull($license->expiration_date);
+        $this->assertSame('2027-12-31', $license->maintenance_expires_at->format('Y-m-d'));
+    }
+
+    #[Test]
+    public function rejectsMalformedMaintenanceExpiryWithoutCreatingLicense(): void
+    {
+        foreach (['not-a-date', '2027-02-30'] as $date) {
+            $builder = ImportFileBuilder::new([
+                'isMaintained' => 'TRUE',
+                'maintenanceExpiryDate' => $date,
+            ]);
+            $import = Import::factory()->license()->create(['file_path' => $builder->saveToImportsDirectory()]);
+            $this->actingAsForApi(User::factory()->superuser()->create());
+            $this->importFileResponse(['import' => $import->id])
+                ->assertInternalServerError()
+                ->assertJsonPath('status', 'import-errors')
+                ->assertSee('Maintenance expiry date must be a valid date.');
+            $this->assertDatabaseMissing('licenses', ['serial' => $builder->firstRow()['productKey']]);
+        }
+    }
+
+    #[Test]
+    public function rejectsMaintainedTermLicenseWithoutMaintenanceExpiry(): void
+    {
+        $builder = ImportFileBuilder::new([
+            'isMaintained' => 'TRUE',
+            'isPerpetual' => 'FALSE',
+            'maintenanceExpiryDate' => '',
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $builder->saveToImportsDirectory()]);
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJsonPath('status', 'import-errors');
+        $this->assertDatabaseMissing('licenses', ['serial' => $builder->firstRow()['productKey']]);
+    }
+
+    #[Test]
+    public function importsIndependentMaintenanceExpiryForMaintainedTermLicense(): void
+    {
+        $builder = ImportFileBuilder::new([
+            'isMaintained' => 'TRUE',
+            'isPerpetual' => 'FALSE',
+            'expirationDate' => '2028/12/31',
+            'maintenanceExpiryDate' => '2027/12/31',
+        ]);
+        $import = Import::factory()->license()->create(['file_path' => $builder->saveToImportsDirectory()]);
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])->assertOk();
+        $license = License::where('serial', $builder->firstRow()['productKey'])->sole();
+        $this->assertFalse($license->perpetual);
+        $this->assertSame('2028-12-31', $license->expiration_date->toDateString());
+        $this->assertSame('2027-12-31', $license->maintenance_expires_at->toDateString());
+    }
+
+    #[Test]
     public function willNotCreateNewCompanyWhenCompanyExists(): void
     {
         $importFileBuilder = ImportFileBuilder::times(4)->replace(['companyName' => Str::random()]);
@@ -495,6 +567,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
             'category'         => $faker['supplierName'],
             'companyName'      => $faker['serialNumber'],
             'expirationDate'   => $faker['seats'],
+            'maintenanceExpiryDate' => $faker['maintenanceExpiryDate'],
             'isMaintained'     => $faker['purchaseDate'],
             'isReassignAble'   => $faker['purchaseCost'],
             'licensedToName'   => $faker['orderNumber'],
@@ -522,6 +595,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
                 'Category'         => 'supplier',
                 'Company'          => 'company',
                 'expiration date'  => 'seats',
+                'maintenance expiry date' => 'maintenance_expires_at',
                 'maintained'       => 'purchase_date',
                 'reassignable'     => 'purchase_cost',
                 'Licensed To Name' => 'order_number',
