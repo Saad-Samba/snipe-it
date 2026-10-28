@@ -113,8 +113,18 @@ class LicenseImporter extends ItemImporter
         $this->item['maintained'] = trim($this->findCsvMatch($row, 'maintained'));
         $this->item['perpetual'] = trim($this->findCsvMatch($row, 'perpetual'));
         $this->item['maintenance_expires_at'] = null;
-        if ($this->findCsvMatch($row, 'maintenance_expires_at') !== '') {
-            $this->item['maintenance_expires_at'] = date('Y-m-d 00:00:01', strtotime($this->findCsvMatch($row, 'maintenance_expires_at')));
+        $maintenanceDate = trim($this->findCsvMatch($row, 'maintenance_expires_at', ''));
+        if ($maintenanceDate !== '') {
+            $timestamp = strtotime($maintenanceDate);
+            $parsedDate = date_parse($maintenanceDate);
+            if ($timestamp === false || $parsedDate['error_count'] > 0 || $parsedDate['warning_count'] > 0) {
+                $message = 'Maintenance expiry date must be a valid date.';
+                $this->log($message);
+                $this->addErrorToBag($license, 'maintenance_expires_at', $message);
+
+                return $message;
+            }
+            $this->item['maintenance_expires_at'] = date('Y-m-d 00:00:01', $timestamp);
         }
 
         if (filter_var($this->item['maintained'], FILTER_VALIDATE_BOOLEAN)

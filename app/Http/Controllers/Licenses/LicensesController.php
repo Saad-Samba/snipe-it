@@ -166,7 +166,7 @@ class LicensesController extends Controller
 
 
         $this->authorize('update', $license);
-        $this->validateMaintenanceExpiry($request, $license);
+        $this->validateMaintenanceExpiry($request);
 
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->perpetual         = $request->boolean('perpetual');
@@ -204,9 +204,9 @@ class LicensesController extends Controller
         return redirect()->back()->withInput()->withErrors($license->getErrors());
     }
 
-    private function validateMaintenanceExpiry(Request $request, ?License $license = null): void
+    private function validateMaintenanceExpiry(Request $request): void
     {
-        $maintained = $request->has('maintained') ? $request->boolean('maintained') : (bool) $license?->maintained;
+        $maintained = $request->boolean('maintained');
 
         $request->validate([
             'maintenance_expires_at' => [

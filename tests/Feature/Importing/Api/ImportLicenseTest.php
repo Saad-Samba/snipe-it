@@ -178,6 +178,24 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
     }
 
     #[Test]
+    public function rejectsMalformedMaintenanceExpiryWithoutCreatingLicense(): void
+    {
+        foreach (['not-a-date', '2027-02-30'] as $date) {
+            $builder = ImportFileBuilder::new([
+                'isMaintained' => 'TRUE',
+                'maintenanceExpiryDate' => $date,
+            ]);
+            $import = Import::factory()->license()->create(['file_path' => $builder->saveToImportsDirectory()]);
+            $this->actingAsForApi(User::factory()->superuser()->create());
+            $this->importFileResponse(['import' => $import->id])
+                ->assertInternalServerError()
+                ->assertJsonPath('status', 'import-errors')
+                ->assertSee('Maintenance expiry date must be a valid date.');
+            $this->assertDatabaseMissing('licenses', ['serial' => $builder->firstRow()['productKey']]);
+        }
+    }
+
+    #[Test]
     public function rejectsMaintainedTermLicenseWithoutMaintenanceExpiry(): void
     {
         $builder = ImportFileBuilder::new([
@@ -549,6 +567,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
             'category'         => $faker['supplierName'],
             'companyName'      => $faker['serialNumber'],
             'expirationDate'   => $faker['seats'],
+            'maintenanceExpiryDate' => $faker['maintenanceExpiryDate'],
             'isMaintained'     => $faker['purchaseDate'],
             'isReassignAble'   => $faker['purchaseCost'],
             'licensedToName'   => $faker['orderNumber'],
@@ -576,6 +595,7 @@ class ImportLicenseTest extends ImportDataTestCase implements TestsPermissionsRe
                 'Category'         => 'supplier',
                 'Company'          => 'company',
                 'expiration date'  => 'seats',
+                'maintenance expiry date' => 'maintenance_expires_at',
                 'maintained'       => 'purchase_date',
                 'reassignable'     => 'purchase_cost',
                 'Licensed To Name' => 'order_number',
