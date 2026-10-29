@@ -68,28 +68,92 @@ class ModelRequestsController extends Controller
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:255'],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'specifications' => ['nullable', 'array', 'max:10'],
+            'specifications.*.field_id' => ['required', 'integer'],
+            'specifications.*.operator' => ['required', \Illuminate\Validation\Rule::in([':', '=', '>=', '<='])],
+            'specifications.*.value' => ['required', 'string', 'max:255'],
         ]);
         $search = trim($filters['search'] ?? '');
         $categoryId = $filters['category_id'] ?? null;
 
+        $technicalFilters = $filters['specifications'] ?? [];
+        // Only fieldset metadata is loaded globally; model rows and defaults remain paginated.
+        $catalogueMetadata = AssetModel::with(['category.fieldset.fields', 'fieldset.fields'])
+            ->get(['id', 'category_id', 'fieldset_id']);
+        $specificationFields = $catalogueMetadata
+            ->flatMap(fn ($model) => $model->fieldset?->fields ?? collect())
+            ->filter(fn ($field) => $field->show_in_requestable_list && ! $field->is_unique && ! $field->field_encrypted)
+            ->unique('id')->sortBy('name')->values();
+        $specificationSearchFields = $specificationFields->map(fn ($field) => [
+            'id' => (int) $field->id,
+            'name' => $field->name,
+            'numeric' => $field->element !== 'checkbox' && strtolower((string) $field->format) === 'numeric',
+            'multiple' => $field->element === 'checkbox',
+            'values' => collect($field->formatFieldValuesAsArray())->except('')->values(),
+            'categories' => $catalogueMetadata
+                ->filter(fn ($model) => $model->fieldset?->fields->contains('id', $field->id))
+                ->pluck('category_id')->map(fn ($id) => (string) $id)->unique()->values(),
+        ])->values();
+
         $models = AssetModel::with(['category.fieldset.fields', 'fieldset.fields', 'defaultValues', 'manufacturer'])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($query) use ($search) {
+            ->when($search !== '', function ($query) use ($search, $specificationFields) {
+                $query->where(function ($query) use ($search, $specificationFields) {
                     $query->where('models.name', 'like', '%'.$search.'%')
                         ->orWhere('models.model_number', 'like', '%'.$search.'%')
-                        ->orWhereHas('manufacturer', fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
+                        ->orWhereHas('manufacturer', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+                        ->orWhereHas('defaultValues', function ($query) use ($search, $specificationFields) {
+                            $query->whereIn('custom_fields.id', $specificationFields->pluck('id'))
+                                ->where('models_custom_fields.default_value', 'like', '%'.$search.'%');
+                        });
                 });
             })
-            ->when($categoryId, fn ($query) => $query->where('category_id', $categoryId))
-            ->orderBy('name')
-            ->orderBy('id')
-            ->paginate(25)
-            ->withQueryString();
+            ->when($categoryId, fn ($query) => $query->where('category_id', $categoryId));
+        foreach ($technicalFilters as $filter) {
+            $field = $specificationFields->firstWhere('id', (int) $filter['field_id']);
+            if (! $field) {
+                throw ValidationException::withMessages(['specifications' => 'Choose a requestable technical field.']);
+            }
+            $numeric = $field->element !== 'checkbox' && strtolower((string) $field->format) === 'numeric';
+            if (($numeric && (! is_numeric($filter['value']) || ! is_finite((float) $filter['value']))) || (! $numeric && in_array($filter['operator'], ['>=', '<=']))) {
+                throw ValidationException::withMessages(['specifications' => 'Use numeric comparisons only with numeric fields and values.']);
+            }
+            $models->where(function ($query) use ($field) {
+                $inherited = fn ($query) => $query->whereHas('category.fieldset.fields', fn ($query) => $query->where('custom_fields.id', $field->id));
+                if (config('leams.model_fieldset_overrides')) {
+                    $query->whereHas('fieldset.fields', fn ($query) => $query->where('custom_fields.id', $field->id))
+                        ->orWhere(fn ($query) => $inherited($query->whereNull('models.fieldset_id')));
+                } else {
+                    $inherited($query);
+                }
+            })->whereHas('defaultValues', function ($query) use ($field, $filter, $numeric) {
+                $query->where('custom_fields.id', $field->id);
+                if ($numeric) {
+                    $query->whereRaw("TRIM(models_custom_fields.default_value) REGEXP '^[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][+-]?[0-9]+)?$'")
+                        ->whereRaw('CAST(models_custom_fields.default_value AS DECIMAL(30, 10)) '.($filter['operator'] === ':' ? '=' : $filter['operator']).' ?', [(float) $filter['value']]);
+                } else {
+                    $value = mb_strtolower($filter['value']);
+                    if ($field->element === 'checkbox') {
+                        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
+                        $query->where(function ($query) use ($escaped) {
+                            foreach ([$escaped, $escaped.', %', '%, '.$escaped, '%, '.$escaped.', %'] as $pattern) {
+                                $query->orWhereRaw("LOWER(models_custom_fields.default_value) LIKE ? ESCAPE '!'", [$pattern]);
+                            }
+                        });
+                    } elseif ($filter['operator'] === '=' || collect($field->formatFieldValuesAsArray())->except('')->isNotEmpty()) {
+                        $query->whereRaw('LOWER(models_custom_fields.default_value) = ?', [$value]);
+                    } else {
+                        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
+                        $query->whereRaw("LOWER(models_custom_fields.default_value) LIKE ? ESCAPE '!'", ['%'.$escaped.'%']);
+                    }
+                }
+            });
+        }
+        $models = $models->orderBy('name')->orderBy('id')->paginate(25)->withQueryString();
         $categories = Category::where('category_type', 'asset')->orderBy('name')->get(['id', 'name']);
         $companies = Company::orderBy('name')->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
 
-        return view('account/requestable-assets', compact('companies', 'disciplines', 'models', 'categories', 'search', 'categoryId'));
+        return view('account/requestable-assets', compact('companies', 'disciplines', 'models', 'categories', 'search', 'categoryId', 'specificationSearchFields', 'technicalFilters'));
     }
 
     public function estimateRequestItem(Request $request, $itemType, $itemId = null): JsonResponse
@@ -102,15 +166,16 @@ class ModelRequestsController extends Controller
         $item = AssetModel::findOrFail($itemId);
         $this->ensureModelRequestAuthorized($item);
         $this->ensureModelRequestProjectProvided($validated['project_id'] ?? null);
+        $project = Project::findOrFail((int) $validated['project_id']);
+        $neededByDate = $this->neededByDateForProject($project, $validated['needed_by_date'] ?? null);
         $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
-        $this->ensureModelRequestNeededByDateProvided($validated['needed_by_date'] ?? null);
         $this->ensureModelRequestCompanyProvided(isset($validated['company_id']) ? (int) $validated['company_id'] : null);
 
         return response()->json(
             $this->estimateAssetModelRequest(
                 $item,
                 (int) $validated['request-quantity'],
-                $validated['needed_by_date'] ?? null
+                $neededByDate
             )
         );
     }
@@ -164,7 +229,8 @@ class ModelRequestsController extends Controller
             $this->ensureModelRequestAuthorized($item);
             if (! $isCancelRequest) {
                 $this->ensureModelRequestProjectProvided($projectId);
-                $this->ensureModelRequestNeededByDateProvided($neededByDate);
+                $data['project'] = Project::findOrFail((int) $projectId);
+                $neededByDate = $this->neededByDateForProject($data['project'], $neededByDate);
                 $this->ensureModelRequestQuantityProvided($validated['request-quantity'] ?? null);
                 $this->ensureModelRequestDisciplineProvided($requestedDisciplineId);
                 $this->ensureModelRequestCompanyProvided($companyId);
@@ -264,7 +330,7 @@ class ModelRequestsController extends Controller
         $validated = $request->validate([
             'company_id' => ['required', 'integer', 'exists:companies,id'],
             'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
-            'needed_by_date' => ['required', 'date'],
+            'needed_by_date' => ['nullable', 'date'],
             'model_quantities' => ['required', 'array', 'min:1'],
             'model_quantities.*' => ['required', 'integer', 'min:1'],
         ]);
@@ -277,8 +343,10 @@ class ModelRequestsController extends Controller
         $unroutedRacNotificationLines = [];
         $submissionBatchId = (string) Str::uuid();
         $submittedRequestIds = [];
+        $project = Project::findOrFail((int) $validated['project_id']);
+        $neededByDate = $this->neededByDateForProject($project, $validated['needed_by_date'] ?? null);
 
-        DB::transaction(function () use ($validated, $user, $submissionBatchId, &$submittedRequestIds, &$unroutedRacNotificationLines) {
+        DB::transaction(function () use ($validated, $neededByDate, $user, $submissionBatchId, &$submittedRequestIds, &$unroutedRacNotificationLines) {
             foreach ($validated['model_quantities'] as $modelId => $quantity) {
                 $item = AssetModel::findOrFail((int) $modelId);
                 $this->ensureModelRequestAuthorized($item);
@@ -287,10 +355,10 @@ class ModelRequestsController extends Controller
                     [
                         'company_id' => (int) $validated['company_id'],
                         'project_id' => (int) $validated['project_id'],
-                        'needed_by_date' => $validated['needed_by_date'],
+                        'needed_by_date' => $neededByDate,
                         'submission_batch_id' => $submissionBatchId,
                     ],
-                    $this->estimateAssetModelRequest($item, (int) $quantity, $validated['needed_by_date'])
+                    $this->estimateAssetModelRequest($item, (int) $quantity, $neededByDate)
                 );
 
                 $existingRequest = $this->findActiveModelProjectRequest($item, $user, (int) $validated['project_id'], null, (int) $validated['company_id']);
@@ -414,7 +482,7 @@ class ModelRequestsController extends Controller
     {
         $validated = $request->validate([
             'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
-            'needed_by_date' => ['required', 'date'],
+            'needed_by_date' => ['nullable', 'date'],
         ]);
 
         $user = auth()->user();
@@ -429,14 +497,15 @@ class ModelRequestsController extends Controller
             ]);
         }
 
-        $project = Project::find((int) $validated['project_id']);
+        $project = Project::findOrFail((int) $validated['project_id']);
+        $neededByDate = $this->neededByDateForProject($project, $validated['needed_by_date'] ?? null);
         $submittedAt = now()->toDateTimeString();
         $submissionBatchId = (string) Str::uuid();
         $coordinatorNotificationBuckets = [];
         $unroutedRacNotificationLines = [];
         $submittedRequestIds = [];
 
-        DB::transaction(function () use ($cart, $validated, $user, $project, $submittedAt, $submissionBatchId, &$coordinatorNotificationBuckets, &$submittedRequestIds, &$unroutedRacNotificationLines) {
+        DB::transaction(function () use ($cart, $validated, $neededByDate, $user, $project, $submittedAt, $submissionBatchId, &$coordinatorNotificationBuckets, &$submittedRequestIds, &$unroutedRacNotificationLines) {
             foreach ($cart as $line) {
                 $item = AssetModel::findOrFail((int) $line['model_id']);
                 $disciplineId = (int) $line['discipline_id'];
@@ -451,11 +520,11 @@ class ModelRequestsController extends Controller
                     [
                         'company_id' => $companyId,
                         'project_id' => (int) $validated['project_id'],
-                        'needed_by_date' => $validated['needed_by_date'],
+                        'needed_by_date' => $neededByDate,
                         'requested_discipline_id' => $disciplineId,
                         'submission_batch_id' => $submissionBatchId,
                     ],
-                    $this->estimateAssetModelRequest($item, $quantity, $validated['needed_by_date'])
+                    $this->estimateAssetModelRequest($item, $quantity, $neededByDate)
                 );
 
                 $existingRequest = $this->findActiveModelProjectRequest($item, $user, (int) $validated['project_id'], $disciplineId, $companyId);
@@ -530,7 +599,8 @@ class ModelRequestsController extends Controller
         $projectId = (int) $checkoutRequest->project_id;
         $requestedDisciplineId = isset($validated['requested_discipline_id']) ? (int) $validated['requested_discipline_id'] : 0;
         $companyId = isset($validated['company_id']) ? (int) $validated['company_id'] : 0;
-        $neededByDate = optional($checkoutRequest->needed_by_date)->format('Y-m-d');
+        $project = Project::findOrFail($projectId);
+        $neededByDate = $this->neededByDateForProject($project, optional($checkoutRequest->needed_by_date)->format('Y-m-d'));
 
         $item = $checkoutRequest->requestedItem;
         abort_if(! $item instanceof AssetModel, 404);
@@ -587,10 +657,11 @@ class ModelRequestsController extends Controller
         $this->authorizeSubmittedRequestAccess($checkoutRequest);
         $validated = $request->validate([
             'project_id' => ['required', 'integer', 'exists:projects,id,deleted_at,NULL'],
-            'needed_by_date' => ['required', 'date'],
+            'needed_by_date' => ['nullable', 'date'],
         ]);
         $projectId = (int) $validated['project_id'];
-        $neededByDate = (string) $validated['needed_by_date'];
+        $project = Project::findOrFail($projectId);
+        $neededByDate = $this->neededByDateForProject($project, $validated['needed_by_date'] ?? null);
         $routingResults = [];
         $previousCoordinatorIds = [];
 
@@ -628,7 +699,6 @@ class ModelRequestsController extends Controller
             return $submissionRequests->each->refresh();
         });
 
-        $project = Project::find($projectId);
         $coordinatorNotificationBuckets = [];
         $unroutedRacNotificationLines = [];
         foreach ($updatedRequests as $updatedRequest) {
@@ -825,6 +895,25 @@ class ModelRequestsController extends Controller
         if (! $neededByDate) {
             throw ValidationException::withMessages(['needed_by_date' => 'Needed by date is required for model requests.']);
         }
+    }
+
+    private function neededByDateForProject(Project $project, ?string $submittedNeededByDate): string
+    {
+        if ($project->is_rfq) {
+            $rfqNeededByDate = optional($project->rfq_needed_by_date)->format('Y-m-d');
+
+            if (! $rfqNeededByDate) {
+                throw ValidationException::withMessages([
+                    'project_id' => 'This RFQ project needs an RFQ Needed By date before requests can be submitted.',
+                ]);
+            }
+
+            return $rfqNeededByDate;
+        }
+
+        $this->ensureModelRequestNeededByDateProvided($submittedNeededByDate);
+
+        return $submittedNeededByDate;
     }
 
     private function ensureModelRequestQuantityProvided(?int $quantity): void

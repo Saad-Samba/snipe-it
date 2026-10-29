@@ -76,8 +76,67 @@ class RequestableModelsPageTest extends TestCase
     public function test_user_without_model_request_permission_cannot_open_request_catalogue(): void
     {
         $this->actingAs(User::factory()->create())
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertForbidden();
+    }
+
+    public function test_catalogue_displays_only_eligible_model_specifications(): void
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $fieldset = CustomFieldset::factory()->create();
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'QA Communication',
+            'fieldset_id' => $fieldset->id,
+        ]);
+        $networkSpeed = CustomField::factory()->create([
+            'name' => 'QA Network Speed',
+            'element' => 'listbox',
+            'field_values' => "100 Mbps\n1 Gbps\n10 Gbps",
+            'show_in_requestable_list' => true,
+        ]);
+        $portCount = CustomField::factory()->create([
+            'name' => 'QA Port Count',
+            'format' => 'NUMERIC',
+            'show_in_requestable_list' => true,
+        ]);
+        $serialNumber = CustomField::factory()->create([
+            'name' => 'QA Serial Number',
+            'is_unique' => true,
+            'show_in_requestable_list' => true,
+        ]);
+        $internalNote = CustomField::factory()->create([
+            'name' => 'QA Internal Note',
+            'show_in_requestable_list' => false,
+        ]);
+        $fieldset->fields()->attach([
+            $networkSpeed->id => ['order' => 1, 'required' => false],
+            $portCount->id => ['order' => 2, 'required' => false],
+            $serialNumber->id => ['order' => 3, 'required' => false],
+            $internalNote->id => ['order' => 4, 'required' => false],
+        ]);
+        $model = AssetModel::factory()->create(['category_id' => $category->id]);
+        $model->defaultValues()->attach($networkSpeed->id, ['default_value' => '1 Gbps']);
+        $model->defaultValues()->attach($portCount->id, ['default_value' => '8']);
+        Asset::factory()->create([
+            'model_id' => $model->id,
+            'status_id' => Statuslabel::factory()->readyToDeploy(),
+            'requestable' => true,
+        ]);
+
+        $this->actingAs($requester)
+            ->get(route('requestable-assets'))
+            ->assertOk()
+            ->assertSeeText('Technical specifications')
+            ->assertSeeText('QA Network Speed')
+            ->assertSeeText('1 Gbps')
+            ->assertSeeText('QA Port Count')
+            ->assertSee('"name":"QA Port Count","numeric":true', false)
+            ->assertSee('"categories":["'.$category->id.'"]', false)
+            ->assertSee('data-field="specifications"', false)
+            ->assertSee('requestableSpecificationSuggestions', false)
+            ->assertSee('requestableSpecificationChips', false)
+            ->assertDontSeeText('QA Serial Number')
+            ->assertDontSeeText('QA Internal Note');
     }
 
     public function test_cross_company_catalogue_permission_shows_requestable_models_outside_the_epl_company_under_fmcs(): void
@@ -106,7 +165,7 @@ class RequestableModelsPageTest extends TestCase
         ]);
 
         $this->actingAs($epl)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertOk()
             ->assertSeeText('Cross-company reusable model');
     }
@@ -133,7 +192,7 @@ class RequestableModelsPageTest extends TestCase
         ]);
 
         $this->actingAs($requester)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertOk()
             ->assertSeeText('Other-company-only reusable model');
     }
@@ -168,7 +227,7 @@ class RequestableModelsPageTest extends TestCase
         $this->assertTrue($epl->hasAccess('models.request.all_companies'));
 
         $this->actingAs($epl)
-            ->get(route('requestable-assets'))
+            ->get(route('requestable-assets', ['all' => 1]))
             ->assertOk()
             ->assertSeeText('Group-visible cross-company model');
     }
@@ -199,7 +258,7 @@ class RequestableModelsPageTest extends TestCase
             ->assertSee('search=Demand%20model', false)
             ->assertSee('data-pagination="false"', false)
             ->assertSee('data-search="true"', false)
-            ->assertSee('data-server-search-url=', false)
+            ->assertSee('data-catalogue-search="true"', false)
             ->assertSee('data-toolbar="#requestableModelsToolbar"', false)
             ->assertDontSee('id="catalogue-search"', false)
             ->assertDontSeeText('Unrelated model');
@@ -257,6 +316,66 @@ class RequestableModelsPageTest extends TestCase
         $this->assertSame(0, Asset::where('model_id', $model->id)->count());
         $this->get(route('requests.index', ['request_id' => $request->id]))->assertOk()
             ->assertSee('data-field="procurement_shortfall"', false)->assertSee('sourcing estimates');
+    }
+
+    public function test_technical_filters_search_across_all_pages_and_combine_with_category_and_text(): void
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $fieldset = CustomFieldset::factory()->create();
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+        $field = CustomField::factory()->create(['name' => 'Supply Voltage', 'format' => 'NUMERIC', 'element' => 'text', 'show_in_requestable_list' => true, 'is_unique' => false, 'field_encrypted' => false]);
+        $fieldset->fields()->attach($field, ['order' => 1, 'required' => false]);
+        for ($number = 1; $number <= 27; $number++) {
+            $model = AssetModel::factory()->create(['category_id' => $category->id, 'name' => sprintf('Supply %02d', $number)]);
+            $model->defaultValues()->attach($field, ['default_value' => (string) $number]);
+        }
+        $bad = AssetModel::factory()->create(['category_id' => $category->id, 'name' => 'Malformed supply']);
+        $bad->defaultValues()->attach($field, ['default_value' => 'unknown']);
+        $query = ['category_id' => $category->id, 'specifications' => [['field_id' => $field->id, 'operator' => '>=', 'value' => '26']]];
+        $this->actingAs($requester)->get(route('requestable-assets', $query))->assertOk()
+            ->assertViewHas('models', fn ($models) => $models->total() === 2)
+            ->assertSeeText('Supply 26')->assertSeeText('Supply 27')->assertDontSeeText('Supply 25');
+        $this->get(route('requestable-assets', array_merge($query, ['search' => 'Supply 27'])))->assertOk()
+            ->assertViewHas('models', fn ($models) => $models->total() === 1);
+        $query['specifications'][] = ['field_id' => $field->id, 'operator' => '<=', 'value' => '26'];
+        $this->get(route('requestable-assets', $query))->assertOk()
+            ->assertViewHas('models', fn ($models) => $models->total() === 1)->assertSeeText('Supply 26');
+    }
+
+    public function test_technical_text_and_checkbox_filters_preserve_value_matching(): void
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $fieldset = CustomFieldset::factory()->create();
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+        $text = CustomField::factory()->create(['name' => 'Interface', 'element' => 'text', 'field_values' => '', 'show_in_requestable_list' => true, 'is_unique' => false, 'field_encrypted' => false]);
+        $multiple = CustomField::factory()->create(['name' => 'Protocols', 'element' => 'checkbox', 'field_values' => "CAN\nLIN\nCAN-FD", 'show_in_requestable_list' => true, 'is_unique' => false, 'field_encrypted' => false]);
+        $fieldset->fields()->attach([$text->id => ['order' => 1, 'required' => false], $multiple->id => ['order' => 2, 'required' => false]]);
+        $model = AssetModel::factory()->create(['category_id' => $category->id]);
+        $model->defaultValues()->attach($text, ['default_value' => 'Automotive Ethernet']);
+        $model->defaultValues()->attach($multiple, ['default_value' => 'CAN, LIN']);
+        $this->actingAs($requester)->get(route('requestable-assets', ['specifications' => [
+            ['field_id' => $text->id, 'operator' => ':', 'value' => 'ethernet'],
+            ['field_id' => $multiple->id, 'operator' => ':', 'value' => 'CAN'],
+        ]]))->assertOk()->assertViewHas('models', fn ($models) => $models->total() === 1);
+        $this->get(route('requestable-assets', ['specifications' => [['field_id' => $multiple->id, 'operator' => ':', 'value' => 'CAN-FD']]]))
+            ->assertOk()->assertViewHas('models', fn ($models) => $models->total() === 0);
+    }
+
+    public function test_technical_search_rejects_non_public_fields_and_invalid_comparisons(): void
+    {
+        $requester = User::factory()->requestAssetModels()->create();
+        $fieldset = CustomFieldset::factory()->create();
+        $category = Category::factory()->forAssets()->create(['fieldset_id' => $fieldset->id]);
+        AssetModel::factory()->create(['category_id' => $category->id]);
+        foreach ([['show_in_requestable_list' => false], ['is_unique' => true], ['field_encrypted' => true]] as $restriction) {
+            $field = CustomField::factory()->create(array_merge(['show_in_requestable_list' => true, 'is_unique' => false, 'field_encrypted' => false], $restriction));
+            $fieldset->fields()->attach($field, ['order' => 1, 'required' => false]);
+            $response = $this->actingAs($requester)->getJson(route('requestable-assets', ['specifications' => [['field_id' => $field->id, 'operator' => '=', 'value' => '1']]]));
+            $response->assertOk()->assertJsonPath('status', 'error');
+        }
+        $numeric = CustomField::factory()->create(['format' => 'NUMERIC', 'element' => 'text', 'show_in_requestable_list' => true, 'is_unique' => false, 'field_encrypted' => false]);
+        $fieldset->fields()->attach($numeric, ['order' => 2, 'required' => false]);
+        $this->getJson(route('requestable-assets', ['specifications' => [['field_id' => $numeric->id, 'operator' => '>=', 'value' => 'invalid']]]))->assertOk()->assertJsonPath('status', 'error');
     }
 
 }

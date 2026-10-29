@@ -252,6 +252,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Superuser Impersonation
+    |--------------------------------------------------------------------------
+    |
+    | A comma-separated allowlist of superuser usernames. Empty disables the
+    | feature entirely. Quoted commas in usernames are supported.
+    |
+    */
+
+    'user_impersonation_usernames' => (function () {
+        $raw = env('ALLOW_USER_IMPERSONATION', '');
+
+        if (! is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $usernames = [];
+        $seen = [];
+        foreach (str_getcsv($raw, ',', '"', '\\') as $token) {
+            $token = trim((string) $token);
+            $lower = mb_strtolower($token);
+            if ($token !== '' && ! isset($seen[$lower])) {
+                $usernames[] = $token;
+                $seen[$lower] = true;
+            }
+        }
+
+        return $usernames;
+    })(),
+
+    /*
+    |--------------------------------------------------------------------------
     | Minimum PHP version
     |--------------------------------------------------------------------------
     |

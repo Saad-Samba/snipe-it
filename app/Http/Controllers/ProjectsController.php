@@ -48,31 +48,21 @@ class ProjectsController extends Controller
     public function show(Project $project) : View
     {
         $activeTab = request()->query('tab', 'assets');
-        $isRequestsTab = $activeTab === 'requests';
-        $isRequesterProjectReview = ! auth()->user()->isSuperUser()
-            && auth()->user()->hasAccess('models.request')
-            && $isRequestsTab;
-        $requestSummary = null;
+        $hasProjectOverviewDrillDown = request()->filled('requester_id')
+            || request()->filled('discipline_id')
+            || request()->boolean('unassigned_discipline');
 
-        if ($isRequesterProjectReview) {
-            $requestSummary = $this->authorizeProjectRequestsAccess($project);
-        } elseif (! auth()->user()->isSuperUser() && auth()->user()->hasAccess('models.request')) {
-            abort(403);
-        } else {
-            $this->authorize('view', $project);
-        }
+        $this->authorize('view', $project);
+        $activeTab = auth()->user()->isSuperUser() ? $activeTab : 'requests';
+        $requestSummary = CheckoutRequest::projectSummary($project->id);
 
         $project->loadCount(['assets', 'licenses']);
-
-        if (auth()->user()->hasAccess('models.request') && ! $requestSummary) {
-            $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
-        }
 
         return view('projects/view', [
             'project' => $project,
             'activeTab' => in_array($activeTab, ['assets', 'licenses', 'requests'], true) ? $activeTab : 'assets',
             'requestSummary' => $requestSummary,
-            'showFullProjectTabs' => auth()->user()->isSuperUser(),
+            'showGroupedProjectRequestOverview' => ! $hasProjectOverviewDrillDown,
         ]);
     }
 
@@ -109,19 +99,4 @@ class ProjectsController extends Controller
         return redirect()->route('projects.index')->with('success', trans('admin/projects/message.delete.success'));
     }
 
-    private function authorizeProjectRequestsAccess(Project $project): ?array
-    {
-        abort_unless(auth()->user()->hasAccess('models.request'), 403, 'You are not authorized to view submitted requests.');
-
-        if (auth()->user()->isSuperUser()) {
-            $this->authorize('view', $project);
-
-            return null;
-        }
-
-        $requestSummary = CheckoutRequest::projectSummaryForUser(auth()->id(), $project->id);
-        abort_if(($requestSummary['requests_count'] ?? 0) < 1, 403);
-
-        return $requestSummary;
-    }
 }

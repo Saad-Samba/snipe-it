@@ -71,7 +71,7 @@ class CreateCategoriesTest extends TestCase
         $this->assertEquals($fieldset->id, $category->fieldset_id);
         $this->assertEquals(0, $category->require_acceptance);
         $this->assertFalse($category->alert_on_response);
-        $this->assertTrue($category->checkin_email);
+        $this->assertFalse($category->checkin_email);
     }
 
     public function testCannotCreateCategoryWithoutCategoryType()

@@ -9,6 +9,8 @@ use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\CheckoutRequest;
 use App\Models\Company;
+use App\Models\CustomField;
+use App\Models\CustomFieldset;
 use App\Models\Discipline;
 use App\Models\Location;
 use App\Models\Manufacturer;
@@ -79,6 +81,26 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id,
             'model_number' => 'QA-PSU-60V', 'reference_price' => 1900,
         ]);
+        $fieldset = CustomFieldset::firstOrCreate(['name' => 'QA Electronics Technical Specifications']);
+        $voltage = CustomField::updateOrCreate(['name' => 'QA Supply Voltage'], [
+            'element' => 'text', 'format' => 'NUMERIC', 'show_in_requestable_list' => 1,
+            'field_encrypted' => 0, 'is_unique' => 0,
+        ]);
+        $interface = CustomField::updateOrCreate(['name' => 'QA Interface Type'], [
+            'element' => 'listbox', 'format' => 'ANY', 'field_values' => "CAN-FD\nJTAG\nDC",
+            'show_in_requestable_list' => 1, 'field_encrypted' => 0, 'is_unique' => 0,
+        ]);
+        $fieldset->fields()->syncWithoutDetaching([
+            $voltage->id => ['order' => 1, 'required' => false],
+            $interface->id => ['order' => 2, 'required' => false],
+        ]);
+        $category->update(['fieldset_id' => $fieldset->id]);
+        foreach ([[$model, '12', 'CAN-FD'], [$onlyAssignedModel, '5', 'JTAG'], [AssetModel::where('name', 'QA Programmable DC Supply')->firstOrFail(), '60', 'DC']] as [$specModel, $volts, $type]) {
+            $specModel->defaultValues()->syncWithoutDetaching([
+                $voltage->id => ['default_value' => $volts],
+                $interface->id => ['default_value' => $type],
+            ]);
+        }
         RegionalAssetCoordinatorAssignment::updateOrCreate([
             'company_id' => $site->id, 'discipline_id' => $discipline->id,
         ], ['user_id' => $users['coordinator']->id, 'created_by' => $admin->id]);

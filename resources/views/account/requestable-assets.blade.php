@@ -44,6 +44,7 @@
                             <a href="{{ route('requestable-assets') }}" class="btn btn-link">Clear filters</a>
                         @endif
                     </form>
+                    <span class="text-muted small" style="margin-right:8px;">Type a technical field to add a filter.</span>
                     <form id="requestableModelsBulkForm" style="display:inline-block;">
                         <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>
                             <i class="fas fa-cart-plus" aria-hidden="true"></i>
@@ -52,6 +53,7 @@
                     </form>
                 </div>
 
+                    <div id="requestableSpecificationChips" class="form-inline" style="margin-top:8px;" aria-live="polite"></div>
                     <div class="table-responsive">
                         <table
                             id="requestableModelsTable"
@@ -64,7 +66,7 @@
                             data-toolbar="#requestableModelsToolbar"
                             data-search="true"
                             data-search-text="{{ $search }}"
-                            data-server-search-url="{{ route('requestable-assets', array_filter(['category_id' => $categoryId])) }}"
+                            data-catalogue-search="true"
                             data-advanced-search="false"
                             data-cookie="false"
                             data-addrbar="false"
@@ -78,7 +80,7 @@
                                     <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
                                     <th data-sortable="true">{{ trans('general.category') }}</th>
                                     <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
-                                    <th data-sortable="false">Specifications</th>
+                                    <th data-field="specifications" data-sortable="false">Technical specifications</th>
                                     <th data-sortable="false">Total Needed <x-new-feature-label /></th>
                                     <th data-sortable="false">Discipline <x-new-feature-label /></th>
                                     <th data-sortable="false">Destination Site <x-new-feature-label /></th>
@@ -107,8 +109,7 @@
                                         <td>{{ $requestableModel->model_number }}</td>
                                         <td>
                                             @php
-                                                $specificationFields = ($requestableModel->fieldset?->fields ?? collect())->filter(fn ($field) => $field->show_in_requestable_list && ! $field->field_encrypted);
-                                                $modelDefaults = $requestableModel->defaultValues->keyBy('id');
+                                                $specificationFields = ($requestableModel->fieldset?->fields ?? collect())->filter(fn ($field) => $field->show_in_requestable_list && ! $field->field_encrypted && ! $field->is_unique);
                                             @endphp
                                             @if ($specificationFields->isNotEmpty())
                                                 <details>
@@ -116,7 +117,7 @@
                                                     <dl>
                                                         @foreach ($specificationFields as $field)
                                                             <dt>{{ $field->name }}</dt>
-                                                            <dd>{{ $modelDefaults->get($field->id)?->pivot?->default_value ?? '—' }}</dd>
+                                                            <dd>{{ $requestableModel->specificationValue($field) ?? '—' }}</dd>
                                                         @endforeach
                                                     </dl>
                                                 </details>
@@ -185,10 +186,7 @@
     ])
 
     <script nonce="{{ csrf_token() }}">
-        $('#catalogue-category').on('change', function () {
-            this.form.submit();
-        });
-
+        var requestableSpecificationFields = @json($specificationSearchFields);
         function requestLineForModel(modelId) {
             var quantity = parseInt($('#model-booking-quantity-' + modelId).val(), 10);
             var disciplineId = parseInt($('#model-booking-discipline-' + modelId).val(), 10);
@@ -251,6 +249,332 @@
 
             addLinesToRequestCart(lines, false);
             return false;
+        });
+        $(function () {
+            var $table = $('#requestableModelsTable');
+            var $category = $('#catalogue-category');
+            var tokens = @json($technicalFilters).map(function (token) {
+                var field = requestableSpecificationFields.find(function (field) { return field.id === Number(token.field_id); });
+                return { field: field, operator: token.operator, value: token.value, number: Number(token.value) };
+            });
+            var freeTextSearch = @json($search);
+            var hideSuggestionsTimer;
+            var searchTimer;
+            var isResettingSearch = false;
+
+            if (!$table.length) {
+                return;
+            }
+
+            var $input = $('.fixed-table-toolbar .search input').attr('placeholder', 'Search models or specs');
+            var $menu = $('<div class="dropdown-menu" id="requestableSpecificationSuggestions"></div>').css({
+                maxHeight: '240px',
+                overflowY: 'auto',
+                zIndex: 1050
+            });
+            var $chips = $('#requestableSpecificationChips');
+
+            $input.parent().css('position', 'relative').append($menu);
+            $menu.on('mousedown', function (event) {
+                clearTimeout(hideSuggestionsTimer);
+                event.preventDefault();
+            });
+
+            function availableFields() {
+                var category = $category.val();
+
+                return requestableSpecificationFields.filter(function (field) {
+                    return !category || field.categories.indexOf(category) !== -1;
+                });
+            }
+
+            function fieldFor(value) {
+                var lowerValue = value.toLowerCase();
+
+                return availableFields()
+                    .filter(function (field) {
+                        var remainder = lowerValue.slice(field.name.length);
+
+                        return lowerValue.indexOf(field.name.toLowerCase()) === 0 && /^(?:\s|$|:|=|>|<)/.test(remainder);
+                    })
+                    .sort(function (first, second) {
+                        return second.name.length - first.name.length;
+                    })[0];
+            }
+
+            function isTechnicalExpression(value) {
+                var field = fieldFor(value);
+
+                if (!field) {
+                    return false;
+                }
+
+                return /^\s*$/.test(value.slice(field.name.length))
+                    || /^(>=|<=|=|:)/.test($.trim(value.slice(field.name.length)));
+            }
+
+            function isPotentialTechnicalField(value) {
+                return !!value && availableFields().some(function (field) {
+                    return field.name.toLowerCase().indexOf(value.toLowerCase()) !== -1;
+                });
+            }
+
+            function clearFreeTextSearch() {
+                isResettingSearch = true;
+                $table.bootstrapTable('resetSearch', '');
+                isResettingSearch = false;
+            }
+
+            function applyFilters() {
+                var url = new URL(@json(route('requestable-assets')));
+                if ($category.val()) url.searchParams.set('category_id', $category.val());
+                if (freeTextSearch) url.searchParams.set('search', freeTextSearch);
+                tokens.forEach(function (token, index) {
+                    var prefix = 'specifications[' + index + ']';
+                    url.searchParams.set(prefix + '[field_id]', token.field.id);
+                    url.searchParams.set(prefix + '[operator]', token.operator);
+                    url.searchParams.set(prefix + '[value]', token.value);
+                });
+                window.location.assign(url.toString());
+            }
+
+            function renderChips() {
+                $chips.empty();
+
+                if (tokens.length || freeTextSearch) {
+                    $('<span class="text-primary" style="margin-right:8px; font-weight:600"></span>')
+                        .text('Active filters:')
+                        .appendTo($chips);
+                }
+
+                tokens.forEach(function (token, index) {
+                    var operatorLabel = token.operator === ':'
+                        ? (token.field.multiple ? 'includes' : (token.field.values.length ? 'is' : 'contains'))
+                        : token.operator;
+                    var $chip = $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
+                        .text(token.field.name + ' ' + operatorLabel + ' ' + token.value + ' ×')
+                        .on('click', function () {
+                            tokens.splice(index, 1);
+                            renderChips();
+                            applyFilters();
+                        });
+
+                    $chips.append($chip);
+                });
+
+                if (freeTextSearch) {
+                    $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
+                        .text('Text contains ' + freeTextSearch + ' ×')
+                        .on('click', function () {
+                            freeTextSearch = '';
+                            clearFreeTextSearch();
+                            renderChips();
+                            applyFilters();
+                        })
+                        .appendTo($chips);
+                }
+            }
+
+            function addToken(field, operator, value) {
+                value = $.trim(value);
+
+                if (!value) {
+                    return;
+                }
+
+                var token = {
+                    field: field,
+                    operator: operator,
+                    value: value,
+                    number: parseFloat(value)
+                };
+
+                if (field.numeric && !isFinite(Number(value))) {
+                    return;
+                }
+
+                tokens.push(token);
+                clearFreeTextSearch();
+                $input.val('');
+                $menu.hide();
+                renderChips();
+                applyFilters();
+            }
+
+            function showSuggestions(items) {
+                clearTimeout(hideSuggestionsTimer);
+                $menu.empty();
+
+                items.forEach(function (item) {
+                    var $option = $('<button type="button" class="dropdown-item btn btn-link btn-block text-left"></button>')
+                        .text(item.label)
+                        .on('click', item.action);
+
+                    $menu.append($option);
+                });
+
+                $menu.toggle(items.length > 0);
+            }
+
+            function suggest() {
+                var value = $.trim($input.val());
+                var field = fieldFor(value);
+
+                if (!field) {
+                    var matches = availableFields().filter(function (candidate) {
+                        return candidate.name.toLowerCase().indexOf(value.toLowerCase()) !== -1;
+                    });
+
+                    showSuggestions(matches.slice(0, 8).map(function (candidate) {
+                        return {
+                            label: candidate.name,
+                            action: function () {
+                                clearFreeTextSearch();
+                                $input.val(candidate.name + (candidate.numeric ? ' ' : ': ')).focus();
+                                suggest();
+                            }
+                        };
+                    }));
+
+                    return;
+                }
+
+                var remainder = $.trim(value.slice(field.name.length));
+
+                if (!remainder && field.numeric) {
+                    showSuggestions(['>=', '<=', '='].map(function (operator) {
+                        return {
+                            label: operator,
+                            action: function () {
+                                clearFreeTextSearch();
+                                $input.val(field.name + ' ' + operator + ' ').focus();
+                                suggest();
+                            }
+                        };
+                    }));
+
+                    return;
+                }
+
+                if (!remainder) {
+                    showSuggestions([{
+                        label: field.name + ': value',
+                        action: function () {
+                            clearFreeTextSearch();
+                            $input.val(field.name + ': ').focus();
+                            suggest();
+                        }
+                    }]);
+
+                    return;
+                }
+
+                var operator = (remainder.match(/^(>=|<=|=|:)/) || [])[1];
+
+                if (field.numeric && !operator) {
+                    showSuggestions(['>=', '<=', '='].map(function (choice) {
+                        return {
+                            label: choice,
+                            action: function () {
+                                clearFreeTextSearch();
+                                $input.val(field.name + ' ' + choice + ' ').focus();
+                                suggest();
+                            }
+                        };
+                    }));
+
+                    return;
+                }
+
+                var typedValue = $.trim(remainder.replace(/^(>=|<=|=|:)/, ''));
+
+                if (field.values.length) {
+                    showSuggestions(field.values
+                        .filter(function (candidate) {
+                            return candidate.toLowerCase().indexOf(typedValue.toLowerCase()) !== -1;
+                        })
+                        .slice(0, 8)
+                        .map(function (candidate) {
+                            return {
+                                label: candidate,
+                                action: function () {
+                                    addToken(field, operator || ':', candidate);
+                                }
+                            };
+                        }));
+
+                    return;
+                }
+
+                $menu.hide();
+            }
+
+            function commitSearch() {
+                var value = $.trim($input.val());
+                var field = fieldFor(value);
+
+                if (!field) {
+                    return false;
+                }
+
+                var remainder = $.trim(value.slice(field.name.length));
+                var match = remainder.match(/^(>=|<=|=|:)\s*(.+)$/);
+
+                if (!match) {
+                    return false;
+                }
+
+                addToken(field, match[1], match[2]);
+
+                return true;
+            }
+
+            $input[0].addEventListener('input', function (event) {
+                event.stopImmediatePropagation();
+                clearTimeout(searchTimer);
+                var value = $.trim($input.val());
+                if (!isTechnicalExpression(value) && !isPotentialTechnicalField(value)) {
+                    searchTimer = setTimeout(function () { freeTextSearch = value; applyFilters(); }, 600);
+                }
+                suggest();
+            }, true);
+
+            $input.closest('.search')[0].addEventListener('click', function (event) {
+                if (event.target.closest('button[name="clearSearch"]')) {
+                    freeTextSearch = '';
+                    renderChips();
+                    applyFilters();
+                }
+            }, true);
+
+            $input[0].addEventListener('keyup', function (event) {
+                event.stopImmediatePropagation();
+            }, true);
+
+            $input
+                .on('input', suggest)
+                .on('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        clearTimeout(searchTimer);
+                        event.preventDefault();
+                        if (!commitSearch()) {
+                            freeTextSearch = $.trim($input.val());
+                            applyFilters();
+                        }
+                    }
+
+                    if (event.key === 'Escape') {
+                        $menu.hide();
+                    }
+                })
+                .on('blur', function () {
+                    hideSuggestionsTimer = setTimeout(function () {
+                        $menu.hide();
+                    }, 150);
+                });
+
+            renderChips();
+            $category.on('change', applyFilters);
         });
     </script>
 @stop

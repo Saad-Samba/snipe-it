@@ -27,7 +27,22 @@ class CreateAssetModelsTest extends TestCase
             ->get(route('models.create'))
             ->assertOk()
             ->assertSee(trans('admin/models/general.eol_help'))
-            ->assertDontSee('name="min_amt"', false);
+            ->assertDontSee('name="min_amt"', false)
+            ->assertSee('select[name="category_id"]', false);
+    }
+
+    public function testCreatePageShowsTheFieldsetForItsInitiallySelectedCategory(): void
+    {
+        $fieldset = CustomFieldset::factory()->create(['name' => 'Initial Model Fieldset']);
+        $category = Category::factory()->forAssets()->create([
+            'fieldset_id' => $fieldset->id,
+        ]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('models.create'))
+            ->assertOk()
+            ->assertSee($category->name)
+            ->assertSee('Initial Model Fieldset');
     }
 
     public function testAfmCannotAccessCreatePageWithoutManagedCategories()
@@ -89,7 +104,6 @@ class CreateAssetModelsTest extends TestCase
             ->post(route('models.store'), [
                 'name' => 'Model With Category Defaults',
                 'category_id' => $category->id,
-                'add_default_values' => '1',
                 'default_values' => [$field->id => '24 VDC'],
             ])
             ->assertRedirect(route('models.index'));

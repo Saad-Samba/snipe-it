@@ -244,6 +244,33 @@ class AssetModel extends SnipeModel
         return $this->belongsToMany(\App\Models\CustomField::class, 'models_custom_fields')->withPivot('default_value');
     }
 
+    /**
+     * Return the catalogue-owned value for a non-unique custom field.
+     *
+     * These values are deliberately resolved from the model instead of being
+     * copied into assets. Updating a model therefore updates every asset of
+     * that model immediately.
+     */
+    public function specificationValue(CustomField $field): ?string
+    {
+        if (! $this->ownsSpecification($field)) {
+            return null;
+        }
+
+        $this->loadMissing('defaultValues');
+
+        return $this->defaultValues->firstWhere('id', $field->id)?->pivot?->default_value;
+    }
+
+    /**
+     * Catalogue specifications are shared, non-sensitive values. Unique and
+     * encrypted fields are not supported for model-backed assets yet.
+     */
+    public function ownsSpecification(CustomField $field): bool
+    {
+        return ! ((bool) $field->is_unique) && ! ((bool) $field->field_encrypted);
+    }
+
     public function setObsoleteAttribute($value)
     {
         if ($value === '') {

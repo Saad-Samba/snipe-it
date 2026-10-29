@@ -6,6 +6,8 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\CustomField;
+use App\Models\CustomFieldset;
 use App\Models\Setting;
 use App\Models\Statuslabel;
 use App\Models\User;
@@ -25,9 +27,11 @@ class IndexCategoriesTest extends TestCase
     public function testCategoryManagerCanViewOnlyManagedCategoriesWithoutGlobalCategoriesViewPermission()
     {
         $manager = User::factory()->create();
+        $fieldset = CustomFieldset::factory()->create(['name' => 'Managed Category Specifications']);
         $managedCategory = Category::factory()->forAssets()->create([
             'name' => 'Managed Category',
             'manager_id' => $manager->id,
+            'fieldset_id' => $fieldset->id,
         ]);
         Category::factory()->forAssets()->create([
             'name' => 'Unmanaged Category',
@@ -39,6 +43,7 @@ class IndexCategoriesTest extends TestCase
             ->assertJson(fn (AssertableJson $json) => $json
                 ->where('total', 1)
                 ->where('rows.0.id', $managedCategory->id)
+                ->where('rows.0.fieldset.can_view', false)
                 ->missing('rows.1')
                 ->etc());
     }
@@ -95,6 +100,33 @@ class IndexCategoriesTest extends TestCase
             ->assertJsonPath('rows.0.available_models_count', 2)
             ->assertJsonPath('rows.0.assets_count', 2)
             ->assertJsonPath('rows.0.reusable_assets_count', 2);
+    }
+
+    public function testCategoryIndexIncludesConfiguredAttributeFieldsetAndCount()
+    {
+        $fieldset = CustomFieldset::factory()->create(['name' => 'Power Specifications']);
+        $fields = CustomField::factory()->count(2)->create();
+        $uniqueField = CustomField::factory()->create(['name' => 'Serial Number', 'is_unique' => true]);
+        $encryptedField = CustomField::factory()->create(['name' => 'Internal Secret', 'field_encrypted' => true]);
+        $fieldset->fields()->attach($fields->mapWithKeys(fn ($field, $index) => [
+            $field->id => ['order' => $index + 1, 'required' => false],
+        ])->put($uniqueField->id, ['order' => 3, 'required' => false])
+            ->put($encryptedField->id, ['order' => 4, 'required' => false])
+            ->all());
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'Power Supplies',
+            'fieldset_id' => $fieldset->id,
+        ]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->getJson(route('api.categories.index', ['name' => $category->name]))
+            ->assertOk()
+            ->assertJsonPath('rows.0.fieldset.id', $fieldset->id)
+            ->assertJsonPath('rows.0.fieldset.name', 'Power Specifications')
+            ->assertJsonPath('rows.0.fieldset.can_view', true)
+            ->assertJsonPath('rows.0.fieldset.fields_count', 4)
+            ->assertJsonCount(2, 'rows.0.fieldset.fields')
+            ->assertJsonPath('rows.0.fieldset.fields.0', $fields[0]->name);
     }
 
     public function testUnassignedGlobalViewerIsNotTreatedAsAfm()

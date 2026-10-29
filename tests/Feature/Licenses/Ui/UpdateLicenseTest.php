@@ -16,6 +16,53 @@ class UpdateLicenseTest extends TestCase
             ->assertOk();
     }
 
+    public function testCanUncheckMaintenanceOnMaintainedPerpetualLicense(): void
+    {
+        $license = License::factory()->create([
+            'perpetual' => true,
+            'maintained' => true,
+            'maintenance_expires_at' => '2027-12-31',
+        ]);
+        $this->actingAs(User::factory()->superuser()->create())
+            ->patch(route('licenses.update', $license), [
+                'name' => $license->name,
+                'seats' => $license->seats,
+                'category_id' => $license->category_id,
+                'perpetual' => '1',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+        $license->refresh();
+        $this->assertFalse((bool) $license->maintained);
+        $this->assertTrue($license->perpetual);
+        $this->assertNull($license->maintenance_expires_at);
+    }
+
+    public function testCanUncheckPerpetualWhileKeepingMaintenance(): void
+    {
+        $license = License::factory()->create([
+            'perpetual' => true,
+            'maintained' => true,
+            'maintenance_expires_at' => '2027-12-31',
+        ]);
+        $this->actingAs(User::factory()->superuser()->create())
+            ->patch(route('licenses.update', $license), [
+                'name' => $license->name,
+                'seats' => $license->seats,
+                'category_id' => $license->category_id,
+                'expiration_date' => '2028-12-31',
+                'maintained' => '1',
+                'maintenance_expires_at' => '2027-12-31',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+        $license->refresh();
+        $this->assertFalse($license->perpetual);
+        $this->assertTrue((bool) $license->maintained);
+        $this->assertSame('2028-12-31', $license->expiration_date->toDateString());
+        $this->assertSame('2027-12-31', $license->maintenance_expires_at->toDateString());
+    }
+
     public function testCanUpdateLicenseSeats()
     {
         $admin = User::factory()->superuser()->create();

@@ -1,5 +1,30 @@
 @push('css')
     <link rel="stylesheet" href="{{ url(mix('css/dist/bootstrap-table.css')) }}">
+    <style nonce="{{ csrf_token() }}">
+        .snipe-top-scrollbar { position: relative; }
+        .snipe-top-scrollbar-indicator {
+            position: absolute;
+            top: 1px;
+            left: 0;
+            right: 0;
+            height: 7px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.09);
+            cursor: pointer;
+            touch-action: none;
+        }
+        .snipe-top-scrollbar-thumb {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 7px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.50);
+        }
+        .snipe-top-scrollbar-indicator:hover .snipe-top-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.70);
+        }
+    </style>
 @endpush
 
 @push('js')
@@ -58,6 +83,7 @@
                 }
                 return default_value;
             }
+            var extraQueryParamsCallback = data_with_default('extra-query-params', null);
 
 
 
@@ -108,7 +134,7 @@
                 search: data_with_default('search', true),
                 // This HTML table already contains the server-filtered page. Keep its
                 // standard search control without filtering just those visible rows.
-                customSearch: $(table).data('server-search-url') ? function (data) { return data; } : undefined,
+                customSearch: ($(table).data('server-search-url') || $(table).data('catalogue-search')) ? function (data) { return data; } : undefined,
                 onSearch: function (searchText) {
                     var serverSearchUrl = $(table).data('server-search-url');
                     if (!serverSearchUrl || searchText === String($(table).data('search-text') || '')) {
@@ -131,6 +157,8 @@
                 sortName: data_with_default('sort-name', 'created_at'),
                 sortOrder: data_with_default('sort-order', 'desc'),
                 stickyHeader: true,
+                // updateTopScrollbar raises this only while a mirror is visible.
+                stickyHeaderOffsetY: 0,
                 stickyHeaderOffsetLeft: parseInt($('body').css('padding-left'), 10),
                 stickyHeaderOffsetRight: parseInt($('body').css('padding-right'), 10),
                 trimOnSearch: false,
@@ -153,6 +181,10 @@
                         if (advancedFilters[filterKey] !== undefined && advancedFilters[filterKey] !== null && advancedFilters[filterKey] !== '') {
                             newParams[filterKey] = advancedFilters[filterKey];
                         }
+                    }
+
+                    if (extraQueryParamsCallback && typeof window[extraQueryParamsCallback] === 'function') {
+                        newParams = window[extraQueryParamsCallback](newParams) || newParams;
                     }
 
                     return newParams;
@@ -1514,6 +1546,41 @@
         return '<div style="white-space:nowrap;">' + modelMetric + assetMetric + '</div>';
     }
 
+    function categoryTechnicalSpecificationsFormatter(value) {
+        if (!value || !value.id) {
+            return '<span class="text-muted">No technical specifications configured</span>';
+        }
+
+        var fieldsetLink = '';
+        if (value.can_view) {
+            var fieldsetUrl = '{{ route('fieldsets.show', ['fieldset' => '__FIELDSET_ID__']) }}'
+                .replace('__FIELDSET_ID__', encodeURIComponent(value.id));
+            fieldsetLink = '<a href="' + fieldsetUrl + '" class="btn btn-default btn-xs"'
+                + ' title="View custom fieldset" aria-label="View custom fieldset">'
+                + '<i class="fa-regular fa-rectangle-list" aria-hidden="true"></i>'
+                + '<span class="sr-only">View custom fieldset</span></a>';
+        }
+        var fields = Array.isArray(value.fields) ? value.fields : [];
+        var specificationNames = fields.length
+            ? '<div>' + fields.map(function (name) {
+                return '<span class="label label-default" style="display:inline-block; margin:2px 2px 2px 0;">' + name + '</span>';
+            }).join('') + '</div>'
+            : '<span class="text-muted">No technical specifications configured</span>';
+        var fieldsetLinkMarkup = fieldsetLink
+            ? '<div style="margin-top:4px;">' + fieldsetLink + '</div>'
+            : '';
+
+        return '<div>' + specificationNames + fieldsetLinkMarkup + '</div>';
+    }
+
+    function modelSpecificationValueFormatter(value) {
+        if (value === null || value === undefined || String(value).trim() === '') {
+            return '<span class="text-muted">—</span>';
+        }
+
+        return value;
+    }
+
     function modelReusableAssetsFormatter(value, row) {
         var assets = Number(value) || 0;
 
@@ -1640,7 +1707,10 @@
 
     }
 
-    var modelRequestProjects = @json(\App\Models\Project::orderBy('name')->get(['id', 'name']));
+    @php
+        $modelRequestProjects = \App\Models\Project::orderBy('name')->get(['id', 'name', 'is_rfq', 'rfq_needed_by_date']);
+    @endphp
+    var modelRequestProjects = @json($modelRequestProjects);
     var modelRequestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name']));
     var modelRequestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name']));
     var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
@@ -1661,6 +1731,21 @@
         });
 
         return options.join('');
+    }
+
+    function applyRfqProjectNeededByDate(projectSelect, neededByDateInput, notice) {
+        var project = modelRequestProjects.find(function (candidate) {
+            return String(candidate.id) === String($(projectSelect).val());
+        });
+        var neededByDate = project && project.is_rfq ? project.rfq_needed_by_date : null;
+
+        if (neededByDate) {
+            $(neededByDateInput).val(neededByDate).prop('readonly', true);
+            $(notice).text('This RFQ project has one official Needed By date: ' + neededByDate + '.').show();
+        } else {
+            $(neededByDateInput).prop('readonly', false);
+            $(notice).hide().text('');
+        }
     }
 
     function buildModelRequestDisciplineOptions(selectedDisciplineId) {
@@ -1812,6 +1897,7 @@
             + '          <div class="form-group" id="model-request-modal-needed-by-group">'
             + '            <label for="model-request-modal-needed-by-date">Needed By</label>'
             + '            <input type="date" name="needed_by_date" id="model-request-modal-needed-by-date" class="form-control" required>'
+            + '            <span class="help-block" id="model-request-modal-rfq-notice" style="display:none;"></span>'
             + '          </div>'
             + '          <div id="model-request-modal-estimate" class="well well-sm" style="margin-bottom:0;">'
             + '            <div style="font-weight:600;margin-bottom:8px;">Reuse Estimate <span class="label label-info" data-tooltip="true" title="Recently released feature">NEW</span></div>'
@@ -1836,6 +1922,10 @@
         $('body').append(modalHtml);
 
         $('#model-request-modal-project, #model-request-modal-needed-by-date, #model-request-modal-quantity, #model-request-modal-company').on('change keyup', function () {
+            updateModelRequestEstimateSummary();
+        });
+        $('#model-request-modal-project').on('change', function () {
+            applyRfqProjectNeededByDate('#model-request-modal-project', '#model-request-modal-needed-by-date', '#model-request-modal-rfq-notice');
             updateModelRequestEstimateSummary();
         });
 
@@ -1874,6 +1964,7 @@
             + '          <div class="form-group">'
             + '            <label for="request-submission-modal-needed-by-date">Needed By</label>'
             + '            <input type="date" name="needed_by_date" id="request-submission-modal-needed-by-date" class="form-control" required>'
+            + '            <span class="help-block" id="request-submission-modal-rfq-notice" style="display:none;"></span>'
             + '          </div>'
             + '        </div>'
             + '        <div class="modal-footer">'
@@ -1889,6 +1980,9 @@
         $('#request-submission-modal-create-project').on('click', function () {
             createProjectFromRequestModal('#request-submission-modal-project', '#request-submission-modal-error');
         });
+        $('#request-submission-modal-project').on('change', function () {
+            applyRfqProjectNeededByDate('#request-submission-modal-project', '#request-submission-modal-needed-by-date', '#request-submission-modal-rfq-notice');
+        });
     }
 
     function openRequestSubmissionModal(updateUrl, projectId, neededByDate) {
@@ -1897,6 +1991,7 @@
         $('#request-submission-modal-project').html(buildModelRequestProjectOptions(projectId || ''));
         $('#request-submission-modal-project').val(String(projectId || ''));
         $('#request-submission-modal-needed-by-date').val(neededByDate || '');
+        applyRfqProjectNeededByDate('#request-submission-modal-project', '#request-submission-modal-needed-by-date', '#request-submission-modal-rfq-notice');
         $('#request-submission-modal-error').hide().text('');
         $('#request-submission-modal').modal('show');
     }
@@ -1936,6 +2031,7 @@
             + '              <div class="form-group">'
             + '                <label for="model-request-cart-needed-by-date">Needed By</label>'
             + '                <input type="date" name="needed_by_date" id="model-request-cart-needed-by-date" class="form-control" required>'
+            + '                <span class="help-block" id="model-request-cart-rfq-notice" style="display:none;"></span>'
             + '              </div>'
             + '            </div>'
             + '          </div>'
@@ -1969,6 +2065,10 @@
         $('body').append(modalHtml);
 
         $('#model-request-cart-project, #model-request-cart-needed-by-date').on('change keyup', function () {
+            refreshModelRequestCartPreview();
+        });
+        $('#model-request-cart-project').on('change', function () {
+            applyRfqProjectNeededByDate('#model-request-cart-project', '#model-request-cart-needed-by-date', '#model-request-cart-rfq-notice');
             refreshModelRequestCartPreview();
         });
 
@@ -2037,6 +2137,7 @@
         $('#model-request-modal-project').html(buildModelRequestProjectOptions(options.projectId || ''));
         $('#model-request-modal-project').val(String(options.projectId || ''));
         $('#model-request-modal-needed-by-date').val(options.neededByDate || '');
+        applyRfqProjectNeededByDate('#model-request-modal-project', '#model-request-modal-needed-by-date', '#model-request-modal-rfq-notice');
         $('#model-request-modal-project-group, #model-request-modal-needed-by-group').toggle(options.showSharedContext !== false);
         $('#model-request-modal-submit').text(options.submitLabel);
         resetModelRequestEstimateState();
@@ -2172,6 +2273,7 @@
 
     function openModelRequestCartModal() {
         ensureModelRequestCartModal();
+        applyRfqProjectNeededByDate('#model-request-cart-project', '#model-request-cart-needed-by-date', '#model-request-cart-rfq-notice');
         $('#model-request-cart-modal').modal('show');
         refreshModelRequestCartPreview();
     }
@@ -2233,7 +2335,9 @@
 
             modelRequestProjects.push({
                 id: response.payload.id,
-                name: response.payload.name
+                name: response.payload.name,
+                is_rfq: false,
+                rfq_needed_by_date: null
             });
             modelRequestProjects.sort(function (a, b) {
                 return a.name.localeCompare(b.name);
@@ -3183,15 +3287,267 @@
         searchboxHighlighter({ name:'pageload'});
         $('.search-input').keyup(searchboxHighlighter);
 
-        //  This is necessary to make the bootstrap tooltips work inside of the
-        // wenzhixin/bootstrap-table formatters
-        $('#table').on('post-body.bs.table', function () {
+        // This is necessary to make the bootstrap tooltips work inside of the
+        // wenzhixin/bootstrap-table formatters. Delegate it so every table,
+        // including tables initialized inside tabs, receives the hook.
+        $(document).on('post-body.bs.table', '.snipe-table', function () {
             $('[data-tooltip="true"]').tooltip({
                 container: 'body'
             });
-
-
         });
+    });
+
+    // Mirror the table body's native horizontal scrollbar above wide tables.
+    // This is adapted from the upstream implementation for #5779, including
+    // the later fixes for cloned tables, hidden tabs, sorting, and sticky
+    // headers (#19484).
+    function updateTopScrollbar(root) {
+        var $targets = root ? $(root).filter('.snipe-table') : $('.snipe-table');
+        var processedWrappers = [];
+
+        $targets.each(function () {
+            var $body = $(this).closest('.fixed-table-body');
+            if (! $body.length) return;
+
+            var $bootstrapTable = $body.closest('.bootstrap-table');
+            if (! $bootstrapTable.length) return;
+
+            // In fullscreen mode this wrapper, rather than window, is the
+            // vertical scrolling element.
+            $bootstrapTable
+                .off('scroll.snipeTopScrollbarPin')
+                .on('scroll.snipeTopScrollbarPin', scheduleTopScrollbarPin);
+
+            var wrapper = $bootstrapTable[0];
+            if (processedWrappers.indexOf(wrapper) !== -1) return;
+            processedWrappers.push(wrapper);
+
+            // Fixed-column extensions can clone the table. Always bind the
+            // mirror to the primary body and table, not to an extension clone.
+            var $container = $bootstrapTable.children('.fixed-table-container').first();
+            if (! $container.length) return;
+
+            var $primaryBody = $container.find('.fixed-table-body').first();
+            var $primaryTable = $primaryBody.find('table.snipe-table').first();
+            if (! $primaryBody.length || ! $primaryTable.length) return;
+
+            var primaryBody = $primaryBody[0];
+            var primaryTable = $primaryTable[0];
+
+            // Remove mirrors created by the original upstream placement. The
+            // current mirror is a direct child of .bootstrap-table so it can
+            // be pinned against the page viewport.
+            $container.children('.snipe-top-scrollbar').remove();
+
+            // Fixed-height widgets already keep their bottom scrollbar close
+            // to their content and do not benefit from a second scrollbar.
+            if ($primaryTable.is('[data-height]')) {
+                $bootstrapTable.children('.snipe-top-scrollbar').remove();
+                updateStickyHeaderOffset($primaryTable, 0);
+                return;
+            }
+
+            var $topScrollbar = $bootstrapTable.children('.snipe-top-scrollbar');
+            var overflows = primaryTable.scrollWidth > primaryBody.clientWidth;
+
+            // Preserve the node across transient width measurements during a
+            // sort, then reveal it again after Bootstrap Table settles.
+            if (! overflows) {
+                $topScrollbar.hide();
+                updateStickyHeaderOffset($primaryTable, 0);
+                return;
+            }
+
+            if (! $topScrollbar.length) {
+                $topScrollbar = $('<div class="snipe-top-scrollbar" aria-hidden="true"><div class="snipe-top-scrollbar-inner"></div><div class="snipe-top-scrollbar-indicator"><div class="snipe-top-scrollbar-thumb"></div></div></div>');
+                $container.before($topScrollbar);
+            } else {
+                $topScrollbar.show();
+            }
+
+            updateStickyHeaderOffset($primaryTable, $topScrollbar.outerHeight());
+
+            var topScrollbar = $topScrollbar[0];
+            var syncing = false;
+
+            // The body can be replaced after a render, so refresh both
+            // namespaced handlers every time this function runs.
+            $topScrollbar.off('scroll.snipeScrollSync').on('scroll.snipeScrollSync', function () {
+                if (syncing) return;
+                syncing = true;
+                primaryBody.scrollLeft = topScrollbar.scrollLeft;
+                updateTopScrollbarThumb($topScrollbar);
+                syncing = false;
+            });
+            $primaryBody.off('scroll.snipeScrollSync').on('scroll.snipeScrollSync', function () {
+                if (syncing) return;
+                syncing = true;
+                topScrollbar.scrollLeft = primaryBody.scrollLeft;
+                updateTopScrollbarThumb($topScrollbar);
+                syncing = false;
+            });
+
+            $topScrollbar.children('.snipe-top-scrollbar-inner').css('width', primaryTable.scrollWidth + 'px');
+            var trackWidth = topScrollbar.clientWidth;
+            var thumbWidth = Math.max(48, Math.round(trackWidth * trackWidth / primaryTable.scrollWidth));
+            $topScrollbar.data('snipeScrollMetrics', {
+                maxScroll: Math.max(1, primaryTable.scrollWidth - trackWidth),
+                maxThumbLeft: Math.max(0, trackWidth - thumbWidth)
+            });
+            $topScrollbar.find('.snipe-top-scrollbar-thumb').css('width', thumbWidth + 'px');
+            updateTopScrollbarThumb($topScrollbar);
+
+            $topScrollbar.find('.snipe-top-scrollbar-indicator')
+                .off('pointerdown.snipeScrollSync')
+                .on('pointerdown.snipeScrollSync', function (event) {
+                    if (event.button !== 0) return;
+                    event.preventDefault();
+
+                    var indicator = this;
+                    var metrics = $topScrollbar.data('snipeScrollMetrics');
+                    var thumb = $topScrollbar.find('.snipe-top-scrollbar-thumb')[0];
+                    var bounds = indicator.getBoundingClientRect();
+                    var thumbLeft = parseFloat(thumb.style.left) || 0;
+                    var offset = event.target === thumb ? event.clientX - bounds.left - thumbLeft : thumb.offsetWidth / 2;
+
+                    function move(pointerEvent) {
+                        var nextLeft = Math.max(0, Math.min(metrics.maxThumbLeft, pointerEvent.clientX - bounds.left - offset));
+                        topScrollbar.scrollLeft = nextLeft / Math.max(1, metrics.maxThumbLeft) * metrics.maxScroll;
+                    }
+
+                    function stop() {
+                        indicator.removeEventListener('pointermove', move);
+                        indicator.removeEventListener('pointerup', stop);
+                        indicator.removeEventListener('pointercancel', stop);
+                    }
+
+                    indicator.setPointerCapture(event.originalEvent.pointerId);
+                    indicator.addEventListener('pointermove', move);
+                    indicator.addEventListener('pointerup', stop);
+                    indicator.addEventListener('pointercancel', stop);
+                    move(event);
+                });
+            pinTopScrollbarIfScrolled($topScrollbar, $container);
+        });
+    }
+
+    function updateTopScrollbarThumb($topScrollbar) {
+        var metrics = $topScrollbar.data('snipeScrollMetrics');
+        if (!metrics) return;
+
+        var left = Math.round($topScrollbar[0].scrollLeft / metrics.maxScroll * metrics.maxThumbLeft);
+        var thumb = $topScrollbar.find('.snipe-top-scrollbar-thumb')[0];
+        if (thumb && thumb.style.left !== left + 'px') {
+            thumb.style.left = left + 'px';
+        }
+    }
+
+    function updateStickyHeaderOffset($table, offset) {
+        var bootstrapTable = $table.data('bootstrap.table');
+        if (! bootstrapTable || ! bootstrapTable.options) return;
+
+        var nextOffset = Math.max(0, Math.round(offset || 0));
+        if (bootstrapTable.options.stickyHeaderOffsetY === nextOffset) return;
+
+        bootstrapTable.options.stickyHeaderOffsetY = nextOffset;
+        if (typeof bootstrapTable.renderStickyHeader === 'function') {
+            bootstrapTable.renderStickyHeader();
+        }
+    }
+
+    function pinTopScrollbarIfScrolled($topScrollbar, $container) {
+        if (! $topScrollbar.length || ! $container.length || $topScrollbar.css('display') === 'none') return;
+
+        var containerRect = $container[0].getBoundingClientRect();
+        var scrollbarHeight = $topScrollbar[0].offsetHeight;
+        var shouldPin = containerRect.top < 0 && containerRect.bottom >= scrollbarHeight;
+
+        if (shouldPin) {
+            var left = Math.round(containerRect.left);
+            var width = Math.round(containerRect.width);
+            var geometry = left + ':' + width;
+            if (! $topScrollbar.hasClass('is-pinned') || $topScrollbar.data('snipePinnedGeometry') !== geometry) {
+                $topScrollbar.addClass('is-pinned').css({
+                    position: 'fixed',
+                    top: 0,
+                    left: left + 'px',
+                    width: width + 'px'
+                }).data('snipePinnedGeometry', geometry);
+            }
+        } else if ($topScrollbar.hasClass('is-pinned')) {
+            $topScrollbar.removeClass('is-pinned').css({
+                position: '',
+                top: '',
+                left: '',
+                width: ''
+            }).removeData('snipePinnedGeometry');
+        }
+    }
+
+    var topScrollbarFramePending = false;
+    function scheduleTopScrollbarPin() {
+        if (topScrollbarFramePending) return;
+        topScrollbarFramePending = true;
+
+        var requestFrame = window.requestAnimationFrame || function (callback) {
+            return window.setTimeout(callback, 16);
+        };
+
+        requestFrame(function () {
+            topScrollbarFramePending = false;
+            $('.snipe-top-scrollbar').each(function () {
+                var $topScrollbar = $(this);
+                var $bootstrapTable = $topScrollbar.parent('.bootstrap-table');
+                if (! $bootstrapTable.length) return;
+
+                pinTopScrollbarIfScrolled(
+                    $topScrollbar,
+                    $bootstrapTable.children('.fixed-table-container').first()
+                );
+            });
+        });
+    }
+
+    function deferTopScrollbarUpdate(callback) {
+        var requestFrame = window.requestAnimationFrame || function (fn) {
+            return window.setTimeout(fn, 0);
+        };
+
+        requestFrame(function () {
+            requestFrame(callback);
+        });
+        window.setTimeout(callback, 120);
+    }
+
+    $(window).on('scroll.snipeTopScrollbarPin resize.snipeTopScrollbarPin', scheduleTopScrollbarPin);
+
+    // These delegated listeners intentionally live outside document.ready so
+    // they also catch the first render of tables in hash-selected hidden tabs.
+    $(document).on('post-body.bs.table', '.snipe-table', function () {
+        var table = this;
+        deferTopScrollbarUpdate(function () {
+            updateTopScrollbar(table);
+        });
+        window.setTimeout(function () {
+            updateTopScrollbar(table);
+        }, 250);
+    });
+
+    $(document).on('shown.bs.tab', function () {
+        deferTopScrollbarUpdate(function () {
+            updateTopScrollbar();
+        });
+    });
+
+    $(document).on('reset-view.bs.table', '.snipe-table', function () {
+        var table = this;
+        deferTopScrollbarUpdate(function () {
+            updateTopScrollbar(table);
+        });
+    });
+
+    $(window).on('resize.snipeTopScrollbarMeasure', function () {
+        updateTopScrollbar();
     });
 
 </script>

@@ -203,6 +203,22 @@ class CategoriesController extends Controller
     {
         $this->authorize('view', $category);
 
+        $category->loadMissing('fieldset.fields');
+        $specificationSearchFields = $category->fieldset?->fields
+            ->filter(fn ($field) => ! $field->is_unique && ! $field->field_encrypted)
+            ->map(fn ($field) => [
+                'id' => (int) $field->id,
+                'name' => $field->name,
+                'numeric' => $field->element !== 'checkbox' && strtolower((string) $field->format) === 'numeric',
+                'enumerated' => in_array($field->element, ['listbox', 'checkbox', 'radio'], true),
+                'multiple' => $field->element === 'checkbox',
+                'values' => collect($field->formatFieldValuesAsArray())
+                    ->except('')
+                    ->map(fn ($label, $value) => ['value' => (string) $value, 'label' => (string) $label])
+                    ->values(),
+            ])
+            ->values() ?? collect();
+
             if ($category->category_type == 'asset') {
                 $category_type = 'hardware';
                 $category_type_route = 'assets';
@@ -214,7 +230,7 @@ class CategoriesController extends Controller
                 $category_type_route = $category->category_type.'s';
             }
 
-            return view('categories/view', compact('category'))
+            return view('categories/view', compact('category', 'specificationSearchFields'))
                 ->with('category_type', $category_type)
                 ->with('category_type_route', $category_type_route);
     }

@@ -60,6 +60,12 @@ class CategoriesTransformer
                 'fieldset' => ($category->fieldset) ? [
                     'id' => (int) $category->fieldset->id,
                     'name' => e($category->fieldset->name),
+                    'can_view' => Gate::allows('view', $category->fieldset),
+                    'fields_count' => (int) ($category->fieldset->fields_count ?? $category->fieldset->fields()->count()),
+                    'fields' => $category->fieldset->fields
+                        ->reject(fn ($field) => $field->is_unique || $field->field_encrypted)
+                        ->map(fn ($field) => e($field->name))
+                        ->values(),
                 ] : null,
                 'manager' => ($category->manager) ? [
                     'id' => (int) $category->manager->id,

@@ -282,6 +282,13 @@ return [
 
     ],
 
+    'Projects' => [
+        [
+            'permission' => 'projects.view',
+            'display'    => true,
+        ],
+    ],
+
     'Categories' => [
         [
             'permission' => 'categories.view',

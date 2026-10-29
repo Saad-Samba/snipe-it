@@ -16,7 +16,7 @@ Interfaces: the existing asset-list endpoint accepts `request_bucket=assigned_ca
 
 The requester catalogue at http://localhost:8136/account/requestable-assets shows all non-deleted models to users with `models.request`, regardless of available stock, current assignments, or inventory company. The previous stock-based `models.request.all_companies` distinction no longer limits this catalogue. Asset visibility rules still apply to post-submission asset drilldowns.
 
-The catalogue has server-rendered pages of 25 models. Search uses the standard table toolbar, with the category filter and bulk-add control alongside it. Search queries the whole catalogue and remains usable when no rows match. Model identifiers and requestable, non-encrypted technical defaults remain available. Obsolete models are labeled and remain requestable. No availability or reference-price columns are shown.
+The catalogue has server-rendered pages of 25 models. Search uses the standard table toolbar, with the category filter and bulk-add control alongside it. Search queries the whole catalogue and remains usable when no rows match. Technical search offers field names, numeric comparisons (`>=`, `<=`, `=`), allowed-value suggestions, and removable filter chips. Filters apply to the entire catalogue before pagination and can be combined with text and category searches. Model identifiers and requestable, non-encrypted technical defaults remain available. Obsolete models are labeled and remain requestable. No availability or reference-price columns are shown.
 
 The cart shows model, discipline, destination site, requested quantity, project, and Needed By. Its preview endpoint returns only demand metadata and requested totals, without sourcing calculations. Existing submission validation, estimation snapshots, routing, allocation behavior, and post-submission reports remain in place. Submission alone does not allocate assets or approve procurement.
 
@@ -36,6 +36,8 @@ docker compose -f docker-compose.assigned-candidates.yml up -d
 docker compose -f docker-compose.assigned-candidates.yml exec -T app php artisan migrate --force
 docker compose -f docker-compose.assigned-candidates.yml exec -T app php artisan db:seed --class=LearAssignedCandidatesQaSeeder --force
 ```
+
+This branch incorporates `feature/reuse-workflow` through `032b0ff59a`. After pulling this update into an existing Docker environment, run migrations before testing; rebuild the app if your environment copies source into its image. Rerun the seeder to add the new synthetic technical specifications.
 
 Startup creates OAuth keys if missing and gives Apache ownership of keys and runtime storage. The seeder is repeatable, can run in any application environment, and uses synthetic electronics-lab data inspired by Lear. No real company records or personal data are used.
 
@@ -68,6 +70,10 @@ FMCS is off in the demo so the coordinator can see the synthetic Rabat and Valls
 
 The seeder prints request IDs. In a new dedicated database the CAN-FD request is #1 and ECU Probe request #2. Needed By is 14 days after seeding; Due Back and Later dates are 7 and 30 days after seeding.
 
+### Technical-search walkthrough
+
+As `le-qa-requester`, open Requestable Models and type **QA Supply Voltage** in the standard table search. Choose `>=`, enter `20`, and press Enter. Only **QA Programmable DC Supply** (60) should remain. Add **QA Interface Type: DC** using the suggested value; both chips should remain active. Expand **View specifications** to inspect the model values. Change category and verify both filters remain applied; remove a chip to broaden results. The other seeded models have voltage/interface values 12/CAN-FD and 5/JTAG.
+
 ## Automated checks
 
 Tests use a second database within this dedicated stack, never the seeded QA database. Create it once:
@@ -90,6 +96,6 @@ The credentials and app key in this Compose file are local QA fixtures. Stop the
 
 ## Verified result
 
-The dedicated stack passed the four suites above: **95 tests, 597 assertions**. Browser verification as the seeded coordinator confirmed the Received Requests count of six, the linked candidate rows and project labels, the read-only controls, and the candidate-specific empty search message. Database readback confirmed 14 seeded assets, one coordinator target for the CAN-FD request, and no coordinator target for the assigned-only ECU Probe request.
+After merging the reuse-workflow update, the dedicated stack passed **148 tests, 906 assertions**, covering the four request suites above plus asset-model/category behavior, catalogue field configuration, model default values, model API search, and category UI. Technical-search regression tests cover filtering beyond the first page, combined comparisons, text and checkbox matching, and rejection of hidden, unique, encrypted, or invalid numeric filters. Browser verification confirmed numeric and choice suggestions, combined filter chips, category persistence, and the standard table toolbar with no JavaScript errors. Browser verification as the seeded coordinator confirmed the Received Requests count of six, the linked candidate rows and project labels, the read-only controls, and the candidate-specific empty search message. Database readback confirmed 14 seeded assets, one coordinator target for the CAN-FD request, and no coordinator target for the assigned-only ECU Probe request.
 
 Requester browser verification confirmed that the zero-inventory DC Supply and assigned-only ECU Probe are visible, the cart contains demand only, submission succeeds, and post-submission sourcing estimates remain visible. Database readback for sample request #3 confirmed quantity 4, the chosen project/site/discipline/date, shortfall 4, no physical assets, and no allocations.

@@ -24,6 +24,18 @@ class CustomFieldSetDefaultValuesForModelTest extends TestCase
             ->assertSee('Category Default Fieldset');
     }
 
+    public function testComponentUsesInitialCategoryFieldsetWhenModelDoesNotExist()
+    {
+        $fieldset = CustomFieldset::factory()->create(['name' => 'Initially Selected Category Fieldset']);
+        $category = Category::factory()->forAssets()->create([
+            'fieldset_id' => $fieldset->id,
+        ]);
+
+        Livewire::test(CustomFieldSetDefaultValuesForModel::class, ['category_id' => $category->id])
+            ->assertSet('category_id', $category->id)
+            ->assertSee('Initially Selected Category Fieldset');
+    }
+
     public function testComponentShowsInheritedFieldsetDefaultsWithoutOverrideControlsWhenOverridesAreDisabled()
     {
         $categoryFieldset = CustomFieldset::factory()->create(['name' => 'Governed Category Fieldset']);
@@ -42,6 +54,7 @@ class CustomFieldSetDefaultValuesForModelTest extends TestCase
             ->assertSee('Governed Category Fieldset')
             ->assertDontSee('Hidden Model Override')
             ->assertDontSeeHtml('name="fieldset_id"')
-            ->assertSeeHtml('name="add_default_values"');
+            ->assertDontSeeHtml('name="add_default_values"')
+            ->assertSeeHtml('name="default_values[');
     }
 }
