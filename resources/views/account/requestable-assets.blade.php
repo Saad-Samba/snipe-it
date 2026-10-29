@@ -30,31 +30,27 @@
 
             <div class="box-body">
                 <p class="text-muted">Request the model and quantity your project needs. Reuse and procurement options are assessed after submission.</p>
-                <form method="GET" action="{{ route('requestable-assets') }}" class="form-inline" style="margin-bottom:15px;">
-                    <label for="catalogue-search">Search models</label>
-                    <input id="catalogue-search" name="search" class="form-control" value="{{ $search }}" placeholder="Model, number, or manufacturer">
-                    <label for="catalogue-category">Category</label>
-                    <select id="catalogue-category" name="category_id" class="form-control">
-                        <option value="">All categories</option>
-                        @foreach ($categories as $category)
-                            <option value="{{ $category->id }}" {{ (string) $categoryId === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
-                        @endforeach
-                    </select>
-                    <button type="submit" class="btn btn-default">Search</button>
-                    <a href="{{ route('requestable-assets') }}" class="btn btn-link">Clear filters</a>
-                </form>
-                @if ($models->isEmpty())
-                    <div class="alert alert-info fade in" style="margin-bottom:0;">
-                        <i class="fas fa-info-circle" aria-hidden="true"></i>
-                        No catalogue models match your search.
-                    </div>
-                @else
-                    <form id="requestableModelsBulkForm" class="form-inline" style="margin-bottom:10px;">
+                <div id="requestableModelsToolbar" class="form-inline">
+                    <form id="requestableCatalogueFilters" method="GET" action="{{ route('requestable-assets') }}" style="display:inline-block;margin-right:8px;">
+                        <input type="hidden" name="search" value="{{ $search }}">
+                        <label class="sr-only" for="catalogue-category">Category</label>
+                        <select id="catalogue-category" name="category_id" class="form-control">
+                            <option value="">All categories</option>
+                            @foreach ($categories as $category)
+                                <option value="{{ $category->id }}" {{ (string) $categoryId === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                        @if ($search !== '' || $categoryId)
+                            <a href="{{ route('requestable-assets') }}" class="btn btn-link">Clear filters</a>
+                        @endif
+                    </form>
+                    <form id="requestableModelsBulkForm" style="display:inline-block;">
                         <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>
                             <i class="fas fa-cart-plus" aria-hidden="true"></i>
                             Add Selected to Cart
                         </button>
                     </form>
+                </div>
 
                     <div class="table-responsive">
                         <table
@@ -65,7 +61,14 @@
                             data-bulk-button-id="#requestableModelsBulkAddButton"
                             data-bulk-form-id="#requestableModelsBulkForm"
                             data-click-to-select="false"
-                            data-search="false"
+                            data-toolbar="#requestableModelsToolbar"
+                            data-search="true"
+                            data-search-text="{{ $search }}"
+                            data-server-search-url="{{ route('requestable-assets', array_filter(['category_id' => $categoryId])) }}"
+                            data-advanced-search="false"
+                            data-cookie="false"
+                            data-addrbar="false"
+                            data-empty-message="No catalogue models match your search."
                             data-pagination="false">
                             <thead>
                                 <tr>
@@ -166,9 +169,8 @@
                             </tbody>
                         </table>
                     </div>
-                    <p class="text-muted">Showing {{ $models->firstItem() }}–{{ $models->lastItem() }} of {{ $models->total() }} models. Selection applies to this page; your cart is retained across pages.</p>
+                    <p class="text-muted">Showing {{ $models->firstItem() ?? 0 }}–{{ $models->lastItem() ?? 0 }} of {{ $models->total() }} models. Selection applies to this page; your cart is retained across pages.</p>
                     {{ $models->links() }}
-                @endif
             </div>
         </div>
     </div>
@@ -178,11 +180,15 @@
 @section('moar_scripts')
     @include('partials.bootstrap-table', [
         'exportFile' => 'requestable-models-export',
-        'search' => false,
+        'search' => true,
         'clientSearch' => false,
     ])
 
     <script nonce="{{ csrf_token() }}">
+        $('#catalogue-category').on('change', function () {
+            this.form.submit();
+        });
+
         function requestLineForModel(modelId) {
             var quantity = parseInt($('#model-booking-quantity-' + modelId).val(), 10);
             var disciplineId = parseInt($('#model-booking-discipline-' + modelId).val(), 10);

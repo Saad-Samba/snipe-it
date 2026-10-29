@@ -70,7 +70,7 @@
                 },
                 // reorderableColumns: true,
                 // buttonsPrefix: "btn",
-                addrbar: {{ (config('session.bs_table_addrbar') == 'true') ? 'true' : 'false'}}, // deeplink search phrases, sorting, etc
+                addrbar: data_with_default('addrbar', {{ (config('session.bs_table_addrbar') == 'true') ? 'true' : 'false'}}), // deeplink search phrases, sorting, etc
                 advancedSearch: data_with_default('advanced-search', true),
                 buttonsClass: "tableButton tableButton btn-primary hidden-print",
                 buttonsOrder: [
@@ -93,7 +93,7 @@
                 ],
                 classes: 'table table-responsive table-striped snipe-table table-no-bordered',
                 clickToSelect: data_with_default('click-to-select', true),
-                cookie: true,
+                cookie: data_with_default('cookie', true),
                 cookieExpire: '2y',
                 cookieStorage: '{{ config('session.bs_table_storage') }}',
                 iconsPrefix: 'fa',
@@ -106,6 +106,20 @@
                 paginationNextText: "{{ trans('general.next') }}",
                 paginationPreText: "{{ trans('general.previous') }}",
                 search: data_with_default('search', true),
+                // This HTML table already contains the server-filtered page. Keep its
+                // standard search control without filtering just those visible rows.
+                customSearch: $(table).data('server-search-url') ? function (data) { return data; } : undefined,
+                onSearch: function (searchText) {
+                    var serverSearchUrl = $(table).data('server-search-url');
+                    if (!serverSearchUrl || searchText === String($(table).data('search-text') || '')) {
+                        return;
+                    }
+                    var url = new URL(serverSearchUrl, window.location.origin);
+                    if (searchText) {
+                        url.searchParams.set('search', searchText);
+                    }
+                    window.location.assign(url.toString());
+                },
                 searchHighlight: data_with_default('search-highlight', true),
                 showColumns: data_with_default('show-columns', true),
                 showColumnsToggleAll: data_with_default('show-columns-toggle-all', true),

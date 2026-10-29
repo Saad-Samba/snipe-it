@@ -198,11 +198,15 @@ class RequestableModelsPageTest extends TestCase
             ->assertViewHas('models', fn ($models) => $models->total() === 27 && $models->count() === 25)
             ->assertSee('search=Demand%20model', false)
             ->assertSee('data-pagination="false"', false)
+            ->assertSee('data-search="true"', false)
+            ->assertSee('data-server-search-url=', false)
+            ->assertSee('data-toolbar="#requestableModelsToolbar"', false)
+            ->assertDontSee('id="catalogue-search"', false)
             ->assertDontSeeText('Unrelated model');
         $this->get(route('requestable-assets', array_merge($query, ['page' => 2])))->assertOk()
             ->assertViewHas('models', fn ($models) => $models->count() === 2);
         $this->get(route('requestable-assets', ['search' => 'No such model']))->assertOk()
-            ->assertSeeText('No catalogue models match your search.');
+            ->assertSee('data-empty-message="No catalogue models match your search."', false);
     }
 
     public function test_requester_can_read_public_model_specifications_without_model_admin_permission(): void

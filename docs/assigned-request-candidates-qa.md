@@ -16,7 +16,7 @@ Interfaces: the existing asset-list endpoint accepts `request_bucket=assigned_ca
 
 The requester catalogue at http://localhost:8136/account/requestable-assets shows all non-deleted models to users with `models.request`, regardless of available stock, current assignments, or inventory company. The previous stock-based `models.request.all_companies` distinction no longer limits this catalogue. Asset visibility rules still apply to post-submission asset drilldowns.
 
-The catalogue has server-rendered pages of 25 models with text and category filters. Model identifiers and requestable, non-encrypted technical defaults remain available. Obsolete models are labeled and remain requestable. No availability or reference-price columns are shown.
+The catalogue has server-rendered pages of 25 models. Search uses the standard table toolbar, with the category filter and bulk-add control alongside it. Search queries the whole catalogue and remains usable when no rows match. Model identifiers and requestable, non-encrypted technical defaults remain available. Obsolete models are labeled and remain requestable. No availability or reference-price columns are shown.
 
 The cart shows model, discipline, destination site, requested quantity, project, and Needed By. Its preview endpoint returns only demand metadata and requested totals, without sourcing calculations. Existing submission validation, estimation snapshots, routing, allocation behavior, and post-submission reports remain in place. Submission alone does not allocate assets or approve procurement.
 
@@ -90,6 +90,6 @@ The credentials and app key in this Compose file are local QA fixtures. Stop the
 
 ## Verified result
 
-The dedicated stack passed the four suites above: **95 tests, 593 assertions**. Browser verification as the seeded coordinator confirmed the Received Requests count of six, the linked candidate rows and project labels, the read-only controls, and the candidate-specific empty search message. Database readback confirmed 14 seeded assets, one coordinator target for the CAN-FD request, and no coordinator target for the assigned-only ECU Probe request.
+The dedicated stack passed the four suites above: **95 tests, 597 assertions**. Browser verification as the seeded coordinator confirmed the Received Requests count of six, the linked candidate rows and project labels, the read-only controls, and the candidate-specific empty search message. Database readback confirmed 14 seeded assets, one coordinator target for the CAN-FD request, and no coordinator target for the assigned-only ECU Probe request.
 
 Requester browser verification confirmed that the zero-inventory DC Supply and assigned-only ECU Probe are visible, the cart contains demand only, submission succeeds, and post-submission sourcing estimates remain visible. Database readback for sample request #3 confirmed quantity 4, the chosen project/site/discipline/date, shortfall 4, no physical assets, and no allocations.
