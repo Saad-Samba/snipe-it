@@ -29,28 +29,21 @@
             </div>
 
             <div class="box-body">
-                <div class="well well-sm" role="region" aria-label="Catalogue filters">
-                    <div class="row">
-                        <div class="col-sm-5 col-md-4">
-                            <form id="requestableCatalogueFilters" method="GET" action="{{ route('requestable-assets') }}">
-                                <input type="hidden" name="search" value="{{ $search }}">
-                                <label for="catalogue-category">{{ trans('general.category') }}</label>
-                                <select id="catalogue-category" name="category_id" class="form-control select2" style="width:100%;">
-                                    <option value="">All categories</option>
-                                    @foreach ($categories as $category)
-                                        <option value="{{ $category->id }}" {{ (string) $categoryId === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
-                                    @endforeach
-                                </select>
-                            </form>
-                        </div>
-                        <div class="col-sm-7 col-md-8">
-                            <p class="help-block">Use the table search to find models or add technical specification filters.</p>
-                            @if ($search !== '' || $categoryId || count($technicalFilters))
-                                <a href="{{ route('requestable-assets') }}" class="btn btn-default btn-sm">Clear filters</a>
-                            @endif
-                        </div>
-                    </div>
-                    <div id="requestableSpecificationChips" class="form-inline" style="margin-top:8px;" aria-live="polite"></div>
+                <div role="region" aria-label="Catalogue filters" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px;">
+                    <form id="requestableCatalogueFilters" method="GET" action="{{ route('requestable-assets') }}" style="display:flex;align-items:center;gap:8px;max-width:100%;">
+                        <input type="hidden" name="search" value="{{ $search }}">
+                        <label for="catalogue-category" style="margin-bottom:0;">{{ trans('general.category') }}</label>
+                        <select id="catalogue-category" name="category_id" class="form-control select2" style="width:240px;">
+                            <option value="">All categories</option>
+                            @foreach ($categories as $category)
+                                <option value="{{ $category->id }}" {{ (string) $categoryId === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                    <div id="requestableSpecificationChips" class="form-inline" aria-live="polite"></div>
+                    @if ($search !== '' || $categoryId || count($technicalFilters))
+                        <a href="{{ route('requestable-assets') }}" class="btn btn-link btn-sm">Clear filters</a>
+                    @endif
                 </div>
 
                 <div id="requestableModelsToolbar">
@@ -372,7 +365,7 @@
                     var operatorLabel = token.operator === ':'
                         ? (token.field.multiple ? 'includes' : (token.field.values.length ? 'is' : 'contains'))
                         : token.operator;
-                    var $chip = $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
+                    var $chip = $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; border-radius:16px"></button>')
                         .text(token.field.name + ' ' + operatorLabel + ' ' + token.value + ' ×')
                         .on('click', function () {
                             tokens.splice(index, 1);
@@ -384,7 +377,7 @@
                 });
 
                 if (freeTextSearch) {
-                    $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; margin-bottom:6px; border-radius:16px"></button>')
+                    $('<button type="button" class="btn btn-primary btn-sm" style="margin-right:6px; border-radius:16px"></button>')
                         .text('Text contains ' + freeTextSearch + ' ×')
                         .on('click', function () {
                             freeTextSearch = '';
