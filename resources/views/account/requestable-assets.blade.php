@@ -29,7 +29,10 @@
             </div>
 
             <div class="box-body">
-                <div role="region" aria-label="Catalogue filters" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px;">
+                <button type="button" id="catalogueFiltersButton" class="btn btn-primary" aria-controls="catalogueFiltersPanel" aria-expanded="false" style="display:none;">
+                    <i class="fas fa-filter" aria-hidden="true"></i> Filters{{ ($filterCount = count($technicalFilters) + ($categoryId ? 1 : 0) + ($search !== '' ? 1 : 0)) ? ' ('.$filterCount.')' : '' }}
+                </button>
+                <div id="catalogueFiltersPanel" role="region" aria-label="Catalogue filters" hidden style="margin-bottom:12px;">
                     <form id="requestableCatalogueFilters" method="GET" action="{{ route('requestable-assets') }}" style="display:flex;align-items:center;gap:8px;max-width:100%;">
                         <input type="hidden" name="search" value="{{ $search }}">
                         <label for="catalogue-category" style="margin-bottom:0;">{{ trans('general.category') }}</label>
@@ -40,6 +43,11 @@
                             @endforeach
                         </select>
                     </form>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px;">
+                    @if ($categoryId)
+                        <a href="{{ route('requestable-assets', request()->except('category_id', 'page')) }}" class="btn btn-primary btn-sm" style="border-radius:16px;" aria-label="Remove category filter">Category: {{ $categories->firstWhere('id', $categoryId)?->name }} ×</a>
+                    @endif
                     <div id="requestableSpecificationChips" class="form-inline" aria-live="polite"></div>
                     @if ($search !== '' || $categoryId || count($technicalFilters))
                         <a href="{{ route('requestable-assets') }}" class="btn btn-link btn-sm">Clear filters</a>
@@ -281,6 +289,16 @@
                 zIndex: 1050
             });
             var $chips = $('#requestableSpecificationChips');
+            var $filtersButton = $('#catalogueFiltersButton');
+            $table.closest('.bootstrap-table').find('.fixed-table-toolbar .columns').prepend($filtersButton);
+            $filtersButton.show().on('click', function () {
+                var panel = document.getElementById('catalogueFiltersPanel');
+                panel.hidden = !panel.hidden;
+                $(this).attr('aria-expanded', String(!panel.hidden));
+                if (!panel.hidden) {
+                    $category.select2('open');
+                }
+            });
 
             $input.parent().css('position', 'relative').append($menu);
             $menu.on('mousedown', function (event) {
