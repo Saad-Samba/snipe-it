@@ -146,7 +146,7 @@ class RequestableModelsPageTest extends TestCase
             ->get(route('requestable-assets'))
             ->assertOk()
             ->assertSeeText('Technical specifications')
-            ->assertSeeText('View specifications')
+            ->assertDontSeeText('View specifications')
             ->assertSeeText('QA Network Speed')
             ->assertSeeText('1 Gbps')
             ->assertSeeText('QA Port Count')
@@ -303,7 +303,7 @@ class RequestableModelsPageTest extends TestCase
         $model->defaultValues()->attach($private, ['default_value' => 'Do not expose this value']);
         $model->defaultValues()->attach($encrypted, ['default_value' => 'Encrypted model value']);
         $this->actingAs($requester)->get(route('requestable-assets'))->assertOk()
-            ->assertSeeText('View specifications')->assertSeeText('Bus speed')->assertSeeText('5 Mbit/s')
+            ->assertDontSeeText('View specifications')->assertSeeText('Bus speed')->assertSeeText('5 Mbit/s')
             ->assertDontSee('Internal calibration secret')->assertDontSee('Do not expose this value')
             ->assertDontSee('Encrypted specification')->assertDontSee('Encrypted model value');
     }
