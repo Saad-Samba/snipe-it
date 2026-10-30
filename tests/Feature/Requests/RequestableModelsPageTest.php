@@ -73,6 +73,25 @@ class RequestableModelsPageTest extends TestCase
             ->assertDontSee(route('api.assets.requestable'), false);
     }
 
+    public function test_catalogue_detail_links_follow_view_permissions(): void
+    {
+        $model = AssetModel::factory()->create();
+        $modelUrl = route('models.show', $model->id);
+        $categoryUrl = route('categories.show', $model->category_id);
+
+        $this->actingAs(User::factory()->requestAssetModels()->create())
+            ->get(route('requestable-assets'))
+            ->assertOk()
+            ->assertDontSee('href="'.$modelUrl.'"', false)
+            ->assertDontSee('href="'.$categoryUrl.'"', false);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->get(route('requestable-assets'))
+            ->assertOk()
+            ->assertSee('href="'.$modelUrl.'"', false)
+            ->assertSee('href="'.$categoryUrl.'"', false);
+    }
+
     public function test_user_without_model_request_permission_cannot_open_request_catalogue(): void
     {
         $this->actingAs(User::factory()->create())
@@ -127,6 +146,7 @@ class RequestableModelsPageTest extends TestCase
             ->get(route('requestable-assets'))
             ->assertOk()
             ->assertSeeText('Technical specifications')
+            ->assertDontSeeText('View specifications')
             ->assertSeeText('QA Network Speed')
             ->assertSeeText('1 Gbps')
             ->assertSeeText('QA Port Count')
@@ -283,7 +303,7 @@ class RequestableModelsPageTest extends TestCase
         $model->defaultValues()->attach($private, ['default_value' => 'Do not expose this value']);
         $model->defaultValues()->attach($encrypted, ['default_value' => 'Encrypted model value']);
         $this->actingAs($requester)->get(route('requestable-assets'))->assertOk()
-            ->assertSeeText('View specifications')->assertSeeText('Bus speed')->assertSeeText('5 Mbit/s')
+            ->assertDontSeeText('View specifications')->assertSeeText('Bus speed')->assertSeeText('5 Mbit/s')
             ->assertDontSee('Internal calibration secret')->assertDontSee('Do not expose this value')
             ->assertDontSee('Encrypted specification')->assertDontSee('Encrypted model value');
     }

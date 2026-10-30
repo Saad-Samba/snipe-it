@@ -102,27 +102,36 @@
                                             @endif
                                         </td>
                                         <td>
-                                            {{ $requestableModel->name }}
+                                            @can('view', $requestableModel)
+                                                <a href="{{ route('models.show', $requestableModel->id) }}">{{ $requestableModel->name }}</a>
+                                            @else
+                                                {{ $requestableModel->name }}
+                                            @endcan
                                             @if ($requestableModel->obsolete)<span class="label label-warning">Obsolete</span>@endif
                                         </td>
-                                        <td>{{ $requestableModel->category?->name }}</td>
+                                        <td>
+                                            @if ($requestableModel->category)
+                                                @can('view', $requestableModel->category)
+                                                    <a href="{{ route('categories.show', $requestableModel->category->id) }}">{{ $requestableModel->category->name }}</a>
+                                                @else
+                                                    {{ $requestableModel->category->name }}
+                                                @endcan
+                                            @endif
+                                        </td>
                                         <td>{{ $requestableModel->model_number }}</td>
                                         <td>
                                             @php
                                                 $specificationFields = ($requestableModel->fieldset?->fields ?? collect())->filter(fn ($field) => $field->show_in_requestable_list && ! $field->field_encrypted && ! $field->is_unique);
                                             @endphp
                                             @if ($specificationFields->isNotEmpty())
-                                                <details>
-                                                    <summary>View specifications</summary>
-                                                    <dl>
-                                                        @foreach ($specificationFields as $field)
-                                                            <dt>{{ $field->name }}</dt>
-                                                            <dd>{{ $requestableModel->specificationValue($field) ?? '—' }}</dd>
-                                                        @endforeach
-                                                    </dl>
-                                                </details>
+                                                <dl>
+                                                    @foreach ($specificationFields as $field)
+                                                        <dt>{{ $field->name }}</dt>
+                                                        <dd>{{ $requestableModel->specificationValue($field) ?? '—' }}</dd>
+                                                    @endforeach
+                                                </dl>
                                             @else
-                                                <span class="text-muted">No specifications recorded</span>
+                                                <span class="text-muted">—</span>
                                             @endif
                                         </td>
                                         <td>
