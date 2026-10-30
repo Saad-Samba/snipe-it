@@ -29,22 +29,32 @@
             </div>
 
             <div class="box-body">
-                <div id="requestableModelsToolbar" class="form-inline">
-                    <form id="requestableCatalogueFilters" method="GET" action="{{ route('requestable-assets') }}" style="display:inline-block;margin-right:8px;">
-                        <input type="hidden" name="search" value="{{ $search }}">
-                        <label class="sr-only" for="catalogue-category">Category</label>
-                        <select id="catalogue-category" name="category_id" class="form-control">
-                            <option value="">All categories</option>
-                            @foreach ($categories as $category)
-                                <option value="{{ $category->id }}" {{ (string) $categoryId === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
-                            @endforeach
-                        </select>
-                        @if ($search !== '' || $categoryId)
-                            <a href="{{ route('requestable-assets') }}" class="btn btn-link">Clear filters</a>
-                        @endif
-                    </form>
-                    <span class="text-muted small" style="margin-right:8px;">Type a technical field to add a filter.</span>
-                    <form id="requestableModelsBulkForm" style="display:inline-block;">
+                <div class="well well-sm" role="region" aria-label="Catalogue filters">
+                    <div class="row">
+                        <div class="col-sm-5 col-md-4">
+                            <form id="requestableCatalogueFilters" method="GET" action="{{ route('requestable-assets') }}">
+                                <input type="hidden" name="search" value="{{ $search }}">
+                                <label for="catalogue-category">{{ trans('general.category') }}</label>
+                                <select id="catalogue-category" name="category_id" class="form-control select2" style="width:100%;">
+                                    <option value="">All categories</option>
+                                    @foreach ($categories as $category)
+                                        <option value="{{ $category->id }}" {{ (string) $categoryId === (string) $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                        </div>
+                        <div class="col-sm-7 col-md-8">
+                            <p class="help-block">Use the table search to find models or add technical specification filters.</p>
+                            @if ($search !== '' || $categoryId || count($technicalFilters))
+                                <a href="{{ route('requestable-assets') }}" class="btn btn-default btn-sm">Clear filters</a>
+                            @endif
+                        </div>
+                    </div>
+                    <div id="requestableSpecificationChips" class="form-inline" style="margin-top:8px;" aria-live="polite"></div>
+                </div>
+
+                <div id="requestableModelsToolbar">
+                    <form id="requestableModelsBulkForm" class="form-inline">
                         <label for="requestableModelsBulkAction" class="sr-only">{{ trans('general.bulk_actions') }}</label>
                         <select id="requestableModelsBulkAction" name="bulk_actions" class="form-control select2" style="width: 200px;" aria-label="bulk_actions">
                             <option value="add_to_cart">Add Selected to Cart</option>
@@ -53,7 +63,6 @@
                     </form>
                 </div>
 
-                    <div id="requestableSpecificationChips" class="form-inline" style="margin-top:8px;" aria-live="polite"></div>
                     <div class="table-responsive">
                         <table
                             id="requestableModelsTable"
