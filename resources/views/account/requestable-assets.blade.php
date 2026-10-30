@@ -29,7 +29,6 @@
             </div>
 
             <div class="box-body">
-                <p class="text-muted">Request the model and quantity your project needs. Reuse and procurement options are assessed after submission.</p>
                 <div id="requestableModelsToolbar" class="form-inline">
                     <form id="requestableCatalogueFilters" method="GET" action="{{ route('requestable-assets') }}" style="display:inline-block;margin-right:8px;">
                         <input type="hidden" name="search" value="{{ $search }}">
@@ -46,10 +45,11 @@
                     </form>
                     <span class="text-muted small" style="margin-right:8px;">Type a technical field to add a filter.</span>
                     <form id="requestableModelsBulkForm" style="display:inline-block;">
-                        <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>
-                            <i class="fas fa-cart-plus" aria-hidden="true"></i>
-                            Add Selected to Cart
-                        </button>
+                        <label for="requestableModelsBulkAction" class="sr-only">{{ trans('general.bulk_actions') }}</label>
+                        <select id="requestableModelsBulkAction" name="bulk_actions" class="form-control select2" style="width: 200px;" aria-label="bulk_actions">
+                            <option value="add_to_cart">Add Selected to Cart</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary" id="requestableModelsBulkAddButton" disabled>{{ trans('button.go') }}</button>
                     </form>
                 </div>
 
