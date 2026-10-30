@@ -124,12 +124,15 @@
                                                 $specificationFields = ($requestableModel->fieldset?->fields ?? collect())->filter(fn ($field) => $field->show_in_requestable_list && ! $field->field_encrypted && ! $field->is_unique);
                                             @endphp
                                             @if ($specificationFields->isNotEmpty())
-                                                <dl>
-                                                    @foreach ($specificationFields as $field)
-                                                        <dt>{{ $field->name }}</dt>
-                                                        <dd>{{ $requestableModel->specificationValue($field) ?? '—' }}</dd>
-                                                    @endforeach
-                                                </dl>
+                                                <details>
+                                                    <summary style="cursor: pointer;">View specifications</summary>
+                                                    <dl>
+                                                        @foreach ($specificationFields as $field)
+                                                            <dt>{{ $field->name }}</dt>
+                                                            <dd>{{ $requestableModel->specificationValue($field) ?? '—' }}</dd>
+                                                        @endforeach
+                                                    </dl>
+                                                </details>
                                             @else
                                                 <span class="text-muted">—</span>
                                             @endif
