@@ -427,7 +427,7 @@ class ImportAssetsTest extends ImportDataTestCase implements TestsPermissionsReq
         $updatedAttributes = [
             'category', 'manufacturer_id', 'name', 'tag', 'model_id',
             'model_number', 'purchase_date', 'purchase_cost', 'warranty_months', 'supplier_id',
-            'location_id', 'company_id', 'serial', 'assigned_to', 'status_id', 'rtd_location_id',
+            'location_id', 'company_id', 'discipline_id', 'serial', 'assigned_to', 'status_id', 'rtd_location_id',
             'last_checkout', 'requestable', 'updated_at', 'checkout_counter', 'assigned_type'
         ];
 
@@ -471,6 +471,7 @@ class ImportAssetsTest extends ImportDataTestCase implements TestsPermissionsReq
             'assigneeUsername'    => $faker['serialNumber'],
             'category'            => $faker['location'],
             'companyName'         => $faker['purchaseCost'],
+            'disciplineName'      => $faker['disciplineName'],
             'itemName'            => $faker['modelNumber'],
             'location'            => $faker['assigneeUsername'],
             'manufacturerName'    => $faker['status'],
@@ -497,6 +498,7 @@ class ImportAssetsTest extends ImportDataTestCase implements TestsPermissionsReq
                 'Asset Tag'     => 'email',
                 'Category'      => 'location',
                 'Company'       => 'purchase_cost',
+                'Discipline'    => 'discipline',
                 'Email'         => 'manufacturer',
                 'Full Name'     => 'supplier',
                 'Item Name'     => 'model_number',

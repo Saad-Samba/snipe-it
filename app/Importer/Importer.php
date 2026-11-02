@@ -46,6 +46,7 @@ abstract class Importer
         'checkout_class' => 'checkout type', // Supports Location or User for assets.  Using checkout_class instead of checkout_type because type exists on asset already.
         'checkout_location' => 'checkout location',
         'company' => 'company',
+        'discipline' => 'discipline',
         'item_name' => 'item name',
         'item_number' => 'item number',
         'image' => 'image',

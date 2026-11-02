@@ -67,6 +67,7 @@ class StoreAssetRequest extends ImageUploadRequest
     public function rules(): array
     {
         $modelRules = (new Asset)->getRules();
+        $modelRules['discipline_id'] = Asset::disciplineRulesForCreation();
 
         if (Setting::getSettings()->digit_separator === '1.234,56' && is_string($this->input('purchase_cost'))) {
             // If purchase_cost was submitted as a string with a comma separator
@@ -82,6 +83,11 @@ class StoreAssetRequest extends ImageUploadRequest
             ['status_id' => [new AssetCannotBeCheckedOutToNondeployableStatus()]],
             parent::rules(),
         );
+    }
+
+    public function attributes(): array
+    {
+        return ['discipline_id' => trans('general.discipline')];
     }
 
     private function parseLastAuditDate(): void

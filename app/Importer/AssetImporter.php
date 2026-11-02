@@ -3,6 +3,8 @@
 namespace App\Importer;
 
 use App\Models\Asset;
+use App\Models\Discipline;
+use Illuminate\Support\Facades\Validator;
 use App\Models\Statuslabel;
 use App\Models\User;
 use App\Events\CheckoutableCheckedIn;
@@ -103,6 +105,38 @@ class AssetImporter extends ItemImporter
         } else {
             $this->log('No Matching Asset, Creating a new one');
             $asset = new Asset;
+        }
+
+        // Resolve only existing active disciplines. Blank update cells preserve the
+        // saved value, while every new asset must supply a discipline.
+        $disciplineName = $this->findCsvMatch($row, 'discipline');
+        $disciplineId = $asset->discipline_id;
+        if ($disciplineName !== null && $disciplineName !== '') {
+            $disciplineId = Discipline::where('name', $disciplineName)->value('id');
+        }
+
+        $disciplineValidator = Validator::make(
+            ['discipline_id' => $disciplineId],
+            ['discipline_id' => (!$editingAsset || ($disciplineName !== null && $disciplineName !== ''))
+                ? Asset::disciplineRulesForCreation()
+                : (new Asset)->getRules()['discipline_id']],
+            ($disciplineName !== null && $disciplineName !== '')
+                ? ['discipline_id.required' => trans('validation.exists', ['attribute' => trans('general.discipline')])]
+                : [],
+            ['discipline_id' => trans('general.discipline')]
+        );
+        if ($disciplineValidator->fails()) {
+            $this->log($disciplineValidator->errors()->first('discipline_id'));
+            if ($this->errorCallback) {
+                $errorItem = clone $asset;
+                $errorItem->name = $asset_tag;
+                call_user_func($this->errorCallback, $errorItem, 'Asset "'.$asset_tag.'"', $disciplineValidator->errors()->toArray());
+            }
+
+            return $disciplineValidator->errors()->first('discipline_id');
+        }
+        if ($disciplineName !== null && $disciplineName !== '') {
+            $this->item['discipline_id'] = $disciplineId;
         }
 
         // If no status ID is found
