@@ -3,6 +3,7 @@
 namespace Tests\Feature\Assets\Ui;
 
 use App\Models\Asset;
+use App\Models\Discipline;
 use App\Models\AssetModel;
 use App\Models\Company;
 use App\Models\CustomField;
@@ -37,6 +38,7 @@ class StoreAssetsTest extends TestCase
         ]);
 
         $response = $this->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
             'company_id' => Company::factory()->create()->id,
             'model_id' => $model->id,
             'serials' => [1 => 'ABC123'],
@@ -70,6 +72,7 @@ class StoreAssetsTest extends TestCase
         ]);
 
         $response = $this->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
             'model_id' => $model->id,
             'serials' => [], // ← serial missing
             'asset_tags' => [1 => '1234'],
@@ -97,6 +100,7 @@ class StoreAssetsTest extends TestCase
 
         $this->actingAs(User::factory()->superuser()->create())
             ->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'company_id' => Company::factory()->create()->id,
                 'model_id' => $model->id,
                 'asset_tags' => [1 => 'MODEL-SPEC-001'],
@@ -124,6 +128,7 @@ class StoreAssetsTest extends TestCase
 
         $this->actingAs(User::factory()->superuser()->create())
             ->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'company_id' => Company::factory()->create()->id,
                 'model_id' => $model->id,
                 'asset_tags' => [1 => 'BLANK-MODEL-SPEC-001'],
@@ -163,6 +168,7 @@ class StoreAssetsTest extends TestCase
 
         $this->actingAs(User::factory()->superuser()->create())
             ->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'company_id' => Company::factory()->create()->id,
                 'model_id' => $model->id,
                 'asset_tags' => [1 => 'MODEL-SPEC-BLANK-001'],
@@ -193,6 +199,7 @@ class StoreAssetsTest extends TestCase
 
         $this->actingAs(User::factory()->superuser()->create())
             ->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'company_id' => Company::factory()->create()->id,
                 'model_id' => $model->id,
                 'asset_tags' => [1 => 'MODEL-SPEC-UNIQUE-001'],
@@ -212,6 +219,7 @@ class StoreAssetsTest extends TestCase
         $this->actingAs($user);
 
         $response = $this->from(route('hardware.create'))->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
             'model_id' => AssetModel::factory()->create()->id,
             'asset_tags' => [1 => '1234'],
             'status_id' => StatusLabel::factory()->create()->id,
@@ -233,6 +241,7 @@ class StoreAssetsTest extends TestCase
         $this->actingAs($user);
 
         $response = $this->from(route('hardware.create'))->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
             'model_id' => AssetModel::factory()->create()->id,
             'asset_tags' => [1 => '1235'],
             'status_id' => StatusLabel::factory()->create()->id,

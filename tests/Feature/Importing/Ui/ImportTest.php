@@ -3,6 +3,8 @@
 namespace Tests\Feature\Importing\Ui;
 
 use App\Models\User;
+use App\Models\Import;
+use Livewire\Livewire;
 use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -14,6 +16,20 @@ class ImportTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('imports.index'))
             ->assertOk();
+    }
+
+    public function testDisciplineMappingIsVisibleAndRecognizedForAssets(): void
+    {
+        $import = Import::factory()->asset()->create([
+            'header_row' => ['Discipline'],
+            'first_row' => ['Hardware'],
+        ]);
+        $this->actingAs(User::factory()->superuser()->create());
+        Livewire::test(\App\Livewire\Importer::class)
+            ->call('selectFile', $import->id)
+            ->set('typeOfImport', 'asset')
+            ->assertSet('field_map.0', 'discipline')
+            ->assertSee(trans('admin/hardware/general.import_discipline'));
     }
 
     public function testStoreInternationalAsset(): void

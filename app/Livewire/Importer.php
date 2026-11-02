@@ -211,6 +211,7 @@ class Importer extends Component
             'byod' => trans('general.byod'),
             'category' => trans('general.category'),
             'company' => trans('general.company'),
+            'discipline' => trans('admin/hardware/general.import_discipline'),
             'image' => trans('general.importer.image_filename'),
             'item_name' => trans('general.item_name_var', ['item' => trans('general.asset')]),
             'location' => trans('general.location'),
@@ -420,6 +421,7 @@ class Importer extends Component
 
         // "real fieldnames" to a list of aliases for that field
         $this->aliases_fields = [
+            'discipline' => ['discipline', trans('general.discipline')],
             'item_name' =>
                 [
                     'item name',

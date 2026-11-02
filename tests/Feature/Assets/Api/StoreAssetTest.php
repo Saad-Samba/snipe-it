@@ -3,6 +3,7 @@
 namespace Tests\Feature\Assets\Api;
 
 use App\Models\Asset;
+use App\Models\Discipline;
 use App\Models\AssetModel;
 use App\Models\Company;
 use App\Models\CustomField;
@@ -21,6 +22,7 @@ class StoreAssetTest extends TestCase
     private function payloadWithCompany(array $overrides = []): array
     {
         return array_merge([
+            'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
             'company_id' => Company::factory()->create()->id,
         ], $overrides);
     }
@@ -45,6 +47,7 @@ class StoreAssetTest extends TestCase
 
         $response = $this->actingAsForApi($user)
             ->postJson(route('api.assets.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'asset_eol_date' => '2024-06-02',
                 'asset_tag' => 'random_string',
                 'assigned_user' => $userAssigned->id,
@@ -130,6 +133,7 @@ class StoreAssetTest extends TestCase
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create(['company_id' => null]))
             ->postJson(route('api.assets.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'asset_tag' => '1234',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
@@ -147,6 +151,7 @@ class StoreAssetTest extends TestCase
     {
         $response = $this->actingAsForApi(User::factory()->superuser()->create())
             ->postJson(route('api.assets.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'asset_tag' => '1235',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
@@ -740,6 +745,7 @@ class StoreAssetTest extends TestCase
     {
         $this->actingAsForApi(User::factory()->createAssets()->create())
             ->postJson(route('api.assets.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'company_id' => [1],
             ])
             ->assertStatusMessageIs('error')

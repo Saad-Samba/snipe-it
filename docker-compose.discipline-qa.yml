@@ -1,0 +1,84 @@
+# Isolated local QA stack. Never point these settings at an existing database.
+name: required-asset-discipline
+services:
+  app:
+    image: ${SNIPEIT_QA_IMAGE:-required-asset-discipline-runtime}
+    build:
+      context: .
+      dockerfile: Dockerfile.alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rm -f bootstrap/cache/config.php
+        mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
+        mkdir -p /var/lib/snipeit/keys /var/lib/snipeit/data/private_uploads/imports
+        if [ ! -s storage/oauth-private.key ]; then php artisan passport:keys; fi
+        chown -R apache:root storage bootstrap/cache /var/lib/snipeit/keys /var/lib/snipeit/data
+        exec httpd -DNO_DETACH
+    environment:
+      APACHE_LOG_DIR: /var/log/apache2
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:glJpcM7BYwWiBggp3SQ/+NlRkqsBQMaGEOjemXqJzOU=
+      APP_URL: http://localhost:8142
+      APP_TIMEZONE: Africa/Casablanca
+      APP_LOCALE: en-US
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: discipline_qa
+      DB_USERNAME: discipline_qa
+      DB_PASSWORD: discipline-qa-local
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      QUEUE_DRIVER: sync
+      MAIL_MAILER: smtp
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      MAIL_FROM_ADDR: qa@example.test
+      MAIL_FROM_NAME: LEAMS QA
+      COOKIE_NAME: discipline_qa
+      SECURE_COOKIES: "false"
+      ALLOW_IFRAMING: "false"
+    ports:
+      - "127.0.0.1:8142:80"
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+      - storage:/var/www/html/storage
+      - cache:/var/www/html/bootstrap/cache
+      - uploads:/var/www/html/public/uploads
+      - data:/var/lib/snipeit
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: mariadb:11.4.7
+    environment:
+      MARIADB_DATABASE: discipline_qa
+      MARIADB_USER: discipline_qa
+      MARIADB_PASSWORD: discipline-qa-local
+      MARIADB_ROOT_PASSWORD: discipline-qa-root-local
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 2s
+      retries: 15
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "127.0.0.1:8242:8025"
+volumes:
+  db:
+  vendor:
+  storage:
+  cache:
+  uploads:
+  data:
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${DISCIPLINE_QA_SUBNET:-10.251.42.0/24}

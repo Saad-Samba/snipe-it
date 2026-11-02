@@ -620,6 +620,12 @@ class Asset extends Depreciable
      * @since  [v3.0]
      * @return array
      */
+    /** Discipline is mandatory at creation boundaries; legacy assets may remain blank. */
+    public static function disciplineRulesForCreation(): array
+    {
+        return ['required', 'integer', 'exists:disciplines,id,deleted_at,NULL'];
+    }
+
     public function validationRules()
     {
         return $this->rules;

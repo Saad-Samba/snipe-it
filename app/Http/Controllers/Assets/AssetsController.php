@@ -185,7 +185,10 @@ class AssetsController extends Controller
 
         // There are a lot more rules to add here but prevents
         // errors around `asset_tags` not being present below.
-        $this->validate($request, ['asset_tags' => ['required', 'array']]);
+        $this->validate($request, [
+            'asset_tags' => ['required', 'array'],
+            'discipline_id' => Asset::disciplineRulesForCreation(),
+        ], [], ['discipline_id' => trans('general.discipline')]);
 
         // Handle asset tags - there could be one, or potentially many.
         // This is only necessary on create, not update, since bulk editing is handled
