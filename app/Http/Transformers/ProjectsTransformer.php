@@ -24,6 +24,8 @@ class ProjectsTransformer
         $array = [
             'id' => (int) $project->id,
             'name' => e($project->name),
+            'is_rfq' => (bool) $project->is_rfq,
+            'rfq_needed_by_date' => optional($project->rfq_needed_by_date)->format('Y-m-d'),
             'assets_count' => (int) $project->assets_count,
             'licenses_count' => (int) $project->licenses_count,
             'notes' => Helper::parseEscapedMarkedownInline($project->notes),

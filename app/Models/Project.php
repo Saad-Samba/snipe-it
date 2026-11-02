@@ -27,16 +27,22 @@ class Project extends SnipeModel
 
     protected $casts = [
         'created_by' => 'integer',
+        'is_rfq' => 'boolean',
+        'rfq_needed_by_date' => 'date:Y-m-d',
     ];
 
     protected $rules = [
         'name' => 'required|string|max:255|unique_undeleted:projects,name',
+        'is_rfq' => 'boolean',
+        'rfq_needed_by_date' => 'nullable|required_if:is_rfq,1|date',
         'notes' => 'string|nullable',
         'created_by' => 'numeric|nullable|exists:users,id',
     ];
 
     protected $fillable = [
         'name',
+        'is_rfq',
+        'rfq_needed_by_date',
         'notes',
         'created_by',
     ];
@@ -44,6 +50,15 @@ class Project extends SnipeModel
     protected $searchableAttributes = ['name', 'notes'];
 
     protected $searchableRelations = [];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Project $project) {
+            if (! $project->is_rfq) {
+                $project->rfq_needed_by_date = null;
+            }
+        });
+    }
 
     public function assets()
     {

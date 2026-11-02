@@ -2,6 +2,16 @@
 
 return array(
     'asset_categories' 					=> 'Asset Categories',
+    'distribution'                     => 'Distribution',
+    'distribution_intro'               => 'Compare each category across the managed portfolio.',
+    'by_site'                          => 'By Site',
+    'by_discipline'                    => 'By Discipline',
+    'managed_assets'                   => 'managed assets',
+    'managed_categories'               => 'managed categories',
+    'portfolio_percentage'             => '% of managed portfolio',
+    'undefined'                        => 'Undefined',
+    'distribution_empty'               => 'No assets are available in this portfolio.',
+    'distribution_error'               => 'The distribution could not be loaded. Please try again.',
     'category_name'  					=> 'Category Name',
     'email_to_user_upon_checkin' => 'Email User on Return',
     'email_to_user_upon_checkin_and_checkout' => 'Email User on Assignment and Return',
@@ -27,5 +37,11 @@ return array(
     'import_checkin_email'              => 'Send Checkin Email',
     'import_eula_text'                  => 'EULA text',
     'import_category_type'              => 'Category Type',
+    'fieldset_help'                     => 'All asset models in this Category / Asset Family use the selected fieldset.',
+    'fieldset_fields'                   => 'Included Custom Fields',
+    'fieldset_has_no_fields'            => 'This fieldset does not contain any custom fields.',
+    'fieldset_preview_help'             => 'These fields will be available when creating or editing assets in this Category / Asset Family. Values are entered on each asset.',
+    'field_required'                    => 'Required',
+    'field_optional'                    => 'Optional',
 
 );

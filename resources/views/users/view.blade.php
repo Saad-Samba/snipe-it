@@ -213,6 +213,15 @@
                 </div>
               @endcan
 
+              @if (Auth::check() && Auth::user()->mayImpersonate($user))
+                <div class="col-md-12" style="padding-top: 5px;">
+                  <button type="button" class="btn btn-danger btn-sm btn-social btn-block hidden-print" data-toggle="modal" data-target="#confirmImpersonateModal" data-tooltip="true" data-title="{{ trans('admin/users/general.impersonate_user', ['name' => $user->display_name]) }}">
+                    <x-icon type="impersonate" />
+                    {{ trans('general.impersonate') }}
+                  </button>
+                </div>
+              @endif
+
                 @can('view', $user)
                 <div class="col-md-12" style="padding-top: 5px;">
 
@@ -1227,8 +1236,9 @@
       <input type="hidden" name="transfer_target_user_id" value="">
       <input type="hidden" name="transfer_location_id" value="">
   </form>
-
-
+  @if (Auth::check() && Auth::user()->mayImpersonate($user))
+    @include('users.impersonate-confirm-modal')
+  @endif
 
   @stop
 

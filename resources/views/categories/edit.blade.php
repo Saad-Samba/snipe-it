@@ -37,10 +37,14 @@
 </div>
 
 <div class="form-group {{ $errors->has('fieldset_id') ? ' has-error' : '' }}">
-    <label for="fieldset_id" class="col-md-3 control-label">{{ trans('admin/models/general.fieldset') }}</label>
+    <label for="fieldset_id" class="col-md-3 control-label">
+        {{ trans('admin/models/general.fieldset') }}
+        <x-new-feature-label />
+    </label>
     <div class="col-md-7">
         <x-input.select
             name="fieldset_id"
+            id="fieldset_id"
             :options="\App\Helpers\Helper::customFieldsetList()"
             :selected="old('fieldset_id', $item->fieldset_id)"
             style="min-width:350px"
@@ -49,18 +53,33 @@
         {!! $errors->first('fieldset_id', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
     </div>
     <div class="col-md-7 col-md-offset-3">
-        <p class="help-block">Used as the default fieldset for asset models in this category. A model can still override it.</p>
+        <p class="help-block">{{ trans('admin/categories/general.fieldset_help') }}</p>
     </div>
 </div>
 
-<livewire:category-edit-form
-    :alert-on-response="(bool) old('alert_on_response', $item->alert_on_response)"
-    :default-eula-text="$snipeSettings->default_eula_text"
-    :eula-text="old('eula_text', $item->eula_text)"
-    :require-acceptance="(bool) old('require_acceptance', $item->require_acceptance)"
-    :send-check-in-email="(bool) old('checkin_email', $item->checkin_email)"
-    :use-default-eula="(bool) old('use_default_eula', $item->use_default_eula)"
-/>
+@livewire('custom-field-set-preview-for-category', [
+    'fieldset_id' => old('fieldset_id', $item->fieldset_id),
+])
+
+@if (auth()->user()->isSuperUser() || auth()->user()->isAdmin())
+    @include ('partials.forms.edit.user-select', [
+        'translated_name' => 'Category Manager',
+        'fieldname' => 'manager_id',
+        'field_id' => 'category_manager_select',
+        'container_id' => 'category_manager',
+        'new_feature' => true,
+    ])
+@elseif ($item->manager)
+    <div class="form-group">
+        <label class="col-md-3 control-label">
+            Category Manager
+            <x-new-feature-label />
+        </label>
+        <div class="col-md-7">
+            <p class="form-control-static">{{ $item->manager->display_name }}</p>
+        </div>
+    </div>
+@endif
 
 @include ('partials.forms.edit.image-upload', ['image_path' => app('categories_upload_path')])
 
@@ -80,26 +99,6 @@
 </div>
 
 
-
-@if ($snipeSettings->default_eula_text!='')
-<!-- Modal -->
-<div class="modal fade" id="eulaModal" tabindex="-1" role="dialog" aria-labelledby="eulaModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h2 class="modal-title" id="eulaModalLabel">{{ trans('admin/settings/general.default_eula_text') }}</h2>
-            </div>
-            <div class="modal-body">
-                {{ \App\Models\Setting::getDefaultEula() }}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('button.cancel') }}</button>
-            </div>
-        </div>
-    </div>
-</div>
-@endif
 
     <fieldset name="color-preferences">
         <x-form-legend help_text="{{ trans('general.tag_color_help') }}">

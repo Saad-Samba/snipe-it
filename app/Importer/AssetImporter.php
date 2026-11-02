@@ -177,10 +177,21 @@ class AssetImporter extends ItemImporter
         }
 
 
-        if ($editingAsset) {
-            $asset->update($item);
-        } else {
-            $asset->fill($item);
+        $asset->fill($item);
+
+        if (empty($asset->company_id)) {
+            $message = 'The site field is required.';
+            $this->log($message);
+            if ($this->errorCallback) {
+                call_user_func(
+                    $this->errorCallback,
+                    $asset,
+                    'Asset "'.$this->item['name'].'"',
+                    ['company_id' => [$message]]
+                );
+            }
+
+            return $message;
         }
 
         // If we're updating, we don't want to overwrite old fields.

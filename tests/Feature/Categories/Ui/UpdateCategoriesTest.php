@@ -25,21 +25,28 @@ class UpdateCategoriesTest extends TestCase
     {
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('categories.edit', Category::factory()->create()))
-            ->assertOk();
+            ->assertOk()
+            ->assertSee('Recently released feature');
     }
 
     public function testUserCanCreateCategories()
     {
+        $manager = User::factory()->create();
+
         $this->actingAs(User::factory()->superuser()->create())
             ->post(route('categories.store'), [
                 'name' => 'Test Category',
                 'category_type' => 'asset',
+                'manager_id' => $manager->id,
             ])
             ->assertStatus(302)
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('categories.index'));
 
-        $this->assertTrue(Category::where('name', 'Test Category')->exists());
+        $this->assertDatabaseHas('categories', [
+            'name' => 'Test Category',
+            'manager_id' => $manager->id,
+        ]);
     }
 
     public function testUserCanEditAssetCategory()
@@ -50,6 +57,7 @@ class UpdateCategoriesTest extends TestCase
             'alert_on_response' => false,
         ]);
         $fieldset = CustomFieldset::factory()->create();
+        $manager = User::factory()->create();
 
         $this->assertTrue(Category::where('name', 'Test Category')->exists());
 
@@ -57,6 +65,7 @@ class UpdateCategoriesTest extends TestCase
             ->put(route('categories.update', $category), [
                 'name' => 'Test Category Edited',
                 'fieldset_id' => $fieldset->id,
+                'manager_id' => $manager->id,
                 'notes' => 'Test Note Edited',
                 'require_acceptance' => '1',
                 'alert_on_response' => '1',
@@ -70,9 +79,10 @@ class UpdateCategoriesTest extends TestCase
         $this->assertDatabaseHas('categories', [
             'name' => 'Test Category Edited',
             'fieldset_id' => $fieldset->id,
+            'manager_id' => $manager->id,
             'notes' => 'Test Note Edited',
-            'require_acceptance' => 1,
-            'alert_on_response' => 1,
+            'require_acceptance' => 0,
+            'alert_on_response' => 0,
         ]);
     }
 
@@ -117,5 +127,64 @@ class UpdateCategoriesTest extends TestCase
         $this->followRedirects($response)->assertSee(trans('general.error'));
         $this->assertFalse(Category::where('name', 'Test Category Edited')->where('notes', 'Test Note Edited')->exists());
 
+    }
+
+    public function testCategoryManagerEditFormShowsOwnershipAsReadOnly()
+    {
+        $manager = User::factory()->create([
+            'first_name' => 'Assigned',
+            'last_name' => 'AFM',
+        ]);
+        $category = Category::factory()->forAssets()->create([
+            'manager_id' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->get(route('categories.edit', $category))
+            ->assertOk()
+            ->assertSee('Category Manager', false)
+            ->assertSee('Assigned AFM', false)
+            ->assertDontSee('category_manager_select', false);
+    }
+
+    public function testCategoryManagerCannotChangeManagedCategoryOwnership()
+    {
+        $manager = User::factory()->create();
+        $otherManager = User::factory()->create();
+        $category = Category::factory()->forAssets()->create([
+            'name' => 'Managed Category',
+            'manager_id' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->put(route('categories.update', $category), [
+                'name' => 'Managed Category Updated',
+                'category_type' => 'asset',
+                'manager_id' => $otherManager->id,
+            ])
+            ->assertRedirect(route('categories.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'name' => 'Managed Category Updated',
+            'manager_id' => $manager->id,
+        ]);
+    }
+
+    public function testCategoryManagerCannotUpdateUnmanagedCategory()
+    {
+        $manager = User::factory()->create();
+        Category::factory()->forAssets()->create([
+            'manager_id' => $manager->id,
+        ]);
+        $unmanagedCategory = Category::factory()->forAssets()->create();
+
+        $this->actingAs($manager)
+            ->put(route('categories.update', $unmanagedCategory), [
+                'name' => 'Should Not Change',
+                'category_type' => 'asset',
+            ])
+            ->assertForbidden();
     }
 }

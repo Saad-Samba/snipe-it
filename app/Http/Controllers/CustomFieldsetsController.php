@@ -46,7 +46,11 @@ class CustomFieldsetsController extends Controller
         $this->authorize('view', $cfset);
 
         if ($cfset) {
-            $custom_fields_list = ['' => 'Add New Field to Fieldset'] + CustomField::pluck('name', 'id')->toArray();
+            $custom_fields_list = ['' => 'Add New Field to Fieldset'] + CustomField::query()
+                ->where('is_unique', false)
+                ->where('field_encrypted', false)
+                ->pluck('name', 'id')
+                ->toArray();
 
             $maxid = 0;
             foreach ($cfset->fields as $field) {
@@ -193,6 +197,14 @@ class CustomFieldsetsController extends Controller
         $this->authorize('update', $set);
 
         if ($request->filled('field_id')) {
+            $fieldToAssociate = CustomField::findOrFail($request->input('field_id'));
+
+            if ($fieldToAssociate->is_unique || $fieldToAssociate->field_encrypted) {
+                return redirect()->route('fieldsets.show', [$id])->withInput()->withErrors([
+                    'field_id' => 'Unique and encrypted custom fields are not supported in catalogue fieldsets.',
+                ]);
+            }
+
             foreach ($set->fields as $field) {
                 if ($field->id == $request->input('field_id')) {
                     return redirect()->route('fieldsets.show', [$id])->withInput()->withErrors(['field_id' => trans('admin/custom_fields/message.field.already_added')]);

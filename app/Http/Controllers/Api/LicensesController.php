@@ -7,10 +7,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Transformers\LicensesTransformer;
 use App\Http\Transformers\SelectlistTransformer;
 use App\Models\License;
+use App\Models\CompanyableScope;
+use App\Models\Project;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
 
 class LicensesController extends Controller
 {
@@ -23,10 +27,22 @@ class LicensesController extends Controller
      */
     public function index(Request $request) : JsonResponse | array
     {
-        $this->authorize('view', License::class);
+        $project = $request->filled('project_id')
+            ? Project::findOrFail($request->integer('project_id'))
+            : null;
+
+        if ($project) {
+            $this->authorize('view', $project);
+        } else {
+            $this->authorize('view', License::class);
+        }
 
         $licenses = License::with('company', 'manufacturer', 'supplier', 'category', 'adminuser', 'project', 'discipline')
             ->withCount('freeSeats as free_seats_count');
+
+        if ($project) {
+            $licenses->withoutGlobalScope(CompanyableScope::class);
+        }
         $settings = Setting::getSettings();
 
         if ($request->input('status')=='inactive') {
@@ -113,6 +129,10 @@ class LicensesController extends Controller
             $licenses->whereNull('expiration_date');
         }
 
+        if ($request->filled('maintenance_expires')) {
+            $licenses->whereNotNull('maintenance_expires_at');
+        }
+
         if ($request->filled('search')) {
             $licenses = $licenses->TextSearch($request->input('search'));
         }
@@ -158,6 +178,7 @@ class LicensesController extends Controller
                         'name',
                         'purchase_cost',
                         'expiration_date',
+                        'maintenance_expires_at',
                         'purchase_order',
                         'order_number',
                         'notes',
@@ -198,6 +219,9 @@ class LicensesController extends Controller
     public function store(Request $request) : JsonResponse
     {
         $this->authorize('create', License::class);
+        if ($errors = $this->maintenanceExpiryErrors($request)) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, $errors));
+        }
         $license = new License;
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
@@ -239,6 +263,9 @@ class LicensesController extends Controller
         $this->authorize('update', License::class);
 
         $license = License::findOrFail($id);
+        if ($errors = $this->maintenanceExpiryErrors($request, $license)) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, $errors));
+        }
         $license->fill($request->all());
         $license->project_id = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
@@ -248,6 +275,25 @@ class LicensesController extends Controller
         }
 
         return Helper::formatStandardApiResponse('error', null, $license->getErrors());
+    }
+
+    private function maintenanceExpiryErrors(Request $request, ?License $license = null): array
+    {
+        $maintained = $request->has('maintained') ? $request->boolean('maintained') : (bool) $license?->maintained;
+        $data = $request->all();
+        if ($license && ! $request->has('maintenance_expires_at')) {
+            $data['maintenance_expires_at'] = $license->maintenance_expires_at?->format('Y-m-d');
+        }
+        $validator = Validator::make($data, [
+            'maintenance_expires_at' => [
+                'nullable',
+                'date_format:Y-m-d',
+                'max:10',
+                Rule::requiredIf($maintained),
+            ],
+        ]);
+
+        return $validator->fails() ? $validator->errors()->toArray() : [];
     }
 
     /**

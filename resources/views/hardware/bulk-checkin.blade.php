@@ -29,6 +29,9 @@
                     <form class="form-horizontal" method="post" action="{{ $form_action }}" autocomplete="off">
                         {{ csrf_field() }}
                         <input type="hidden" name="back_url" value="{{ $bulk_back_url }}">
+                        @if (!empty($request_id))
+                            <input type="hidden" name="request_id" value="{{ $request_id }}">
+                        @endif
                         @foreach ($assets as $asset)
                             <input type="hidden" name="ids[]" value="{{ $asset->id }}">
                         @endforeach

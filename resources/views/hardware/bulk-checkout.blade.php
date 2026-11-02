@@ -26,6 +26,9 @@
       <div class="box-body">
         <form class="form-horizontal" method="post" action="" autocomplete="off">
           {{ csrf_field() }}
+          @if (!empty($request_id))
+            <input type="hidden" name="request_id" value="{{ $request_id }}">
+          @endif
 
             @if ($removed_assets->isNotEmpty())
                 <div class="box box-solid box-warning">
@@ -55,7 +58,7 @@
            'asset_status_type' => 'RTD',
            'select_id' => 'assigned_assets_select',
            'asset_selector_div_id' => 'assets_to_checkout_div',
-           'asset_ids' => old('selected_assets')
+           'asset_ids' => $selected_asset_ids ?? []
          ])
 
 
@@ -68,7 +71,7 @@
                     <x-input.select
                             name="status_id"
                             :options="$statusLabel_list"
-                            :selected="old('status_id', $status_id ?? null)"
+                            :selected="old('status_id', $request_status_id ?? $status_id ?? null)"
                             style="width: 100%;"
                             aria-label="status_id"
                     />
@@ -81,10 +84,12 @@
 
 
           @include ('partials.forms.checkout-selector', ['user_select' => 'true','asset_select' => 'true', 'location_select' => 'true'])
-          @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.user'), 'fieldname' => 'assigned_user', 'style' => session('checkout_to_type') == 'user' ? '' : 'display: none;'])
+          @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.user'), 'fieldname' => 'assigned_user', 'style' => (session('checkout_to_type') ?: 'user') == 'user' ? '' : 'display: none;', 'item' => (object) ['assigned_user' => old('assigned_user', $request_assigned_user_id ?? null)]])
             <!-- We have to pass unselect here so that we don't default to the asset that's being checked out. We want that asset to be pre-selected everywhere else. -->
           @include ('partials.forms.edit.asset-select', ['translated_name' => trans('general.asset'), 'asset_selector_div_id' => 'assigned_asset', 'fieldname' => 'assigned_asset', 'unselect' => 'true', 'style' => session('checkout_to_type') == 'asset' ? '' : 'display: none;'])
           @include ('partials.forms.edit.location-select', ['translated_name' => trans('general.location'), 'fieldname' => 'assigned_location', 'style' => session('checkout_to_type') == 'location' ? '' : 'display: none;'])
+          @include ('partials.forms.edit.project-select', ['translated_name' => trans('general.project'), 'fieldname' => 'project_id', 'item' => (object) ['project_id' => old('project_id', $request_project_id ?? null)]])
+          @include ('partials.forms.edit.discipline-select', ['translated_name' => trans('general.discipline'), 'fieldname' => 'discipline_id', 'item' => (object) ['discipline_id' => old('discipline_id', $request_discipline_id ?? null)]])
 
           <!-- Checkout/Checkin Date -->
               <div class="form-group {{ $errors->has('checkout_at') ? 'error' : '' }}">
@@ -92,8 +97,8 @@
                       {{ trans('admin/hardware/form.checkout_date') }}
                   </label>
                   <div class="col-md-8">
-                      <div class="input-group date col-md-5" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-date-end-date="0d" data-date-clear-btn="true">
-                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="checkout_at" id="checkout_at" value="{{ old('checkout_at') }}">
+                          <div class="input-group date col-md-5" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-date-end-date="0d" data-date-clear-btn="true">
+                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="checkout_at" id="checkout_at" value="{{ old('checkout_at', now()->format('Y-m-d')) }}">
                           <span class="input-group-addon"><x-icon type="calendar" /></span>
                       </div>
                       {!! $errors->first('checkout_at', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -107,7 +112,7 @@
                   </label>
                   <div class="col-md-8">
                       <div class="input-group date col-md-5" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-date-start-date="0d" data-date-clear-btn="true">
-                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expected_checkin" id="expected_checkin" value="{{ old('expected_checkin') }}">
+                          <input type="text" class="form-control" placeholder="{{ trans('general.select_date') }}" name="expected_checkin" id="expected_checkin" value="{{ old('expected_checkin', $request_needed_by_date ?? null) }}" required>
                           <span class="input-group-addon"><x-icon type="calendar" /></span>
                       </div>
                       {!! $errors->first('expected_checkin', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
@@ -158,7 +163,7 @@
     $(function () {
         //if there's already a user selected, make sure their checked-out assets show up
         // (if there isn't one, it won't do anything)
-        $('#assigned_user').change();
+        $('#assigned_user_select').change();
 
         // Add the disabled attribute to empty inputs on submit to handle the case where someone does not pick a status ID
         // and the form is submitted with an empty status ID which will fail validation via the form request

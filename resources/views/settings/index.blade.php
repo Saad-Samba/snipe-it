@@ -362,6 +362,37 @@
               <a href="https://www.gnu.org/licenses/agpl-3.0.en.html" rel="noopener">AGPL3</a>
            </div>
           </div>
+
+          <div class="row">
+            <div class="col-md-2" style="padding-top: 3px; padding-bottom: 3px;">
+              <strong>{{ trans('admin/settings/general.user_impersonation') }}:</strong>
+            </div>
+            <div class="col-md-10" style="padding-top: 3px; padding-bottom: 3px;">
+              @if ($impersonators->isEmpty() && empty($missingImpersonationUsernames))
+                <em class="text-muted">{{ trans('admin/settings/general.user_impersonation_disabled') }}</em>
+              @else
+                <ul class="list-unstyled">
+                  @foreach ($impersonators as $impersonator)
+                    <li>
+                      <a href="{{ route('users.show', $impersonator->id) }}">{{ $impersonator->display_name }}</a>
+                      <code>{{ $impersonator->username }}</code>
+                      @if (! $impersonator->isSuperUser())
+                        <span class="label label-warning" data-tooltip="true" title="{{ trans('admin/settings/general.user_impersonation_not_superuser_help') }}">{{ trans('admin/settings/general.user_impersonation_not_superuser') }}</span>
+                      @endif
+                      @if ($impersonator->deleted_at !== null)
+                        <span class="label label-danger">{{ trans('general.deleted') }}</span>
+                      @elseif ($impersonator->activated != 1)
+                        <span class="label label-default">{{ trans('admin/settings/general.user_impersonation_deactivated') }}</span>
+                      @endif
+                    </li>
+                  @endforeach
+                  @foreach ($missingImpersonationUsernames as $missingUsername)
+                    <li><code>{{ $missingUsername }}</code> <span class="label label-danger">{{ trans('admin/settings/general.user_impersonation_missing') }}</span></li>
+                  @endforeach
+                </ul>
+              @endif
+            </div>
+          </div>
           <!-- / row -->
 
           <!-- row -->
@@ -465,5 +496,4 @@
   @endsection
 
 @stop
-
 

@@ -37,13 +37,26 @@ class EmailNotificationsToUserUponCheckinTest extends TestCase
         });
     }
 
+    public function test_check_in_email_sent_to_user_for_asset_category_even_if_disabled_in_input()
+    {
+        $user = User::factory()->create();
+        $asset = Asset::factory()->assignedToUser($user)->create();
+
+        $asset->model->category->update(['checkin_email' => false]);
+
+        $this->fireCheckInEvent($asset->fresh(['model.category']), $user);
+
+        Mail::assertSent(CheckinAssetMail::class, function ($mail) use ($user) {
+            return $mail->hasTo($user->email);
+        });
+    }
+
     public function test_check_in_email_not_sent_to_user_if_setting_disabled()
     {
         $this->settings->disableAdminCC();
 
         $user = User::factory()->create();
         $checkoutables = collect([
-            Asset::factory()->assignedToUser($user)->create(),
             LicenseSeat::factory()->assignedToUser($user)->create(),
             Accessory::factory()->checkedOutToUser($user)->create(),
             Consumable::factory()->checkedOutToUser($user)->create(),
@@ -51,17 +64,9 @@ class EmailNotificationsToUserUponCheckinTest extends TestCase
 
         foreach ($checkoutables as $checkoutable) {
 
-            if ($checkoutable instanceof Asset) {
-                $checkoutable->model->category->update([
-                    'checkin_email' => false,
-                    'eula_text' => null,
-                    'require_acceptance' => false,
-                ]);
-                $checkoutable = $checkoutable->fresh(['model.category']);
-            }
-
             if ($checkoutable instanceof Accessory || $checkoutable instanceof Consumable) {
                 $checkoutable->category->update([
+                    'category_type' => $checkoutable instanceof Accessory ? 'accessory' : 'consumable',
                     'checkin_email' => false,
                     'eula_text' => null,
                     'require_acceptance' => false,
@@ -71,6 +76,7 @@ class EmailNotificationsToUserUponCheckinTest extends TestCase
 
             if ($checkoutable instanceof LicenseSeat) {
                 $checkoutable->license->category->update([
+                    'category_type' => 'license',
                     'checkin_email' => false,
                     'eula_text' => null,
                     'require_acceptance' => false,

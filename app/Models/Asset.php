@@ -48,6 +48,41 @@ class Asset extends Depreciable
     use Acceptable;
 
     /**
+     * Limit an asset query to the records the given user may discover.
+     *
+     * Asset family managers are intentionally not assigned to one company. When
+     * FMCS is enabled, replace the normal company scope with their managed asset
+     * categories so they can inspect those assets across companies without seeing
+     * unrelated inventory.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if (! $user->hasCategoryOwnershipScope()) {
+            return $query;
+        }
+
+        return $query
+            ->withoutGlobalScope(CompanyableScope::class)
+            ->whereHas('model', function (Builder $modelQuery) use ($user) {
+                $modelQuery->managedBy($user);
+            });
+    }
+
+    public function isManagedBy(User $user): bool
+    {
+        return $this->model?->isManagedBy($user) ?? false;
+    }
+
+    public function resolveRouteBindingQuery($query, $value, $field = null)
+    {
+        if ($user = auth()->user()) {
+            $query = $query->visibleTo($user);
+        }
+
+        return parent::resolveRouteBindingQuery($query, $value, $field);
+    }
+
+    /**
      * Run after the checkout acceptance was declined by the user
      *
      * @param User   $acceptedBy
@@ -232,6 +267,20 @@ class Asset extends Depreciable
         return $this->belongsTo(Discipline::class, 'discipline_id');
     }
 
+    public function checkoutRequests()
+    {
+        return $this->belongsToMany(CheckoutRequest::class, 'checkout_request_assets')
+            ->withPivot([
+                'allocated_by',
+                'allocated_at',
+                'transfer_source_company_id',
+                'transfer_destination_company_id',
+                'transfer_started_at',
+                'transfer_completed_at',
+            ])
+            ->withTimestamps();
+    }
+
     protected static function booted(): void
     {
         static::forceDeleted(function (Asset $asset) {
@@ -255,27 +304,24 @@ class Asset extends Depreciable
 
     public function customFieldValidationRules()
     {
+        // Model-backed custom fields are catalogue specifications. Their
+        // validation happens when the model is maintained, not per asset.
+        return [];
+    }
 
-        $customFieldValidationRules = [];
-
-        if (($this->model) && ($this->model->fieldset)) {
-
-            foreach ($this->model->fieldset->fields as $field) {
-
-                // this just casts booleans that may come through as strings to an actual boolean type
-                // adding !$field->field_encrypted because when the encrypted value comes through it
-                // screws things up for the encrypted validation rules (and the encrypted string
-                // is not a valid boolean type)
-                if ($field->format == 'BOOLEAN' && !$field->field_encrypted) {
-                    $this->{$field->db_column} = filter_var($this->{$field->db_column}, FILTER_VALIDATE_BOOLEAN);
-                }
-            }
-
-            $customFieldValidationRules += $this->model->fieldset->validation_rules();
+    /**
+     * Resolve a custom field from its correct owner.
+     *
+     * Unsupported field types are deliberately ignored for model-backed
+     * assets in this initial catalogue-specification implementation.
+     */
+    public function customFieldValue(CustomField $field): mixed
+    {
+        if (($this->model) && $this->model->ownsSpecification($field)) {
+            return $this->model->specificationValue($field);
         }
 
-        return $customFieldValidationRules;
-
+        return null;
     }
 
 
@@ -581,36 +627,8 @@ class Asset extends Depreciable
 
     public function customFieldsForCheckinCheckout($checkin_checkout)
     {
-        // Check to see if any of the custom fields were included on the form and if they have any values
-        if (($this->model) && ($this->model->fieldset) && ($this->model->fieldset->fields)) {
-
-            foreach ($this->model->fieldset->fields as $field) {
-
-                if (($field->{$checkin_checkout} == 1) && (request()->has($field->db_column))) {
-
-                    if ($field->field_encrypted == '1') {
-
-                        if (Gate::allows('assets.view.encrypted_custom_fields')) {
-                            if (is_array(request()->input($field->db_column))) {
-                                $this->{$field->db_column} = Crypt::encrypt(implode(', ', request()->input($field->db_column)));
-                            } else {
-                                $this->{$field->db_column} = Crypt::encrypt(request()->get($field->db_column));
-                            }
-                        }
-
-                    } else {
-
-                        if (is_array(request()->input($field->db_column))) {
-                            $this->{$field->db_column} = implode(', ', request()->input($field->db_column));
-                        } else {
-                            $this->{$field->db_column} = request()->input($field->db_column);
-                        }
-
-                    }
-                }
-            }
-        }
-
+        // Model-backed custom fields are catalogue specifications and are not
+        // mutable during check-in or checkout.
     }
 
 

@@ -20,10 +20,14 @@ use App\Observers\LicenseObserver;
 use App\Observers\SettingObserver;
 use App\Observers\MaintenanceObserver;
 use Illuminate\Routing\UrlGenerator;
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
+use App\View\Composers\ImpersonationBannerComposer;
 
 /**
  * This service provider handles setting the observers on models
@@ -66,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         \Illuminate\Pagination\Paginator::useBootstrap();
+        View::composer('partials.impersonation-banner', ImpersonationBannerComposer::class);
 
         Schema::defaultStringLength(191);
         Asset::observe(AssetObserver::class);
@@ -76,6 +81,19 @@ class AppServiceProvider extends ServiceProvider
         Consumable::observe(ConsumableObserver::class);
         License::observe(LicenseObserver::class);
         Setting::observe(SettingObserver::class);
+
+        Event::listen(MessageSending::class, function (MessageSending $event): void {
+            $message = $event->message;
+            $message->subject(str_replace('Snipe-IT', 'LEAMS', $message->getSubject() ?? ''));
+
+            if ($textBody = $message->getTextBody()) {
+                $message->text(str_replace('Snipe-IT', 'LEAMS', $textBody));
+            }
+
+            if ($htmlBody = $message->getHtmlBody()) {
+                $message->html(str_replace('Snipe-IT', 'LEAMS', $htmlBody));
+            }
+        });
     }
 
     /**

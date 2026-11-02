@@ -168,11 +168,6 @@
                 </label>
 
                 <label class="form-control">
-                    <input type="checkbox" name="depreciation" value="1" @checked($template->checkmarkValue('depreciation')) />
-                    {{ trans('general.depreciation') }}
-                </label>
-
-                <label class="form-control">
                     <input type="checkbox" name="order" value="1" @checked($template->checkmarkValue('order')) />
                     {{ trans('admin/hardware/form.order') }}
                 </label>

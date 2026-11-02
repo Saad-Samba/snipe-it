@@ -7,6 +7,12 @@
     id="{{ (isset($id_formname)) ? $id_formname : 'assetsBulkForm' }}"
 >
     @csrf
+    @if (request()->filled('request_id'))
+        <input type="hidden" name="request_id" value="{{ request()->input('request_id') }}">
+        @if (isset($requestContext) && $requestContext && $requestContext->project_id)
+            <input type="hidden" name="project_id" value="{{ $requestContext->project_id }}">
+        @endif
+    @endif
 
     {{-- The sort and order will only be used if the cookie is actually empty (like on first-use) --}}
     <input name="sort" type="hidden" value="assets.id">

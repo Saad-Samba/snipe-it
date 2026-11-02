@@ -4,7 +4,6 @@ namespace Tests\Feature\Licenses\Ui;
 
 use App\Models\Category;
 use App\Models\License;
-use App\Models\Depreciation;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -23,25 +22,6 @@ class CreateLicenseTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('licenses.create'))
             ->assertOk();
-    }
-
-    public function testLicenseWithoutPurchaseDateFailsValidation()
-    {
-        $response = $this->actingAs(User::factory()->superuser()->create())
-            ->from(route('licenses.create'))
-            ->post(route('licenses.store'), [
-                'name' => 'Test Invalid License',
-                'seats' => '10',
-                'category_id' => Category::factory()->forLicenses()->create()->id,
-                'depreciation_id' => Depreciation::factory()->create()->id
-            ]);
-        $response->assertStatus(302);
-        $response->assertRedirect(route('licenses.create'));
-        $response->assertInvalid(['purchase_date']);
-        $response->assertSessionHasErrors(['purchase_date']);
-        $this->followRedirects($response)->assertSee(trans('general.error'));
-        $this->assertFalse(License::where('name', 'Test Invalid License')->exists());
-
     }
 
     public function testLicenseCreate()
@@ -84,6 +64,60 @@ class CreateLicenseTest extends TestCase
         $license = License::where('name', 'Test Perpetual License')->sole();
         $this->assertTrue($license->perpetual);
         $this->assertNull($license->expiration_date);
+    }
+
+    public function testMaintainedPerpetualLicenseRequiresAndStoresMaintenanceExpiryDate()
+    {
+        $user = User::factory()->superuser()->create();
+        $category = Category::factory()->forLicenses()->create();
+
+        $this->actingAs($user)
+            ->from(route('licenses.create'))
+            ->post(route('licenses.store'), [
+                'name' => 'Perpetual License Without Maintenance Date',
+                'seats' => 1,
+                'category_id' => $category->id,
+                'perpetual' => '1',
+                'maintained' => '1',
+            ])
+            ->assertInvalid(['maintenance_expires_at']);
+
+        $this->actingAs($user)
+            ->post(route('licenses.store'), [
+                'name' => 'Perpetual License With Maintenance Date',
+                'seats' => 1,
+                'category_id' => $category->id,
+                'perpetual' => '1',
+                'maintained' => '1',
+                'maintenance_expires_at' => '2027-12-31',
+            ])
+            ->assertRedirect();
+
+        $license = License::where('name', 'Perpetual License With Maintenance Date')->sole();
+        $this->assertTrue($license->perpetual);
+        $this->assertTrue((bool) $license->maintained);
+        $this->assertSame('2027-12-31', $license->maintenance_expires_at->format('Y-m-d'));
+    }
+
+    public function testMaintainedTermLicenseRequiresAndStoresIndependentMaintenanceExpiry()
+    {
+        $payload = [
+            'name' => 'Term License With Support',
+            'seats' => 1,
+            'category_id' => Category::factory()->forLicenses()->create()->id,
+            'perpetual' => '0',
+            'expiration_date' => '2028-12-31',
+            'maintained' => '1',
+        ];
+        $this->actingAs(User::factory()->superuser()->create())
+            ->post(route('licenses.store'), $payload)
+            ->assertInvalid(['maintenance_expires_at']);
+        $this->post(route('licenses.store'), $payload + ['maintenance_expires_at' => '2027-12-31'])
+            ->assertRedirect();
+        $license = License::where('name', $payload['name'])->sole();
+        $this->assertFalse($license->perpetual);
+        $this->assertSame('2028-12-31', $license->expiration_date->toDateString());
+        $this->assertSame('2027-12-31', $license->maintenance_expires_at->toDateString());
     }
 
     public function testNonPerpetualLicenseWithoutExpirationDateFailsValidation()

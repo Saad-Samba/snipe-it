@@ -41,6 +41,27 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
     use Presentable;
     use Searchable;
 
+    private const ASSET_FAMILY_MANAGER_PERMISSIONS = [
+        'reports.view',
+        'assets.view',
+        'models.view',
+        'models.create',
+        'models.edit',
+        'categories.view',
+        'categories.edit',
+        'customfields.view',
+        'manufacturers.view',
+        'manufacturers.create',
+        'manufacturers.edit',
+        'suppliers.view',
+        'suppliers.create',
+        'suppliers.edit',
+        'locations.view',
+        'companies.view',
+        'departments.view',
+        'statuslabels.view',
+    ];
+
     protected $hidden = [
         'password',
         'remember_token',
@@ -194,10 +215,12 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
     protected static function booted(): void
     {
         static::forceDeleted(function (User $user) {
+            $user->racAssignments()->forceDelete();
             CheckoutRequest::where(['user_id' => $user->id])->forceDelete();
         });
 
         static::softDeleted(function (User $user) {
+            $user->racAssignments()->delete();
             CheckoutRequest::where(['user_id' => $user->id])->delete();
         });
     }
@@ -223,6 +246,16 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
         }
 
         return false;
+    }
+
+    public function racAssignments(): HasMany
+    {
+        return $this->hasMany(RegionalAssetCoordinatorAssignment::class, 'user_id');
+    }
+
+    public function racRequestTargets(): HasMany
+    {
+        return $this->hasMany(CheckoutRequestCoordinator::class, 'user_id');
     }
 
     public function hasIndividualPermissions()
@@ -308,7 +341,13 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
             return true;
         }
 
-        return $this->checkPermissionSection($section);
+        if ($this->checkPermissionSection($section)) {
+            return true;
+        }
+
+        return in_array($section, self::ASSET_FAMILY_MANAGER_PERMISSIONS, true)
+            && ! $this->hasExplicitPermissionDenial($section)
+            && $this->isAssetFamilyManager();
     }
 
     /**
@@ -323,6 +362,26 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
         return $this->checkPermissionSection('superuser');
     }
 
+    public function canImpersonate(): bool
+    {
+        if (! $this->isSuperUser()) {
+            return false;
+        }
+
+        $allowed = array_map('mb_strtolower', (array) config('app.user_impersonation_usernames'));
+
+        return in_array(mb_strtolower((string) $this->username), $allowed, true);
+    }
+
+    public function mayImpersonate(User $target): bool
+    {
+        return $this->canImpersonate()
+            && $target->id !== $this->id
+            && ! $target->isSuperUser()
+            && $target->deleted_at === null
+            && $target->activated == 1;
+    }
+
     /**
      * Checks if the user is an admin
      *
@@ -333,6 +392,31 @@ class User extends SnipeModel implements AuthenticatableContract, AuthorizableCo
     public function isAdmin()
     {
         return $this->checkPermissionSection('admin');
+    }
+
+    /**
+     * Determine whether this user manages at least one asset family.
+     */
+    public function isAssetFamilyManager(): bool
+    {
+        return Category::managedBy($this)->exists();
+    }
+
+    /**
+     * Determine whether category access must be limited to categories assigned to this user.
+     */
+    public function hasCategoryOwnershipScope(): bool
+    {
+        return ! $this->isSuperUser()
+            && ! $this->isAdmin()
+            && $this->isAssetFamilyManager();
+    }
+
+    private function hasExplicitPermissionDenial(string $permission): bool
+    {
+        $permissions = $this->decodePermissions();
+
+        return is_array($permissions) && (($permissions[$permission] ?? null) === -1);
     }
 
 

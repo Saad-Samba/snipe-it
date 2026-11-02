@@ -12,30 +12,20 @@ use App\Models\AssetModel;
 
 class CustomFieldSetDefaultValuesForModel extends Component
 {
-    public $add_default_values;
-
     public $category_id;
     public $fieldset_id;
     public $model_id;
 
     public array $selectedValues = [];
 
-    public function mount($model_id = null)
+    public function mount($model_id = null, $category_id = null)
     {
         $this->model_id = $model_id;
-        $this->category_id = old('category_id', $this->model?->category_id);
-        $this->fieldset_id = $this->model?->fieldset_id;
-        $this->add_default_values = ($this->model?->defaultValues->count() > 0);
-
-
+        $this->category_id = old('category_id', $category_id ?? $this->model?->category_id);
+        $this->fieldset_id = config('leams.model_fieldset_overrides')
+            ? $this->model?->fieldset_id
+            : null;
         $this->initializeSelectedValuesArray();
-        if (session()->has('errors')) {
-            $errors = session('errors')->keys();
-            $selectedValuesKeys = array_keys($this->selectedValues);
-            if (count(array_intersect($selectedValuesKeys, $errors)) > 0) {
-                $this->add_default_values = true;
-            };
-        }
         $this->populatedSelectedValuesArray();
     }
 
@@ -51,7 +41,7 @@ class CustomFieldSetDefaultValuesForModel extends Component
         $customFieldset = CustomFieldset::find($this->effectiveFieldsetId());
 
         if ($customFieldset) {
-            return $customFieldset?->fields;
+            return $customFieldset->fields->reject(fn (CustomField $field) => (bool) $field->is_unique || (bool) $field->field_encrypted);
         }
 
         return collect();
@@ -60,7 +50,11 @@ class CustomFieldSetDefaultValuesForModel extends Component
     #[Computed]
     public function inheritedFieldset()
     {
-        if ($this->fieldset_id || ! $this->selectedCategory) {
+        if (! $this->selectedCategory) {
+            return null;
+        }
+
+        if (config('leams.model_fieldset_overrides') && $this->fieldset_id) {
             return null;
         }
 
@@ -145,6 +139,10 @@ class CustomFieldSetDefaultValuesForModel extends Component
 
     private function effectiveFieldsetId()
     {
+        if (! config('leams.model_fieldset_overrides')) {
+            return $this->selectedCategory?->fieldset_id;
+        }
+
         return $this->fieldset_id ?: $this->selectedCategory?->fieldset_id;
     }
 }

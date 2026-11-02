@@ -4,6 +4,7 @@ namespace Tests\Feature\AssetModels\Api;
 
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\CustomFieldset;
 use App\Models\User;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Tests\TestCase;
@@ -37,6 +38,21 @@ class CreateAssetModelsTest extends TestCase
         $model = AssetModel::find($response['payload']['id']);
         $this->assertEquals('Test AssetModel', $model->name);
         $this->assertTrue($model->obsolete);
+    }
+
+    public function testCannotCreateAssetModelWithAFieldsetOverrideWhileDisabled()
+    {
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->postJson(route('api.models.store'), [
+                'name' => 'Rejected Fieldset Override Model',
+                'category_id' => Category::factory()->assetLaptopCategory()->create()->id,
+                'fieldset_id' => CustomFieldset::factory()->create()->id,
+            ])
+            ->assertOk()
+            ->assertStatusMessageIs('error')
+            ->assertJsonPath('messages.fieldset_id.0', trans('admin/models/message.fieldset_override_disabled'));
+
+        $this->assertFalse(AssetModel::where('name', 'Rejected Fieldset Override Model')->exists());
     }
 
     public function testCannotCreateAssetModelWithoutCategory()

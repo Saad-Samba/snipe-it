@@ -7,6 +7,7 @@ use App\Events\CheckoutableCheckedOut;
 use App\Models\Accessory;
 use App\Models\Asset;
 use App\Models\Company;
+use App\Models\Discipline;
 use App\Models\LicenseSeat;
 use App\Models\Location;
 use App\Models\Statuslabel;
@@ -30,6 +31,7 @@ class AssetCheckoutTest extends TestCase
             ->post(route('hardware.checkout.store', Asset::factory()->create()), [
                 'checkout_to_type' => 'user',
                 'assigned_user' => User::factory()->create()->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertForbidden();
     }
@@ -41,6 +43,7 @@ class AssetCheckoutTest extends TestCase
                 'checkout_to_type' => 'user',
                 'assigned_user' => User::factory()->create()->id,
                 'name' => 'Changed Name',
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertSessionHas('error')
             ->assertRedirect(route('hardware.index'));
@@ -56,6 +59,7 @@ class AssetCheckoutTest extends TestCase
             ->post(route('hardware.checkout.store', $assetAlreadyCheckedOut), [
                 'checkout_to_type' => 'user',
                 'assigned_user' => User::factory()->create()->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertSessionHas('error')
             ->assertRedirect(route('hardware.index'));
@@ -71,6 +75,7 @@ class AssetCheckoutTest extends TestCase
             ->post(route('hardware.checkout.store', $asset), [
                 'checkout_to_type' => 'asset',
                 'assigned_asset' => $asset->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertSessionHas('error');
 
@@ -112,6 +117,7 @@ class AssetCheckoutTest extends TestCase
             ->post(route('hardware.checkout.store', $asset), [
                 'checkout_to_type' => 'user',
                 'assigned_user' => $user->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertRedirect(route('hardware.checkout.store', $asset));
 
@@ -221,6 +227,26 @@ class AssetCheckoutTest extends TestCase
         $this->assertHasTheseActionLogs($asset, ['create'/*, 'checkout'*/]); //TODO - only getting one?
     }
 
+    public function testAssetCheckoutPersistsDiscipline()
+    {
+        $asset = Asset::factory()->create();
+        $admin = User::factory()->checkoutAssets()->create();
+        $discipline = Discipline::create([
+            'name' => 'Checkout Discipline',
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('hardware.checkout.store', $asset), [
+                'checkout_to_type' => 'user',
+                'assigned_user' => User::factory()->create()->id,
+                'discipline_id' => $discipline->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
+            ]);
+
+        $this->assertSame($discipline->id, $asset->fresh()->discipline_id);
+    }
+
     public function testLicenseSeatsAreAssignedToUserUponCheckout()
     {
         $asset = Asset::factory()->create();
@@ -233,6 +259,7 @@ class AssetCheckoutTest extends TestCase
             ->post(route('hardware.checkout.store', $asset), [
                 'checkout_to_type' => 'user',
                 'assigned_user' => $user->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ]);
 
         $this->assertTrue($user->fresh()->licenses->contains($seat->license));
@@ -246,6 +273,7 @@ class AssetCheckoutTest extends TestCase
             ->post(route('hardware.checkout.store', $asset), [
                 'checkout_to_type' => 'user',
                 'assigned_user' => User::factory()->create()->id,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ]);
 
         $asset->refresh();
@@ -277,6 +305,7 @@ class AssetCheckoutTest extends TestCase
                 'checkout_to_type' => 'user',
                 'assigned_user' =>  User::factory()->create()->id,
                 'redirect_option' => 'index',
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertStatus(302)
             ->assertRedirect(route('hardware.index'));
@@ -292,6 +321,7 @@ class AssetCheckoutTest extends TestCase
                 'checkout_to_type' => 'user',
                 'assigned_user' =>  User::factory()->create()->id,
                 'redirect_option' => 'item',
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertStatus(302)
             ->assertSessionHasNoErrors()
@@ -310,6 +340,7 @@ class AssetCheckoutTest extends TestCase
                 'assigned_user' =>  $user->id,
                 'redirect_option' => 'target',
                 'assigned_qty' => 1,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertStatus(302)
             ->assertRedirect(route('users.show', ['user' => $user]));
@@ -327,6 +358,7 @@ class AssetCheckoutTest extends TestCase
                 'assigned_asset' =>  $target->id,
                 'redirect_option' => 'target',
                 'assigned_qty' => 1,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertStatus(302)
             ->assertRedirect(route('hardware.show', $target));
@@ -344,6 +376,7 @@ class AssetCheckoutTest extends TestCase
                 'assigned_location' =>  $target->id,
                 'redirect_option' => 'target',
                 'assigned_qty' => 1,
+                'expected_checkin' => now()->addWeek()->format('Y-m-d'),
             ])
             ->assertStatus(302)
             ->assertRedirect(route('locations.show', ['location' => $target]));
