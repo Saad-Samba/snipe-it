@@ -137,38 +137,25 @@ Request views now use Requested Qty, Available Now, Due Back by Needed Date, In 
 
 The Received Requests In Use by Other Projects column and its link use other_projects=1, excluding same-project and unlinked assets. VN1630A now shows four such candidates; LA-3080 shows two. Existing unfiltered assigned_candidates links remain compatible and include all project relationships. In-use candidates require release and do not reduce the estimated procurement quantity automatically.
 
-## Excel sourcing export
+## Simple sourcing export
 
-Open a request's Assets view as its authorized coordinator or superuser and click **Export Sourcing Breakdown** beside the sourcing navigation. Every tab exports the same full model inventory visible to that user, ignoring tab/search/pagination filters. Deleted assets are excluded. The workbook opens on Sunburst Data, a grouped chart-ready table named SunburstData, and also contains Request Summary and the detailed Asset Breakdown table named SourcingAssets. The summary separates all-sites procurement estimates from permission-scoped asset counts.
+Both Export Sourcing Breakdown (one model line) and Export Submission Sourcing (every active line in the same requester’s submission) now download exactly one worksheet and one table:
 
-Each asset has one group, with priority reservation > available > due back by needed date > eligible in use > unavailable. Reservations distinguish actual RFQs from active projects. No needed date means no due-back deadline. Asset Count is numeric 1 per row. Return and export dates are typed Excel dates; imported labels are literal text rather than executable formulas.
+| Sourcing Group | Project / RFQ | Total Reference Price |
+| --- | --- | ---: |
+| Available Now | BMW — Falcon Gateway | EUR 1,200.00 |
+| Due Back by Needed Date | BMW — Falcon Gateway | EUR 1,200.00 |
+| Due Back by Needed Date | Ford — Vega Power Distribution | EUR 1,200.00 |
 
-In Excel: open Sunburst Data and select its three columns (Sourcing Group, Project / RFQ, Asset Count), including the headers and populated rows. Choose Insert > Hierarchy Chart > Sunburst. No PivotTable, copy/paste, or subtotal removal is needed. For a single-ring pie, aggregate Asset Count by Sourcing Group in a PivotTable. Requested quantity and procurement estimates remain in Request Summary, outside the inventory chart. Zero-inventory exports keep both data tables empty with headers and retain the request summary.
+Actual exports contain all populated sourcing groups, including this/other RFQ reservations, in-use assets, and unavailable assets. There are no extra sheets, helper columns, appended counts, financial estimates, or totals rows. Select the three columns and choose Insert > Hierarchy > Sunburst in Excel. Each physical asset ID contributes once, even when multiple submission lines request the same model.
 
-## Complete Sunburst demo: VN1630A
+Total Reference Price is the sum of current model reference prices for the unique visible assets in each group/project. Amounts are numeric and display the configured currency (EUR in the demo); no currency conversion or historical purchase cost is used. A group with any missing reference prices displays Unpriced rather than an incomplete numeric total. A genuine zero remains zero. No project association is labeled No Project / RFQ. Zero-inventory exports contain just the three headers.
 
-Rerun LearAssignedCandidatesQaSeeder after pulling. It keeps three model rows and now seeds 19 total asset rows (one soft deleted), including 16 visible VN1630A assets. The target request is Renault — Atlas Body Control RFQ, now explicitly flagged as an RFQ with Needed By 14 days after seeding. There are two additional RFQs: Volkswagen — Orion Gateway RFQ and Stellantis — Nova Power Distribution RFQ.
+Exports ignore active tab, search, and pagination, respect asset visibility and request review permissions, omit deleted assets and canceled request lines, and never include another requester’s coincidentally matching batch ID. All lines must be reviewable by the exporter. Mixed project/date legacy submissions must be aligned before export.
 
-As le-qa-admin, open VN1630A's seeded request, follow any sourcing link to Assets, then Export Sourcing Breakdown. With full demo visibility, Sunburst Data totals should be:
+## Current demo submission and names
 
-| Sourcing group | Assets | Breakdown |
-| --- | ---: | --- |
-| Available Now | 1 | Legacy Gateway project association retained; asset is unassigned |
-| Due Back by Needed Date | 2 | One each on Legacy Gateway Validation and Power Distribution Validation, returning in 7 and 10 days |
-| In Use by This Project | 1 | Next-generation Body Controller |
-| In Use by Other Projects | 4 | Legacy Gateway Validation |
-| In Use Without a Project | 1 | Unassigned project |
-| Reserved for This RFQ | 1 | Next-generation Body Controller |
-| Reserved for Other RFQs | 2 | Gateway RFQ and Power Distribution RFQ |
-| Reserved for Other Projects | 1 | Legacy Gateway Validation, an active project |
-| Unavailable | 3 | Repair, pending, and archived assets |
-| **Total** | **16** | Each physical asset counted once; deleted fixture omitted |
-
-The detailed asset sheet retains expected return dates. Reserved assets stay in their reservation slice even if they also have a checkout or return date, so a Sunburst never double-counts them. Procurement estimates continue to follow the existing request calculation; an asset held for another RFQ or in use is not automatically available to this request. Rerunning the seeder resets the demo dates relative to today.
-
-## Submission-wide sourcing export
-
-The three seeded model lines now share submission batch cdd03130-26f8-4ab4-80f9-8da078114621, the Renault — Atlas Body Control RFQ context, and one Needed By date. Rerunning the seeder upgrades old project names in place and groups its existing lines; no reset is required. The five programme names are fictional, using real car-maker names:
+Rerun LearAssignedCandidatesQaSeeder after pulling to upgrade earlier project names in place and group its three request lines into one batch. No reset is required. The seeded batch cdd03130-26f8-4ab4-80f9-8da078114621 contains VN1630A, LA-3080, and SM660-AR-11, requesting four units each, with one shared Needed By date and Renault RFQ context.
 
 - Renault — Atlas Body Control RFQ
 - Volkswagen — Orion Gateway RFQ
@@ -176,18 +163,6 @@ The three seeded model lines now share submission batch cdd03130-26f8-4ab4-80f9-
 - BMW — Falcon Gateway
 - Ford — Vega Power Distribution
 
-Use Export Submission Sourcing on a submission detail page when authorized for every active line. In the seeded demo, log in as le-qa-admin, open a VN1630A sourcing view from Received Requests, and use the adjacent Export Submission Sourcing button. It downloads all three model lines with 12 requested units and 18 unique visible assets (16 VN1630A, two LA-3080, zero SM660-AR-11).
+As le-qa-admin, open VN1630A from Received Requests, follow a sourcing link to Assets, and use Export Submission Sourcing. It includes 18 unique visible assets: 16 VN1630A, two LA-3080, none SM660-AR-11. With all demo prices present the one table totals EUR 20,800. The single-model VN1630A export totals EUR 19,200. Total demand is intentionally outside this inventory-value report.
 
-The workbook opens on Sunburst Data and includes Submission Summary, Unique Assets (one row per asset ID), Request Lines, and Line Candidates. Potential candidates can be linked to multiple lines; these links are not allocations and are never summed for the inventory chart. Unavailable inventory and reservations for other projects/RFQs stay in Unique Assets but are not listed as candidates. No project association is labeled No Project / RFQ.
-
-The submission procurement estimate uses the exporting user's visible inventory: demand is combined by model, then Available Now and Due Back assets are deducted once per model. Other sourcing groups are excluded until confirmed. The seeded submission therefore has estimated quantity to procure nine (one VN1630A + four LA-3080 + four SM660-AR-11). This scope is stated in the workbook and may differ from all-sites per-line estimates in the app. Canceled lines and another requester's lines are excluded. An unauthorized line blocks the whole export. Legacy mixed project/date batches return a clear error until their shared submission context is aligned.
-
-## One chart with count and money labels
-
-The export now opens on Value Sunburst. Select only populated A:C, then Insert > Hierarchy > Sunburst and enable category labels. The first two hierarchy columns already contain asset counts and reference-value labels; the third numeric column controls slice size. No PivotTable or manual label editing is needed. Count-only Sunburst Data remains available.
-
-Current model reference prices are used, in Settings.default_currency (EUR for the demo). No currency conversion is performed; historical asset purchase costs are not mixed into this chart. Unique Assets / Asset Breakdown adds Reference Value, Currency, and Price Status. These are current planning values, not current market valuations or realized savings.
-
-The seeded three-line submission contains 18 unique assets with EUR 20,800 known inventory reference value (16 VN1630A at 1,200 plus two LA-3080 at 800). Value Sunburst labels include all assets in each group; only positive-priced assets create slices. The coverage block beside the chart table explicitly shows unpriced and zero-value counts. Value Coverage preserves every group/project including those with no positive value. If all assets are unpriced or zero, the value chart table has headers only and directs the user to the count chart.
-
-Cost Summary combines requested quantities by model and deducts unique visible Available Now / Due Back supply once. It shows reference price, estimated demand and procurement costs, and potential procurement avoidance. For the seeded three-line submission, known demand cost is EUR 15,600; estimated procurement cost is EUR 12,000; potential procurement avoidance is EUR 3,600. These use the visible inventory scope and current model prices. Reservations and assets in use need confirmation and do not automatically reduce the estimate. Missing model prices leave amounts blank and monetary totals explicitly partial; zero reference prices remain distinct from missing prices.
+VN1630A covers Available Now (one), Due Back by Needed Date (two projects), In Use by This Project (one), In Use by Other Projects (four), In Use Without a Project (one), Reserved for This RFQ (one), Reserved for Other RFQs (two RFQs), Reserved for Other Projects (one), and Unavailable (repair, pending, archived). Its deleted fixture is excluded. Reservation classification takes precedence to prevent double counting. The three catalogue rows and 19 total seeded asset records remain unchanged.
