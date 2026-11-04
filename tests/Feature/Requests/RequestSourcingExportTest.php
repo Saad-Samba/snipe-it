@@ -108,4 +108,59 @@ class RequestSourcingExportTest extends TestCase
         $this->assertSame('Asset Tag', $book->getSheetByName('Asset Breakdown')->getCell('A1')->getValue());
         $book->disconnectWorksheets();
     }
+    public function test_submission_export_sums_demand_but_counts_overlapping_assets_once(): void
+    {
+        $this->seed(LearAssignedCandidatesQaSeeder::class);
+        $admin = User::where('username', 'le-qa-admin')->firstOrFail();
+        $main = CheckoutRequest::where('requestable_id', AssetModel::where('name', 'VN1630A')->firstOrFail()->id)->firstOrFail();
+        $duplicate = CheckoutRequest::factory()->forAssetModel()->create([
+            'user_id' => $main->user_id, 'submission_batch_id' => $main->submission_batch_id,
+            'requestable_id' => $main->requestable_id, 'project_id' => $main->project_id,
+            'needed_by_date' => $main->needed_by_date, 'quantity' => 3,
+        ]);
+        // A coincidentally identical batch ID belonging to another requester is not this submission.
+        CheckoutRequest::factory()->forAssetModel()->create([
+            'submission_batch_id' => $main->submission_batch_id, 'quantity' => 99,
+        ]);
+        $response = $this->actingAs($admin)->get(route('requests.submission-sourcing-export', $main));
+        $response->assertDownload('submission-'.$main->id.'-sourcing-breakdown.xlsx');
+        $book = $this->workbook($response);
+        $lines = collect(array_slice($book->getSheetByName('Request Lines')->toArray(), 1));
+        $assets = collect(array_slice($book->getSheetByName('Unique Assets')->toArray(), 1));
+        $links = collect(array_slice($book->getSheetByName('Line Candidates')->toArray(), 1));
+        $chart = collect(array_slice($book->getSheetByName('Sunburst Data')->toArray(), 1));
+        $summary = collect($book->getSheetByName('Submission Summary')->toArray())->keyBy(0);
+        $this->assertCount(4, $lines);
+        $this->assertSame(15, $lines->sum(2));
+        $this->assertCount(18, $assets);
+        $this->assertCount(18, $assets->pluck(9)->unique());
+        $this->assertSame(18, $chart->sum(2));
+        $this->assertSame(12, (int) $summary['Estimated Qty to Procure (visible inventory)'][1]);
+        $this->assertSame('n', $book->getSheetByName('Submission Summary')->getCell('B12')->getDataType());
+        $availableId = Asset::where('asset_tag', 'LE-QA-AVAILABLE')->firstOrFail()->id;
+        $this->assertCount(2, $links->where(1, $availableId));
+        $this->assertEqualsCanonicalizing([$main->id, $duplicate->id], $links->where(1, $availableId)->pluck(0)->all());
+        $this->assertFalse($links->pluck(4)->contains('Unavailable'));
+        $this->assertFalse($links->pluck(4)->contains('Reserved for Other RFQs'));
+        $this->assertSame('Sunburst Data', $book->getActiveSheet()->getTitle());
+        $book->disconnectWorksheets();
+    }
+
+    public function test_submission_export_requires_access_to_all_lines_and_rejects_mixed_context(): void
+    {
+        $this->seed(LearAssignedCandidatesQaSeeder::class);
+        $main = CheckoutRequest::where('requestable_id', AssetModel::where('name', 'VN1630A')->firstOrFail()->id)->firstOrFail();
+        $coordinator = User::where('username', 'le-qa-coordinator')->firstOrFail();
+        $this->actingAs($coordinator)->get(route('requests.submission-sourcing-export', $main))->assertForbidden();
+        $this->flushSession();
+        $admin = User::where('username', 'le-qa-admin')->firstOrFail();
+        $other = CheckoutRequest::where('submission_batch_id', $main->submission_batch_id)->where('id', '!=', $main->id)->firstOrFail();
+        $other->update(['needed_by_date' => now()->addDays(40)]);
+        $this->actingAs($admin)->get(route('requests.submission-sourcing-export', $main))->assertStatus(422);
+        $other->forceFill(['needed_by_date' => $main->needed_by_date, 'canceled_at' => now()])->save();
+        $book = $this->workbook($this->get(route('requests.submission-sourcing-export', $main)));
+        $this->assertSame(3, $book->getSheetByName('Request Lines')->getHighestRow());
+        $book->disconnectWorksheets();
+    }
+
 }

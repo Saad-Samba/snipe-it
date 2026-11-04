@@ -107,14 +107,14 @@ The seeder maintains one model row for each catalogue case (three rows total). E
 | Model | Case | Expected inventory |
 | --- | --- | --- |
 | VN1630A | Mixed inventory | One reusable now, two due back, six assigned candidates, plus excluded statuses |
-| LA-3080 | All assets assigned to another project | Two assets on QA Legacy Gateway Validation and QA Power Distribution Validation; none reusable now |
+| LA-3080 | All assets assigned to another project | Two assets on BMW — Falcon Gateway and Ford — Vega Power Distribution; none reusable now |
 | SM660-AR-11 | No inventory | No physical assets; request still allowed |
 
 1. Pull the branch, run migrations, then rerun LearAssignedCandidatesQaSeeder.
 2. Sign in as le-qa-requester (Lear-QA-2026!). Use Filters to select QA Automotive network interfaces. Expect exactly the three model rows above and no Model Number column. Technical values are synthetic QA examples.
 3. For a new request, set quantity, discipline VALIDATION, and destination IEC, then Add to Request. Open Request Cart and select a project/date. Existing active requests for the same model/project/site/discipline trigger duplicate protection; choose a different project if needed.
 4. Submit SM660-AR-11 with quantity four. Confirm the submitted demand retains four units despite zero inventory. Submission does not allocate assets.
-5. For sourcing, use the existing seeded requests for QA Next-generation Body Controller. Sign in as le-qa-coordinator and open Received Requests: VN1630A has six Assigned — release required candidates. Sign in as le-qa-admin to inspect the assigned-only LA-3080 request, which has two assigned candidates on separate projects and no coordinator routing. Requester access to the candidate bucket is forbidden.
+5. For sourcing, use the existing seeded requests for Renault — Atlas Body Control RFQ. Sign in as le-qa-coordinator and open Received Requests: VN1630A has six Assigned — release required candidates. Sign in as le-qa-admin to inspect the assigned-only LA-3080 request, which has two assigned candidates on separate projects and no coordinator routing. Requester access to the candidate bucket is forbidden.
 
 The demo has FMCS disabled. No availability counts are shown to requesters in the catalogue/cart; inspect sourcing only after submission.
 
@@ -127,9 +127,9 @@ php artisan migrate:fresh --force
 php artisan db:seed --class=LearAssignedCandidatesQaSeeder --force
 ```
 
-Do not run the generic DatabaseSeeder: it creates additional random demo models and assets. A fresh dedicated seed creates exactly three models, 19 assets (including one soft-deleted exclusion fixture), one category, one manufacturer, one fieldset with two specifications, five disciplines, five companies, five project/RFQ records, one location, five statuses, four users, and two requests. Migrations may also create their own system defaults. Disciplines: HARDWARE, SOFTWARE, PLATFORM, SYSTEM, VALIDATION. Companies: VLS, IEC, REC, SFLD, KRC.
+Do not run the generic DatabaseSeeder: it creates additional random demo models and assets. A fresh dedicated seed creates exactly three models, 19 assets (including one soft-deleted exclusion fixture), one category, one manufacturer, one fieldset with two specifications, five disciplines, five companies, five project/RFQ records, one location, five statuses, four users, and three request lines in one submission. Migrations may also create their own system defaults. Disciplines: HARDWARE, SOFTWARE, PLATFORM, SYSTEM, VALIDATION. Companies: VLS, IEC, REC, SFLD, KRC.
 
-LA-3080 covers multiple assigned assets across other projects: LE-QA-ONLY-ASSIGNED belongs to QA Legacy Gateway Validation at IEC; LE-QA-ONLY-ASSIGNED-SECOND belongs to QA Power Distribution Validation at VLS. Both appear as Other project candidates for the seeded QA Next-generation Body Controller request. Actual RFQ-reserved assets are different: VN1630A includes LE-QA-RESERVED, which is excluded from available/assigned candidates and handled by RFQ reservation queries.
+LA-3080 covers multiple assigned assets across other projects: LE-QA-ONLY-ASSIGNED belongs to BMW — Falcon Gateway at IEC; LE-QA-ONLY-ASSIGNED-SECOND belongs to Ford — Vega Power Distribution at VLS. Both appear as Other project candidates for the seeded Renault — Atlas Body Control RFQ request. Actual RFQ-reserved assets are different: VN1630A includes LE-QA-RESERVED, which is excluded from available/assigned candidates and handled by RFQ reservation queries.
 
 ## Request sourcing names
 
@@ -147,7 +147,7 @@ In Excel: open Sunburst Data and select its three columns (Sourcing Group, Proje
 
 ## Complete Sunburst demo: VN1630A
 
-Rerun LearAssignedCandidatesQaSeeder after pulling. It keeps three model rows and now seeds 19 total asset rows (one soft deleted), including 16 visible VN1630A assets. The target request is QA Next-generation Body Controller, now explicitly flagged as an RFQ with Needed By 14 days after seeding. There are two additional RFQs: QA Gateway RFQ and QA Power Distribution RFQ.
+Rerun LearAssignedCandidatesQaSeeder after pulling. It keeps three model rows and now seeds 19 total asset rows (one soft deleted), including 16 visible VN1630A assets. The target request is Renault — Atlas Body Control RFQ, now explicitly flagged as an RFQ with Needed By 14 days after seeding. There are two additional RFQs: Volkswagen — Orion Gateway RFQ and Stellantis — Nova Power Distribution RFQ.
 
 As le-qa-admin, open VN1630A's seeded request, follow any sourcing link to Assets, then Export Sourcing Breakdown. With full demo visibility, Sunburst Data totals should be:
 
@@ -165,3 +165,19 @@ As le-qa-admin, open VN1630A's seeded request, follow any sourcing link to Asset
 | **Total** | **16** | Each physical asset counted once; deleted fixture omitted |
 
 The detailed asset sheet retains expected return dates. Reserved assets stay in their reservation slice even if they also have a checkout or return date, so a Sunburst never double-counts them. Procurement estimates continue to follow the existing request calculation; an asset held for another RFQ or in use is not automatically available to this request. Rerunning the seeder resets the demo dates relative to today.
+
+## Submission-wide sourcing export
+
+The three seeded model lines now share submission batch cdd03130-26f8-4ab4-80f9-8da078114621, the Renault — Atlas Body Control RFQ context, and one Needed By date. Rerunning the seeder upgrades old project names in place and groups its existing lines; no reset is required. The five programme names are fictional, using real car-maker names:
+
+- Renault — Atlas Body Control RFQ
+- Volkswagen — Orion Gateway RFQ
+- Stellantis — Nova Power Distribution RFQ
+- BMW — Falcon Gateway
+- Ford — Vega Power Distribution
+
+Use Export Submission Sourcing on a submission detail page when authorized for every active line. In the seeded demo, log in as le-qa-admin, open a VN1630A sourcing view from Received Requests, and use the adjacent Export Submission Sourcing button. It downloads all three model lines with 12 requested units and 18 unique visible assets (16 VN1630A, two LA-3080, zero SM660-AR-11).
+
+The workbook opens on Sunburst Data and includes Submission Summary, Unique Assets (one row per asset ID), Request Lines, and Line Candidates. Potential candidates can be linked to multiple lines; these links are not allocations and are never summed for the inventory chart. Unavailable inventory and reservations for other projects/RFQs stay in Unique Assets but are not listed as candidates. No project association is labeled No Project / RFQ.
+
+The submission procurement estimate uses the exporting user's visible inventory: demand is combined by model, then Available Now and Due Back assets are deducted once per model. Other sourcing groups are excluded until confirmed. The seeded submission therefore has estimated quantity to procure nine (one VN1630A + four LA-3080 + four SM660-AR-11). This scope is stated in the workbook and may differ from all-sites per-line estimates in the app. Canceled lines and another requester's lines are excluded. An unauthorized line blocks the whole export. Legacy mixed project/date batches return a clear error until their shared submission context is aligned.

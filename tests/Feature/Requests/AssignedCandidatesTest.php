@@ -278,7 +278,7 @@ class AssignedCandidatesTest extends TestCase
         $this->seed(\Database\Seeders\LearAssignedCandidatesQaSeeder::class);
         $coordinator = User::where('username', 'le-qa-coordinator')->firstOrFail();
         $requests = CheckoutRequest::where('user_id', User::where('username', 'le-qa-requester')->firstOrFail()->id)->get();
-        $this->assertCount(2, $requests);
+        $this->assertCount(3, $requests);
         $main = $requests->firstWhere('requestable_id', AssetModel::where('name', 'VN1630A')->firstOrFail()->id);
         $onlyAssigned = $requests->firstWhere('requestable_id', AssetModel::where('name', 'LA-3080')->firstOrFail()->id);
         $this->assertSame(6, $main->assignedCandidatesQuery($coordinator)->count());

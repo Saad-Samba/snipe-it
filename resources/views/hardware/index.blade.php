@@ -108,6 +108,9 @@
             <a class="btn btn-default" style="margin-bottom:15px;" href="{{ route('hardware.requests.sourcing-export', $requestContext) }}">
                 <i class="fas fa-file-excel" aria-hidden="true"></i> Export Sourcing Breakdown
             </a>
+            @if ($requestContext->submission_batch_id && auth()->user()->isSuperUser())
+                <a class="btn btn-default" style="margin-bottom:15px;" href="{{ route('requests.submission-sourcing-export', $requestContext) }}"><i class="fas fa-file-excel" aria-hidden="true"></i> Export Submission Sourcing</a>
+            @endif
           @endif
 
           @if ($assignedCandidates)

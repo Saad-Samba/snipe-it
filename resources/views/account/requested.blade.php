@@ -30,7 +30,12 @@
                                     for <strong>{{ $filteredSubmission['project'] }}</strong>
                                 @endif
                             </span>
+                            <span>
+                                @if ($filteredSubmission['sourcing_export_url'] ?? null)
+                                    <a href="{{ $filteredSubmission['sourcing_export_url'] }}" class="btn btn-default btn-sm"><i class="fas fa-file-excel" aria-hidden="true"></i> Export Submission Sourcing</a>
+                                @endif
                             <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">Back to submissions</a>
+                            </span>
                         </div>
                     @endif
                     @if (!empty($filteredModel))

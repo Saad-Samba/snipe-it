@@ -833,6 +833,8 @@ class ModelRequestsController extends Controller
             $firstRequest = $submissionRequests->first();
             $filteredSubmission = [
                 'reference' => '#'.$firstRequest->id,
+                'sourcing_export_url' => $submissionRequests->every(fn ($line) => $line->canViewAssignedCandidates(auth()->user()))
+                    ? route('requests.submission-sourcing-export', $firstRequest) : null,
                 'project' => $firstRequest->project?->name,
                 'needed_by_date' => optional($firstRequest->needed_by_date)->format('Y-m-d'),
             ];

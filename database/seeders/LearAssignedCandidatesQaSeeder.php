@@ -74,13 +74,26 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             $disciplines[$disciplineName] = Discipline::updateOrCreate(['name' => $disciplineName], ['created_by' => $admin->id]);
         }
         $discipline = $disciplines['VALIDATION'];
-        $project = Project::updateOrCreate(['name' => 'QA Next-generation Body Controller'], ['created_by' => $admin->id, 'is_rfq' => true, 'rfq_needed_by_date' => now()->addDays(14)->toDateString()]);
-        $otherProject = Project::updateOrCreate(['name' => 'QA Legacy Gateway Validation'], ['created_by' => $admin->id]);
-        $thirdProject = Project::updateOrCreate(['name' => 'QA Power Distribution Validation'], ['created_by' => $admin->id]);
-        $otherRfq = Project::updateOrCreate(['name' => 'QA Gateway RFQ'], [
+        // Keep existing assets and requests linked when upgrading demo project names.
+        foreach ([
+            'QA Next-generation Body Controller' => 'Renault — Atlas Body Control RFQ',
+            'QA Legacy Gateway Validation' => 'BMW — Falcon Gateway',
+            'QA Power Distribution Validation' => 'Ford — Vega Power Distribution',
+            'QA Gateway RFQ' => 'Volkswagen — Orion Gateway RFQ',
+            'QA Power Distribution RFQ' => 'Stellantis — Nova Power Distribution RFQ',
+        ] as $oldName => $newName) {
+            $existing = Project::where('name', $oldName)->first();
+            if ($existing && ! Project::where('name', $newName)->exists()) {
+                $existing->update(['name' => $newName]);
+            }
+        }
+        $project = Project::updateOrCreate(['name' => 'Renault — Atlas Body Control RFQ'], ['created_by' => $admin->id, 'is_rfq' => true, 'rfq_needed_by_date' => now()->addDays(14)->toDateString()]);
+        $otherProject = Project::updateOrCreate(['name' => 'BMW — Falcon Gateway'], ['created_by' => $admin->id]);
+        $thirdProject = Project::updateOrCreate(['name' => 'Ford — Vega Power Distribution'], ['created_by' => $admin->id]);
+        $otherRfq = Project::updateOrCreate(['name' => 'Volkswagen — Orion Gateway RFQ'], [
             'created_by' => $admin->id, 'is_rfq' => true, 'rfq_needed_by_date' => now()->addDays(14)->toDateString(),
         ]);
-        $secondRfq = Project::updateOrCreate(['name' => 'QA Power Distribution RFQ'], [
+        $secondRfq = Project::updateOrCreate(['name' => 'Stellantis — Nova Power Distribution RFQ'], [
             'created_by' => $admin->id, 'is_rfq' => true, 'rfq_needed_by_date' => now()->addDays(30)->toDateString(),
         ]);
         $category = Category::updateOrCreate(['name' => 'QA Automotive network interfaces'], ['category_type' => 'asset', 'manager_id' => $admin->id]);
@@ -99,7 +112,7 @@ class LearAssignedCandidatesQaSeeder extends Seeder
         $onlyAssignedModel = AssetModel::updateOrCreate(['name' => 'LA-3080'], [
             'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id, 'reference_price' => 800,
         ]);
-        AssetModel::updateOrCreate(['name' => 'SM660-AR-11'], [
+        $emptyModel = AssetModel::updateOrCreate(['name' => 'SM660-AR-11'], [
             'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id,
             'model_number' => 'QA-PSU-60V', 'reference_price' => 1900,
         ]);
@@ -194,7 +207,7 @@ class LearAssignedCandidatesQaSeeder extends Seeder
                 'project_id' => $assetProject->id, 'expected_checkin' => $returnDate,
             ]);
         }
-        foreach ([$model, $onlyAssignedModel] as $requestedModel) {
+        foreach ([$model, $onlyAssignedModel, $emptyModel] as $requestedModel) {
             $request = CheckoutRequest::updateOrCreate([
                 'user_id' => $users['requester']->id, 'requestable_type' => AssetModel::class,
                 'requestable_id' => $requestedModel->id, 'project_id' => $project->id,
@@ -202,6 +215,7 @@ class LearAssignedCandidatesQaSeeder extends Seeder
                 'reusable_quantity', 'due_back_before_needed_by_quantity', 'potentially_coverable_quantity',
                 'procurement_shortfall', 'estimated_savings', 'reference_price_snapshot',
             ])), [
+                'submission_batch_id' => 'cdd03130-26f8-4ab4-80f9-8da078114621',
                 'quantity' => 4, 'needed_by_date' => $neededBy, 'company_id' => $site->id,
                 'requested_discipline_id' => $discipline->id, 'status' => CheckoutRequest::STATUS_PENDING,
             ]));

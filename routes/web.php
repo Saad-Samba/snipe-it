@@ -513,6 +513,9 @@ Route::group(['prefix' => 'requests', 'middleware' => ['auth']], function () {
             ->push('Requests', route('requests.index'))
             ->push('Submitted Requests', route('requests.index')));
 
+    Route::get('{checkoutRequest}/submission-sourcing-export', [\App\Http\Controllers\RequestSourcingExportController::class, 'submission'])
+        ->name('requests.submission-sourcing-export');
+
     Route::post('{checkoutRequest}/update', [ModelRequestsController::class, 'updateSubmittedRequest'])
         ->name('requests.update');
 
