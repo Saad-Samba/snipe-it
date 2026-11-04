@@ -52,7 +52,7 @@ All four local QA accounts use password `Lear-QA-2026!`:
 | `le-qa-requester` | Owns requests; new candidate bucket must return 403 |
 | `le-qa-outsider` | Has asset-list permission; new candidate bucket must return 403 |
 
-FMCS is off in the demo so the coordinator can see the synthetic Rabat and Valls assets. Do not interpret that as cross-company authorization when FMCS is enabled. Automated tests cover company and category visibility separately.
+FMCS is off in the demo so the coordinator can see the synthetic IEC and VLS assets. Do not interpret that as cross-company authorization when FMCS is enabled. Automated tests cover company and category visibility separately.
 
 | Scenario | Expected result |
 | --- | --- |
@@ -65,7 +65,7 @@ FMCS is off in the demo so the coordinator can see the synthetic Rabat and Valls
 | `LE-QA-AVAILABLE` | Only in Reusable Now, count 1 |
 | Reserved, repair, pending, archived, deleted tags | Excluded from assigned candidates |
 | Search for an unmatched term | Clear candidate-specific empty message |
-| Open ECU Debug Probe request as admin | One candidate; no routed coordinator |
+| Open ECU Debug Probe request as admin | Two candidates; no routed coordinator |
 | Open candidate URL as requester/outsider | 403 |
 
 The seeder prints request IDs. In a new dedicated database the CAN-FD request is #1 and ECU Probe request #2. Needed By is 14 days after seeding; Due Back and Later dates are 7 and 30 days after seeding.
@@ -96,7 +96,7 @@ The credentials and app key in this Compose file are local QA fixtures. Stop the
 
 ## Verified result
 
-After merging the reuse-workflow update, the dedicated stack passed **148 tests, 906 assertions**, covering the four request suites above plus asset-model/category behavior, catalogue field configuration, model default values, model API search, and category UI. Technical-search regression tests cover filtering beyond the first page, combined comparisons, text and checkbox matching, and rejection of hidden, unique, encrypted, or invalid numeric filters. Browser verification confirmed numeric and choice suggestions, combined filter chips, category persistence, and the standard table toolbar with no JavaScript errors. Browser verification as the seeded coordinator confirmed the Received Requests count of six, the linked candidate rows and project labels, the read-only controls, and the candidate-specific empty search message. Database readback confirmed 14 seeded assets, one coordinator target for the CAN-FD request, and no coordinator target for the assigned-only ECU Probe request.
+After merging the reuse-workflow update, the dedicated stack passed **148 tests, 906 assertions**, covering the four request suites above plus asset-model/category behavior, catalogue field configuration, model default values, model API search, and category UI. Technical-search regression tests cover filtering beyond the first page, combined comparisons, text and checkbox matching, and rejection of hidden, unique, encrypted, or invalid numeric filters. Browser verification confirmed numeric and choice suggestions, combined filter chips, category persistence, and the standard table toolbar with no JavaScript errors. Browser verification as the seeded coordinator confirmed the Received Requests count of six, the linked candidate rows and project labels, the read-only controls, and the candidate-specific empty search message. Database readback confirmed 15 seeded assets, one coordinator target for the CAN-FD request, and no coordinator target for the assigned-only ECU Probe request.
 
 Requester browser verification confirmed that the zero-inventory DC Supply and assigned-only ECU Probe are visible, the cart contains demand only, submission succeeds, and post-submission sourcing estimates remain visible. Database readback for sample request #3 confirmed quantity 4, the chosen project/site/discipline/date, shortfall 4, no physical assets, and no allocations.
 
@@ -107,13 +107,26 @@ The seeder maintains one model row for each catalogue case (three rows total). E
 | Model | Case | Expected inventory |
 | --- | --- | --- |
 | VN1630A | Mixed inventory | One reusable now, one due back, six assigned candidates, plus excluded statuses |
-| LA-3080 | All assets assigned to another project | One asset, LE-QA-ONLY-ASSIGNED, on QA Legacy Gateway Validation; none reusable now |
+| LA-3080 | All assets assigned to another project | Two assets on QA Legacy Gateway Validation and QA Power Distribution Validation; none reusable now |
 | SM660-AR-11 | No inventory | No physical assets; request still allowed |
 
 1. Pull the branch, run migrations, then rerun LearAssignedCandidatesQaSeeder.
 2. Sign in as le-qa-requester (Lear-QA-2026!). Use Filters to select QA Automotive network interfaces. Expect exactly the three model rows above and no Model Number column. Technical values are synthetic QA examples.
-3. For a new request, set quantity, discipline QA Electronics validation, and destination QA Lear Electronics Rabat, then Add to Request. Open Request Cart and select a project/date. Existing active requests for the same model/project/site/discipline trigger duplicate protection; choose a different project if needed.
+3. For a new request, set quantity, discipline VALIDATION, and destination IEC, then Add to Request. Open Request Cart and select a project/date. Existing active requests for the same model/project/site/discipline trigger duplicate protection; choose a different project if needed.
 4. Submit SM660-AR-11 with quantity four. Confirm the submitted demand retains four units despite zero inventory. Submission does not allocate assets.
-5. For sourcing, use the existing seeded requests for QA Next-generation Body Controller. Sign in as le-qa-coordinator and open Received Requests: VN1630A has six Assigned — release required candidates. Sign in as le-qa-admin to inspect the assigned-only LA-3080 request, which has one assigned candidate and no coordinator routing. Requester access to the candidate bucket is forbidden.
+5. For sourcing, use the existing seeded requests for QA Next-generation Body Controller. Sign in as le-qa-coordinator and open Received Requests: VN1630A has six Assigned — release required candidates. Sign in as le-qa-admin to inspect the assigned-only LA-3080 request, which has two assigned candidates on separate projects and no coordinator routing. Requester access to the candidate bucket is forbidden.
 
 The demo has FMCS disabled. No availability counts are shown to requesters in the catalogue/cart; inspect sourcing only after submission.
+
+## Resetting a disposable development database
+
+Run these commands inside the intended development app container. The first command deletes all tables and data in that container's configured database, including current categories and accounts. The dedicated seeder recreates its own reference data, not your previous imported data.
+
+```sh
+php artisan migrate:fresh --force
+php artisan db:seed --class=LearAssignedCandidatesQaSeeder --force
+```
+
+Do not run the generic DatabaseSeeder: it creates additional random demo models and assets. A fresh dedicated seed creates exactly three models, 15 assets (including one soft-deleted exclusion fixture), one category, one manufacturer, one fieldset with two specifications, five disciplines, five companies, three projects, one location, five statuses, four users, and two requests. Migrations may also create their own system defaults. Disciplines: HARDWARE, SOFTWARE, PLATFORM, SYSTEM, VALIDATION. Companies: VLS, IEC, REC, SFLD, KRC.
+
+LA-3080 covers multiple assigned assets across other projects: LE-QA-ONLY-ASSIGNED belongs to QA Legacy Gateway Validation at IEC; LE-QA-ONLY-ASSIGNED-SECOND belongs to QA Power Distribution Validation at VLS. Both appear as Other project candidates for the seeded QA Next-generation Body Controller request. Actual RFQ-reserved assets are different: VN1630A includes LE-QA-RESERVED, which is excluded from available/assigned candidates and handled by RFQ reservation queries.

@@ -62,12 +62,21 @@ class LearAssignedCandidatesQaSeeder extends Seeder
         ])->save();
         Setting::$_cache = $settings->fresh();
 
-        $site = Company::updateOrCreate(['name' => 'QA Lear Electronics Rabat']);
-        $otherSite = Company::updateOrCreate(['name' => 'QA Lear Electronics Valls']);
-        $location = Location::updateOrCreate(['name' => 'QA Rabat Validation Lab'], ['company_id' => $site->id]);
-        $discipline = Discipline::updateOrCreate(['name' => 'QA Electronics validation'], ['created_by' => $admin->id]);
+        $sites = [];
+        foreach (['VLS', 'IEC', 'REC', 'SFLD', 'KRC'] as $siteName) {
+            $sites[$siteName] = Company::updateOrCreate(['name' => $siteName]);
+        }
+        $site = $sites['IEC'];
+        $otherSite = $sites['VLS'];
+        $location = Location::updateOrCreate(['name' => 'QA IEC Validation Lab'], ['company_id' => $site->id]);
+        $disciplines = [];
+        foreach (['HARDWARE', 'SOFTWARE', 'PLATFORM', 'SYSTEM', 'VALIDATION'] as $disciplineName) {
+            $disciplines[$disciplineName] = Discipline::updateOrCreate(['name' => $disciplineName], ['created_by' => $admin->id]);
+        }
+        $discipline = $disciplines['VALIDATION'];
         $project = Project::updateOrCreate(['name' => 'QA Next-generation Body Controller'], ['created_by' => $admin->id]);
         $otherProject = Project::updateOrCreate(['name' => 'QA Legacy Gateway Validation'], ['created_by' => $admin->id]);
+        $thirdProject = Project::updateOrCreate(['name' => 'QA Power Distribution Validation'], ['created_by' => $admin->id]);
         $category = Category::updateOrCreate(['name' => 'QA Automotive network interfaces'], ['category_type' => 'asset', 'manager_id' => $admin->id]);
         $manufacturer = Manufacturer::updateOrCreate(['name' => 'QA Vector-inspired']);
         // Upgrade earlier demo names in place so reruns keep one model per scenario.
@@ -155,6 +164,13 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             'discipline_id' => $discipline->id, 'rtd_location_id' => $location->id,
             'assigned_type' => User::class, 'assigned_to' => $users['requester']->id,
             'project_id' => $otherProject->id,
+        ]);
+        Asset::updateOrCreate(['asset_tag' => 'LE-QA-ONLY-ASSIGNED-SECOND'], [
+            'name' => 'QA ECU Probe — second project', 'model_id' => $onlyAssignedModel->id,
+            'status_id' => $statuses['ready']->id, 'company_id' => $otherSite->id,
+            'discipline_id' => $discipline->id, 'rtd_location_id' => $location->id,
+            'assigned_type' => User::class, 'assigned_to' => $users['requester']->id,
+            'project_id' => $thirdProject->id,
         ]);
         foreach ([$model, $onlyAssignedModel] as $requestedModel) {
             $request = CheckoutRequest::updateOrCreate([
