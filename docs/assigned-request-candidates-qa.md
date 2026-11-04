@@ -130,3 +130,9 @@ php artisan db:seed --class=LearAssignedCandidatesQaSeeder --force
 Do not run the generic DatabaseSeeder: it creates additional random demo models and assets. A fresh dedicated seed creates exactly three models, 15 assets (including one soft-deleted exclusion fixture), one category, one manufacturer, one fieldset with two specifications, five disciplines, five companies, three projects, one location, five statuses, four users, and two requests. Migrations may also create their own system defaults. Disciplines: HARDWARE, SOFTWARE, PLATFORM, SYSTEM, VALIDATION. Companies: VLS, IEC, REC, SFLD, KRC.
 
 LA-3080 covers multiple assigned assets across other projects: LE-QA-ONLY-ASSIGNED belongs to QA Legacy Gateway Validation at IEC; LE-QA-ONLY-ASSIGNED-SECOND belongs to QA Power Distribution Validation at VLS. Both appear as Other project candidates for the seeded QA Next-generation Body Controller request. Actual RFQ-reserved assets are different: VN1630A includes LE-QA-RESERVED, which is excluded from available/assigned candidates and handled by RFQ reservation queries.
+
+## Request sourcing names
+
+Request views now use Requested Qty, Available Now, Due Back by Needed Date, In Use by Other Projects, Reserved for This RFQ, Reserved for Other RFQs, Estimated Qty to Procure, and Estimated Purchase Cost. Available/due-back figures still aggregate across sites; links remain permission-scoped. The This RFQ cell displays a dash for non-RFQ requests. Reservation buckets are identified by the configured RFQ-reserved asset status.
+
+The Received Requests In Use by Other Projects column and its link use other_projects=1, excluding same-project and unlinked assets. VN1630A now shows four such candidates; LA-3080 shows two. Existing unfiltered assigned_candidates links remain compatible and include all project relationships. In-use candidates require release and do not reduce the estimated procurement quantity automatically.

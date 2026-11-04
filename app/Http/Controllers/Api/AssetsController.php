@@ -459,7 +459,7 @@ class AssetsController extends Controller
                     }
                     break;
                 case 'assigned_candidates':
-                    $assets->whereIn('assets.id', $requestContext->assignedCandidatesQuery($request->user())->select('assets.id'));
+                    $assets->whereIn('assets.id', $requestContext->assignedCandidatesQuery($request->user(), $request->boolean('other_projects'))->select('assets.id'));
                     break;
                 case 'due_back':
                     $assets->whereNotNull('assets.assigned_to')

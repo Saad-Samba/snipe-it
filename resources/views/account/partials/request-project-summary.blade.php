@@ -7,12 +7,12 @@
         <div><strong>Models</strong><br>{{ $summary['models_count'] }}</div>
     @endif
     <div><strong>{{ $requestsLabel ?? 'Requests' }}</strong><br>{{ $summary['requests_count'] }}</div>
-    <div><strong>Total Needed</strong><br>{{ $summary['total_needed'] }}</div>
-    <div><strong>All Sites Reusable Now</strong><br>{{ $summary['reusable_now'] }}</div>
-    <div><strong>All Sites Due Back</strong><br>{{ $summary['due_back_before_needed_by'] }}</div>
-    <div><strong>All Sites Shortfall</strong><br>{{ $summary['shortfall'] }}</div>
-    <div><strong>Reserved</strong><br>{{ $summary['reserved_count'] }}</div>
-    <div><strong>Reserved by Other Project</strong><br>{{ $summary['reserved_by_other_rfqs_count'] }}</div>
+    <div><strong>Requested Qty</strong><br>{{ $summary['total_needed'] }}</div>
+    <div><strong>Available Now</strong><br>{{ $summary['reusable_now'] }}</div>
+    <div><strong>Due Back by Needed Date</strong><br>{{ $summary['due_back_before_needed_by'] }}</div>
+    <div><strong>Estimated Qty to Procure</strong><br>{{ $summary['shortfall'] }}</div>
+    <div><strong>Reserved for This RFQ</strong><br>{{ isset($filteredProject) && $filteredProject->is_rfq ? $summary['reserved_count'] : '—' }}</div>
+    <div><strong>Reserved for Other RFQs</strong><br>{{ $summary['reserved_by_other_rfqs_count'] }}</div>
     <div><strong>Estimated Savings</strong><br>{{ \App\Helpers\Helper::formatCurrencyOutput($summary['estimated_savings']) }}</div>
-    <div><strong>Amount to Buy</strong><br>{{ \App\Helpers\Helper::formatCurrencyOutput($summary['amount_to_buy']) }}</div>
+    <div><strong>Estimated Purchase Cost</strong><br>{{ \App\Helpers\Helper::formatCurrencyOutput($summary['amount_to_buy']) }}</div>
 </div>

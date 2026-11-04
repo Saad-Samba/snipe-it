@@ -180,7 +180,7 @@ class CheckoutRequest extends Model
             && ($user->isSuperUser() || $this->canBeViewedBy($user));
     }
 
-    public function assignedCandidatesQuery(User $user): Builder
+    public function assignedCandidatesQuery(User $user, bool $otherProjectsOnly = false): Builder
     {
         $reservedStatusId = Setting::rfqReservedStatusId();
 
@@ -188,6 +188,9 @@ class CheckoutRequest extends Model
             ->whereNull('assets.deleted_at')
             ->where('assets.model_id', $this->requestable_id)
             ->whereNotNull('assets.assigned_to')
+            ->when($otherProjectsOnly, fn ($query) => $this->project_id
+                ? $query->whereNotNull('assets.project_id')->where('assets.project_id', '!=', $this->project_id)
+                : $query->whereRaw('1 = 0'))
             ->whereHas('assetstatus', function ($query) {
                 $query->where('deployable', 1)->where('pending', 0)->where('archived', 0);
             })

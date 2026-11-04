@@ -98,15 +98,15 @@
 
           @if ($requestContext && $requestContext->canViewAssignedCandidates(auth()->user()))
             <nav aria-label="Request asset review" style="margin-bottom:15px;">
-                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'reusable_now']) }}">Reusable Now</a>
-                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'due_back']) }}">Due Back</a>
-                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'assigned_candidates']) }}">Assigned — release required ({{ $requestContext->assignedCandidatesQuery(auth()->user())->count() }})</a>
+                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'reusable_now']) }}">Available Now</a>
+                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'due_back']) }}">Due Back by Needed Date</a>
+                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'assigned_candidates', 'other_projects' => 1]) }}">In Use by Other Projects ({{ $requestContext->assignedCandidatesQuery(auth()->user(), true)->count() }})</a>
             </nav>
           @endif
 
           @if ($assignedCandidates)
             <div class="alert alert-info">
-                <strong>Assigned — release required</strong>
+                <strong>{{ request()->boolean('other_projects') ? 'In Use by Other Projects' : 'In Use · Release Required' }}</strong>
                 <p>These matching assets require assessment and release confirmation. Inclusion does not confirm availability or authorize reassignment. Assets expected back by the needed-by date appear under Due Back instead.</p>
             </div>
           @endif
@@ -179,6 +179,7 @@
                     array('status' => e(Request::get('status')),
                     'request_id'=>e(Request::get('request_id')),
                     'request_bucket'=>e(Request::get('request_bucket')),
+                    'other_projects'=>Request::boolean('other_projects') ? 1 : null,
                     'model_id'=>e(Request::get('model_id')),
                     'category_id'=>e(Request::get('category_id')),
                     'reusable_assets'=>e(Request::get('reusable_assets')),

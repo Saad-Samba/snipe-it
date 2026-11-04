@@ -41,7 +41,7 @@ class AssignedCandidatesTest extends TestCase
         return Asset::factory()->assignedToUser()->create(array_merge([
             'model_id' => $request->requestable_id,
             'status_id' => Statuslabel::factory()->rtd()->create()->id,
-            'expected_checkin' => null,
+            'expected_checkin' => null, 'project_id' => Project::factory()->create()->id,
         ], $attributes));
     }
 
@@ -76,6 +76,11 @@ class AssignedCandidatesTest extends TestCase
             $this->assertNotContains(true, $row['available_actions']);
         }
         $this->assertSame(3, $request->assignedCandidatesQuery($coordinator)->count());
+        $this->assertSame(1, $request->assignedCandidatesQuery($coordinator, true)->count());
+        $this->getJson($this->bucketUrl($request, ['other_projects' => 1]))
+            ->assertOk()->assertJsonPath('total', 1)->assertJsonPath('rows.0.id', $other->id);
+        $this->getJson(route('api.rac-requests.index'))->assertOk()
+            ->assertJsonPath('rows.0.assigned_candidates_count', 1);
     }
 
     public function test_due_back_dates_do_not_overlap_and_missing_needed_by_includes_all_dates(): void
@@ -179,7 +184,7 @@ class AssignedCandidatesTest extends TestCase
         $request = $this->requestFor($coordinator);
         $this->candidate($request);
         $url = route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'assigned_candidates']);
-        $this->actingAs($coordinator)->get($url)->assertOk()->assertSee('Assigned — release required')
+        $this->actingAs($coordinator)->get($url)->assertOk()->assertSee('In Use · Release Required')
             ->assertSee('does not confirm availability')
             ->assertSee('No eligible assigned candidates match the current filters.')
             ->assertDontSee('id="assetsBulkEditToolbar"', false)

@@ -2556,6 +2556,7 @@
     }
 
     function requestReservedFormatter(value, row) {
+        if (row && row.project_is_rfq === false) { return '—'; }
         return requestAvailabilityLinkFormatter(value, row, 'reserved_assets_url');
     }
 

@@ -20,7 +20,7 @@
         <th data-field="total_quantity" data-sortable="true">Total Needed</th>
         <th data-field="allocated_quantity" data-sortable="true" data-formatter="requestSubmissionOutcomeFormatter">Allocated</th>
         <th data-field="remaining_quantity" data-sortable="true" data-formatter="requestSubmissionOutcomeFormatter">Remaining</th>
-        <th data-field="amount_to_buy" data-sortable="true" data-formatter="requestSubmissionPendingToBuyFormatter">Pending to Buy</th>
+        <th data-field="amount_to_buy" data-sortable="true" data-formatter="requestSubmissionPendingToBuyFormatter">Estimated Purchase Cost</th>
         <th data-field="status" data-sortable="true" data-formatter="requestRequesterStatusFormatter">Review Status</th>
         <th data-field="actions" data-switchable="false" data-searchable="false" data-sortable="false" data-formatter="requestBatchActionsFormatter">{{ trans('table.actions') }}</th>
     </tr>
