@@ -89,7 +89,6 @@
                                     <th data-sortable="false">{{ trans('general.image') }}</th>
                                     <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
                                     <th data-sortable="true">{{ trans('general.category') }}</th>
-                                    <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
                                     <th data-field="specifications" data-sortable="false">Technical specifications</th>
                                     <th data-sortable="false">Total Needed <x-new-feature-label /></th>
                                     <th data-sortable="false">Discipline <x-new-feature-label /></th>
@@ -128,7 +127,6 @@
                                                 @endcan
                                             @endif
                                         </td>
-                                        <td>{{ $requestableModel->model_number }}</td>
                                         <td>
                                             @php
                                                 $specificationFields = ($requestableModel->fieldset?->fields ?? collect())->filter(fn ($field) => $field->show_in_requestable_list && ! $field->field_encrypted && ! $field->is_unique);

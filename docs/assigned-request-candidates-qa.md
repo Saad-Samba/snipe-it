@@ -20,7 +20,7 @@ The catalogue has server-rendered pages of 25 models. Search uses the standard t
 
 The cart shows model, discipline, destination site, requested quantity, project, and Needed By. Its preview endpoint returns only demand metadata and requested totals, without sourcing calculations. Existing submission validation, estimation snapshots, routing, allocation behavior, and post-submission reports remain in place. Submission alone does not allocate assets or approve procurement.
 
-For a manual check, log in as `le-qa-requester`, add four **QA Programmable DC Supply** units to the cart, select the project and Needed By, and submit. This model has no physical assets. Verify that the catalogue/cart expose no stock counts or sourcing estimates; after submission, the request retains quantity four and the specified context, with an estimated shortfall of four and no allocated assets. A browser-verified sample is already recorded as request #3 in the current QA database. Repeating that exact active model/project/site/discipline request will encounter the existing duplicate protection; use a different project for a new manual submission.
+For a manual check, log in as `le-qa-requester`, add four **SM660-AR-11** units to the cart, select the project and Needed By, and submit. This model has no physical assets. Verify that the catalogue/cart expose no stock counts or sourcing estimates; after submission, the request retains quantity four and the specified context, with an estimated shortfall of four and no allocated assets. A browser-verified sample is already recorded as request #3 in the current QA database. Repeating that exact active model/project/site/discipline request will encounter the existing duplicate protection; use a different project for a new manual submission.
 
 ## Dedicated environment
 
@@ -72,7 +72,7 @@ The seeder prints request IDs. In a new dedicated database the CAN-FD request is
 
 ### Technical-search walkthrough
 
-As `le-qa-requester`, open Requestable Models and type **QA Supply Voltage** in the standard table search. Choose `>=`, enter `20`, and press Enter. Only **QA Programmable DC Supply** (60) should remain. Add **QA Interface Type: DC** using the suggested value; both chips should remain active. Expand **View specifications** to inspect the model values. Change category and verify both filters remain applied; remove a chip to broaden results. The other seeded models have voltage/interface values 12/CAN-FD and 5/JTAG.
+As `le-qa-requester`, open Requestable Models and type **QA Supply Voltage** in the standard table search. Choose `>=`, enter `20`, and press Enter. Only **SM660-AR-11** (60) should remain. Add **QA Interface Type: DC** using the suggested value; both chips should remain active. Read the inline specification badges to inspect the model values. Change category and verify both filters remain applied; remove a chip to broaden results. The other seeded models have voltage/interface values 12/CAN-FD and 5/JTAG.
 
 ## Automated checks
 
@@ -99,3 +99,21 @@ The credentials and app key in this Compose file are local QA fixtures. Stop the
 After merging the reuse-workflow update, the dedicated stack passed **148 tests, 906 assertions**, covering the four request suites above plus asset-model/category behavior, catalogue field configuration, model default values, model API search, and category UI. Technical-search regression tests cover filtering beyond the first page, combined comparisons, text and checkbox matching, and rejection of hidden, unique, encrypted, or invalid numeric filters. Browser verification confirmed numeric and choice suggestions, combined filter chips, category persistence, and the standard table toolbar with no JavaScript errors. Browser verification as the seeded coordinator confirmed the Received Requests count of six, the linked candidate rows and project labels, the read-only controls, and the candidate-specific empty search message. Database readback confirmed 14 seeded assets, one coordinator target for the CAN-FD request, and no coordinator target for the assigned-only ECU Probe request.
 
 Requester browser verification confirmed that the zero-inventory DC Supply and assigned-only ECU Probe are visible, the cart contains demand only, submission succeeds, and post-submission sourcing estimates remain visible. Database readback for sample request #3 confirmed quantity 4, the chosen project/site/discipline/date, shortfall 4, no physical assets, and no allocations.
+
+## Simple catalogue walkthrough
+
+The seeder maintains one model row for each catalogue case (three rows total). Earlier demo names are renamed in place on rerun. Inventory asset rows remain separate to cover the detailed sourcing cases.
+
+| Model | Case | Expected inventory |
+| --- | --- | --- |
+| VN1630A | Mixed inventory | One reusable now, one due back, six assigned candidates, plus excluded statuses |
+| LA-3080 | All assets assigned to another project | One asset, LE-QA-ONLY-ASSIGNED, on QA Legacy Gateway Validation; none reusable now |
+| SM660-AR-11 | No inventory | No physical assets; request still allowed |
+
+1. Pull the branch, run migrations, then rerun LearAssignedCandidatesQaSeeder.
+2. Sign in as le-qa-requester (Lear-QA-2026!). Use Filters to select QA Automotive network interfaces. Expect exactly the three model rows above and no Model Number column. Technical values are synthetic QA examples.
+3. For a new request, set quantity, discipline QA Electronics validation, and destination QA Lear Electronics Rabat, then Add to Request. Open Request Cart and select a project/date. Existing active requests for the same model/project/site/discipline trigger duplicate protection; choose a different project if needed.
+4. Submit SM660-AR-11 with quantity four. Confirm the submitted demand retains four units despite zero inventory. Submission does not allocate assets.
+5. For sourcing, use the existing seeded requests for QA Next-generation Body Controller. Sign in as le-qa-coordinator and open Received Requests: VN1630A has six Assigned — release required candidates. Sign in as le-qa-admin to inspect the assigned-only LA-3080 request, which has one assigned candidate and no coordinator routing. Requester access to the candidate bucket is forbidden.
+
+The demo has FMCS disabled. No availability counts are shown to requesters in the catalogue/cart; inspect sourcing only after submission.

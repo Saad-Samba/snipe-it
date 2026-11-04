@@ -249,8 +249,8 @@ class AssignedCandidatesTest extends TestCase
         $coordinator = User::where('username', 'le-qa-coordinator')->firstOrFail();
         $requests = CheckoutRequest::where('user_id', User::where('username', 'le-qa-requester')->firstOrFail()->id)->get();
         $this->assertCount(2, $requests);
-        $main = $requests->firstWhere('requestable_id', AssetModel::where('name', 'QA CAN-FD Validation Interface')->firstOrFail()->id);
-        $onlyAssigned = $requests->firstWhere('requestable_id', AssetModel::where('name', 'QA ECU Debug Probe')->firstOrFail()->id);
+        $main = $requests->firstWhere('requestable_id', AssetModel::where('name', 'VN1630A')->firstOrFail()->id);
+        $onlyAssigned = $requests->firstWhere('requestable_id', AssetModel::where('name', 'LA-3080')->firstOrFail()->id);
         $this->assertSame(6, $main->assignedCandidatesQuery($coordinator)->count());
         $this->assertSame(1, $main->coordinatorTargets()->count());
         $this->assertSame(0, $onlyAssigned->coordinatorTargets()->count());

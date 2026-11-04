@@ -70,14 +70,21 @@ class LearAssignedCandidatesQaSeeder extends Seeder
         $otherProject = Project::updateOrCreate(['name' => 'QA Legacy Gateway Validation'], ['created_by' => $admin->id]);
         $category = Category::updateOrCreate(['name' => 'QA Automotive network interfaces'], ['category_type' => 'asset', 'manager_id' => $admin->id]);
         $manufacturer = Manufacturer::updateOrCreate(['name' => 'QA Vector-inspired']);
-        $model = AssetModel::updateOrCreate(['name' => 'QA CAN-FD Validation Interface'], [
+        // Upgrade earlier demo names in place so reruns keep one model per scenario.
+        foreach (['QA CAN-FD Validation Interface' => 'VN1630A', 'QA ECU Debug Probe' => 'LA-3080', 'QA Programmable DC Supply' => 'SM660-AR-11'] as $oldName => $name) {
+            $existing = AssetModel::where('name', $oldName)->first();
+            if ($existing && ! AssetModel::where('name', $name)->exists()) {
+                $existing->update(['name' => $name]);
+            }
+        }
+        $model = AssetModel::updateOrCreate(['name' => 'VN1630A'], [
             'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id,
             'model_number' => 'QA-CANFD-01', 'reference_price' => 1200,
         ]);
-        $onlyAssignedModel = AssetModel::updateOrCreate(['name' => 'QA ECU Debug Probe'], [
+        $onlyAssignedModel = AssetModel::updateOrCreate(['name' => 'LA-3080'], [
             'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id, 'reference_price' => 800,
         ]);
-        AssetModel::updateOrCreate(['name' => 'QA Programmable DC Supply'], [
+        AssetModel::updateOrCreate(['name' => 'SM660-AR-11'], [
             'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id,
             'model_number' => 'QA-PSU-60V', 'reference_price' => 1900,
         ]);
@@ -95,7 +102,7 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             $interface->id => ['order' => 2, 'required' => false],
         ]);
         $category->update(['fieldset_id' => $fieldset->id]);
-        foreach ([[$model, '12', 'CAN-FD'], [$onlyAssignedModel, '5', 'JTAG'], [AssetModel::where('name', 'QA Programmable DC Supply')->firstOrFail(), '60', 'DC']] as [$specModel, $volts, $type]) {
+        foreach ([[$model, '12', 'CAN-FD'], [$onlyAssignedModel, '5', 'JTAG'], [AssetModel::where('name', 'SM660-AR-11')->firstOrFail(), '60', 'DC']] as [$specModel, $volts, $type]) {
             $specModel->defaultValues()->syncWithoutDetaching([
                 $voltage->id => ['default_value' => $volts],
                 $interface->id => ['default_value' => $type],
