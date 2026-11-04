@@ -262,6 +262,12 @@ class ModelRequestsController extends Controller
                     ? Helper::formatCurrencyOutput((float) $checkoutRequest->reference_price_snapshot * (int) $checkoutRequest->quantity)
                     : null,
                 'reserved_count' => $checkoutRequest->reservedAssetsCount(),
+                'assigned_candidates_count' => $checkoutRequest->canViewAssignedCandidates($user)
+                    ? $checkoutRequest->assignedCandidatesQuery($user, true)->count()
+                    : null,
+                'assigned_candidates_url' => $checkoutRequest->canViewAssignedCandidates($user)
+                    ? route('hardware.index', ['request_id' => $checkoutRequest->id, 'request_bucket' => 'assigned_candidates', 'other_projects' => 1])
+                    : null,
                 'project_is_rfq' => (bool) $checkoutRequest->project?->is_rfq,
                 'reserved_by_other_rfqs_count' => $checkoutRequest->reservedByOtherRfqsCount(),
                 'status' => e(ucfirst(str_replace('_', ' ', $statusValue))),

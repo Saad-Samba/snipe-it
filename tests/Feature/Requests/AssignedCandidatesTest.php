@@ -83,6 +83,31 @@ class AssignedCandidatesTest extends TestCase
             ->assertJsonPath('rows.0.assigned_candidates_count', 1);
     }
 
+    public function test_submission_batch_details_include_permission_scoped_other_project_candidates(): void
+    {
+        $admin = User::factory()->superuser()->create();
+        $batch = 'b3a1c157-20fe-4c64-bd8a-594a18fdfb53';
+        $request = $this->requestFor($admin, ['user_id' => $admin->id, 'submission_batch_id' => $batch]);
+        $other = $this->candidate($request);
+        $this->candidate($request, ['project_id' => $request->project_id]);
+        $this->candidate($request, ['project_id' => null]);
+
+        $this->actingAs($admin)->get(route('requests.index', ['submission_batch_id' => $batch]))
+            ->assertOk()->assertSee('data-field="assigned_candidates_count"', false)
+            ->assertSee('In Use by Other Projects');
+        $this->actingAsForApi($admin)->getJson(route('api.requests.index', ['submission_batch_id' => $batch]))
+            ->assertOk()->assertJsonPath('total', 1)->assertJsonPath('rows.0.assigned_candidates_count', 1)
+            ->assertJsonPath('rows.0.assigned_candidates_url', route('hardware.index', [
+                'request_id' => $request->id, 'request_bucket' => 'assigned_candidates', 'other_projects' => 1,
+            ]));
+
+        $requester = User::factory()->requestAssetModels()->create();
+        $request->update(['user_id' => $requester->id]);
+        $this->actingAsForApi($requester)->getJson(route('api.requests.index', ['submission_batch_id' => $batch]))
+            ->assertOk()->assertJsonPath('rows.0.assigned_candidates_count', null)
+            ->assertJsonPath('rows.0.assigned_candidates_url', null);
+    }
+
     public function test_due_back_dates_do_not_overlap_and_missing_needed_by_includes_all_dates(): void
     {
         $coordinator = User::factory()->viewAssets()->create();

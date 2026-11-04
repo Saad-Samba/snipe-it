@@ -2548,6 +2548,7 @@
     }
 
     function requestAssignedCandidatesFormatter(value, row) {
+        if (value === null || value === undefined) { return '—'; }
         return requestAvailabilityLinkFormatter(value, row, 'assigned_candidates_url');
     }
 
