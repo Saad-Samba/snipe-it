@@ -68,7 +68,7 @@ class RequestSourcingExportTest extends TestCase
         $this->assertCount(2, $chartRows->where(0, 'Due Back by Needed Date'));
         $this->assertSame(2, $chartRows->where(0, 'Due Back by Needed Date')->sum(2));
         $this->assertSame(1, $chartRows->where(0, 'Available Now')->sum(2));
-        $this->assertSame('Sunburst Data', $book->getActiveSheet()->getTitle());
+        $this->assertSame('Value Sunburst', $book->getActiveSheet()->getTitle());
         $book->disconnectWorksheets();
     }
 
@@ -142,7 +142,17 @@ class RequestSourcingExportTest extends TestCase
         $this->assertEqualsCanonicalizing([$main->id, $duplicate->id], $links->where(1, $availableId)->pluck(0)->all());
         $this->assertFalse($links->pluck(4)->contains('Unavailable'));
         $this->assertFalse($links->pluck(4)->contains('Reserved for Other RFQs'));
-        $this->assertSame('Sunburst Data', $book->getActiveSheet()->getTitle());
+        $this->assertSame('Value Sunburst', $book->getActiveSheet()->getTitle());
+        $values = collect(array_slice($book->getSheetByName('Value Sunburst')->rangeToArray('A1:C'.$book->getSheetByName('Value Sunburst')->getHighestRow(), null, true, false), 1));
+        $this->assertSame(20800.0, (float) $values->sum(2));
+        $this->assertStringContainsString('assets · EUR ', $values->first()[0]);
+        $costs = collect(array_slice($book->getSheetByName('Cost Summary')->toArray(null, true, false), 1));
+        $this->assertCount(3, $costs);
+        $this->assertSame(19200.0, (float) $costs->sum(7));
+        $this->assertSame(15600.0, (float) $costs->sum(8));
+        $this->assertSame(3600.0, (float) $costs->sum(9));
+        $this->assertSame('EUR', $book->getSheetByName('Unique Assets')->getCell('L2')->getValue());
+        $this->assertSame('n', $book->getSheetByName('Unique Assets')->getCell('K2')->getDataType());
         $book->disconnectWorksheets();
     }
 
@@ -160,6 +170,39 @@ class RequestSourcingExportTest extends TestCase
         $other->forceFill(['needed_by_date' => $main->needed_by_date, 'canceled_at' => now()])->save();
         $book = $this->workbook($this->get(route('requests.submission-sourcing-export', $main)));
         $this->assertSame(3, $book->getSheetByName('Request Lines')->getHighestRow());
+        $book->disconnectWorksheets();
+    }
+
+    public function test_value_chart_exposes_unpriced_and_zero_value_assets_without_inventing_values(): void
+    {
+        $this->seed(LearAssignedCandidatesQaSeeder::class);
+        $admin = User::where('username', 'le-qa-admin')->firstOrFail();
+        $main = CheckoutRequest::where('requestable_id', AssetModel::where('name', 'VN1630A')->firstOrFail()->id)->firstOrFail();
+        AssetModel::where('name', 'LA-3080')->firstOrFail()->update(['reference_price' => null]);
+        $book = $this->workbook($this->actingAs($admin)->get(route('requests.submission-sourcing-export', $main)));
+        $sheet = $book->getSheetByName('Value Sunburst');
+        $coverage = collect($sheet->rangeToArray('E1:F14', null, true, false))->keyBy(0);
+        $this->assertSame(2, $coverage['Unpriced Assets'][1]);
+        $this->assertSame(4, $coverage['Unpriced Requested Qty'][1]);
+        $this->assertStringContainsString('Partial', $coverage['Price Coverage'][1]);
+        $this->assertSame(19200.0, (float) $coverage['Known Inventory Reference Value'][1]);
+        $costs = collect(array_slice($book->getSheetByName('Cost Summary')->toArray(null, true, false), 1));
+        $this->assertNull($costs->firstWhere(0, 'LA-3080')[8]);
+        $this->assertSame(8800.0, (float) $costs->sum(8));
+        $detail = collect(array_slice($book->getSheetByName('Value Coverage')->toArray(null, true, false), 1));
+        $this->assertSame(18, $detail->sum(2));
+        $this->assertSame(2, $detail->sum(4));
+        $book->disconnectWorksheets();
+
+        AssetModel::where('name', 'VN1630A')->firstOrFail()->update(['reference_price' => 0]);
+        $book = $this->workbook($this->get(route('requests.submission-sourcing-export', $main)));
+        $sheet = $book->getSheetByName('Value Sunburst');
+        $this->assertSame('Reference Value', $sheet->getCell('C1')->getValue());
+        $this->assertNull($sheet->getCell('C2')->getValue());
+        $coverage = collect($sheet->rangeToArray('E1:F14', null, true, false))->keyBy(0);
+        $this->assertSame(16, $coverage['Zero-value Assets'][1]);
+        $this->assertSame(2, $coverage['Unpriced Assets'][1]);
+        $this->assertStringContainsString('No positive reference values', $coverage['Chart Instructions'][1]);
         $book->disconnectWorksheets();
     }
 

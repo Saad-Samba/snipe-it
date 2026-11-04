@@ -60,7 +60,10 @@ class RequestSourcingExportController extends Controller
             $rows[] = [$asset->asset_tag, $model->name, $group, $asset->project?->name ?? 'No Project / RFQ',
                 $asset->project ? ($asset->project->is_rfq ? 'RFQ' : 'Project') : 'None',
                 $asset->company?->name ?? '', $asset->expected_checkin ? Date::dateTimeToExcel(\Carbon\Carbon::parse($asset->expected_checkin)) : '',
-                $asset->assetstatus?->name ?? '', 1, $asset->id];
+                $asset->assetstatus?->name ?? '', 1, $asset->id,
+                $model->reference_price === null ? null : round((float) $model->reference_price, 2),
+                Setting::getSettings()->default_currency ?: 'Unspecified',
+                $model->reference_price === null ? 'Unpriced' : ((float) $model->reference_price == 0 ? 'Zero reference price' : 'Priced')];
         }
         return $rows;
     }
@@ -97,8 +100,9 @@ class RequestSourcingExportController extends Controller
                 }
             }
         }
-        $rows = [$submission ? array_merge($headers, ['Asset ID']) : $headers];
-        foreach ($uniqueAssets as $row) { $rows[] = $submission ? $row : array_slice($row, 0, 9); }
+        $moneyHeaders = ['Reference Value', 'Currency', 'Price Status'];
+        $rows = [array_merge($headers, $submission ? ['Asset ID'] : [], $moneyHeaders)];
+        foreach ($uniqueAssets as $row) { $rows[] = $submission ? $row : array_merge(array_slice($row, 0, 9), array_slice($row, 10)); }
         $metrics = $checkoutRequest->liveRequestMetrics();
         $summary = [['Request Summary', 'Value'], ['Request ID', $checkoutRequest->id], ['Model', $model->name],
             ['Requested Qty', (int) $checkoutRequest->quantity], ['Needed By', $checkoutRequest->needed_by_date ? Date::dateTimeToExcel($checkoutRequest->needed_by_date) : 'Not specified'],
@@ -138,7 +142,11 @@ class RequestSourcingExportController extends Controller
         if (count($rows) > 1) {
             $sheet->getStyle('G2:G'.count($rows))->getNumberFormat()->setFormatCode('yyyy-mm-dd');
         }
-        $sheet->addTable(new \PhpOffice\PhpSpreadsheet\Worksheet\Table('A1:'.($submission ? 'J' : 'I').count($rows), 'SourcingAssets'));
+        if (count($rows) > 1) {
+            $moneyColumn = $submission ? 'K' : 'J';
+            $sheet->getStyle($moneyColumn.'2:'.$moneyColumn.count($rows))->getNumberFormat()->setFormatCode('#,##0.00');
+        }
+        $sheet->addTable(new \PhpOffice\PhpSpreadsheet\Worksheet\Table('A1:'.($submission ? 'M' : 'L').count($rows), 'SourcingAssets'));
         $counts = [];
         foreach (array_slice($rows, 1) as $row) {
             $key = json_encode([$row[2], $row[3]], JSON_THROW_ON_ERROR);
@@ -163,7 +171,8 @@ class RequestSourcingExportController extends Controller
             $this->writeSheet($candidateSheet, $candidateRows);
             $candidateSheet->addTable(new \PhpOffice\PhpSpreadsheet\Worksheet\Table('A1:G'.count($candidateRows), 'LineCandidates'));
         }
-        $book->setActiveSheetIndex(2);
+        $valueSheet = $this->addFinancialSheets($book, $lines, $modelRows, $uniqueAssets);
+        $book->setActiveSheetIndex($book->getIndex($valueSheet));
 
         return response()->streamDownload(function () use ($book) {
             try { (new Xlsx($book))->save('php://output'); }
@@ -172,6 +181,94 @@ class RequestSourcingExportController extends Controller
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Cache-Control' => 'private, no-store',
         ]);
+    }
+
+    private function addFinancialSheets(Spreadsheet $book, $lines, array $modelRows, array $assets)
+    {
+        $currency = Setting::getSettings()->default_currency ?: 'Unspecified';
+        $costRows = [['Model', 'Requested Qty', 'Unit Reference Price', 'Currency', 'Available Now', 'Due Back by Needed Date',
+            'Estimated Qty to Procure', 'Estimated Demand Cost', 'Estimated Procurement Cost', 'Potential Procurement Avoidance', 'Price Status']];
+        $demandCents = $procurementCents = $avoidanceCents = $unpricedDemand = 0;
+        foreach ($lines->groupBy('requestable_id') as $modelId => $modelLines) {
+            $model = AssetModel::findOrFail($modelId);
+            $quantity = (int) $modelLines->sum('quantity');
+            $available = collect($modelRows[$modelId])->where(2, 'Available Now')->count();
+            $due = collect($modelRows[$modelId])->where(2, 'Due Back by Needed Date')->count();
+            $shortfall = max($quantity - $available - $due, 0);
+            $price = $model->reference_price === null ? null : (int) round((float) $model->reference_price * 100);
+            if ($price === null) { $unpricedDemand += $quantity; }
+            else {
+                $demandCents += $quantity * $price;
+                $procurementCents += $shortfall * $price;
+                $avoidanceCents += min($quantity, $available + $due) * $price;
+            }
+            $costRows[] = [$model->name, $quantity, $price === null ? null : $price / 100, $currency, $available, $due, $shortfall,
+                $price === null ? null : $quantity * $price / 100,
+                $price === null ? null : $shortfall * $price / 100,
+                $price === null ? null : min($quantity, $available + $due) * $price / 100,
+                $price === null ? 'Unpriced' : ($price === 0 ? 'Zero reference price' : 'Priced')];
+        }
+        $costSheet = $book->createSheet()->setTitle('Cost Summary');
+        $this->writeSheet($costSheet, $costRows);
+        $costSheet->addTable(new \PhpOffice\PhpSpreadsheet\Worksheet\Table('A1:K'.count($costRows), 'SourcingCosts'));
+        $costSheet->getStyle('C2:C'.count($costRows))->getNumberFormat()->setFormatCode('#,##0.00');
+        $costSheet->getStyle('H2:J'.count($costRows))->getNumberFormat()->setFormatCode('#,##0.00');
+
+        $groups = $parents = [];
+        $unpricedAssets = $zeroAssets = $totalCents = 0;
+        foreach ($assets as $row) {
+            $cents = $row[10] === null ? null : (int) round($row[10] * 100);
+            $key = json_encode([$row[2], $row[3]], JSON_THROW_ON_ERROR);
+            $groups[$key] ??= ['group' => $row[2], 'project' => $row[3], 'count' => 0, 'cents' => 0, 'unpriced' => 0, 'zero' => 0];
+            $parents[$row[2]] ??= ['count' => 0, 'cents' => 0];
+            $groups[$key]['count']++;
+            $parents[$row[2]]['count']++;
+            if ($cents === null) { $groups[$key]['unpriced']++; $unpricedAssets++; }
+            elseif ($cents === 0) { $groups[$key]['zero']++; $zeroAssets++; }
+            else {
+                $groups[$key]['cents'] += $cents;
+                $parents[$row[2]]['cents'] += $cents;
+                $totalCents += $cents;
+            }
+        }
+        uasort($groups, fn ($a, $b) => [$a['group'], $a['project']] <=> [$b['group'], $b['project']]);
+        $valueRows = [['Sourcing Group — Count and Value', 'Project / RFQ — Count and Value', 'Reference Value']];
+        $coverageRows = [['Sourcing Group', 'Project / RFQ', 'Asset Count', 'Known Reference Value', 'Unpriced Assets', 'Zero-value Assets', 'Currency']];
+        foreach ($groups as $group) {
+            $parent = $parents[$group['group']];
+            $coverageRows[] = [$group['group'], $group['project'], $group['count'], $group['cents'] / 100, $group['unpriced'], $group['zero'], $currency];
+            if ($group['cents'] <= 0) { continue; }
+            $label = fn ($name, $count, $cents) => $name.' — '.$count.' assets · '.$currency.' '.number_format($cents / 100, 2, '.', ',');
+            $valueRows[] = [$label($group['group'], $parent['count'], $parent['cents']),
+                $label($group['project'], $group['count'], $group['cents']), $group['cents'] / 100];
+        }
+        $valueSheet = $book->createSheet()->setTitle('Value Sunburst');
+        $this->writeSheet($valueSheet, $valueRows);
+        $valueSheet->getColumnDimension('A')->setWidth(65);
+        $valueSheet->getColumnDimension('B')->setWidth(65);
+        $valueSheet->getColumnDimension('C')->setWidth(22);
+        if (count($valueRows) > 1) { $valueSheet->getStyle('C2:C'.count($valueRows))->getNumberFormat()->setFormatCode('#,##0.00'); }
+        $valueSheet->addTable(new \PhpOffice\PhpSpreadsheet\Worksheet\Table('A1:C'.count($valueRows), 'ValueSunburstData'));
+        $notes = [['Chart Coverage', 'Value'], ['Currency', $currency], ['Total Unique Assets', count($assets)],
+            ['Unpriced Assets', $unpricedAssets], ['Zero-value Assets', $zeroAssets], ['Known Inventory Reference Value', $totalCents / 100],
+            ['Known-priced Demand Cost', $demandCents / 100], ['Known-priced Procurement Cost', $procurementCents / 100],
+            ['Potential Procurement Avoidance', $avoidanceCents / 100], ['Unpriced Requested Qty', $unpricedDemand],
+            ['Price Coverage', $unpricedAssets || $unpricedDemand ? 'Partial: missing prices are excluded from monetary totals.' : 'Complete'],
+            ['Chart Instructions', count($valueRows) > 1 ? 'Select populated A:C, then Insert > Hierarchy Chart > Sunburst. Enable category labels. Slice size is reference value; labels show counts and values.' : 'No positive reference values: no value chart can be drawn. Use Sunburst Data for asset counts.'],
+            ['Value Basis', 'Current model reference prices in the configured default currency. No currency conversion. Historical purchase costs and current market values are not used. Counts include unpriced/zero-value assets; only positive-priced assets produce visible value slices.'],
+            ['Estimate Scope', 'Demand is combined by model. Only unique, visible Available Now and Due Back assets reduce procurement estimates. Reservations and in-use assets require confirmation. Avoidance is a potential planning estimate, not realized savings.']];
+        foreach ($notes as $i => $note) {
+            $valueSheet->setCellValueExplicit('E'.($i + 1), $note[0], DataType::TYPE_STRING);
+            $valueSheet->setCellValueExplicit('F'.($i + 1), $note[1], is_numeric($note[1]) && ! is_string($note[1]) ? DataType::TYPE_NUMERIC : DataType::TYPE_STRING);
+        }
+        $valueSheet->getColumnDimension('E')->setWidth(36);
+        $valueSheet->getColumnDimension('F')->setWidth(80);
+        $valueSheet->getStyle('E1:F'.count($notes))->getAlignment()->setWrapText(true)->setVertical('top');
+        $valueSheet->getStyle('E1:F1')->getFont()->setBold(true);
+        $coverageSheet = $book->createSheet()->setTitle('Value Coverage');
+        $this->writeSheet($coverageSheet, $coverageRows);
+        $coverageSheet->addTable(new \PhpOffice\PhpSpreadsheet\Worksheet\Table('A1:G'.count($coverageRows), 'ValueCoverage'));
+        return $valueSheet;
     }
 
     private function writeSheet($sheet, array $rows): void
