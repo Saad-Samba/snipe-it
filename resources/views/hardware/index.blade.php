@@ -104,6 +104,12 @@
             </nav>
           @endif
 
+          @if (isset($requestContext) && $requestContext && $requestContext->canViewAssignedCandidates(auth()->user()))
+            <a class="btn btn-default" style="margin-bottom:15px;" href="{{ route('hardware.requests.sourcing-export', $requestContext) }}">
+                <i class="fas fa-file-excel" aria-hidden="true"></i> Export Sourcing Breakdown
+            </a>
+          @endif
+
           @if ($assignedCandidates)
             <div class="alert alert-info">
                 <strong>{{ request()->boolean('other_projects') ? 'In Use by Other Projects' : 'In Use · Release Required' }}</strong>

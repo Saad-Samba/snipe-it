@@ -136,3 +136,11 @@ LA-3080 covers multiple assigned assets across other projects: LE-QA-ONLY-ASSIGN
 Request views now use Requested Qty, Available Now, Due Back by Needed Date, In Use by Other Projects, Reserved for This RFQ, Reserved for Other RFQs, Estimated Qty to Procure, and Estimated Purchase Cost. Available/due-back figures still aggregate across sites; links remain permission-scoped. The This RFQ cell displays a dash for non-RFQ requests. Reservation buckets are identified by the configured RFQ-reserved asset status.
 
 The Received Requests In Use by Other Projects column and its link use other_projects=1, excluding same-project and unlinked assets. VN1630A now shows four such candidates; LA-3080 shows two. Existing unfiltered assigned_candidates links remain compatible and include all project relationships. In-use candidates require release and do not reduce the estimated procurement quantity automatically.
+
+## Excel sourcing export
+
+Open a request's Assets view as its authorized coordinator or superuser and click **Export Sourcing Breakdown** beside the sourcing navigation. Every tab exports the same full model inventory visible to that user, ignoring tab/search/pagination filters. Deleted assets are excluded. The workbook contains a Request Summary and an Asset Breakdown Excel table named SourcingAssets. The summary separates all-sites procurement estimates from permission-scoped asset counts.
+
+Each asset has one group, with priority reservation > available > due back by needed date > eligible in use > unavailable. Reservations distinguish actual RFQs from active projects. No needed date means no due-back deadline. Asset Count is numeric 1 per row. Return and export dates are typed Excel dates; imported labels are literal text rather than executable formulas.
+
+In Excel: Insert PivotTable from SourcingAssets; put Sourcing Group and then Project / RFQ in Rows, and Sum of Asset Count in Values. For a pie use totals by sourcing group. For a Sunburst use a flat three-column copy of the grouped results (group, project/RFQ, count), excluding subtotals/grand totals. Requested quantity and procurement estimates belong in the separate request summary, not in the asset chart. A zero-inventory model exports an empty asset table with headers and its request summary.

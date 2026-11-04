@@ -176,6 +176,9 @@ Route::group(
             [BulkAssetsController::class, 'storeCheckin']
         )->name('hardware.bulkcheckin.store');
 
+        Route::get('requests/{checkoutRequest}/sourcing-export', \App\Http\Controllers\RequestSourcingExportController::class)
+            ->name('hardware.requests.sourcing-export');
+
         Route::post('requests/{checkoutRequest}/coordinator-resolution',
             [AssetsController::class, 'markCoordinatorResolution']
         )->name('hardware.requests.coordinator-resolution');
