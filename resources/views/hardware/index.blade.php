@@ -99,8 +99,8 @@
           @if ($requestContext && $requestContext->canViewAssignedCandidates(auth()->user()))
             <nav aria-label="Request asset review" style="margin-bottom:15px;">
                 <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'reusable_now']) }}">Available Now</a>
-                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'due_back']) }}">Due Back by Needed Date</a>
-                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'assigned_candidates', 'other_projects' => 1]) }}">In Use by Other Projects ({{ $requestContext->assignedCandidatesQuery(auth()->user(), true)->count() }})</a>
+                <a class="btn btn-default" title="Assigned assets expected back on or before this request’s Needed By date; RFQ-reserved assets are excluded." href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'due_back']) }}">Due Back</a>
+                <a class="btn btn-default" href="{{ route('hardware.index', ['request_id' => $requestContext->id, 'request_bucket' => 'assigned_candidates']) }}">In Use ({{ $requestContext->assignedCandidatesQuery(auth()->user())->count() }})</a>
             </nav>
           @endif
 
@@ -115,7 +115,7 @@
 
           @if ($assignedCandidates)
             <div class="alert alert-info">
-                <strong>{{ request()->boolean('other_projects') ? 'In Use by Other Projects' : 'In Use · Release Required' }}</strong>
+                <strong>In Use</strong>
                 <p>These matching assets require assessment and release confirmation. Inclusion does not confirm availability or authorize reassignment. Assets expected back by the needed-by date appear under Due Back instead.</p>
             </div>
           @endif

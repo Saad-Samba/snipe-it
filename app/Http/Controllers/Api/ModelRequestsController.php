@@ -87,10 +87,10 @@ class ModelRequestsController extends Controller
                     'qty' => (int) $checkoutRequest->quantity,
                     'remaining_quantity' => $checkoutRequest->remainingAllocationQuantity(),
                     'assigned_candidates_count' => $checkoutRequest->canViewAssignedCandidates($user)
-                        ? $checkoutRequest->assignedCandidatesQuery($user, true)->count()
+                        ? $checkoutRequest->assignedCandidatesQuery($user)->count()
                         : null,
                     'assigned_candidates_url' => $checkoutRequest->canViewAssignedCandidates($user)
-                        ? route('hardware.index', ['request_id' => $checkoutRequest->id, 'request_bucket' => 'assigned_candidates', 'other_projects' => 1])
+                        ? route('hardware.index', ['request_id' => $checkoutRequest->id, 'request_bucket' => 'assigned_candidates'])
                         : null,
                     'needed_by_date' => Helper::getFormattedDateObject($checkoutRequest->needed_by_date, 'date'),
                     'rac_status' => $racStatus,
@@ -263,10 +263,10 @@ class ModelRequestsController extends Controller
                     : null,
                 'reserved_count' => $checkoutRequest->reservedAssetsCount(),
                 'assigned_candidates_count' => $checkoutRequest->canViewAssignedCandidates($user)
-                    ? $checkoutRequest->assignedCandidatesQuery($user, true)->count()
+                    ? $checkoutRequest->assignedCandidatesQuery($user)->count()
                     : null,
                 'assigned_candidates_url' => $checkoutRequest->canViewAssignedCandidates($user)
-                    ? route('hardware.index', ['request_id' => $checkoutRequest->id, 'request_bucket' => 'assigned_candidates', 'other_projects' => 1])
+                    ? route('hardware.index', ['request_id' => $checkoutRequest->id, 'request_bucket' => 'assigned_candidates'])
                     : null,
                 'project_is_rfq' => (bool) $checkoutRequest->project?->is_rfq,
                 'reserved_by_other_rfqs_count' => $checkoutRequest->reservedByOtherRfqsCount(),

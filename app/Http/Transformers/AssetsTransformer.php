@@ -25,7 +25,7 @@ class AssetsTransformer
             $row = $this->transformAsset($asset, $requestContext);
             if ($candidateRequest instanceof CheckoutRequest) {
                 $row['project_relationship'] = ! $asset->project_id
-                    ? 'No project'
+                    ? 'Project Missing'
                     : ((int) $asset->project_id === (int) $candidateRequest->project_id ? 'Same project' : 'Other project');
                 $row['available_actions'] = array_fill_keys(array_keys($row['available_actions']), false);
                 $row['user_can_checkout'] = false;

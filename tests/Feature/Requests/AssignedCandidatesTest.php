@@ -70,7 +70,7 @@ class AssignedCandidatesTest extends TestCase
         $rows = collect($response->json('rows'))->keyBy('id');
         $this->assertSame('Same project', $rows[$same->id]['project_relationship']);
         $this->assertSame('Other project', $rows[$other->id]['project_relationship']);
-        $this->assertSame('No project', $rows[$none->id]['project_relationship']);
+        $this->assertSame('Project Missing', $rows[$none->id]['project_relationship']);
         foreach ($rows as $row) {
             $this->assertFalse($row['user_can_checkout']);
             $this->assertNotContains(true, $row['available_actions']);
@@ -80,10 +80,10 @@ class AssignedCandidatesTest extends TestCase
         $this->getJson($this->bucketUrl($request, ['other_projects' => 1]))
             ->assertOk()->assertJsonPath('total', 1)->assertJsonPath('rows.0.id', $other->id);
         $this->getJson(route('api.rac-requests.index'))->assertOk()
-            ->assertJsonPath('rows.0.assigned_candidates_count', 1);
+            ->assertJsonPath('rows.0.assigned_candidates_count', 3);
     }
 
-    public function test_submission_batch_details_include_permission_scoped_other_project_candidates(): void
+    public function test_submission_batch_details_include_permission_scoped_in_use_candidates(): void
     {
         $admin = User::factory()->superuser()->create();
         $batch = 'b3a1c157-20fe-4c64-bd8a-594a18fdfb53';
@@ -94,11 +94,11 @@ class AssignedCandidatesTest extends TestCase
 
         $this->actingAs($admin)->get(route('requests.index', ['submission_batch_id' => $batch]))
             ->assertOk()->assertSee('data-field="assigned_candidates_count"', false)
-            ->assertSee('In Use by Other Projects');
+            ->assertSee('In Use');
         $this->actingAsForApi($admin)->getJson(route('api.requests.index', ['submission_batch_id' => $batch]))
-            ->assertOk()->assertJsonPath('total', 1)->assertJsonPath('rows.0.assigned_candidates_count', 1)
+            ->assertOk()->assertJsonPath('total', 1)->assertJsonPath('rows.0.assigned_candidates_count', 3)
             ->assertJsonPath('rows.0.assigned_candidates_url', route('hardware.index', [
-                'request_id' => $request->id, 'request_bucket' => 'assigned_candidates', 'other_projects' => 1,
+                'request_id' => $request->id, 'request_bucket' => 'assigned_candidates',
             ]));
 
         $requester = User::factory()->requestAssetModels()->create();
@@ -209,7 +209,7 @@ class AssignedCandidatesTest extends TestCase
         $request = $this->requestFor($coordinator);
         $this->candidate($request);
         $url = route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'assigned_candidates']);
-        $this->actingAs($coordinator)->get($url)->assertOk()->assertSee('In Use · Release Required')
+        $this->actingAs($coordinator)->get($url)->assertOk()->assertSee('<strong>In Use</strong>', false)
             ->assertSee('does not confirm availability')
             ->assertSee('No eligible assigned candidates match the current filters.')
             ->assertDontSee('id="assetsBulkEditToolbar"', false)

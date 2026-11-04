@@ -158,11 +158,11 @@ class LearAssignedCandidatesQaSeeder extends Seeder
         foreach ($scenarios as $tag => [$type, $assignee, $status, $return, $company]) {
             $asset = Asset::withoutGlobalScopes()->withTrashed()->firstOrNew(['asset_tag' => 'LE-QA-'.$tag]);
             $asset->forceFill([
-                'name' => 'QA CAN-FD — '.$tag, 'model_id' => $model->id,
+                'name' => 'QA CAN-FD — '.($tag === 'SAME' ? 'Active project' : $tag), 'model_id' => $model->id,
                 'status_id' => $statuses[$status]->id, 'company_id' => $company->id,
                 'discipline_id' => $discipline->id, 'location_id' => $location->id,
                 'rtd_location_id' => $location->id, 'assigned_type' => $type, 'assigned_to' => $assignee,
-                'project_id' => $tag === 'NO-PROJECT' ? null : ($tag === 'SAME' ? $project->id : $otherProject->id),
+                'project_id' => $tag === 'NO-PROJECT' ? null : ($tag === 'RESERVED' ? $otherRfq->id : $otherProject->id),
                 'expected_checkin' => $return, 'created_by' => $admin->id,
                 'deleted_at' => $tag === 'DELETED' ? now() : null,
             ]);

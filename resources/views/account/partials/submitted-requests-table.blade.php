@@ -2,7 +2,7 @@
     <div class="text-muted" style="margin-bottom:8px;">
         <strong>Reuse planning fields</strong>
         <x-new-feature-label />
-        <span class="small">Available Now, Due Back by Needed Date, RFQ Reservations, Estimated Savings, Estimated Qty to Procure, and Estimated Purchase Cost. All Sites figures are aggregate counts across Sites; asset details remain role-scoped.</span>
+        <span class="small">Available Now, Due Back, RFQ Reservations, Estimated Savings, Estimated Qty to Procure, and Estimated Purchase Cost. All Sites figures are aggregate counts across Sites; asset details remain role-scoped.</span>
     </div>
 @endif
 <p class="text-muted small">Availability, shortfall, savings, and purchase amounts are sourcing estimates. Assets in use by other projects require release confirmation and do not reduce the estimated quantity to procure. Confirmed allocations are tracked separately.</p>
@@ -39,8 +39,8 @@
         @endif
         <th data-field="needed_by_date" data-sortable="true" data-formatter="dateDisplayFormatter">Needed By</th>
         <th data-field="reusable_quantity" data-sortable="true" data-formatter="requestReusableNowFormatter" data-request-tooltip="Aggregate unassigned deployable assets available across all Sites. Asset details remain role-scoped."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Available Now</th>
-        <th data-field="due_back_before_needed_by_quantity" data-sortable="true" data-formatter="requestDueBackFormatter" data-request-tooltip="Aggregate assigned assets across all Sites expected back by the needed-by date. RFQ-reserved assets are excluded."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Due Back by Needed Date</th>
-        <th data-field="assigned_candidates_count" data-sortable="false" data-formatter="requestAssignedCandidatesFormatter" data-request-tooltip="Matching assets in use by other projects. Release confirmation is required; excludes assets due back by the needed date. Counts and details follow your asset permissions.">In Use by Other Projects</th>
+        <th data-field="due_back_before_needed_by_quantity" data-sortable="true" data-formatter="requestDueBackFormatter" data-request-tooltip="Aggregate assigned assets across all Sites expected back by the needed-by date. RFQ-reserved assets are excluded."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Due Back</th>
+        <th data-field="assigned_candidates_count" data-sortable="false" data-formatter="requestAssignedCandidatesFormatter" data-request-tooltip="Matching assets currently assigned, including assets with missing project links. Release confirmation is required; excludes assets due back by the needed date. Counts and details follow your asset permissions.">In Use</th>
         <th data-field="reserved_count" data-sortable="true" data-formatter="requestReservedFormatter" data-request-tooltip="Assets held in the RFQ reserved status for this request’s RFQ. Not applicable to requests for active projects."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Reserved for This RFQ</th>
         <th data-field="reserved_by_other_rfqs_count" data-sortable="true" data-formatter="requestReservedByOtherProjectFormatter" data-request-tooltip="Assets held in the RFQ reserved status for other RFQs; discipline is not considered."@if (!empty($showFooter)) data-footer-formatter="qtySumFormatter"@endif>Reserved for Other RFQs</th>
         <th data-field="estimated_savings" data-sortable="true" data-formatter="requestSavingsFormatter" data-request-tooltip="The model cost used here is the one saved at the time of the request."@if (!empty($showFooter)) data-footer-formatter="sumFormatter"@endif>Estimated Savings</th>

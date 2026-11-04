@@ -2,7 +2,7 @@
 
 ## Behavior
 
-The existing Received Requests inbox links to **Assigned — release required**. Candidate assets must match the exact catalog model, be checked out, have an operational (deployable, non-pending, non-archived) status, and not be deleted or RFQ-reserved. All checkout targets are supported. Project relationship comes from `assets.project_id`: Same project, Other project, or No project.
+The existing Received Requests inbox links to **In Use**. Candidate assets must match the exact catalog model, be checked out, have an operational (deployable, non-pending, non-archived) status, and not be deleted or RFQ-reserved. All checkout targets are supported. Project relationship comes from `assets.project_id`: Same project, Other project, or Project Missing.
 
 Assets expected back on or before Needed By remain exclusively in Due Back. With no Needed By, all eligible assigned assets appear in the new bucket. The count is a live inventory count, not a quantity capped to the request. Each request is evaluated independently.
 
@@ -58,7 +58,7 @@ FMCS is off in the demo so the coordinator can see the synthetic IEC and VLS ass
 | --- | --- |
 | Open Received Requests as coordinator | One CAN-FD request, candidate count 6 |
 | Follow the count | Six rows; no selection, bulk, checkout, transfer, or resolution controls |
-| `LE-QA-SAME`, `LE-QA-OTHER`, `LE-QA-NO-PROJECT` | Same project, Other project, No project respectively |
+| `LE-QA-SAME`, `LE-QA-OTHER`, `LE-QA-NO-PROJECT` | Other project, Other project, Project Missing respectively |
 | `LE-QA-LOCATION`, `LE-QA-NESTED` | Location/asset checkout targets displayed |
 | `LE-QA-LATER` | Included, expected return later than Needed By |
 | `LE-QA-DUE` | Only in Due Back, count 1 |
@@ -133,29 +133,32 @@ LA-3080 covers multiple assigned assets across other projects: LE-QA-ONLY-ASSIGN
 
 ## Request sourcing names
 
-Request views now use Requested Qty, Available Now, Due Back by Needed Date, In Use by Other Projects, Reserved for This RFQ, Reserved for Other RFQs, Estimated Qty to Procure, and Estimated Purchase Cost. Available/due-back figures still aggregate across sites; links remain permission-scoped. The This RFQ cell displays a dash for non-RFQ requests. Reservation buckets are identified by the configured RFQ-reserved asset status.
+Request views now use Requested Qty, Available Now, Due Back, In Use by Other Projects, Reserved for This RFQ, Reserved for Other RFQs, Estimated Qty to Procure, and Estimated Purchase Cost. Available/due-back figures still aggregate across sites; links remain permission-scoped. The This RFQ cell displays a dash for non-RFQ requests. Reservation buckets are identified by the configured RFQ-reserved asset status.
 
 The Received Requests In Use by Other Projects column and its link use other_projects=1, excluding same-project and unlinked assets. VN1630A now shows four such candidates; LA-3080 shows two. Existing unfiltered assigned_candidates links remain compatible and include all project relationships. In-use candidates require release and do not reduce the estimated procurement quantity automatically.
 
 ## Simple sourcing export
 
-Both Export Sourcing Breakdown (one model line) and Export Submission Sourcing (every active line in the same requester’s submission) now download exactly one worksheet and one table:
+Both Export Sourcing Breakdown (one model line) and Export Submission Sourcing (all active lines of one submission) download one worksheet and one table:
 
-| Sourcing Group | Project / RFQ | Total Reference Price |
-| --- | --- | ---: |
-| Available Now | BMW — Falcon Gateway | EUR 1,200.00 |
-| Due Back by Needed Date | BMW — Falcon Gateway | EUR 1,200.00 |
-| Due Back by Needed Date | Ford — Vega Power Distribution | EUR 1,200.00 |
+| Sourcing Group | Project / RFQ | Model | Quantity | Total Reference Price |
+| --- | --- | --- | ---: | ---: |
+| Available Now | BMW — Falcon Gateway | VN1630A | 1 | EUR 1,200.00 |
+| Due Back | BMW — Falcon Gateway | VN1630A | 1 | EUR 1,200.00 |
+| Due Back | Ford — Vega Power Distribution | VN1630A | 1 | EUR 1,200.00 |
+| In Use | Project Missing | VN1630A | 1 | EUR 1,200.00 |
 
-Actual exports contain all populated sourcing groups, including this/other RFQ reservations, in-use assets, and unavailable assets. There are no extra sheets, helper columns, appended counts, financial estimates, or totals rows. Select the three columns and choose Insert > Hierarchy > Sunburst in Excel. Each physical asset ID contributes once, even when multiple submission lines request the same model.
+Sourcing groups are Available Now, Due Back, In Use, Reserved for RFQ, and Unavailable. Project/RFQ names identify the association without this/other distinctions in the report. Project Missing flags an assigned or reserved asset with no project link. Unassigned inventory with no project association displays No Project / RFQ.
 
-Total Reference Price is the sum of current model reference prices for the unique visible assets in each group/project. Amounts are numeric and display the configured currency (EUR in the demo); no currency conversion or historical purchase cost is used. A group with any missing reference prices displays Unpriced rather than an incomplete numeric total. A genuine zero remains zero. No project association is labeled No Project / RFQ. Zero-inventory exports contain just the three headers.
+Quantity is the physical asset count, not requested demand. Each asset ID contributes once even for repeated model lines. Rows are grouped by sourcing group, project/RFQ and model. Total Reference Price sums the current model prices of those unique assets, with the configured currency in the number format. Any missing price makes the group's total Unpriced; a real zero remains numeric zero. Deleted assets are excluded. Zero-inventory models add no rows. For a value-based chart, use the hierarchy columns and Total Reference Price, omitting Quantity from the chart input.
 
-Exports ignore active tab, search, and pagination, respect asset visibility and request review permissions, omit deleted assets and canceled request lines, and never include another requester’s coincidentally matching batch ID. All lines must be reviewable by the exporter. Mixed project/date legacy submissions must be aligned before export.
+Due Back still means expected back on or before Needed By, excluding RFQ reservations; the short app heading and sourcing tab have tooltips explaining the deadline. The report has no tooltip, instructions, additional sheets or helper columns. In Use includes eligible assigned assets regardless of project link; RFQ reservations and assets due back by the deadline remain separate. App In Use counts and new drilldowns follow this broader scope, with legacy other_projects filters still supported.
+
+Exports ignore active tab/search/pagination, respect asset visibility and request-review permissions, exclude canceled lines and another requester's matching batch ID, and require consistent shared project/date context. All lines must be reviewable by the exporter.
 
 ## Current demo submission and names
 
-Rerun LearAssignedCandidatesQaSeeder after pulling to upgrade earlier project names in place and group its three request lines into one batch. No reset is required. The seeded batch cdd03130-26f8-4ab4-80f9-8da078114621 contains VN1630A, LA-3080, and SM660-AR-11, requesting four units each, with one shared Needed By date and Renault RFQ context.
+Rerun LearAssignedCandidatesQaSeeder after pulling. Existing project names and assets are updated in place; no reset is required. The three seeded model lines share batch cdd03130-26f8-4ab4-80f9-8da078114621, four requested units per model, one Needed By date and Renault RFQ context.
 
 - Renault — Atlas Body Control RFQ
 - Volkswagen — Orion Gateway RFQ
@@ -163,6 +166,6 @@ Rerun LearAssignedCandidatesQaSeeder after pulling to upgrade earlier project na
 - BMW — Falcon Gateway
 - Ford — Vega Power Distribution
 
-As le-qa-admin, open VN1630A from Received Requests, follow a sourcing link to Assets, and use Export Submission Sourcing. It includes 18 unique visible assets: 16 VN1630A, two LA-3080, none SM660-AR-11. With all demo prices present the one table totals EUR 20,800. The single-model VN1630A export totals EUR 19,200. Total demand is intentionally outside this inventory-value report.
+The old SAME fixture now belongs to the active BMW project instead of the requesting RFQ. Reserved fixture assets belong to actual RFQ records. NO-PROJECT remains an intentional data-quality example and appears as In Use / Project Missing.
 
-VN1630A covers Available Now (one), Due Back by Needed Date (two projects), In Use by This Project (one), In Use by Other Projects (four), In Use Without a Project (one), Reserved for This RFQ (one), Reserved for Other RFQs (two RFQs), Reserved for Other Projects (one), and Unavailable (repair, pending, archived). Its deleted fixture is excluded. Reservation classification takes precedence to prevent double counting. The three catalogue rows and 19 total seeded asset records remain unchanged.
+As le-qa-admin, open VN1630A from Received Requests, follow a sourcing link, and use Export Submission Sourcing. The table totals 18 physical assets and EUR 20,800: 16 VN1630A and two LA-3080. The single-model report totals 16 and EUR 19,200. VN1630A groups: Available Now 1, Due Back 2, In Use 6, Reserved for RFQ 4, Unavailable 3. The report stays at three seeded catalogue models and 19 seeded asset records including the deleted fixture.

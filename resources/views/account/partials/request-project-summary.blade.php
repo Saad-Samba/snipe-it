@@ -9,7 +9,7 @@
     <div><strong>{{ $requestsLabel ?? 'Requests' }}</strong><br>{{ $summary['requests_count'] }}</div>
     <div><strong>Requested Qty</strong><br>{{ $summary['total_needed'] }}</div>
     <div><strong>Available Now</strong><br>{{ $summary['reusable_now'] }}</div>
-    <div><strong>Due Back by Needed Date</strong><br>{{ $summary['due_back_before_needed_by'] }}</div>
+    <div><strong title="Assigned assets expected back on or before the request’s Needed By date; excludes RFQ-reserved assets.">Due Back</strong><br>{{ $summary['due_back_before_needed_by'] }}</div>
     <div><strong>Estimated Qty to Procure</strong><br>{{ $summary['shortfall'] }}</div>
     <div><strong>Reserved for This RFQ</strong><br>{{ isset($filteredProject) && $filteredProject->is_rfq ? $summary['reserved_count'] : '—' }}</div>
     <div><strong>Reserved for Other RFQs</strong><br>{{ $summary['reserved_by_other_rfqs_count'] }}</div>
