@@ -106,7 +106,7 @@ The seeder maintains one model row for each catalogue case (three rows total). E
 
 | Model | Case | Expected inventory |
 | --- | --- | --- |
-| VN1630A | Mixed inventory | One reusable now, one due back, six assigned candidates, plus excluded statuses |
+| VN1630A | Mixed inventory | One reusable now, two due back, six assigned candidates, plus excluded statuses |
 | LA-3080 | All assets assigned to another project | Two assets on QA Legacy Gateway Validation and QA Power Distribution Validation; none reusable now |
 | SM660-AR-11 | No inventory | No physical assets; request still allowed |
 
@@ -127,7 +127,7 @@ php artisan migrate:fresh --force
 php artisan db:seed --class=LearAssignedCandidatesQaSeeder --force
 ```
 
-Do not run the generic DatabaseSeeder: it creates additional random demo models and assets. A fresh dedicated seed creates exactly three models, 15 assets (including one soft-deleted exclusion fixture), one category, one manufacturer, one fieldset with two specifications, five disciplines, five companies, three projects, one location, five statuses, four users, and two requests. Migrations may also create their own system defaults. Disciplines: HARDWARE, SOFTWARE, PLATFORM, SYSTEM, VALIDATION. Companies: VLS, IEC, REC, SFLD, KRC.
+Do not run the generic DatabaseSeeder: it creates additional random demo models and assets. A fresh dedicated seed creates exactly three models, 19 assets (including one soft-deleted exclusion fixture), one category, one manufacturer, one fieldset with two specifications, five disciplines, five companies, five project/RFQ records, one location, five statuses, four users, and two requests. Migrations may also create their own system defaults. Disciplines: HARDWARE, SOFTWARE, PLATFORM, SYSTEM, VALIDATION. Companies: VLS, IEC, REC, SFLD, KRC.
 
 LA-3080 covers multiple assigned assets across other projects: LE-QA-ONLY-ASSIGNED belongs to QA Legacy Gateway Validation at IEC; LE-QA-ONLY-ASSIGNED-SECOND belongs to QA Power Distribution Validation at VLS. Both appear as Other project candidates for the seeded QA Next-generation Body Controller request. Actual RFQ-reserved assets are different: VN1630A includes LE-QA-RESERVED, which is excluded from available/assigned candidates and handled by RFQ reservation queries.
 
@@ -139,8 +139,29 @@ The Received Requests In Use by Other Projects column and its link use other_pro
 
 ## Excel sourcing export
 
-Open a request's Assets view as its authorized coordinator or superuser and click **Export Sourcing Breakdown** beside the sourcing navigation. Every tab exports the same full model inventory visible to that user, ignoring tab/search/pagination filters. Deleted assets are excluded. The workbook contains a Request Summary and an Asset Breakdown Excel table named SourcingAssets. The summary separates all-sites procurement estimates from permission-scoped asset counts.
+Open a request's Assets view as its authorized coordinator or superuser and click **Export Sourcing Breakdown** beside the sourcing navigation. Every tab exports the same full model inventory visible to that user, ignoring tab/search/pagination filters. Deleted assets are excluded. The workbook opens on Sunburst Data, a grouped chart-ready table named SunburstData, and also contains Request Summary and the detailed Asset Breakdown table named SourcingAssets. The summary separates all-sites procurement estimates from permission-scoped asset counts.
 
 Each asset has one group, with priority reservation > available > due back by needed date > eligible in use > unavailable. Reservations distinguish actual RFQs from active projects. No needed date means no due-back deadline. Asset Count is numeric 1 per row. Return and export dates are typed Excel dates; imported labels are literal text rather than executable formulas.
 
-In Excel: Insert PivotTable from SourcingAssets; put Sourcing Group and then Project / RFQ in Rows, and Sum of Asset Count in Values. For a pie use totals by sourcing group. For a Sunburst use a flat three-column copy of the grouped results (group, project/RFQ, count), excluding subtotals/grand totals. Requested quantity and procurement estimates belong in the separate request summary, not in the asset chart. A zero-inventory model exports an empty asset table with headers and its request summary.
+In Excel: open Sunburst Data and select its three columns (Sourcing Group, Project / RFQ, Asset Count), including the headers and populated rows. Choose Insert > Hierarchy Chart > Sunburst. No PivotTable, copy/paste, or subtotal removal is needed. For a single-ring pie, aggregate Asset Count by Sourcing Group in a PivotTable. Requested quantity and procurement estimates remain in Request Summary, outside the inventory chart. Zero-inventory exports keep both data tables empty with headers and retain the request summary.
+
+## Complete Sunburst demo: VN1630A
+
+Rerun LearAssignedCandidatesQaSeeder after pulling. It keeps three model rows and now seeds 19 total asset rows (one soft deleted), including 16 visible VN1630A assets. The target request is QA Next-generation Body Controller, now explicitly flagged as an RFQ with Needed By 14 days after seeding. There are two additional RFQs: QA Gateway RFQ and QA Power Distribution RFQ.
+
+As le-qa-admin, open VN1630A's seeded request, follow any sourcing link to Assets, then Export Sourcing Breakdown. With full demo visibility, Sunburst Data totals should be:
+
+| Sourcing group | Assets | Breakdown |
+| --- | ---: | --- |
+| Available Now | 1 | Legacy Gateway project association retained; asset is unassigned |
+| Due Back by Needed Date | 2 | One each on Legacy Gateway Validation and Power Distribution Validation, returning in 7 and 10 days |
+| In Use by This Project | 1 | Next-generation Body Controller |
+| In Use by Other Projects | 4 | Legacy Gateway Validation |
+| In Use Without a Project | 1 | Unassigned project |
+| Reserved for This RFQ | 1 | Next-generation Body Controller |
+| Reserved for Other RFQs | 2 | Gateway RFQ and Power Distribution RFQ |
+| Reserved for Other Projects | 1 | Legacy Gateway Validation, an active project |
+| Unavailable | 3 | Repair, pending, and archived assets |
+| **Total** | **16** | Each physical asset counted once; deleted fixture omitted |
+
+The detailed asset sheet retains expected return dates. Reserved assets stay in their reservation slice even if they also have a checkout or return date, so a Sunburst never double-counts them. Procurement estimates continue to follow the existing request calculation; an asset held for another RFQ or in use is not automatically available to this request. Rerunning the seeder resets the demo dates relative to today.

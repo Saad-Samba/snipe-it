@@ -43,9 +43,9 @@ class RequestSourcingExportTest extends TestCase
         $response->assertDownload('request-'.$request->id.'-sourcing-breakdown.xlsx');
         $book = $this->workbook($response);
         $rows = collect(array_slice($book->getSheetByName('Asset Breakdown')->toArray(), 1));
-        $this->assertCount(12, $rows);
-        $this->assertCount(12, $rows->pluck(0)->unique());
-        $this->assertSame(12, $rows->sum(8));
+        $this->assertCount(16, $rows);
+        $this->assertCount(16, $rows->pluck(0)->unique());
+        $this->assertSame(16, $rows->sum(8));
         $byTag = $rows->keyBy(0);
         foreach (['AVAILABLE' => 'Available Now', 'SAME' => 'In Use by This Project', 'OTHER' => 'In Use by Other Projects',
             'NO-PROJECT' => 'In Use Without a Project', 'DUE' => 'Due Back by Needed Date',
@@ -59,6 +59,16 @@ class RequestSourcingExportTest extends TestCase
             }
         }
         $this->assertSame('Request Summary', $book->getSheet(0)->getTitle());
+        $chart = $book->getSheetByName('Sunburst Data');
+        $chartRows = collect(array_slice($chart->toArray(), 1));
+        $this->assertSame(16, $chartRows->sum(2));
+        $this->assertSame($rows->groupBy(fn ($row) => json_encode([$row[2], $row[3]]))->count(), $chartRows->count());
+        $this->assertSame(1, $chartRows->where(0, 'Reserved for This RFQ')->sum(2));
+        $this->assertSame(3, $chartRows->where(0, 'Reserved for Other RFQs')->sum(2));
+        $this->assertCount(2, $chartRows->where(0, 'Due Back by Needed Date'));
+        $this->assertSame(2, $chartRows->where(0, 'Due Back by Needed Date')->sum(2));
+        $this->assertSame(1, $chartRows->where(0, 'Available Now')->sum(2));
+        $this->assertSame('Sunburst Data', $book->getActiveSheet()->getTitle());
         $book->disconnectWorksheets();
     }
 

@@ -74,9 +74,15 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             $disciplines[$disciplineName] = Discipline::updateOrCreate(['name' => $disciplineName], ['created_by' => $admin->id]);
         }
         $discipline = $disciplines['VALIDATION'];
-        $project = Project::updateOrCreate(['name' => 'QA Next-generation Body Controller'], ['created_by' => $admin->id]);
+        $project = Project::updateOrCreate(['name' => 'QA Next-generation Body Controller'], ['created_by' => $admin->id, 'is_rfq' => true, 'rfq_needed_by_date' => now()->addDays(14)->toDateString()]);
         $otherProject = Project::updateOrCreate(['name' => 'QA Legacy Gateway Validation'], ['created_by' => $admin->id]);
         $thirdProject = Project::updateOrCreate(['name' => 'QA Power Distribution Validation'], ['created_by' => $admin->id]);
+        $otherRfq = Project::updateOrCreate(['name' => 'QA Gateway RFQ'], [
+            'created_by' => $admin->id, 'is_rfq' => true, 'rfq_needed_by_date' => now()->addDays(14)->toDateString(),
+        ]);
+        $secondRfq = Project::updateOrCreate(['name' => 'QA Power Distribution RFQ'], [
+            'created_by' => $admin->id, 'is_rfq' => true, 'rfq_needed_by_date' => now()->addDays(30)->toDateString(),
+        ]);
         $category = Category::updateOrCreate(['name' => 'QA Automotive network interfaces'], ['category_type' => 'asset', 'manager_id' => $admin->id]);
         $manufacturer = Manufacturer::updateOrCreate(['name' => 'QA Vector-inspired']);
         // Upgrade earlier demo names in place so reruns keep one model per scenario.
@@ -172,6 +178,22 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             'assigned_type' => User::class, 'assigned_to' => $users['requester']->id,
             'project_id' => $thirdProject->id,
         ]);
+        // One catalogue model demonstrates the complete chart with project/RFQ breakdowns.
+        foreach ([
+            'RESERVED-THIS-RFQ' => [$project, 'reserved', null, $site],
+            'RESERVED-OTHER-RFQ' => [$otherRfq, 'reserved', null, $otherSite],
+            'RESERVED-SECOND-RFQ' => [$secondRfq, 'reserved', null, $sites['REC']],
+            'DUE-SECOND-PROJECT' => [$thirdProject, 'ready', now()->addDays(10)->toDateString(), $sites['REC']],
+        ] as $tag => [$assetProject, $status, $returnDate, $assetSite]) {
+            Asset::updateOrCreate(['asset_tag' => 'LE-QA-'.$tag], [
+                'name' => 'VN1630A — '.$tag, 'model_id' => $model->id,
+                'status_id' => $statuses[$status]->id, 'company_id' => $assetSite->id,
+                'discipline_id' => $discipline->id, 'rtd_location_id' => $location->id,
+                'assigned_type' => $returnDate ? User::class : null,
+                'assigned_to' => $returnDate ? $users['requester']->id : null,
+                'project_id' => $assetProject->id, 'expected_checkin' => $returnDate,
+            ]);
+        }
         foreach ([$model, $onlyAssignedModel] as $requestedModel) {
             $request = CheckoutRequest::updateOrCreate([
                 'user_id' => $users['requester']->id, 'requestable_type' => AssetModel::class,

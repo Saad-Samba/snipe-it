@@ -289,7 +289,7 @@ class AssignedCandidatesTest extends TestCase
         $this->assertSame(3, AssetModel::where('category_id', AssetModel::findOrFail($main->requestable_id)->category_id)->count());
         $this->assertSame(5, \App\Models\Discipline::whereIn('name', ['HARDWARE', 'SOFTWARE', 'PLATFORM', 'SYSTEM', 'VALIDATION'])->count());
         $this->assertSame(5, Company::whereIn('name', ['VLS', 'IEC', 'REC', 'SFLD', 'KRC'])->count());
-        $this->assertSame(15, Asset::withTrashed()->where('asset_tag', 'like', 'LE-QA-%')->count());
+        $this->assertSame(19, Asset::withTrashed()->where('asset_tag', 'like', 'LE-QA-%')->count());
     }
 
     public function test_transfer_still_rejects_assigned_candidates(): void

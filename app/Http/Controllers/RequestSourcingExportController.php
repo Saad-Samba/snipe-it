@@ -54,10 +54,12 @@ class RequestSourcingExportController extends Controller
             ['Requested Qty', (int) $checkoutRequest->quantity], ['Needed By', $checkoutRequest->needed_by_date ? Date::dateTimeToExcel($checkoutRequest->needed_by_date) : 'Not specified'],
             ['Project / RFQ', $checkoutRequest->project?->name ?? 'None'], ['Exported At (UTC)', Date::dateTimeToExcel(now('UTC'))],
             ['Exported Asset Count', count($rows) - 1], ['Asset Scope', 'All non-deleted assets for this model visible to the exporting user; independent of active tab, search and pagination.'],
+            ['Available Now (all sites)', (int) ($metrics['reusable_quantity'] ?? 0)],
+            ['Due Back by Needed Date (all sites)', (int) ($metrics['due_back_before_needed_by_quantity'] ?? 0)],
             ['Estimated Qty to Procure (all sites)', (int) ($metrics['procurement_shortfall'] ?? 0)],
             ['Estimate Scope', 'Request sourcing estimate across all sites; may differ from the permission-scoped asset breakdown. In-use assets do not reduce it until released.'],
             ['Classification', 'One row per asset. Priority: reservation, available now, due back by needed date, eligible in-use asset, unavailable. No needed date means no due-back deadline.'],
-            ['Excel Chart', 'Insert PivotTable from SourcingAssets: rows Sourcing Group then Project / RFQ; values Sum of Asset Count. For a Sunburst chart, use those three columns from the grouped results without subtotal rows.']];
+            ['Excel Chart', 'Open Sunburst Data, select columns A:C including the headers and populated rows, then Insert > Hierarchy Chart > Sunburst. The table already groups assets by sourcing group and project/RFQ. No PivotTable or copying is needed.']];
         $book = new Spreadsheet();
         $book->getActiveSheet()->setTitle('Request Summary');
         $this->writeSheet($book->getActiveSheet(), $summary);
@@ -69,7 +71,22 @@ class RequestSourcingExportController extends Controller
             $sheet->getStyle('G2:G'.count($rows))->getNumberFormat()->setFormatCode('yyyy-mm-dd');
         }
         $sheet->addTable(new \PhpOffice\PhpSpreadsheet\Worksheet\Table('A1:I'.count($rows), 'SourcingAssets'));
-        $book->setActiveSheetIndex(0);
+        $counts = [];
+        foreach (array_slice($rows, 1) as $row) {
+            $key = json_encode([$row[2], $row[3]], JSON_THROW_ON_ERROR);
+            if (! isset($counts[$key])) { $counts[$key] = [$row[2], $row[3], 0]; }
+            $counts[$key][2] += $row[8];
+        }
+        $groups = array_values($counts);
+        usort($groups, fn ($a, $b) => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
+        $chartRows = array_merge([['Sourcing Group', 'Project / RFQ', 'Asset Count']], $groups);
+        $chartSheet = $book->createSheet()->setTitle('Sunburst Data');
+        $this->writeSheet($chartSheet, $chartRows);
+        $chartSheet->getColumnDimension('A')->setWidth(38);
+        $chartSheet->getColumnDimension('B')->setWidth(45);
+        $chartSheet->getColumnDimension('C')->setWidth(16);
+        $chartSheet->addTable(new \PhpOffice\PhpSpreadsheet\Worksheet\Table('A1:C'.count($chartRows), 'SunburstData'));
+        $book->setActiveSheetIndex(2);
 
         return response()->streamDownload(function () use ($book) {
             try { (new Xlsx($book))->save('php://output'); }
