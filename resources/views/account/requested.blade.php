@@ -17,11 +17,6 @@
 
             <div class="box box-default">
                 <div class="box-body">
-                    @if ($showSubmissionBatches ?? false)
-                        <div class="alert alert-info">
-                            Each row is one cart submission. Open a submission to review its models, then select an availability value to inspect the related assets. Purchase amounts are estimates and require a separate procurement decision.
-                        </div>
-                    @endif
                     @if (!empty($filteredSubmission))
                         <div class="alert alert-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                             <span>
