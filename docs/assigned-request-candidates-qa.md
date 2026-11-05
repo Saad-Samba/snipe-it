@@ -141,12 +141,12 @@ The Received Requests In Use by Other Projects column and its link use other_pro
 
 Both Export Sourcing Breakdown (one model line) and Export Submission Sourcing (all active lines of one submission) download one worksheet and one table:
 
-| Sourcing Group | Project / RFQ | Model | Quantity | Total Reference Price |
-| --- | --- | --- | ---: | ---: |
-| Available Now | BMW — Falcon Gateway | VN1630A | 1 | EUR 1,200.00 |
-| Due Back | BMW — Falcon Gateway | VN1630A | 1 | EUR 1,200.00 |
-| Due Back | Ford — Vega Power Distribution | VN1630A | 1 | EUR 1,200.00 |
-| In Use | Project Missing | VN1630A | 1 | EUR 1,200.00 |
+| Sourcing Group | Project / RFQ | Total Reference Price | Model | Quantity |
+| --- | --- | ---: | --- | ---: |
+| Available Now | BMW — Falcon Gateway | EUR 1,200.00 | VN1630A | 1 |
+| Due Back | BMW — Falcon Gateway | EUR 1,200.00 | VN1630A | 1 |
+| Due Back | Ford — Vega Power Distribution | EUR 1,200.00 | VN1630A | 1 |
+| In Use | Project Missing | EUR 1,200.00 | VN1630A | 1 |
 
 Sourcing groups are Available Now, Due Back, In Use, Reserved for RFQ, and Unavailable. Project/RFQ names identify the association without this/other distinctions in the report. Project Missing flags an assigned or reserved asset with no project link. Unassigned inventory with no project association displays No Project / RFQ.
 

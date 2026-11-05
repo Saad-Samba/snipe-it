@@ -45,16 +45,16 @@ class RequestSourcingExportTest extends TestCase
         $sheet = $book->getActiveSheet();
         $this->assertSame('E', $sheet->getHighestColumn());
         $rows = collect($sheet->toArray(null, true, false));
-        $this->assertSame(['Sourcing Group', 'Project / RFQ', 'Model', 'Quantity', 'Total Reference Price'], $rows->shift());
-        $this->assertSame(19200.0, (float) $rows->sum(4));
+        $this->assertSame(['Sourcing Group', 'Project / RFQ', 'Total Reference Price', 'Model', 'Quantity'], $rows->shift());
+        $this->assertSame(19200.0, (float) $rows->sum(2));
         foreach (['Available Now' => 1200, 'Due Back' => 2400, 'In Use' => 7200,
             'Reserved for RFQ' => 4800, 'Unavailable' => 3600] as $group => $value) {
-            $this->assertSame((float) $value, (float) $rows->where(0, $group)->sum(4));
+            $this->assertSame((float) $value, (float) $rows->where(0, $group)->sum(2));
         }
         $this->assertCount(2, $rows->where(0, 'Due Back'));
         $this->assertTrue($rows->pluck(1)->contains('Project Missing'));
-        $this->assertSame('n', $sheet->getCell('E2')->getDataType());
-        $this->assertStringContainsString('EUR', $sheet->getStyle('E2')->getNumberFormat()->getFormatCode());
+        $this->assertSame('n', $sheet->getCell('C2')->getDataType());
+        $this->assertStringContainsString('EUR', $sheet->getStyle('C2')->getNumberFormat()->getFormatCode());
         $book->disconnectWorksheets();
     }
 
@@ -71,10 +71,10 @@ class RequestSourcingExportTest extends TestCase
         $book = $this->workbook($this->actingAs($admin)->get(route('requests.submission-sourcing-export', $request)));
         $this->assertSame(1, $book->getSheetCount());
         $rows = collect(array_slice($book->getActiveSheet()->toArray(null, true, false), 1));
-        $this->assertSame(20800.0, (float) $rows->sum(4));
-        $this->assertSame(18, $rows->sum(3));
-        $this->assertCount(2, $rows->pluck(2)->unique());
-        $this->assertSame(8800.0, (float) $rows->where(0, 'In Use')->sum(4));
+        $this->assertSame(20800.0, (float) $rows->sum(2));
+        $this->assertSame(18, $rows->sum(4));
+        $this->assertCount(2, $rows->pluck(3)->unique());
+        $this->assertSame(8800.0, (float) $rows->where(0, 'In Use')->sum(2));
         $book->disconnectWorksheets();
     }
 
@@ -86,8 +86,8 @@ class RequestSourcingExportTest extends TestCase
         $admin = User::where('username', 'admin')->firstOrFail();
         $book = $this->workbook($this->actingAs($admin)->get(route('requests.submission-sourcing-export', $request)));
         $rows = collect(array_slice($book->getActiveSheet()->toArray(null, true, false), 1));
-        $this->assertTrue($rows->where(0, 'In Use')->pluck(4)->contains('Unpriced'));
-        $this->assertSame(0.0, (float) $rows->where(0, 'Available Now')->first()[4]);
+        $this->assertTrue($rows->where(0, 'In Use')->pluck(2)->contains('Unpriced'));
+        $this->assertSame(0.0, (float) $rows->where(0, 'Available Now')->first()[2]);
         $book->disconnectWorksheets();
     }
 
@@ -109,7 +109,7 @@ class RequestSourcingExportTest extends TestCase
             ->get(route('requests.submission-sourcing-export', $request))->assertStatus(422);
         $other->forceFill(['needed_by_date' => $request->needed_by_date, 'canceled_at' => now()])->save();
         $book = $this->workbook($this->get(route('requests.submission-sourcing-export', $request)));
-        $this->assertSame(19200.0, (float) collect(array_slice($book->getActiveSheet()->toArray(null, true, false), 1))->sum(4));
+        $this->assertSame(19200.0, (float) collect(array_slice($book->getActiveSheet()->toArray(null, true, false), 1))->sum(2));
         $book->disconnectWorksheets();
     }
 
@@ -128,7 +128,7 @@ class RequestSourcingExportTest extends TestCase
         $sheet = $book->getActiveSheet();
         $visibleCount = Asset::visibleTo($coordinator->fresh())->where('assets.model_id', $request->requestable_id)->count();
         $rows = collect(array_slice($sheet->toArray(null, true, false), 1));
-        $this->assertSame($visibleCount * 1200.0, (float) $rows->sum(4));
+        $this->assertSame($visibleCount * 1200.0, (float) $rows->sum(2));
         foreach ($rows->values() as $i => $row) {
             if ($row[1] === '=UNTRUSTED()') { $this->assertSame('s', $sheet->getCell('B'.($i + 2))->getDataType()); }
         }

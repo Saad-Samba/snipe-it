@@ -86,14 +86,14 @@ class RequestSourcingExportController extends Controller
         uasort($groups, fn ($a, $b) => [$a['group'], $a['project'], $a['model']] <=> [$b['group'], $b['project'], $b['model']]);
         $book = new Spreadsheet();
         $sheet = $book->getActiveSheet()->setTitle('Sourcing Breakdown');
-        $sheet->fromArray([['Sourcing Group', 'Project / RFQ', 'Model', 'Quantity', 'Total Reference Price']]);
+        $sheet->fromArray([['Sourcing Group', 'Project / RFQ', 'Total Reference Price', 'Model', 'Quantity']]);
         $rowNumber = 2;
         foreach ($groups as $group) {
             $sheet->setCellValueExplicit('A'.$rowNumber, $group['group'], DataType::TYPE_STRING);
             $sheet->setCellValueExplicit('B'.$rowNumber, $group['project'], DataType::TYPE_STRING);
-            $sheet->setCellValueExplicit('C'.$rowNumber, $group['model'], DataType::TYPE_STRING);
-            $sheet->setCellValueExplicit('D'.$rowNumber, $group['quantity'], DataType::TYPE_NUMERIC);
-            $sheet->setCellValueExplicit('E'.$rowNumber, $group['unpriced'] ? 'Unpriced' : $group['cents'] / 100,
+            $sheet->setCellValueExplicit('D'.$rowNumber, $group['model'], DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('E'.$rowNumber, $group['quantity'], DataType::TYPE_NUMERIC);
+            $sheet->setCellValueExplicit('C'.$rowNumber, $group['unpriced'] ? 'Unpriced' : $group['cents'] / 100,
                 $group['unpriced'] ? DataType::TYPE_STRING : DataType::TYPE_NUMERIC);
             $rowNumber++;
         }
@@ -102,7 +102,7 @@ class RequestSourcingExportController extends Controller
             'Current model reference prices in '.($currency ?: 'the configured currency').'. Each visible asset is counted once. Unpriced means at least one asset in that group has no reference price.'
         );
         if ($rowNumber > 2) {
-            $sheet->getStyle('E2:E'.($rowNumber - 1))->getNumberFormat()
+            $sheet->getStyle('C2:C'.($rowNumber - 1))->getNumberFormat()
                 ->setFormatCode($currency ? '"'.str_replace('"', '""', $currency).'" #,##0.00' : '#,##0.00');
         }
         $sheet->addTable(new \PhpOffice\PhpSpreadsheet\Worksheet\Table('A1:E'.($rowNumber - 1), 'SourcingBreakdown'));
@@ -110,8 +110,8 @@ class RequestSourcingExportController extends Controller
         $sheet->getColumnDimension('A')->setWidth(38);
         $sheet->getColumnDimension('B')->setWidth(48);
         $sheet->getColumnDimension('C')->setWidth(25);
-        $sheet->getColumnDimension('D')->setWidth(14);
-        $sheet->getColumnDimension('E')->setWidth(25);
+        $sheet->getColumnDimension('D')->setWidth(25);
+        $sheet->getColumnDimension('E')->setWidth(14);
         $sheet->getStyle('A1:E1')->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
         $sheet->getStyle('A1:E1')->getFill()->setFillType('solid')->getStartColor()->setARGB('FF315F7D');
         $sheet->getStyle($sheet->calculateWorksheetDimension())->getAlignment()->setWrapText(true)->setVertical('top');
