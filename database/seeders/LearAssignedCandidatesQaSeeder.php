@@ -34,10 +34,10 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             'requester' => ['assets.view' => '1', 'models.request' => '1'],
             'outsider' => ['assets.view' => '1'],
         ] as $role => $permissions) {
-            $users[$role] = User::withoutGlobalScopes()->updateOrCreate(['username' => 'le-qa-'.$role], [
+            $users[$role] = User::withoutGlobalScopes()->updateOrCreate(['username' => $role === 'admin' ? 'admin' : 'le-qa-'.$role], [
                 'first_name' => 'QA', 'last_name' => ucfirst($role),
                 'email' => 'le-qa-'.$role.'@example.test', 'activated' => 1,
-                'password' => Hash::make('Lear-QA-2026!'), 'permissions' => json_encode($permissions),
+                'password' => Hash::make($role === 'admin' ? 'password' : 'Lear-QA-2026!'), 'permissions' => json_encode($permissions),
                 'locale' => 'en-US', 'company_id' => null,
             ]);
         }
@@ -222,6 +222,6 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             ResolveCheckoutRequestCoordinatorsAction::run($request, false);
             $this->command?->info($requestedModel->name.': request #'.$request->id);
         }
-        $this->command?->info('Synthetic local QA users: le-qa-admin, le-qa-coordinator, le-qa-requester, le-qa-outsider. Password: Lear-QA-2026!');
+        $this->command?->info('Synthetic demo admin: admin / password. Other QA users: le-qa-coordinator, le-qa-requester, le-qa-outsider. Password: Lear-QA-2026!');
     }
 }

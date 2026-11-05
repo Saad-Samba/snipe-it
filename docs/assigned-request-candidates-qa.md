@@ -43,12 +43,12 @@ Startup creates OAuth keys if missing and gives Apache ownership of keys and run
 
 ## Accounts and scenarios
 
-All four local QA accounts use password `Lear-QA-2026!`:
+The demo administrator uses `admin` / `password`. The other three QA accounts use password `Lear-QA-2026!`:
 
 | Username | Purpose |
 | --- | --- |
 | `le-qa-coordinator` | Received Requests and candidate review |
-| `le-qa-admin` | Superuser review, including the assigned-only request |
+| `admin` | Superuser review, including the assigned-only request |
 | `le-qa-requester` | Owns requests; new candidate bucket must return 403 |
 | `le-qa-outsider` | Has asset-list permission; new candidate bucket must return 403 |
 
@@ -114,7 +114,7 @@ The seeder maintains one model row for each catalogue case (three rows total). E
 2. Sign in as le-qa-requester (Lear-QA-2026!). Use Filters to select QA Automotive network interfaces. Expect exactly the three model rows above and no Model Number column. Technical values are synthetic QA examples.
 3. For a new request, set quantity, discipline VALIDATION, and destination IEC, then Add to Request. Open Request Cart and select a project/date. Existing active requests for the same model/project/site/discipline trigger duplicate protection; choose a different project if needed.
 4. Submit SM660-AR-11 with quantity four. Confirm the submitted demand retains four units despite zero inventory. Submission does not allocate assets.
-5. For sourcing, use the existing seeded requests for Renault — Atlas Body Control RFQ. Sign in as le-qa-coordinator and open Received Requests: VN1630A has six Assigned — release required candidates. Sign in as le-qa-admin to inspect the assigned-only LA-3080 request, which has two assigned candidates on separate projects and no coordinator routing. Requester access to the candidate bucket is forbidden.
+5. For sourcing, use the existing seeded requests for Renault — Atlas Body Control RFQ. Sign in as le-qa-coordinator and open Received Requests: VN1630A has six Assigned — release required candidates. Sign in as admin to inspect the assigned-only LA-3080 request, which has two assigned candidates on separate projects and no coordinator routing. Requester access to the candidate bucket is forbidden.
 
 The demo has FMCS disabled. No availability counts are shown to requesters in the catalogue/cart; inspect sourcing only after submission.
 
@@ -168,4 +168,4 @@ Rerun LearAssignedCandidatesQaSeeder after pulling. Existing project names and a
 
 The old SAME fixture now belongs to the active BMW project instead of the requesting RFQ. Reserved fixture assets belong to actual RFQ records. NO-PROJECT remains an intentional data-quality example and appears as In Use / Project Missing.
 
-As le-qa-admin, open VN1630A from Received Requests, follow a sourcing link, and use Export Submission Sourcing. The table totals 18 physical assets and EUR 20,800: 16 VN1630A and two LA-3080. The single-model report totals 16 and EUR 19,200. VN1630A groups: Available Now 1, Due Back 2, In Use 6, Reserved for RFQ 4, Unavailable 3. The report stays at three seeded catalogue models and 19 seeded asset records including the deleted fixture.
+As admin, open VN1630A from Received Requests, follow a sourcing link, and use Export Submission Sourcing. The table totals 18 physical assets and EUR 20,800: 16 VN1630A and two LA-3080. The single-model report totals 16 and EUR 19,200. VN1630A groups: Available Now 1, Due Back 2, In Use 6, Reserved for RFQ 4, Unavailable 3. The report stays at three seeded catalogue models and 19 seeded asset records including the deleted fixture.

@@ -33,7 +33,7 @@ class RequestSourcingExportTest extends TestCase
     public function test_single_model_export_has_only_the_requested_columns_and_all_groups(): void
     {
         $request = $this->seedRequest();
-        $admin = User::where('username', 'le-qa-admin')->firstOrFail();
+        $admin = User::where('username', 'admin')->firstOrFail();
         $this->actingAs($admin)->get(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']))
             ->assertOk()->assertSee('Export Sourcing Breakdown');
         $response = $this->get(route('hardware.requests.sourcing-export', [
@@ -67,7 +67,7 @@ class RequestSourcingExportTest extends TestCase
             'needed_by_date' => $request->needed_by_date, 'quantity' => 3,
         ]);
         CheckoutRequest::factory()->forAssetModel()->create(['submission_batch_id' => $request->submission_batch_id]);
-        $admin = User::where('username', 'le-qa-admin')->firstOrFail();
+        $admin = User::where('username', 'admin')->firstOrFail();
         $book = $this->workbook($this->actingAs($admin)->get(route('requests.submission-sourcing-export', $request)));
         $this->assertSame(1, $book->getSheetCount());
         $rows = collect(array_slice($book->getActiveSheet()->toArray(null, true, false), 1));
@@ -83,7 +83,7 @@ class RequestSourcingExportTest extends TestCase
         $request = $this->seedRequest();
         AssetModel::where('name', 'LA-3080')->firstOrFail()->update(['reference_price' => null]);
         AssetModel::where('name', 'VN1630A')->firstOrFail()->update(['reference_price' => 0]);
-        $admin = User::where('username', 'le-qa-admin')->firstOrFail();
+        $admin = User::where('username', 'admin')->firstOrFail();
         $book = $this->workbook($this->actingAs($admin)->get(route('requests.submission-sourcing-export', $request)));
         $rows = collect(array_slice($book->getActiveSheet()->toArray(null, true, false), 1));
         $this->assertTrue($rows->where(0, 'In Use')->pluck(4)->contains('Unpriced'));
@@ -105,7 +105,7 @@ class RequestSourcingExportTest extends TestCase
         $other = CheckoutRequest::where('submission_batch_id', $request->submission_batch_id)->where('id', '!=', $request->id)->firstOrFail();
         $other->update(['needed_by_date' => now()->addDays(40)]);
         $this->flushSession();
-        $this->actingAs(User::where('username', 'le-qa-admin')->firstOrFail())
+        $this->actingAs(User::where('username', 'admin')->firstOrFail())
             ->get(route('requests.submission-sourcing-export', $request))->assertStatus(422);
         $other->forceFill(['needed_by_date' => $request->needed_by_date, 'canceled_at' => now()])->save();
         $book = $this->workbook($this->get(route('requests.submission-sourcing-export', $request)));
@@ -140,7 +140,7 @@ class RequestSourcingExportTest extends TestCase
     {
         $this->seedRequest();
         $request = CheckoutRequest::where('requestable_id', AssetModel::where('name', 'SM660-AR-11')->firstOrFail()->id)->firstOrFail();
-        $admin = User::where('username', 'le-qa-admin')->firstOrFail();
+        $admin = User::where('username', 'admin')->firstOrFail();
         $book = $this->workbook($this->actingAs($admin)->get(route('hardware.requests.sourcing-export', $request)));
         $this->assertSame(1, $book->getSheetCount());
         $this->assertSame(1, $book->getActiveSheet()->getHighestRow());

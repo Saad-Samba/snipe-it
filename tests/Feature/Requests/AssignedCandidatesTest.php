@@ -284,7 +284,7 @@ class AssignedCandidatesTest extends TestCase
         $this->assertSame(6, $main->assignedCandidatesQuery($coordinator)->count());
         $this->assertSame(1, $main->coordinatorTargets()->count());
         $this->assertSame(0, $onlyAssigned->coordinatorTargets()->count());
-        $this->assertSame(2, $onlyAssigned->assignedCandidatesQuery(User::where('username', 'le-qa-admin')->firstOrFail())->count());
+        $this->assertSame(2, $onlyAssigned->assignedCandidatesQuery(User::where('username', 'admin')->firstOrFail())->count());
         $this->assertSame(2, Asset::where('model_id', $onlyAssigned->requestable_id)->distinct()->count('project_id'));
         $this->assertSame(3, AssetModel::where('category_id', AssetModel::findOrFail($main->requestable_id)->category_id)->count());
         $this->assertSame(5, \App\Models\Discipline::whereIn('name', ['HARDWARE', 'SOFTWARE', 'PLATFORM', 'SYSTEM', 'VALIDATION'])->count());
