@@ -111,7 +111,7 @@ The seeder maintains one model row for each catalogue case (three rows total). E
 | SM660-AR-11 | No inventory | No physical assets; request still allowed |
 
 1. Pull the branch, run migrations, then rerun LearAssignedCandidatesQaSeeder.
-2. Sign in as le-qa-requester (Lear-QA-2026!). Use Filters to select QA Automotive network interfaces. Expect exactly the three model rows above and no Model Number column. Technical values are synthetic QA examples.
+2. Sign in as le-qa-requester (Lear-QA-2026!). Use Filters to select QA Automotive network interfaces. Expect VN1630A and LA-3080 in this category; QA Power supplies contains SM660-AR-11. Across both categories, expect the three model rows above and no Model Number column. Technical values are synthetic QA examples.
 3. For a new request, set quantity, discipline VALIDATION, and destination IEC, then Add to Request. Open Request Cart and select a project/date. Existing active requests for the same model/project/site/discipline trigger duplicate protection; choose a different project if needed.
 4. Submit SM660-AR-11 with quantity four. Confirm the submitted demand retains four units despite zero inventory. Submission does not allocate assets.
 5. For sourcing, use the existing seeded requests for Renault — Atlas Body Control RFQ. Sign in as le-qa-coordinator and open Received Requests: VN1630A has six Assigned — release required candidates. Sign in as admin to inspect the assigned-only LA-3080 request, which has two assigned candidates on separate projects and no coordinator routing. Requester access to the candidate bucket is forbidden.
@@ -127,7 +127,7 @@ php artisan migrate:fresh --force
 php artisan db:seed --class=LearAssignedCandidatesQaSeeder --force
 ```
 
-Do not run the generic DatabaseSeeder: it creates additional random demo models and assets. A fresh dedicated seed creates exactly three models, 19 assets (including one soft-deleted exclusion fixture), one category, one manufacturer, one fieldset with two specifications, five disciplines, five companies, five project/RFQ records, one location, five statuses, four users, and three request lines in one submission. Migrations may also create their own system defaults. Disciplines: HARDWARE, SOFTWARE, PLATFORM, SYSTEM, VALIDATION. Companies: VLS, IEC, REC, SFLD, KRC.
+Do not run the generic DatabaseSeeder: it creates additional random demo models and assets. A fresh dedicated seed creates exactly three models, 19 assets (including one soft-deleted exclusion fixture), two categories, one manufacturer, one fieldset with two specifications, five disciplines, five companies, five project/RFQ records, one location, five statuses, four users, and three request lines in one submission. Migrations may also create their own system defaults. Disciplines: HARDWARE, SOFTWARE, PLATFORM, SYSTEM, VALIDATION. Companies: VLS, IEC, REC, SFLD, KRC.
 
 LA-3080 covers multiple assigned assets across other projects: LE-QA-ONLY-ASSIGNED belongs to BMW — Falcon Gateway at IEC; LE-QA-ONLY-ASSIGNED-SECOND belongs to Ford — Vega Power Distribution at VLS. Both appear as Other project candidates for the seeded Renault — Atlas Body Control RFQ request. Actual RFQ-reserved assets are different: VN1630A includes LE-QA-RESERVED, which is excluded from available/assigned candidates and handled by RFQ reservation queries.
 
@@ -169,3 +169,13 @@ Rerun LearAssignedCandidatesQaSeeder after pulling. Existing project names and a
 The old SAME fixture now belongs to the active BMW project instead of the requesting RFQ. Reserved fixture assets belong to actual RFQ records. NO-PROJECT remains an intentional data-quality example and appears as In Use / Project Missing.
 
 As admin, open VN1630A from Received Requests, follow a sourcing link, and use Export Submission Sourcing. The table totals 18 physical assets and EUR 20,800: 16 VN1630A and two LA-3080. The single-model report totals 16 and EUR 19,200. VN1630A groups: Available Now 1, Due Back 2, In Use 6, Reserved for RFQ 4, Unavailable 3. The report stays at three seeded catalogue models and 19 seeded asset records including the deleted fixture.
+
+## Simple two-line demo
+
+Rerun `LearAssignedCandidatesQaSeeder` after pulling. It creates/updates two categories without deleting other data:
+- QA Automotive network interfaces: VN1630A and LA-3080.
+- QA Power supplies: SM660-AR-11.
+
+As le-qa-requester, empty the cart and clear technical search chips. Add VN1630A quantity 4, then switch category to QA Power supplies and add SM660-AR-11 quantity 2. Use IEC, VALIDATION, and Renault — Atlas Body Control RFQ with its configured Needed By date. Submit both lines together, then open that new submission as admin / password.
+
+Expected: two lines with quantities 4 and 2 and one shared submission context. VN1630A exposes the mixed inventory groups (Available Now 1, Due Back 2, In Use 6, Reserved for RFQ 4, Unavailable 3). SM660-AR-11 has no assets but retains its requested quantity 2. Submission does not reserve or allocate assets. The inventory export contains only VN1630A stock: 16 assets, EUR 19,200; the zero-stock model does not create an inventory row.

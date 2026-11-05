@@ -286,7 +286,10 @@ class AssignedCandidatesTest extends TestCase
         $this->assertSame(0, $onlyAssigned->coordinatorTargets()->count());
         $this->assertSame(2, $onlyAssigned->assignedCandidatesQuery(User::where('username', 'admin')->firstOrFail())->count());
         $this->assertSame(2, Asset::where('model_id', $onlyAssigned->requestable_id)->distinct()->count('project_id'));
-        $this->assertSame(3, AssetModel::where('category_id', AssetModel::findOrFail($main->requestable_id)->category_id)->count());
+        $this->assertSame(2, AssetModel::where('category_id', AssetModel::findOrFail($main->requestable_id)->category_id)->count());
+        $powerCategory = \App\Models\Category::where('name', 'QA Power supplies')->firstOrFail();
+        $this->assertSame(1, AssetModel::where('category_id', $powerCategory->id)->count());
+        $this->assertSame($powerCategory->id, AssetModel::where('name', 'SM660-AR-11')->firstOrFail()->category_id);
         $this->assertSame(5, \App\Models\Discipline::whereIn('name', ['HARDWARE', 'SOFTWARE', 'PLATFORM', 'SYSTEM', 'VALIDATION'])->count());
         $this->assertSame(5, Company::whereIn('name', ['VLS', 'IEC', 'REC', 'SFLD', 'KRC'])->count());
         $this->assertSame(19, Asset::withTrashed()->where('asset_tag', 'like', 'LE-QA-%')->count());

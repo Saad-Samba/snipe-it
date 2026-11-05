@@ -97,6 +97,7 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             'created_by' => $admin->id, 'is_rfq' => true, 'rfq_needed_by_date' => now()->addDays(30)->toDateString(),
         ]);
         $category = Category::updateOrCreate(['name' => 'QA Automotive network interfaces'], ['category_type' => 'asset', 'manager_id' => $admin->id]);
+        $powerCategory = Category::updateOrCreate(['name' => 'QA Power supplies'], ['category_type' => 'asset', 'manager_id' => $admin->id]);
         $manufacturer = Manufacturer::updateOrCreate(['name' => 'QA Vector-inspired']);
         // Upgrade earlier demo names in place so reruns keep one model per scenario.
         foreach (['QA CAN-FD Validation Interface' => 'VN1630A', 'QA ECU Debug Probe' => 'LA-3080', 'QA Programmable DC Supply' => 'SM660-AR-11'] as $oldName => $name) {
@@ -113,7 +114,7 @@ class LearAssignedCandidatesQaSeeder extends Seeder
             'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id, 'reference_price' => 800,
         ]);
         $emptyModel = AssetModel::updateOrCreate(['name' => 'SM660-AR-11'], [
-            'category_id' => $category->id, 'manufacturer_id' => $manufacturer->id,
+            'category_id' => $powerCategory->id, 'manufacturer_id' => $manufacturer->id,
             'model_number' => 'QA-PSU-60V', 'reference_price' => 1900,
         ]);
         $fieldset = CustomFieldset::firstOrCreate(['name' => 'QA Electronics Technical Specifications']);
