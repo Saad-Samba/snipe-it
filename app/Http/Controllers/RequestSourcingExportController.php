@@ -41,7 +41,10 @@ class RequestSourcingExportController extends Controller
         foreach (Asset::visibleTo($request->user())->where('assets.model_id', $model->id)
             ->with('project')->orderBy('assets.id')->get() as $asset) {
             if ($reservedStatus && (int) $asset->status_id === (int) $reservedStatus) {
-                $group = 'Reserved for RFQ';
+                $group = ! $asset->project
+                    ? 'Reserved for RFQ'
+                    : ($checkoutRequest->project?->is_rfq && (int) $asset->project_id === (int) $checkoutRequest->project_id
+                        ? 'Reserved for This RFQ' : 'Reserved for Other RFQs');
             } elseif ($available->has($asset->id)) {
                 $group = 'Available Now';
             } elseif ($dueBack->has($asset->id)) {

@@ -48,10 +48,13 @@ class RequestSourcingExportTest extends TestCase
         $this->assertSame(['Sourcing Group', 'Project / RFQ', 'Total Reference Price', 'Model', 'Quantity'], $rows->shift());
         $this->assertSame(19200.0, (float) $rows->sum(2));
         foreach (['Available Now' => 1200, 'Due Back' => 2400, 'In Use' => 7200,
-            'Reserved for RFQ' => 4800, 'Unavailable' => 3600] as $group => $value) {
+            'Reserved for This RFQ' => 1200, 'Reserved for Other RFQs' => 3600, 'Unavailable' => 3600] as $group => $value) {
             $this->assertSame((float) $value, (float) $rows->where(0, $group)->sum(2));
         }
         $this->assertCount(2, $rows->where(0, 'Due Back'));
+        $this->assertSame(1, $rows->where(0, 'Reserved for This RFQ')->sum(4));
+        $this->assertSame(3, $rows->where(0, 'Reserved for Other RFQs')->sum(4));
+        $this->assertSame($request->project->name, $rows->where(0, 'Reserved for This RFQ')->first()[1]);
         $this->assertTrue($rows->pluck(1)->contains('Project Missing'));
         $this->assertSame('n', $sheet->getCell('C2')->getDataType());
         $this->assertStringContainsString('EUR', $sheet->getStyle('C2')->getNumberFormat()->getFormatCode());

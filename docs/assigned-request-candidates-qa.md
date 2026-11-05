@@ -148,7 +148,7 @@ Both Export Sourcing Breakdown (one model line) and Export Submission Sourcing (
 | Due Back | Ford — Vega Power Distribution | EUR 1,200.00 | VN1630A | 1 |
 | In Use | Project Missing | EUR 1,200.00 | VN1630A | 1 |
 
-Sourcing groups are Available Now, Due Back, In Use, Reserved for RFQ, and Unavailable. Project/RFQ names identify the association without this/other distinctions in the report. Project Missing flags an assigned or reserved asset with no project link. Unassigned inventory with no project association displays No Project / RFQ.
+Sourcing groups are Available Now, Due Back, In Use, Reserved for This RFQ, Reserved for Other RFQs, and Unavailable. Reservation labels are relative to the exported request’s RFQ; a reservation with a missing project stays Reserved for RFQ / Project Missing. Project Missing flags an assigned or reserved asset with no project link. Unassigned inventory with no project association displays No Project / RFQ.
 
 Quantity is the physical asset count, not requested demand. Each asset ID contributes once even for repeated model lines. Rows are grouped by sourcing group, project/RFQ and model. Total Reference Price sums the current model prices of those unique assets, with the configured currency in the number format. Any missing price makes the group's total Unpriced; a real zero remains numeric zero. Deleted assets are excluded. Zero-inventory models add no rows. For a value-based chart, use the hierarchy columns and Total Reference Price, omitting Quantity from the chart input.
 
@@ -168,7 +168,7 @@ Rerun LearAssignedCandidatesQaSeeder after pulling. Existing project names and a
 
 The old SAME fixture now belongs to the active BMW project instead of the requesting RFQ. Reserved fixture assets belong to actual RFQ records. NO-PROJECT remains an intentional data-quality example and appears as In Use / Project Missing.
 
-As admin, open VN1630A from Received Requests, follow a sourcing link, and use Export Submission Sourcing. The table totals 18 physical assets and EUR 20,800: 16 VN1630A and two LA-3080. The single-model report totals 16 and EUR 19,200. VN1630A groups: Available Now 1, Due Back 2, In Use 6, Reserved for RFQ 4, Unavailable 3. The report stays at three seeded catalogue models and 19 seeded asset records including the deleted fixture.
+As admin, open VN1630A from Received Requests, follow a sourcing link, and use Export Submission Sourcing. The table totals 18 physical assets and EUR 20,800: 16 VN1630A and two LA-3080. The single-model report totals 16 and EUR 19,200. VN1630A groups: Available Now 1, Due Back 2, In Use 6, Reserved for This RFQ 1, Reserved for Other RFQs 3, Unavailable 3. The report stays at three seeded catalogue models and 19 seeded asset records including the deleted fixture.
 
 ## Simple two-line demo
 
@@ -178,4 +178,4 @@ Rerun `LearAssignedCandidatesQaSeeder` after pulling. It creates/updates two cat
 
 As le-qa-requester, empty the cart and clear technical search chips. Add VN1630A quantity 4, then switch category to QA Power supplies and add SM660-AR-11 quantity 2. Use IEC, VALIDATION, and Renault — Atlas Body Control RFQ with its configured Needed By date. Submit both lines together, then open that new submission as admin / password.
 
-Expected: two lines with quantities 4 and 2 and one shared submission context. VN1630A exposes the mixed inventory groups (Available Now 1, Due Back 2, In Use 6, Reserved for RFQ 4, Unavailable 3). SM660-AR-11 has no assets but retains its requested quantity 2. Submission does not reserve or allocate assets. The inventory export contains only VN1630A stock: 16 assets, EUR 19,200; the zero-stock model does not create an inventory row.
+Expected: two lines with quantities 4 and 2 and one shared submission context. VN1630A exposes the mixed inventory groups (Available Now 1, Due Back 2, In Use 6, Reserved for This RFQ 1, Reserved for Other RFQs 3, Unavailable 3). SM660-AR-11 has no assets but retains its requested quantity 2. Submission does not reserve or allocate assets. The inventory export contains only VN1630A stock: 16 assets, EUR 19,200; the zero-stock model does not create an inventory row.
