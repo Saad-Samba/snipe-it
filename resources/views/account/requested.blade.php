@@ -32,7 +32,7 @@
                             </span>
                             <span>
                                 @if ($filteredSubmission['sourcing_export_url'] ?? null)
-                                    <a href="{{ $filteredSubmission['sourcing_export_url'] }}" class="btn btn-default btn-sm"><i class="fas fa-file-excel" aria-hidden="true"></i> Export Submission Sourcing</a>
+                                    <a href="{{ $filteredSubmission['sourcing_export_url'] }}" id="submissionSourcingExportButton" class="btn btn-primary" style="display:none;"><i class="fas fa-file-excel" aria-hidden="true"></i> Export Submission Sourcing</a>
                                 @endif
                             <a href="{{ route('requests.index') }}" class="btn btn-default btn-sm">Back to submissions</a>
                             </span>
@@ -90,6 +90,17 @@
     <script nonce="{{ csrf_token() }}">
         $(function () {
             var $table = $('#userRequests, #userRequestSubmissions');
+
+            function placeSourcingExportButton() {
+                var $buttons = $table.closest('.bootstrap-table').find('.fixed-table-toolbar .columns');
+                var $export = $('#submissionSourcingExportButton');
+                if ($buttons.length && $export.length) {
+                    $buttons.prepend($export);
+                    $export.show();
+                }
+            }
+            $table.on('post-header.bs.table', placeSourcingExportButton);
+            placeSourcingExportButton();
 
             function getActiveAdvancedFilters() {
                 var bootstrapTableInstance = $table.data('bootstrap.table');

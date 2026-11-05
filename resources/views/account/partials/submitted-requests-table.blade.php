@@ -5,7 +5,6 @@
         <span class="small">Available Now, Due Back, RFQ Reservations, Estimated Savings, Estimated Qty to Procure, and Estimated Purchase Cost. All Sites figures are aggregate counts across Sites; asset details remain role-scoped.</span>
     </div>
 @endif
-<p class="text-muted small">Availability, shortfall, savings, and purchase amounts are sourcing estimates. Assets in use by other projects require release confirmation and do not reduce the estimated quantity to procure. Confirmed allocations are tracked separately.</p>
 <table
         data-cookie-id-table="{{ $tableId }}"
         data-id-table="{{ $tableId }}"

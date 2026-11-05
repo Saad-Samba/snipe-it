@@ -335,7 +335,7 @@ class RequestableModelsPageTest extends TestCase
         $this->assertSame(0, $request->allocatedAssets()->count());
         $this->assertSame(0, Asset::where('model_id', $model->id)->count());
         $this->get(route('requests.index', ['request_id' => $request->id]))->assertOk()
-            ->assertSee('data-field="procurement_shortfall"', false)->assertSee('sourcing estimates');
+            ->assertSee('data-field="procurement_shortfall"', false)->assertDontSee('Availability, shortfall, savings, and purchase');
     }
 
     public function test_technical_filters_search_across_all_pages_and_combine_with_category_and_text(): void
