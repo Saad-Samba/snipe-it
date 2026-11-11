@@ -8,6 +8,7 @@ use App\Http\Requests\StoreAssetModelRequest;
 use App\Models\Actionlog;
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\CustomField;
 use App\Models\SnipeModel;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
