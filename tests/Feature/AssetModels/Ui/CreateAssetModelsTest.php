@@ -72,6 +72,22 @@ class CreateAssetModelsTest extends TestCase
         $response->assertDontSee('Unmanaged Beta Category');
     }
 
+    public function testWebCreateRejectsDuplicateNameWhenOlderModelHasNumber(): void
+    {
+        AssetModel::factory()->create(['name' => 'Shared Model Name', 'model_number' => 'LEGACY-123']);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.create'))
+            ->post(route('models.store'), [
+                'name' => 'Shared Model Name',
+                'category_id' => Category::factory()->forAssets()->create()->id,
+            ])
+            ->assertRedirect(route('models.create'))
+            ->assertSessionHasErrors(['name' => 'A model with this name already exists. Use distinct model names.']);
+
+        $this->assertSame(1, AssetModel::where('name', 'Shared Model Name')->count());
+    }
+
     public function testUserCanCreateAssetModels()
     {
         $this->assertFalse(AssetModel::where('name', 'Test Model')->exists());
@@ -212,7 +228,7 @@ class CreateAssetModelsTest extends TestCase
 
     }
 
-    public function testUniquenessAcrossModelNameAndModelNumber()
+    public function testWebCreateRejectsExistingModelName()
     {
 
         AssetModel::factory()->create(['name' => 'Test Model', 'model_number'=>'1234']);
@@ -225,9 +241,9 @@ class CreateAssetModelsTest extends TestCase
                 'category_id' => Category::factory()->create()->id
             ])
             ->assertStatus(302)
-            ->assertSessionHasErrors(['name','model_number'])
+            ->assertSessionHasErrors(['name'])
             ->assertRedirect(route('models.create'))
-            ->assertInvalid(['name','model_number']);
+            ->assertInvalid(['name']);
 
         $this->followRedirects($response)->assertSee(trans('general.error'));
 

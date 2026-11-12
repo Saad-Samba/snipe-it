@@ -5,6 +5,7 @@ namespace Tests\Feature\Importing\Api;
 use App\Mail\CheckoutAssetMail;
 use App\Models\Actionlog as ActionLog;
 use App\Models\Asset;
+use App\Models\AssetModel;
 use App\Models\CustomField;
 use App\Models\Import;
 use App\Models\User;
@@ -51,6 +52,26 @@ class ImportAssetsTest extends ImportDataTestCase implements TestsPermissionsReq
         $import = Import::factory()->asset()->create();
 
         $this->importFileResponse(['import' => $import->id])->assertOk();
+    }
+
+    #[Test]
+    public function importAssetWithoutSerialForPreviouslyRequiredModel(): void
+    {
+        $model = AssetModel::factory()->create(['require_serial' => 1]);
+        $row = ImportFileBuilder::new()->definition();
+        $row['model'] = $model->name;
+        $row['modelNumber'] = '';
+        $row['serialNumber'] = '';
+        $importFileBuilder = new ImportFileBuilder([$row]);
+        $import = Import::factory()->asset()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $asset = Asset::where('asset_tag', $row['tag'])->sole();
+        $this->assertEmpty($asset->serial);
     }
 
     #[Test]

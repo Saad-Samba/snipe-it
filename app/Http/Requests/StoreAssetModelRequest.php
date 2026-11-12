@@ -61,12 +61,31 @@ class StoreAssetModelRequest extends ImageUploadRequest
             ]);
         }
 
+        $rules['require_serial'] = [function ($attribute, $value, $fail) {
+            if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                $fail('Require Serial Number is no longer supported; asset serials are optional.');
+            }
+        }];
+
         return $rules;
     }
 
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            if ($this->routeIs('models.store', 'models.update') && $this->filled('name')) {
+                $currentModel = $this->route('model');
+                if ($currentModel && ! $currentModel instanceof AssetModel) {
+                    $currentModel = AssetModel::find($currentModel);
+                }
+
+                if (! $currentModel || $currentModel->name !== $this->input('name')) {
+                    if (AssetModel::where('name', $this->input('name'))->exists()) {
+                        $validator->errors()->add('name', 'A model with this name already exists. Use distinct model names.');
+                    }
+                }
+            }
+
             if (! $this->filled('category_id')) {
                 return;
             }

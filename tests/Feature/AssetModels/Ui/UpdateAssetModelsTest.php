@@ -44,6 +44,24 @@ class UpdateAssetModelsTest extends TestCase
         $this->assertSame(5, $model->fresh()->min_amt);
     }
 
+    public function testModelEditPreservesHiddenModelNumberAndSerialControlIsAbsent(): void
+    {
+        $model = AssetModel::factory()->create(['model_number' => 'LEGACY-MPN']);
+        $user = User::factory()->superuser()->create();
+
+        $this->actingAs($user)->get(route('models.edit', $model))
+            ->assertOk()
+            ->assertDontSee('name="model_number"', false)
+            ->assertDontSee('name="require_serial"', false);
+
+        $this->put(route('models.update', $model), [
+            'name' => $model->name,
+            'category_id' => $model->category_id,
+        ])->assertRedirect(route('models.index'));
+
+        $this->assertSame('LEGACY-MPN', $model->fresh()->model_number);
+    }
+
     public function testEditPageShowsCategoryFieldsetDefaultsWithoutModelOverrideControls()
     {
         $categoryFieldset = CustomFieldset::factory()->create(['name' => 'Category Governed Fieldset']);

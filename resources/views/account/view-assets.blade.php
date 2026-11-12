@@ -466,9 +466,6 @@
                       <th class="col-md-2" data-switchable="true" data-visible="true">
                         {{ trans('admin/hardware/table.asset_model') }}
                       </th>
-                      <th class="col-md-2" data-switchable="true" data-visible="false">
-                        {{ trans('general.model_no') }}
-                      </th>
                       <th class="col-md-3" data-switchable="true" data-visible="true">
                         {{ trans('admin/hardware/table.serial') }}
                       </th>
@@ -534,9 +531,6 @@
                         </td>
                         <td>
                             {!!  ($asset->model) ? $asset->model->present()->formattedNameLink : trans('general.deleted') !!}
-                        </td>
-                        <td>
-                          {{ $asset->model->model_number }}
                         </td>
                         <td>
                           {{ $asset->serial }}

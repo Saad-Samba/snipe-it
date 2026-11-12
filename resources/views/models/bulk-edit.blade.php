@@ -38,9 +38,6 @@
                                         <i class="fa {!!  (($model->assets_count > 0 ) ? 'fa-warning info' : 'fa-check success') !!}"></i>
                                         {{ $model->display_name }}
 
-                                            @if ($model->model_number)
-                                                ({{ $model->model_number }})
-                                            @endif
                                         </td>
                                         <td>{{ $model->assets_count }} assets
                                     </td>
@@ -93,28 +90,6 @@
                                 <div class="col-md-7">
                                     <input class="form-control" type="number" name="reference_price" id="reference_price" min="0.00" max="99999999999999999.99" step="0.01" value="{{ old('reference_price') }}" />
                                     {!! $errors->first('reference_price', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
-                                </div>
-                            </div>
-
-                            <!-- require serial boolean -->
-                            <div class="form-group">
-                                <label for="require_serial" class="col-md-3 control-label">
-                                    {{ trans('admin/hardware/general.require_serial') }}
-                                </label>
-
-                                <div class="col-md-9">
-                                    <div class="form-inline" style="display: flex; align-items: center; gap: 8px;">
-                                        <input type="checkbox" name="require_serial" value="1" id="require_serial" aria-label="require_serial" />
-                                        <a
-                                                href="#"
-                                                data-tooltip="true"
-                                                title="{{ trans('admin/hardware/general.require_serial_help') }}"
-                                                style="display: inline-flex; align-items: center;"
-                                        >
-                                            <x-icon type="info-circle" />
-                                            <span class="sr-only">{{ trans('admin/hardware/general.require_serial_help') }}</span>
-                                        </a>
-                                    </div>
                                 </div>
                             </div>
 

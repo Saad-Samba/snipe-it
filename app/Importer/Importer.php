@@ -68,6 +68,7 @@ abstract class Importer
         'reassignable' => 'reassignable',
         'obsolete' => 'obsolete',
         'requestable' => 'requestable',
+        'require_serial' => 'require serial',
         'seats' => 'seats',
         'serial' => 'serial number',
         'status' => 'status',

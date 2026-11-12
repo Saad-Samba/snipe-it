@@ -164,10 +164,6 @@
                                    <label class="form-control">
                                        <input type="checkbox" name="show_in_model_list[]" value="manufacturer" @checked(old('show_in_model_list', $snipeSettings->modellistCheckedValue('manufacturer'))) aria-label="show_in_model_list"/>
                                        {{ trans('general.manufacturer') }} </label>
-                                   <label class="form-control">
-                                       <input type="checkbox" name="show_in_model_list[]" value="model_number" @checked(old('show_in_model_list', $snipeSettings->modellistCheckedValue('model_number'))) aria-label="show_in_model_list"/>
-                                       {{ trans('general.model_no') }}
-                                   </label>
                                </div>
                            </div>
 

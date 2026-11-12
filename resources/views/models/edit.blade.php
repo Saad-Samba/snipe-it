@@ -33,7 +33,6 @@
     {!! $errors->first('category_type', '<div class="col-md-8 col-md-offset-3"><span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span></div>') !!}
 </div>
 @include ('partials.forms.edit.manufacturer-select', ['translated_name' => trans('general.manufacturer'), 'fieldname' => 'manufacturer_id'])
-@include ('partials.forms.edit.model_number')
 <div class="form-group {{ $errors->has('reference_price') ? ' has-error' : '' }}">
     <label for="reference_price" class="col-md-3 control-label">
         Reference Price
@@ -66,27 +65,6 @@
     </div>
 </div>
 
-<!-- require serial boolean -->
-<div class="form-group">
-    <label for="require_serial" class="col-md-3 control-label">
-        {{ trans('admin/hardware/general.require_serial') }}
-    </label>
-
-    <div class="col-md-9">
-        <div class="form-inline" style="display: flex; align-items: center; gap: 8px;">
-            <input type="checkbox" name="require_serial" value="1" @checked(old('require_serial', $item->require_serial)) id="require_serial" aria-label="require_serial" />
-            <a
-                    href="#"
-                    data-tooltip="true"
-                    title="{{ trans('admin/hardware/general.require_serial_help') }}"
-                    style="display: inline-flex; align-items: center;"
-            >
-                <x-icon type="info-circle" />
-                <span class="sr-only">{{ trans('admin/hardware/general.require_serial_help') }}</span>
-            </a>
-        </div>
-    </div>
-</div>
 <!-- EOL -->
 
 <div class="form-group {{ $errors->has('eol') ? ' has-error' : '' }}">

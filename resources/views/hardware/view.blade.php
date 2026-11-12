@@ -718,19 +718,6 @@
                                         </div>
                                     @endif
 
-                                    <div class="row">
-                                        <div class="col-md-3">
-                                            <strong>
-                                                {{ trans('admin/models/table.modelnumber') }}
-                                            </strong>
-                                        </div>
-                                        <div class="col-md-9">
-                                            @if (($asset->model) && ($asset->model->model_number!=''))
-                                                <x-copy-to-clipboard copy_what="model_number">{{ ($asset->model) ? $asset->model->model_number : ''}}</x-copy-to-clipboard>
-                                            @endif
-                                        </div>
-                                    </div>
-
                                     <!-- byod -->
                                     <div class="row byod">
                                         <div class="col-md-3">

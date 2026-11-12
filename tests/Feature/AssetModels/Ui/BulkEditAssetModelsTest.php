@@ -41,6 +41,22 @@ class BulkEditAssetModelsTest extends TestCase
         });
     }
 
+    public function testBulkEditCannotEnableRetiredSerialRequirement(): void
+    {
+        $model = AssetModel::factory()->create(['require_serial' => 0]);
+
+        $this->actingAs(User::factory()->superuser()->create())
+            ->from(route('models.index'))
+            ->post(route('models.bulkedit.store'), [
+                'ids' => [$model->id],
+                'require_serial' => '1',
+            ])
+            ->assertRedirect(route('models.index'))
+            ->assertSessionHasErrors(['require_serial']);
+
+        $this->assertEquals(0, $model->fresh()->require_serial);
+    }
+
     public function testUserCanBulkSetAssetModelsObsolete()
     {
         $models = AssetModel::factory()->count(2)->create(['obsolete' => false]);

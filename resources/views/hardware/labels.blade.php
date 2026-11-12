@@ -150,7 +150,7 @@ $qr_size = ($settings->alt_barcode_enabled=='1') && ($settings->label2_1d_type!=
             @endif
             @if (($settings->labels_display_model=='1') && ($asset->model->name!=''))
                 <div class="pull-left">
-                    M: {{ $asset->model->name }} {{ $asset->model->model_number }}
+                    M: {{ $asset->model->name }}
                 </div>
             @endif
 

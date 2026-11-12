@@ -25,9 +25,6 @@
 @if (isset($item->model))
 | **{{ trans('general.asset_model') }}** | {{ $item->model->name }} |
 @endif
-@if ((isset($item->model->model_number)) && ($item->model->name!=$item->model->model_number))
-| **{{ trans('general.model_no') }}** | {{ $item->model->model_number }} |
-@endif
 @if (isset($item->serial))
 | **{{ trans('mail.serial') }}** | {{ $item->serial }} |
 @endif
