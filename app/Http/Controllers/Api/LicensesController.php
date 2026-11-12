@@ -169,10 +169,8 @@ class LicensesController extends Controller
                 $licenses = $licenses->leftJoin('disciplines', 'licenses.discipline_id', '=', 'disciplines.id')->orderBy('disciplines.name', $order);
                 break;
             case 'project':
-                $licenses = $licenses->leftJoin('projects as project_sort', function ($join) {
-                    $join->on('licenses.project_id', '=', 'project_sort.id')
-                        ->whereNull('project_sort.deleted_at');
-                })->orderBy('project_sort.name', $order)->orderBy('licenses.id');
+                $licenses = $licenses->leftJoin('projects as project_sort', 'licenses.project_id', '=', 'project_sort.id')
+                    ->orderBy('project_sort.name', $order)->orderBy('licenses.id');
                 break;
             case 'created_by':
                 $licenses = $licenses->OrderByCreatedBy($order);

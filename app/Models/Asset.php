@@ -2376,7 +2376,7 @@ class Asset extends Depreciable
     }
 
     /**
-     * Query builder scope to order on active project name
+     * Query builder scope to order on project name
      *
      * @param \Illuminate\Database\Query\Builder $query Query builder instance
      * @param text                               $order Order
@@ -2385,10 +2385,8 @@ class Asset extends Depreciable
      */
     public function scopeOrderProject($query, $order)
     {
-        return $query->leftJoin('projects as project_sort', function ($join) {
-            $join->on('assets.project_id', '=', 'project_sort.id')
-                ->whereNull('project_sort.deleted_at');
-        })->orderBy('project_sort.name', $order)->orderBy('assets.id');
+        return $query->leftJoin('projects as project_sort', 'assets.project_id', '=', 'project_sort.id')
+            ->orderBy('project_sort.name', $order)->orderBy('assets.id');
     }
 
     /**
