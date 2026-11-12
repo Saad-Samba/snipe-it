@@ -9,15 +9,22 @@
 
 <div class="form-group{{ $errors->has($validationField) ? ' has-error' : '' }}">
 
-    <label for="{{ $fieldname }}" class="col-md-3 control-label">
+    <label for="discipline_select" class="col-md-3 control-label">
         {{ $translated_name }}
+        @if (!empty($discipline_required))
+            <span class="text-danger" aria-hidden="true">*</span>
+            <span class="sr-only">{{ trans('admin/custom_fields/general.required') }}</span>
+        @endif
         @if (!empty($new_feature))
             <x-new-feature-label />
         @endif
     </label>
 
     <div class="col-md-6">
-        <select class="js-data-ajax" data-endpoint="disciplines" data-placeholder="{{ trans('general.select_discipline') }}" name="{{ $fieldname }}" style="width: 100%" id="discipline_select" aria-label="{{ $fieldname }}"{{ (isset($multiple) && ($multiple=='true')) ? " multiple='multiple'" : '' }}>
+        <select class="js-data-ajax" data-endpoint="disciplines" data-placeholder="{{ trans('general.select_discipline') }}" name="{{ $fieldname }}" style="width: 100%" id="discipline_select" aria-label="{{ $translated_name }}" @if (!empty($discipline_required)) required aria-required="true" @endif{{ (isset($multiple) && ($multiple=='true')) ? " multiple='multiple'" : '' }}>
+            @if (empty($multiple) || $multiple == 'false')
+                <option value="">{{ trans('general.select_discipline') }}</option>
+            @endif
             @foreach ($selectedValues as $discipline_id)
                 @if ($discipline_id)
                     <option value="{{ $discipline_id }}" selected="selected" role="option" aria-selected="true">

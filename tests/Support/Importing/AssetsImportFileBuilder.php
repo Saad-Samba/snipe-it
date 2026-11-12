@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support\Importing;
 
 use Illuminate\Support\Str;
+use App\Models\Discipline;
 
 /**
  * Build an assets import file at runtime for testing.
@@ -46,6 +47,7 @@ class AssetsImportFileBuilder extends FileBuilder
             'assigneeUsername'    => 'Username',
             'category'            => 'Category',
             'companyName'         => 'Company',
+            'disciplineName'      => 'Discipline',
             'itemName'            => 'item Name',
             'location'            => 'Location',
             'manufacturerName'    => 'Manufacturer',
@@ -71,6 +73,7 @@ class AssetsImportFileBuilder extends FileBuilder
 
         return [
             'asset_tag'           => Str::random(),
+            'disciplineName'      => Discipline::firstOrCreate(['name' => 'QA Import Discipline'])->name,
             'assigneeFullName'    => $faker->name,
             'assigneeEmail'       => $faker->email,
             'assigneeUsername'    => $faker->userName,

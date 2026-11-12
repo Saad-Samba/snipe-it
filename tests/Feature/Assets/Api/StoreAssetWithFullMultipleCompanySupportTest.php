@@ -3,6 +3,7 @@
 namespace Tests\Feature\Assets\Api;
 
 use App\Models\Asset;
+use App\Models\Discipline;
 use App\Models\AssetModel;
 use App\Models\Statuslabel;
 use App\Models\User;
@@ -26,6 +27,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
 
         $response = $this->actingAsForApi($actor)
             ->postJson(route('api.assets.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'asset_tag' => 'random_string',
                 'company_id' => $company->id,
                 'model_id' => AssetModel::factory()->create()->id,
@@ -58,6 +60,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
 
         $response = $this->actingAsForApi($actor)
             ->postJson(route('api.assets.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'asset_tag' => 'random_string',
                 'company_id' => (string) $company->id,
                 'model_id' => AssetModel::factory()->create()->id,
@@ -89,6 +92,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
 
         $this->actingAsForApi($actor)
             ->postJson(route('api.assets.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'asset_tag' => 'random_string',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
@@ -109,6 +113,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
 
         $response = $this->actingAsForApi($actor)
             ->postJson(route('api.assets.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'asset_tag' => 'random_string',
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,

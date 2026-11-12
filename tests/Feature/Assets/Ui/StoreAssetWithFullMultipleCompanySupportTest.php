@@ -3,6 +3,7 @@
 namespace Tests\Feature\Assets\Ui;
 
 use App\Models\Asset;
+use App\Models\Discipline;
 use App\Models\AssetModel;
 use App\Models\Statuslabel;
 use App\Models\User;
@@ -23,6 +24,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
 
         $response = $this->actingAs($actor)
             ->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'asset_tags' => ['1' => '1234'],
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->create()->id,
@@ -54,6 +56,7 @@ class StoreAssetWithFullMultipleCompanySupportTest extends TestCase
         $response = $this->actingAs($actor)
             ->from(route('hardware.create'))
             ->post(route('hardware.store'), [
+                'discipline_id' => Discipline::firstOrCreate(['name' => 'QA Discipline'])->id,
                 'asset_tags' => ['1' => '1234'],
                 'model_id' => AssetModel::factory()->create()->id,
                 'status_id' => Statuslabel::factory()->create()->id,

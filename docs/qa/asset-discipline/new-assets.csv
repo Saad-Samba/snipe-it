@@ -1,0 +1,4 @@
+Asset Tag,Model name,Category,Manufacturer,Company,Status,Discipline
+QA-DISC-IMPORT-OK,Discipline QA Model,Discipline QA Family,Discipline QA Manufacturer,Discipline QA Site,Discipline QA Ready,Discipline QA Hardware
+QA-DISC-IMPORT-BLANK,Discipline QA Model,Discipline QA Family,Discipline QA Manufacturer,Discipline QA Site,Discipline QA Ready,
+QA-DISC-IMPORT-UNKNOWN,Discipline QA Model,Discipline QA Family,Discipline QA Manufacturer,Discipline QA Site,Discipline QA Ready,Unknown Discipline QA
