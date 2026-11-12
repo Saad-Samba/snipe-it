@@ -44,14 +44,15 @@ class UpdateAssetModelsTest extends TestCase
         $this->assertSame(5, $model->fresh()->min_amt);
     }
 
-    public function testModelEditPreservesHiddenModelNumberAndSerialControlIsAbsent(): void
+    public function testModelEditPreservesHiddenModelNumberAndEolAndSerialControlIsAbsent(): void
     {
-        $model = AssetModel::factory()->create(['model_number' => 'LEGACY-MPN']);
+        $model = AssetModel::factory()->create(['model_number' => 'LEGACY-MPN', 'eol' => 36]);
         $user = User::factory()->superuser()->create();
 
         $this->actingAs($user)->get(route('models.edit', $model))
             ->assertOk()
             ->assertDontSee('name="model_number"', false)
+            ->assertDontSee('name="eol"', false)
             ->assertDontSee('name="require_serial"', false);
 
         $this->put(route('models.update', $model), [
@@ -60,6 +61,7 @@ class UpdateAssetModelsTest extends TestCase
         ])->assertRedirect(route('models.index'));
 
         $this->assertSame('LEGACY-MPN', $model->fresh()->model_number);
+        $this->assertSame(36, (int) $model->fresh()->eol);
     }
 
     public function testEditPageShowsCategoryFieldsetDefaultsWithoutModelOverrideControls()

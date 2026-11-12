@@ -65,34 +65,6 @@
     </div>
 </div>
 
-<!-- EOL -->
-
-<div class="form-group {{ $errors->has('eol') ? ' has-error' : '' }}">
-    <label for="eol" class="col-md-3 control-label">{{ trans('general.eol') }}</label>
-    <div class="col-md-3 col-sm-4 col-xs-7">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <div class="input-group" style="flex: 1;">
-                <input class="form-control" type="text" name="eol" id="eol" value="{{ old('eol', isset($item->eol)) ? $item->eol : ''  }}" />
-                <span class="input-group-addon">
-                    {{ trans('general.months') }}
-                </span>
-            </div>
-            <a
-                    href="#"
-                    data-tooltip="true"
-                    title="{{ trans('admin/models/general.eol_help') }}"
-                    style="display: inline-flex; align-items: center;"
-            >
-                <x-icon type="info-circle" />
-                <span class="sr-only">{{ trans('admin/models/general.eol_help') }}</span>
-            </a>
-        </div>
-    </div>
-    <div class="col-md-9 col-md-offset-3">
-        {!! $errors->first('eol', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
-    </div>
-</div>
-
 <!-- Custom Fieldset -->
 <!-- If $item->id is null we are cloning the model and we need the $model_id variable -->
 @livewire('custom-field-set-default-values-for-model', [

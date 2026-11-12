@@ -114,14 +114,6 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'categoriesLinkObjFormatter',
             ],
             [
-                'field' => 'eol',
-                'searchable' => false,
-                'sortable' => true,
-                'switchable' => true,
-                'title' => trans('admin/hardware/form.eol_rate'),
-                'visible' => true,
-            ],
-            [
                 'field' => 'obsolete',
                 'searchable' => false,
                 'sortable' => true,
