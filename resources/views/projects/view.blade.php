@@ -131,7 +131,7 @@
                                         'showProject' => false,
                                         'showActions' => false,
                                         'showFooter' => true,
-                                        'footerLabelFormatter' => 'requestPageTotalLabelFormatter',
+                                        'footerLabelFormatter' => 'requestProjectTotalLabelFormatter',
                                     ])
                                 @endif
                             </div>
