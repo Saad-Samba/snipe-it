@@ -27,7 +27,7 @@ class StoreAssetsTest extends TestCase
             ->assertSeeHtml('id="company_select" required');
     }
 
-    public function testAssetCanBeStoredWithSerialRequiredAndSerialProvided()
+    public function testAssetCanBeStoredWithSerialProvided()
     {
         $user = User::factory()->superuser()->create();
         $this->actingAs($user);
@@ -60,31 +60,24 @@ class StoreAssetsTest extends TestCase
 
     }
 
-    public function testAssetCannotBeStoredIfSerialRequiredAndMissing()
+    public function testAssetCanBeStoredWithoutSerialEvenForPreviouslyRequiredModel()
     {
-        $user = User::factory()->superuser()->create();
-        $this->actingAs($user);
+        $this->actingAs(User::factory()->superuser()->create());
+        $model = AssetModel::factory()->create(['require_serial' => 1]);
 
-        $model = AssetModel::factory()->create([
-            'require_serial' => 1,
-        ]);
-
-        $response = $this->post(route('hardware.store'), [
+        $this->post(route('hardware.store'), [
+            'company_id' => Company::factory()->create()->id,
             'model_id' => $model->id,
-            'serials' => [], // ← serial missing
+            'serials' => [],
             'asset_tags' => [1 => '1234'],
-            'status_id' => 1,
-        ]);
+            'status_id' => StatusLabel::factory()->create()->id,
+        ])->assertRedirect()->assertSessionHas('success-unescaped');
 
-        $response->assertRedirect();
-        $response->assertSessionHasErrors(['serials.1']);
-
-        $this->assertDatabaseMissing('assets', [
+        $this->assertDatabaseHas('assets', [
             'model_id' => $model->id,
             'asset_tag' => '1234',
+            'serial' => null,
         ]);
-
-        $response->assertSessionMissing('success-unescaped');
     }
 
     public function test_asset_reads_technical_specifications_from_its_model(): void

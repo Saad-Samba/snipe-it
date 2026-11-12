@@ -25,10 +25,6 @@
     @include ('partials.forms.edit.user-select', ['translated_name' => trans('general.owner'), 'fieldname' => 'owner_id', 'field_id' => 'owner_id_select', 'container_id' => 'asset_owner', 'hide_new' => 'true'])
 
 
-    @php
-        $serialModel = \App\Models\AssetModel::find(old('model_id', $item->model_id ?? request('model_id')));
-        $serialRequired = (bool) ($serialModel->require_serial ?? false);
-    @endphp
     @include ('partials.forms.edit.model-select', ['translated_name' => trans('admin/hardware/form.model'), 'fieldname' => 'model_id', 'field_req' => true])
 
   <!-- Asset Tag -->
@@ -63,10 +59,7 @@
       @endif
   </div>
 
-    @include ('partials.forms.edit.serial', ['fieldname'=> 'serials[1]', 'old_val_name' => 'serials.1', 'translated_serial' => trans('admin/hardware/form.serial'), 'serial_required' => $serialRequired])
-    <div class="col-md-7 col-md-offset-3">
-        <p id="serial-requirement-help" class="help-block" role="status" aria-live="polite">{{ $serialRequired ? trans('admin/hardware/form.serial_required_for_model') : '' }}</p>
-    </div>
+    @include ('partials.forms.edit.serial', ['fieldname'=> 'serials[1]', 'old_val_name' => 'serials.1', 'translated_serial' => trans('admin/hardware/form.serial')])
 
     <div class="input_fields_wrap">
     </div>
@@ -184,20 +177,6 @@
 
 <script nonce="{{ csrf_token() }}">
 
-    var serialRequired = @json($serialRequired);
-    var serialRequiredHelp = @json(trans('admin/hardware/form.serial_required_for_model'));
-
-    function updateSerialRequirement(required) {
-        serialRequired = required;
-        document.querySelectorAll('input[name^="serials["]').forEach(function (input) {
-            input.required = required;
-            input.setAttribute('aria-required', String(required));
-            input.setAttribute('aria-describedby', 'serial-requirement-help');
-            input.parentElement.classList.toggle('required', required);
-        });
-        document.getElementById('serial-requirement-help').textContent = required ? serialRequiredHelp : '';
-    }
-
     @if(Request::has('model_id'))
         //TODO: Refactor custom fields to use Livewire, populate from server on page load when requested with model_id
     $(document).ready(function() {
@@ -295,16 +274,6 @@
 
 
     $(function () {
-        $('#model_select_id option:selected').data('require-serial', serialRequired);
-        updateSerialRequirement(serialRequired);
-        $('#model_select_id').on('change', function () {
-            var selection = $(this).select2('data')[0];
-            var required = selection && selection.require_serial;
-            if (typeof required === 'undefined') {
-                required = $(this).find('option:selected').data('require-serial');
-            }
-            updateSerialRequirement(required === true || required === 1 || required === '1');
-        });
         //grab custom fields for this model whenever model changes.
         $('#model_select_id').on("change", fetchCustomFields);
 
@@ -365,7 +334,6 @@
                 box_html += '</div>';
                 box_html += '</span>';
                 $(wrapper).append(box_html);
-                updateSerialRequirement(serialRequired);
 
             // We have reached the maximum number of extra asset fields, so disable the button
             } else {

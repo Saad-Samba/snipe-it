@@ -53,14 +53,6 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'manufacturersLinkObjFormatter',
             ],
             [
-                'field' => 'model_number',
-                'searchable' => true,
-                'sortable' => true,
-                'switchable' => true,
-                'title' => trans('admin/models/table.modelnumber'),
-                'visible' => true,
-            ],
-            [
                 'field' => 'reference_price',
                 'searchable' => false,
                 'sortable' => true,
@@ -145,14 +137,6 @@ class AssetModelPresenter extends Presenter
                 'title' => trans('admin/models/general.fieldset'),
                 'visible' => true,
                 'formatter' => 'fieldsetsLinkObjFormatter',
-            ],
-            [
-                'field' => 'require_serial',
-                'searchable' => false,
-                'sortable' => true,
-                'visible' => false,
-                'title' => trans('admin/hardware/general.require_serial'),
-                'formatter' => 'trueFalseFormatter',
             ],
             [
                 'field' => 'notes',
@@ -246,10 +230,6 @@ class AssetModelPresenter extends Presenter
             $name .= $this->model->manufacturer->name.' ';
         }
         $name .= $this->name;
-
-        if ($this->model_number) {
-            $name .= ' (#'.$this->model_number.')';
-        }
 
         return $name;
     }

@@ -84,7 +84,9 @@ class AssetModelsController extends Controller
 
         $model->eol = $request->input('eol');
         $model->name = $request->input('name');
-        $model->model_number = $request->input('model_number');
+        if ($request->exists('model_number')) {
+            $model->model_number = $request->input('model_number');
+        }
         $model->reference_price = $request->input('reference_price');
         $model->manufacturer_id = $request->input('manufacturer_id');
         $model->category_id = $request->input('category_id');
@@ -92,7 +94,6 @@ class AssetModelsController extends Controller
         $model->notes = $request->input('notes');
         $model->created_by = auth()->id();
         $model->obsolete = $request->has('obsolete');
-        $model->require_serial = $request->input('require_serial', 0);
 
         if (config('leams.model_fieldset_overrides') && $request->input('fieldset_id') != '') {
             $model->fieldset_id = $request->input('fieldset_id');
@@ -161,14 +162,15 @@ class AssetModelsController extends Controller
         $model = $request->handleImages($model);
         $model->eol = $request->input('eol');
         $model->name = $request->input('name');
-        $model->model_number = $request->input('model_number');
+        if ($request->exists('model_number')) {
+            $model->model_number = $request->input('model_number');
+        }
         $model->reference_price = $request->input('reference_price');
         $model->manufacturer_id = $request->input('manufacturer_id');
         $model->category_id = $request->input('category_id');
         $model->unsetRelation('category');
         $model->notes = $request->input('notes');
         $model->obsolete = $request->input('obsolete', '0');
-        $model->require_serial = $request->input('require_serial', 0);
         if (config('leams.model_fieldset_overrides')) {
             $model->fieldset_id = $request->input('fieldset_id');
         }

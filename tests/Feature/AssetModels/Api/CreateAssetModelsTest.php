@@ -40,6 +40,21 @@ class CreateAssetModelsTest extends TestCase
         $this->assertTrue($model->obsolete);
     }
 
+    public function testCannotEnableRetiredSerialRequirement(): void
+    {
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->postJson(route('api.models.store'), [
+                'name' => 'Retired Serial Rule',
+                'category_id' => Category::factory()->assetLaptopCategory()->create()->id,
+                'require_serial' => true,
+            ])
+            ->assertOk()
+            ->assertStatusMessageIs('error')
+            ->assertJsonPath('messages.require_serial.0', 'Require Serial Number is no longer supported; asset serials are optional.');
+
+        $this->assertFalse(AssetModel::where('name', 'Retired Serial Rule')->exists());
+    }
+
     public function testCannotCreateAssetModelWithAFieldsetOverrideWhileDisabled()
     {
         $this->actingAsForApi(User::factory()->superuser()->create())

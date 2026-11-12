@@ -3,7 +3,6 @@
 {{-- Page title --}}
 @section('title')
     {{ $model->name }}
-    {{ ($model->model_number) ? '(#'.$model->model_number.')' : '' }}
 @parent
 @stop
 
@@ -198,12 +197,6 @@
                                 <i class="far fa-envelope"></i> <a href="mailto:{{ $model->manufacturer->support_email }}">{{ $model->manufacturer->support_email }}</a>
                             </li>
                         @endif
-                    @endif
-                    @if ($model->model_number)
-                        <li>
-                            <strong>{{ trans('general.model_no') }}</strong>:
-                            {{ $model->model_number }}
-                        </li>
                     @endif
 
                     @if ($model->eol)

@@ -192,24 +192,9 @@ class AssetsController extends Controller
         // differently
         $asset_tags = $request->input('asset_tags');
         $model = AssetModel::find($request->input('model_id'));
-        $serial_errors = [];
         $serials = $request->input('serials');
 
         $settings = Setting::getSettings();
-
-        //Validate required serial based on model setting
-        for ($a = 1, $aMax = count($asset_tags); $a <= $aMax; $a++) {
-            if ($model && $model->require_serial === 1 && empty($serials[$a])) {
-                $serial_errors["serials.$a"] = trans('admin/hardware/form.serial_required', ['number' => $a]);
-            }
-
-        }
-
-        if (!empty($serial_errors)) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors($serial_errors);
-        }
 
         $asset = null;
         $companyId = $this->resolveCompanyId($request->input('company_id'));
@@ -515,13 +500,6 @@ class AssetsController extends Controller
         ]);
 
 
-        //Validate required serial based on model setting
-        if ($model && $model->require_serial === 1 && empty($serial[1])) {
-            return redirect()->to(Helper::getRedirectOption($request, $asset->id, 'Assets'))
-                ->with('warning', trans('admin/hardware/form.serial_required_post_model_update', [
-                    'asset_model' => $model->name
-                ]));
-        }
         if ($asset->save()) {
             return Helper::getRedirectOption($request, $asset->id, 'Assets')
                 ->with('success', trans('admin/hardware/message.update.success'));

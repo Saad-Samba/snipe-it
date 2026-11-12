@@ -74,6 +74,13 @@ class BulkAssetModelsController extends Controller
         $models_raw_array = array_values($request->input('ids', []));
         $authorizedModelIds = $this->authorizedModels($models_raw_array)->pluck('id')->all();
         $this->ensureAllModelsAreAuthorized($models_raw_array, count($authorizedModelIds));
+        $request->validate([
+            'require_serial' => [function ($attribute, $value, $fail) {
+                if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                    $fail('Require Serial Number is no longer supported; asset serials are optional.');
+                }
+            }],
+        ]);
         $update_array = [];
 
         if (($request->filled('manufacturer_id') && ($request->input('manufacturer_id') != 'NC'))) {
@@ -101,10 +108,6 @@ class BulkAssetModelsController extends Controller
 
         if ($request->filled('reference_price')) {
             $update_array['reference_price'] = $request->input('reference_price');
-        }
-
-        if ($request->filled('require_serial')) {
-            $update_array['require_serial'] = $request->input('require_serial');
         }
 
         if (count($update_array) > 0) {

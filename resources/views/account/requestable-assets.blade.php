@@ -66,7 +66,6 @@
                                         <th data-sortable="true">{{ trans('general.image') }}</th>
                                         <th data-sortable="true">{{ trans('admin/hardware/table.asset_model') }}</th>
                                         <th data-field="category" data-sortable="true">{{ trans('general.category') }}</th>
-                                        <th data-sortable="true">{{ trans('admin/models/table.modelnumber') }}</th>
                                         <th data-field="specifications">Technical specifications</th>
                                         <th data-sortable="true">Reusable Assets <x-new-feature-label /></th>
                                         <th data-sortable="true">Reference Price <x-new-feature-label /></th>
@@ -99,7 +98,6 @@
                                             </td>
                                             <td>{{ $model->name }}</td>
                                             <td>{{ $model->category?->name }}</td>
-                                            <td>{{ $model->model_number }}</td>
                                             <td>
                                                 @forelse ($specs as $id => $value)
                                                     <span class="label label-default">

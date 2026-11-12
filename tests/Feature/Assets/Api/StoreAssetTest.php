@@ -32,6 +32,23 @@ class StoreAssetTest extends TestCase
             ->assertForbidden();
     }
 
+    public function testSerialIsOptionalForPreviouslyRequiredModel(): void
+    {
+        $model = AssetModel::factory()->create(['require_serial' => 1]);
+        $tag = 'API-NO-SERIAL';
+
+        $this->actingAsForApi(User::factory()->superuser()->create())
+            ->postJson(route('api.assets.store'), $this->payloadWithCompany([
+                'asset_tag' => $tag,
+                'model_id' => $model->id,
+                'status_id' => Statuslabel::factory()->readyToDeploy()->create()->id,
+            ]))
+            ->assertOk()
+            ->assertStatusMessageIs('success');
+
+        $this->assertDatabaseHas('assets', ['asset_tag' => $tag, 'serial' => null]);
+    }
+
     public function testAllAssetAttributesAreStored()
     {
         $company = Company::factory()->create();

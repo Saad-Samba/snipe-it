@@ -464,7 +464,7 @@ class AssetModelsController extends Controller
     private function modelAttributes(StoreAssetModelRequest $request): array
     {
         if (config('leams.model_fieldset_overrides')) {
-            return $request->all();
+            return $request->except('require_serial');
         }
 
         return $request->except([
@@ -472,6 +472,7 @@ class AssetModelsController extends Controller
             'custom_fieldset_id',
             'add_default_values',
             'default_values',
+            'require_serial',
         ]);
     }
 
@@ -547,9 +548,6 @@ class AssetModelsController extends Controller
 
             $assetmodel->use_text .= $assetmodel->name;
 
-            if (($settings->modellistCheckedValue('model_number')) && ($assetmodel->model_number != '')) {
-                $assetmodel->use_text .= ' (#'.$assetmodel->model_number.')';
-            }
 
             $assetmodel->use_image = ($settings->modellistCheckedValue('image') && ($assetmodel->image)) ? Storage::disk('public')->url('models/'.e($assetmodel->image)) : null;
         }

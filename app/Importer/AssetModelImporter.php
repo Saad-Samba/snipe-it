@@ -99,7 +99,11 @@ class AssetModelImporter extends ItemImporter
         $this->item['fieldset'] = trim($this->findCsvMatch($row, 'fieldset'));
         $this->item['depreciation'] = trim($this->findCsvMatch($row, 'depreciation'));
         $this->setBooleanFieldIfPresent($row, 'obsolete');
-        $this->setBooleanFieldIfPresent($row, 'require_serial');
+        if ($this->fetchHumanBoolean($this->findCsvMatch($row, 'require_serial')) == 1) {
+            $this->addErrorToBag($assetModel, 'require_serial', 'Require Serial Number is no longer supported; asset serials are optional.');
+            return;
+        }
+        unset($this->item['require_serial']);
 
         if (! config('leams.model_fieldset_overrides') && ! empty($this->item['fieldset'])) {
             $this->addErrorToBag(

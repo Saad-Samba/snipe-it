@@ -85,6 +85,22 @@ class ImportAssetModelsTest extends ImportDataTestCase implements TestsPermissio
     }
 
     #[Test]
+    public function rejectsRetiredSerialRequirementInImport(): void
+    {
+        $row = ImportFileBuilder::new()->definition();
+        $row['require_serial'] = 1;
+        $importFileBuilder = new ImportFileBuilder([$row]);
+        $import = Import::factory()->assetmodel()->create(['file_path' => $importFileBuilder->saveToImportsDirectory()]);
+
+        $this->actingAsForApi(User::factory()->superuser()->create());
+        $this->importFileResponse(['import' => $import->id])
+            ->assertInternalServerError()
+            ->assertJsonPath('status', 'import-errors');
+
+        $this->assertFalse(AssetModel::where('name', $row['name'])->exists());
+    }
+
+    #[Test]
     public function willIgnoreUnknownColumnsWhenFileContainsUnknownColumns(): void
     {
         $row = ImportFileBuilder::new()->definition();
@@ -187,11 +203,10 @@ class ImportAssetModelsTest extends ImportDataTestCase implements TestsPermissio
     }
 
     #[Test]
-    public function testUpdateAssetModelPreservesBooleanFieldsWhenCsvColumnsAreOmitted(): void
+    public function testUpdateAssetModelPreservesObsoleteWhenCsvColumnIsOmitted(): void
     {
         $assetmodel = AssetModel::factory()->create([
             'obsolete' => true,
-            'require_serial' => true,
         ]);
         $category = Category::find($assetmodel->category_id);
         $importFileBuilder = ImportFileBuilder::new([
@@ -214,7 +229,6 @@ class ImportAssetModelsTest extends ImportDataTestCase implements TestsPermissio
         $updatedAssetmodel = AssetModel::query()->find($assetmodel->id);
 
         $this->assertTrue($updatedAssetmodel->obsolete);
-        $this->assertEquals(1, $updatedAssetmodel->require_serial);
     }
 
 
