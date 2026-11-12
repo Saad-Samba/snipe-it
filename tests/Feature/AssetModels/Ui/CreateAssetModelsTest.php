@@ -26,7 +26,7 @@ class CreateAssetModelsTest extends TestCase
         $this->actingAs(User::factory()->superuser()->create())
             ->get(route('models.create'))
             ->assertOk()
-            ->assertSee(trans('admin/models/general.eol_help'))
+            ->assertDontSee('name="eol"', false)
             ->assertDontSee('name="min_amt"', false)
             ->assertSee('select[name="category_id"]', false);
     }

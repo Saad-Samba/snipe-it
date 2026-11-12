@@ -30,6 +30,14 @@ class IndexAssetModelsTest extends TestCase
             ->assertDontSee(trans('mail.min_QTY'));
     }
 
+    public function test_models_index_does_not_show_eol_column(): void
+    {
+        $this->actingAs(User::factory()->viewAssetModels()->create())
+            ->get(route('models.index'))
+            ->assertOk()
+            ->assertDontSee('&quot;field&quot;:&quot;eol&quot;', false);
+    }
+
     public function test_models_index_does_not_include_request_controls(): void
     {
         $user = User::factory()->viewAssetModels()->requestAssetModels()->create();

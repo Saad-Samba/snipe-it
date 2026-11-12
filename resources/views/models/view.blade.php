@@ -199,13 +199,6 @@
                         @endif
                     @endif
 
-                    @if ($model->eol)
-                        <li>
-                            <strong>{{ trans('general.eol') }}</strong>:
-                            {{ $model->eol .' '. trans('general.months') }}
-                        </li>
-                    @endif
-
                     <li>
                         <strong>{{ trans('admin/models/table.obsolete') }}</strong>:
                         {{ $model->obsolete ? trans('general.yes') : trans('general.no') }}

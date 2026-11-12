@@ -82,7 +82,9 @@ class AssetModelsController extends Controller
         $this->authorize('create', AssetModel::class);
         $model = new AssetModel;
 
-        $model->eol = $request->input('eol');
+        if ($request->exists('eol')) {
+            $model->eol = $request->input('eol');
+        }
         $model->name = $request->input('name');
         if ($request->exists('model_number')) {
             $model->model_number = $request->input('model_number');
@@ -160,7 +162,9 @@ class AssetModelsController extends Controller
         $this->authorize('update', $model);
 
         $model = $request->handleImages($model);
-        $model->eol = $request->input('eol');
+        if ($request->exists('eol')) {
+            $model->eol = $request->input('eol');
+        }
         $model->name = $request->input('name');
         if ($request->exists('model_number')) {
             $model->model_number = $request->input('model_number');
