@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\Project;
 use App\Models\Statuslabel;
 use App\Models\User;
 use Carbon\Carbon;
@@ -14,6 +15,38 @@ use Tests\TestCase;
 
 class AssetIndexTest extends TestCase
 {
+    public function testAssetsAreSortedByProjectNameAcrossPages()
+    {
+        $alpha = Project::factory()->create(['name' => 'Alpha Project']);
+        $zulu = Project::factory()->create(['name' => 'Zulu Project']);
+        $zuluAsset = Asset::factory()->create(['project_id' => $zulu->id]);
+        $alphaAsset = Asset::factory()->create(['project_id' => $alpha->id]);
+        $user = User::factory()->superuser()->create();
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.assets.index', ['sort' => 'project', 'order' => 'asc', 'limit' => 1]))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('rows.0.id', $alphaAsset->id);
+
+        app()->forgetInstance('api_offset_value');
+        app()->forgetInstance('api_limit_value');
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.assets.index', ['sort' => 'project', 'order' => 'asc', 'limit' => 1, 'offset' => 1]))
+            ->assertOk()
+            ->assertJsonPath('rows.0.id', $zuluAsset->id);
+
+        app()->forgetInstance('api_offset_value');
+        app()->forgetInstance('api_limit_value');
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.assets.index', ['sort' => 'project', 'order' => 'desc']))
+            ->assertOk()
+            ->assertJsonPath('rows.0.id', $zuluAsset->id)
+            ->assertJsonPath('rows.1.id', $alphaAsset->id);
+    }
+
     public function testAssetApiIndexReturnsExpectedAssets()
     {
         Asset::factory()->count(3)->create();

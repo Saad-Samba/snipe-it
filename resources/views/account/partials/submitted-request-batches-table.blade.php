@@ -1,7 +1,7 @@
 <table
     data-cookie-id-table="{{ $tableId }}"
     data-id-table="{{ $tableId }}"
-    data-side-pagination="server"
+    data-side-pagination="client"
     data-sort-order="desc"
     data-sort-name="submitted_at"
     id="{{ $tableId }}"

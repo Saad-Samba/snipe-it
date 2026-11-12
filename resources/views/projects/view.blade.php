@@ -130,7 +130,6 @@
                                         'showRequester' => true,
                                         'showProject' => false,
                                         'showActions' => false,
-                                        'sidePagination' => 'client',
                                         'showFooter' => true,
                                         'footerLabelFormatter' => 'requestProjectTotalLabelFormatter',
                                     ])

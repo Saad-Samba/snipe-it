@@ -530,6 +530,12 @@ class AssetsController extends Controller
             case 'discipline':
                 $assets->OrderDiscipline($order);
                 break;
+            case 'project':
+                $assets->leftJoin('projects as project_sort', function ($join) {
+                    $join->on('assets.project_id', '=', 'project_sort.id')
+                        ->whereNull('project_sort.deleted_at');
+                })->orderBy('project_sort.name', $order)->orderBy('assets.id');
+                break;
             case 'company':
                 $assets->OrderCompany($order);
                 break;

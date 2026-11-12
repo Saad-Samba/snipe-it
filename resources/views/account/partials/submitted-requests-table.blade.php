@@ -8,9 +8,10 @@
 <table
         data-cookie-id-table="{{ $tableId }}"
         data-id-table="{{ $tableId }}"
-        data-side-pagination="{{ $sidePagination ?? 'server' }}"
+        data-side-pagination="client"
         data-show-footer="{{ !empty($showFooter) ? 'true' : 'false' }}"
         data-sort-order="desc"
+        data-sort-name="request_id"
         data-request-mode="{{ $requestMode ?? 'requester' }}"
         id="{{ $tableId }}"
         class="table table-striped snipe-table"

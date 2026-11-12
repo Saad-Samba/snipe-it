@@ -17,7 +17,7 @@
                     <table
                         data-cookie-id-table="racReceivedRequests"
                         data-id-table="racReceivedRequests"
-                        data-side-pagination="server"
+                        data-side-pagination="client"
                         data-sort-order="desc"
                         data-sort-name="received_at"
                         id="racReceivedRequests"
