@@ -2376,6 +2376,20 @@ class Asset extends Depreciable
     }
 
     /**
+     * Query builder scope to order on project name
+     *
+     * @param \Illuminate\Database\Query\Builder $query Query builder instance
+     * @param text                               $order Order
+     *
+     * @return \Illuminate\Database\Query\Builder Modified query builder
+     */
+    public function scopeOrderProject($query, $order)
+    {
+        return $query->leftJoin('projects as project_sort', 'assets.project_id', '=', 'project_sort.id')
+            ->orderBy('project_sort.name', $order)->orderBy('assets.id');
+    }
+
+    /**
      * Query builder scope to order on supplier name
      *
      * @param \Illuminate\Database\Query\Builder $query Query builder instance

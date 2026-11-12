@@ -530,6 +530,9 @@ class AssetsController extends Controller
             case 'discipline':
                 $assets->OrderDiscipline($order);
                 break;
+            case 'project':
+                $assets->OrderProject($order);
+                break;
             case 'company':
                 $assets->OrderCompany($order);
                 break;

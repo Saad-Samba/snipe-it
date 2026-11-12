@@ -1,7 +1,7 @@
 <table
     data-cookie-id-table="{{ $tableId }}"
     data-id-table="{{ $tableId }}"
-    data-side-pagination="server"
+    data-side-pagination="client"
     data-sort-order="desc"
     data-sort-name="submitted_at"
     id="{{ $tableId }}"
@@ -15,8 +15,8 @@
     <tr>
         <th data-field="submission_reference" data-sortable="true" data-formatter="requestBatchLinkFormatter">Submission</th>
         <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
-        <th data-field="submitted_at" data-sortable="true" data-formatter="dateDisplayFormatter">Submitted At</th>
-        <th data-field="needed_by_date" data-sortable="true" data-formatter="dateDisplayFormatter">Needed By</th>
+        <th data-field="submitted_at" data-sortable="true" data-sorter="dateObjectSorter" data-formatter="dateDisplayFormatter">Submitted At</th>
+        <th data-field="needed_by_date" data-sortable="true" data-sorter="dateObjectSorter" data-formatter="dateDisplayFormatter">Needed By</th>
         <th data-field="total_quantity" data-sortable="true">Total Needed</th>
         <th data-field="allocated_quantity" data-sortable="true" data-formatter="requestSubmissionOutcomeFormatter">Allocated</th>
         <th data-field="remaining_quantity" data-sortable="true" data-formatter="requestSubmissionOutcomeFormatter">Remaining</th>
