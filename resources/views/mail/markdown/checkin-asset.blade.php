@@ -25,7 +25,6 @@
 @if (isset($item->model))
 | **{{ trans('general.asset_model') }}** | {{ $item->model->name }} |
 @endif
-
 @if (isset($item->serial))
 | **{{ trans('mail.serial') }}** | {{ $item->serial }} |
 @endif
