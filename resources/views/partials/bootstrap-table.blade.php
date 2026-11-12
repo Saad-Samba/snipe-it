@@ -2888,12 +2888,6 @@
         }
     }
 
-    function dateObjectSorter(a, b) {
-        var first = a && (a.datetime || a.date) || '';
-        var second = b && (b.datetime || b.date) || '';
-        return first < second ? -1 : first > second ? 1 : 0;
-    }
-
     function iconFormatter(value) {
         if (value) {
             return '<i class="' + value + '  icon-med"></i>';

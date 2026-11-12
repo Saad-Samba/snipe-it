@@ -11,8 +11,10 @@ use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
 use App\Models\CustomField;
 use App\Models\Project;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ModelRequestsController extends Controller
 {
@@ -37,13 +39,15 @@ class ModelRequestsController extends Controller
                 'allocatedAssets',
                 'coordinatorTargets' => fn ($query) => $query->where('user_id', $user->id),
                 'coordinatorTargets.discipline',
-            ])
-            ->latest('created_at')
-            ->get();
+            ]);
+        $this->searchTableRequests($checkoutRequests, request());
+        $this->sortReceivedRequests($checkoutRequests, request());
+        $total = $checkoutRequests->count();
+        $checkoutRequests = $this->limitTableQuery($checkoutRequests, request())->get();
         $canViewAssets = $user->can('index', Asset::class);
 
         return [
-            'total' => $checkoutRequests->count(),
+            'total' => $total,
             'rows' => $checkoutRequests->map(function (CheckoutRequest $checkoutRequest) use ($user, $canViewAssets) {
                 $targets = $checkoutRequest->coordinatorTargets;
                 $targetStatuses = $targets->map->resolvedStatus();
@@ -157,28 +161,31 @@ class ModelRequestsController extends Controller
             $checkoutRequests->whereKey((int) $request->input('request_id'));
         }
 
-        $checkoutRequests = $checkoutRequests->get();
-
         if ($isProjectOverview
             && $request->input('overview') === 'grouped'
             && ! $request->filled('requester_id')
             && ! $request->filled('discipline_id')
             && ! $request->boolean('unassigned_discipline')) {
-            return $this->projectOverviewGroupResults($checkoutRequests);
+            return $this->projectOverviewGroupResults($checkoutRequests->get());
         }
+
+        if ($request->input('view') === 'batches') {
+            return $request->has('limit')
+                ? $this->pagedBatchResults($checkoutRequests, $request)
+                : $this->batchResults($checkoutRequests->get());
+        }
+
+        $this->searchTableRequests($checkoutRequests, $request);
+        $this->sortSubmittedRequests($checkoutRequests, $request);
+        $total = $checkoutRequests->count();
+        $checkoutRequests = $this->limitTableQuery($checkoutRequests, $request)->get();
 
         $submissionEditable = $isProjectOverview
             ? collect()
-            : $checkoutRequests
-            ->groupBy(fn (CheckoutRequest $checkoutRequest) => $this->submissionKey($checkoutRequest))
-            ->map(fn (Collection $submissionRequests) => $this->submissionIsEditable($submissionRequests));
-
-        if ($request->input('view') === 'batches') {
-            return $this->batchResults($checkoutRequests);
-        }
+            : $this->editableSubmissions($checkoutRequests, $request->has('limit'));
 
         $results = [];
-        $results['total'] = $checkoutRequests->count();
+        $results['total'] = $total;
         $showableFields = [];
         $user = auth()->user();
         $canViewAssets = $user->can('index', Asset::class);
@@ -514,6 +521,208 @@ class ModelRequestsController extends Controller
         ];
     }
 
+    private function pagedBatchResults(Builder $checkoutRequests, Request $request): array
+    {
+        $batchKey = 'COALESCE(checkout_requests.submission_batch_id, CAST(checkout_requests.id AS CHAR))';
+        $groups = (clone $checkoutRequests)
+            ->leftJoin('projects as batch_project_sort', 'checkout_requests.project_id', '=', 'batch_project_sort.id')
+            ->selectRaw($batchKey.' as batch_key')
+            ->selectRaw('MIN(checkout_requests.id) as first_id')
+            ->selectRaw('MAX(checkout_requests.updated_at) as submitted_at_sort')
+            ->selectRaw('CASE WHEN COUNT(DISTINCT checkout_requests.project_id) = 1 THEN MIN(batch_project_sort.name) ELSE ? END as project_sort', ['Multiple projects'])
+            ->selectRaw('CASE WHEN COUNT(DISTINCT checkout_requests.needed_by_date) = 1 THEN MIN(checkout_requests.needed_by_date) ELSE NULL END as needed_by_sort')
+            ->selectRaw('SUM(checkout_requests.quantity) as total_quantity_sort')
+            ->groupByRaw($batchKey);
+
+        if ($request->filled('search')) {
+            $matchingRequests = clone $checkoutRequests;
+            $this->searchTableRequests($matchingRequests, $request);
+            $groups->whereIn(DB::raw($batchKey), $matchingRequests->selectRaw($batchKey));
+        }
+
+        $total = DB::query()->fromSub(clone $groups, 'request_batches')->count();
+        $order = $request->input('order') === 'asc' ? 'asc' : 'desc';
+        $sort = match ($request->input('sort')) {
+            'submission_reference' => 'first_id',
+            'project' => 'project_sort',
+            'needed_by_date' => 'needed_by_sort',
+            'total_quantity' => 'total_quantity_sort',
+            default => 'submitted_at_sort',
+        };
+        $pageGroups = $groups->orderBy($sort, $order)
+            ->orderBy('first_id')
+            ->skip(max(0, (int) app('api_offset_value')))
+            ->take(app('api_limit_value'))
+            ->get();
+
+        if ($pageGroups->isEmpty()) {
+            return ['total' => $total, 'rows' => []];
+        }
+
+        $pageRequests = (clone $checkoutRequests)
+            ->whereIn(DB::raw($batchKey), $pageGroups->pluck('batch_key')->all())
+            ->get();
+        $rows = collect($this->batchResults($pageRequests)['rows'])
+            ->keyBy(fn (array $row) => $row['submission_batch_id'] ?: ltrim($row['submission_reference'], '#'));
+
+        return [
+            'total' => $total,
+            'rows' => $pageGroups->map(fn ($group) => $rows->get($group->batch_key))->filter()->values()->all(),
+        ];
+    }
+
+    private function limitTableQuery(Builder $query, Request $request): Builder
+    {
+        if ($request->has('limit')) {
+            $query->skip(max(0, (int) app('api_offset_value')))
+                ->take(app('api_limit_value'));
+        }
+
+        return $query;
+    }
+
+    private function searchTableRequests(Builder $query, Request $request): void
+    {
+        $search = trim((string) $request->input('search', ''));
+        if ($search === '') {
+            return;
+        }
+
+        $pattern = '%'.$search.'%';
+        $query->where(function (Builder $matching) use ($pattern) {
+            $matching->where('checkout_requests.id', 'LIKE', $pattern)
+                ->orWhere('checkout_requests.needed_by_date', 'LIKE', $pattern)
+                ->orWhereHas('project', fn (Builder $project) => $project->where('name', 'LIKE', $pattern))
+                ->orWhereHas('requestedDiscipline', fn (Builder $discipline) => $discipline->where('name', 'LIKE', $pattern))
+                ->orWhereHas('company', fn (Builder $company) => $company->where('name', 'LIKE', $pattern))
+                ->orWhereHas('user', fn (Builder $user) => $user->withTrashed()->where(function (Builder $names) use ($pattern) {
+                    $names->where('first_name', 'LIKE', $pattern)->orWhere('last_name', 'LIKE', $pattern);
+                }))
+                ->orWhereHas('coordinatorTargets', fn (Builder $targets) => $targets->where('user_id', auth()->id())
+                    ->whereHas('discipline', fn (Builder $discipline) => $discipline->where('name', 'LIKE', $pattern)))
+                ->orWhereHasMorph('requestedItem', [AssetModel::class, Asset::class], fn (Builder $item) => $item->where('name', 'LIKE', $pattern));
+        });
+    }
+
+    private function sortSubmittedRequests(Builder $query, Request $request): void
+    {
+        if (! $request->has('limit') && ! $request->filled('sort')) {
+            return;
+        }
+
+        $order = $request->input('order') === 'asc' ? 'asc' : 'desc';
+        switch ($request->input('sort', 'request_id')) {
+            case 'project':
+                $query->leftJoin('projects as request_project_sort', 'checkout_requests.project_id', '=', 'request_project_sort.id')
+                    ->orderBy('request_project_sort.name', $order);
+                break;
+            case 'requested_discipline':
+                $query->leftJoin('disciplines as request_discipline_sort', 'checkout_requests.requested_discipline_id', '=', 'request_discipline_sort.id')
+                    ->orderBy('request_discipline_sort.name', $order);
+                break;
+            case 'company':
+                $query->leftJoin('companies as request_company_sort', 'checkout_requests.company_id', '=', 'request_company_sort.id')
+                    ->orderBy('request_company_sort.name', $order);
+                break;
+            case 'requested_by':
+                $query->leftJoin('users as request_user_sort', 'checkout_requests.user_id', '=', 'request_user_sort.id')
+                    ->orderBy('request_user_sort.first_name', $order)
+                    ->orderBy('request_user_sort.last_name', $order);
+                break;
+            case 'name':
+            case 'category':
+                $this->joinRequestedItemForSort($query);
+                if ($request->input('sort') === 'category') {
+                    $query->leftJoin('categories as request_category_sort', 'requested_model_sort.category_id', '=', 'request_category_sort.id')
+                        ->orderBy('request_category_sort.name', $order);
+                } else {
+                    $query->orderByRaw('COALESCE(requested_asset_sort.name, requested_model_sort.name) '.$order);
+                }
+                break;
+            case 'needed_by_date':
+            case 'updated_at':
+                $query->orderBy('checkout_requests.'.$request->input('sort'), $order);
+                break;
+            case 'request_date':
+                $query->orderBy('checkout_requests.created_at', $order);
+                break;
+            case 'qty':
+                $query->orderBy('checkout_requests.quantity', $order);
+                break;
+            case 'reference_price_snapshot':
+                $query->orderBy('checkout_requests.reference_price_snapshot', $order);
+                break;
+            case 'total_need_cost':
+                $query->orderByRaw('(checkout_requests.reference_price_snapshot * checkout_requests.quantity) '.$order);
+                break;
+            default:
+                $query->orderBy('checkout_requests.id', $order);
+                return;
+        }
+
+        $query->select('checkout_requests.*')->orderBy('checkout_requests.id');
+    }
+
+    private function sortReceivedRequests(Builder $query, Request $request): void
+    {
+        $order = $request->input('order') === 'asc' ? 'asc' : 'desc';
+        switch ($request->input('sort', 'received_at')) {
+            case 'project':
+                $query->leftJoin('projects as received_project_sort', 'checkout_requests.project_id', '=', 'received_project_sort.id')
+                    ->orderBy('received_project_sort.name', $order);
+                break;
+            case 'company':
+                $query->leftJoin('companies as received_company_sort', 'checkout_requests.company_id', '=', 'received_company_sort.id')
+                    ->orderBy('received_company_sort.name', $order);
+                break;
+            case 'requested_by':
+                $query->leftJoin('users as received_user_sort', 'checkout_requests.user_id', '=', 'received_user_sort.id')
+                    ->orderBy('received_user_sort.first_name', $order)
+                    ->orderBy('received_user_sort.last_name', $order);
+                break;
+            case 'name':
+                $this->joinRequestedItemForSort($query);
+                $query->orderByRaw('COALESCE(requested_asset_sort.name, requested_model_sort.name) '.$order);
+                break;
+            case 'received_at':
+                $targetDates = DB::table('checkout_request_coordinators')
+                    ->select('checkout_request_id')
+                    ->selectRaw('MIN(created_at) as received_at')
+                    ->where('user_id', auth()->id())
+                    ->groupBy('checkout_request_id');
+                $query->leftJoinSub($targetDates, 'received_sort', 'checkout_requests.id', '=', 'received_sort.checkout_request_id')
+                    ->orderBy('received_sort.received_at', $order);
+                break;
+            case 'needed_by_date':
+            case 'updated_at':
+                $query->orderBy('checkout_requests.'.$request->input('sort'), $order);
+                break;
+            case 'request_id':
+                $query->orderBy('checkout_requests.id', $order);
+                break;
+            case 'qty':
+                $query->orderBy('checkout_requests.quantity', $order);
+                break;
+            default:
+                $query->orderBy('checkout_requests.created_at', 'desc');
+                break;
+        }
+
+        $query->select('checkout_requests.*')->orderBy('checkout_requests.id');
+    }
+
+    private function joinRequestedItemForSort(Builder $query): void
+    {
+        $query->leftJoin('assets as requested_asset_sort', function ($join) {
+            $join->on('checkout_requests.requestable_id', '=', 'requested_asset_sort.id')
+                ->where('checkout_requests.requestable_type', Asset::class);
+        })->leftJoin('models as requested_model_sort', function ($join) {
+            $join->on('checkout_requests.requestable_id', '=', 'requested_model_sort.id')
+                ->where('checkout_requests.requestable_type', AssetModel::class)
+                ->orOn('requested_asset_sort.model_id', '=', 'requested_model_sort.id');
+        });
+    }
+
     private function categoryName(CheckoutRequest $checkoutRequest): ?string
     {
         if ($checkoutRequest->requestable_type === AssetModel::class) {
@@ -535,6 +744,25 @@ class ModelRequestsController extends Controller
     private function submissionKey(CheckoutRequest $checkoutRequest): string
     {
         return $checkoutRequest->submission_batch_id ?: 'legacy-'.$checkoutRequest->id;
+    }
+
+    private function editableSubmissions(Collection $pageRequests, bool $isPaged): Collection
+    {
+        $requests = $pageRequests;
+        if ($isPaged && $pageRequests->isNotEmpty()) {
+            $batchIds = $pageRequests->pluck('submission_batch_id')->filter()->unique()->values()->all();
+            $legacyIds = $pageRequests->whereNull('submission_batch_id')->pluck('id')->all();
+            $requests = CheckoutRequest::requesterScopedQuery(auth()->user())
+                ->where(function (Builder $query) use ($batchIds, $legacyIds) {
+                    $query->whereIn('submission_batch_id', $batchIds)->orWhereIn('id', $legacyIds);
+                })
+                ->with(['allocatedAssets', 'coordinatorTargets'])
+                ->get();
+        }
+
+        return $requests
+            ->groupBy(fn (CheckoutRequest $checkoutRequest) => $this->submissionKey($checkoutRequest))
+            ->map(fn (Collection $submissionRequests) => $this->submissionIsEditable($submissionRequests));
     }
 
     private function submissionIsEditable(Collection $submissionRequests): bool
