@@ -63,7 +63,7 @@ class CustomFieldsController extends Controller
          * without the "field_encrypted" flag, preventing the change of encryption status
          * @var array
          */
-        $data = $request->except(['field_encrypted']);
+        $data = $request->except(['field_encrypted', 'is_unique']);
 
         $validator = Validator::make($data, $field->validationRules());
         if ($validator->fails()) {
@@ -93,6 +93,15 @@ class CustomFieldsController extends Controller
 
         $data = $request->all();
         $regex_format = null;
+
+        if ($request->boolean('field_encrypted') || $request->boolean('is_unique')) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, [
+                'custom_fields' => ['Unique and encrypted custom fields are not supported in catalogue fieldsets.'],
+            ]));
+        }
+
+        $data['field_encrypted'] = 0;
+        $data['is_unique'] = 0;
 
         if ((array_key_exists('format', $data)) && (str_contains($data['format'], 'regex:'))) {
             $regex_format = $data['format'];
@@ -139,6 +148,12 @@ class CustomFieldsController extends Controller
         $this->authorize('update', CustomFieldset::class);
 
         $field = CustomField::findOrFail($field_id);
+
+        if ($field->is_unique || $field->field_encrypted) {
+            return response()->json(Helper::formatStandardApiResponse('error', null, [
+                'field_id' => ['Unique and encrypted custom fields are not supported in catalogue fieldsets.'],
+            ]));
+        }
 
         $fieldset_id = $request->input('fieldset_id');
         foreach ($field->fieldset as $fieldset) {

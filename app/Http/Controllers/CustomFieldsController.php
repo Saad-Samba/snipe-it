@@ -86,20 +86,14 @@ class CustomFieldsController extends Controller
         $show_in_email = $request->input("show_in_email", 0);
         $display_in_user_view = $request->input("display_in_user_view", 0);
 
-        // Override the display settings if the field is encrypted
-        if ($request->input("field_encrypted") == '1') {
-            $show_in_email = '0';
-            $display_in_user_view = '0';
-        }
-        
         $field = new CustomField([
             "name" => trim($request->input("name")),
             "element" => $request->input("element"),
             "help_text" => $request->input("help_text"),
             "field_values" => $request->input("field_values"),
-            "field_encrypted" => $request->input("field_encrypted", 0),
+            "field_encrypted" => 0,
             "show_in_email" => $show_in_email,
-            "is_unique" => $request->input("is_unique", 0),
+            "is_unique" => 0,
             "display_in_user_view" => $display_in_user_view,
             "auto_add_to_fieldsets" => $request->input("auto_add_to_fieldsets", 0),
             "show_in_listview" => $request->input("show_in_listview", 0),
@@ -228,19 +222,12 @@ class CustomFieldsController extends Controller
         $show_in_email = $request->get("show_in_email", 0);
         $display_in_user_view = $request->get("display_in_user_view", 0);
 
-        // Override the display settings if the field is encrypted
-        if ($request->get("field_encrypted") == '1') {
-            $show_in_email = '0';
-            $display_in_user_view = '0';
-        }
-        
         $field->name          = trim($request->get("name"));
         $field->element       = $request->get("element");
         $field->field_values  = $request->get("field_values");
         $field->created_by       = auth()->id();
         $field->help_text     = $request->get("help_text");
         $field->show_in_email = $show_in_email;
-        $field->is_unique     = $request->get("is_unique", 0);
         $field->display_in_user_view = $display_in_user_view;
         $field->auto_add_to_fieldsets = $request->get("auto_add_to_fieldsets", 0);
         $field->show_in_listview = $request->get("show_in_listview", 0);

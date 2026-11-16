@@ -9,7 +9,7 @@ use App\Helpers\Helper;
  */
 class AssetModelPresenter extends Presenter
 {
-    public static function dataTableLayout()
+    public static function dataTableLayout($specificationFields = [])
     {
         $layout = [
             [
@@ -25,14 +25,6 @@ class AssetModelPresenter extends Presenter
                 'switchable' => true,
                 'title' => trans('general.id'),
                 'visible' => false,
-            ], [
-                'field' => 'company',
-                'searchable' => true,
-                'sortable' => true,
-                'switchable' => true,
-                'title' => trans('admin/companies/table.title'),
-                'visible' => false,
-                'formatter' => 'companiesLinkObjFormatter',
             ], [
                 'field' => 'name',
                 'searchable' => true,
@@ -61,21 +53,13 @@ class AssetModelPresenter extends Presenter
                 'formatter' => 'manufacturersLinkObjFormatter',
             ],
             [
-                'field' => 'model_number',
-                'searchable' => true,
-                'sortable' => true,
-                'switchable' => true,
-                'title' => trans('admin/models/table.modelnumber'),
-                'visible' => true,
-            ],
-            [
-                'field' => 'min_amt',
+                'field' => 'reference_price',
                 'searchable' => false,
                 'sortable' => true,
                 'switchable' => true,
-                'title' => trans('mail.min_QTY'),
+                'title' => 'Reference Price',
                 'visible' => true,
-                'formatter' => 'minAmtFormatter',
+                'formatter' => 'referencePriceFormatter',
                 'class' => 'text-right text-padding-number-cell',
             ],
 
@@ -104,8 +88,9 @@ class AssetModelPresenter extends Presenter
                 'searchable' => false,
                 'sortable' => true,
                 'switchable' => true,
-                'title' => trans('general.remaining'),
+                'title' => 'Reusable Assets',
                 'visible' => true,
+                'formatter' => 'modelReusableAssetsFormatter',
                 'class' => 'text-right text-padding-number-cell',
                 'footerFormatter' => 'qtySumFormatter',
             ],
@@ -120,15 +105,6 @@ class AssetModelPresenter extends Presenter
                 'footerFormatter' => 'qtySumFormatter',
             ],
             [
-                'field' => 'depreciation',
-                'searchable' => false,
-                'sortable' => true,
-                'switchable' => true,
-                'title' => trans('general.depreciation'),
-                'visible' => false,
-                'formatter' => 'depreciationsLinkObjFormatter',
-            ],
-            [
                 'field' => 'category',
                 'searchable' => true,
                 'sortable' => true,
@@ -136,14 +112,6 @@ class AssetModelPresenter extends Presenter
                 'title' => trans('general.category'),
                 'visible' => true,
                 'formatter' => 'categoriesLinkObjFormatter',
-            ],
-            [
-                'field' => 'eol',
-                'searchable' => false,
-                'sortable' => true,
-                'switchable' => true,
-                'title' => trans('admin/hardware/form.eol_rate'),
-                'visible' => true,
             ],
             [
                 'field' => 'obsolete',
@@ -161,22 +129,6 @@ class AssetModelPresenter extends Presenter
                 'title' => trans('admin/models/general.fieldset'),
                 'visible' => true,
                 'formatter' => 'fieldsetsLinkObjFormatter',
-            ],
-            [
-                'field' => 'requestable',
-                'searchable' => false,
-                'sortable' => true,
-                'visible' => false,
-                'title' => trans('admin/hardware/general.requestable'),
-                'formatter' => 'trueFalseFormatter',
-            ],
-            [
-                'field' => 'require_serial',
-                'searchable' => false,
-                'sortable' => true,
-                'visible' => false,
-                'title' => trans('admin/hardware/general.require_serial'),
-                'formatter' => 'trueFalseFormatter',
             ],
             [
                 'field' => 'notes',
@@ -213,6 +165,18 @@ class AssetModelPresenter extends Presenter
             ],
 
         ];
+
+        foreach ($specificationFields as $field) {
+            $layout[] = [
+                'field' => 'specification_'.$field->id,
+                'searchable' => false,
+                'sortable' => false,
+                'switchable' => true,
+                'title' => e($field->name),
+                'visible' => true,
+                'formatter' => 'modelSpecificationValueFormatter',
+            ];
+        }
 
         $layout[] = [
             'field' => 'actions',
@@ -258,10 +222,6 @@ class AssetModelPresenter extends Presenter
             $name .= $this->model->manufacturer->name.' ';
         }
         $name .= $this->name;
-
-        if ($this->model_number) {
-            $name .= ' (#'.$this->model_number.')';
-        }
 
         return $name;
     }

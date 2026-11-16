@@ -19,6 +19,7 @@ use App\Models\LicenseSeat;
 use App\Models\Location;
 use App\Models\Manufacturer;
 use App\Models\PredefinedKit;
+use App\Models\Project;
 use App\Models\Statuslabel;
 use App\Models\Supplier;
 use App\Models\User;
@@ -46,7 +47,14 @@ class BreadcrumbsServiceProvider extends ServiceProvider
          */
 
 
-            if ((request()->is('hardware*')) && (request()->status!='')) {
+            if ((request()->is('hardware*')) && (request()->filled('request_id'))) {
+                Breadcrumbs::for('hardware.index', fn (Trail $trail) =>
+                $trail->parent('home', route('home'))
+                    ->push('Requests', route('requests.index'))
+                    ->push('Request #'.request()->integer('request_id'), route('hardware.index', request()->query()))
+                );
+
+            } elseif ((request()->is('hardware*')) && (request()->status!='')) {
                 Breadcrumbs::for('hardware.index', fn (Trail $trail) =>
                 $trail->parent('home', route('home'))
                     ->push(trans('general.assets'), route('hardware.index'))
@@ -312,14 +320,14 @@ class BreadcrumbsServiceProvider extends ServiceProvider
             ->push(trans('general.create'), route('projects.create'))
         );
 
-        Breadcrumbs::for('projects.show', fn (Trail $trail, \App\Models\Project $project) =>
+        Breadcrumbs::for('projects.show', fn (Trail $trail, Project $project) =>
         $trail->parent('projects.index', route('projects.index'))
-            ->push($project->name, route('projects.show', $project))
+            ->push($this->projectBreadcrumbLabel($project), route('projects.show', $project))
         );
 
-        Breadcrumbs::for('projects.edit', fn (Trail $trail, \App\Models\Project $project) =>
+        Breadcrumbs::for('projects.edit', fn (Trail $trail, Project $project) =>
         $trail->parent('projects.index', route('projects.index'))
-            ->push(trans('general.breadcrumb_button_actions.edit_item', ['name' => $project->name]), route('projects.edit', $project))
+            ->push(trans('general.breadcrumb_button_actions.edit_item', ['name' => $this->projectBreadcrumbLabel($project)]), route('projects.edit', $project))
         );
 
         /**
@@ -650,6 +658,15 @@ class BreadcrumbsServiceProvider extends ServiceProvider
 
 
 
+    }
+
+    private function projectBreadcrumbLabel(Project $project): string
+    {
+        if (! $project->is_rfq || ! $project->rfq_needed_by_date) {
+            return $project->name;
+        }
+
+        return sprintf('%s (Needed by %s)', $project->name, $project->rfq_needed_by_date->format('d M Y'));
     }
 
 

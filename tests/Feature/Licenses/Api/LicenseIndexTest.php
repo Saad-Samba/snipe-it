@@ -4,11 +4,44 @@ namespace Tests\Feature\Licenses\Api;
 
 use App\Models\Company;
 use App\Models\License;
+use App\Models\Project;
 use App\Models\User;
 use Tests\TestCase;
 
 class LicenseIndexTest extends TestCase
 {
+    public function testLicensesAreSortedByProjectNameAcrossPages()
+    {
+        $alpha = Project::factory()->create(['name' => 'Alpha Project']);
+        $zulu = Project::factory()->create(['name' => 'Zulu Project']);
+        $zuluLicense = License::factory()->create(['project_id' => $zulu->id]);
+        $alphaLicense = License::factory()->create(['project_id' => $alpha->id]);
+        $user = User::factory()->superuser()->create();
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.licenses.index', ['sort' => 'project', 'order' => 'asc', 'limit' => 1]))
+            ->assertOk()
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('rows.0.id', $alphaLicense->id);
+
+        app()->forgetInstance('api_offset_value');
+        app()->forgetInstance('api_limit_value');
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.licenses.index', ['sort' => 'project', 'order' => 'asc', 'limit' => 1, 'offset' => 1]))
+            ->assertOk()
+            ->assertJsonPath('rows.0.id', $zuluLicense->id);
+
+        app()->forgetInstance('api_offset_value');
+        app()->forgetInstance('api_limit_value');
+
+        $this->actingAsForApi($user)
+            ->getJson(route('api.licenses.index', ['sort' => 'project', 'order' => 'desc']))
+            ->assertOk()
+            ->assertJsonPath('rows.0.id', $zuluLicense->id)
+            ->assertJsonPath('rows.1.id', $alphaLicense->id);
+    }
+
     public function testLicensesCanBeFilteredAndSortedBySoftwareVersion()
     {
         $licenseB = License::factory()->create(['software_version' => 'B']);

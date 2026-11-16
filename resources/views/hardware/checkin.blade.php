@@ -40,6 +40,9 @@
                                           autocomplete="off">
                                         @endif
                                         {{csrf_field()}}
+                                        @if (request()->filled('request_id'))
+                                            <input type="hidden" name="request_id" value="{{ request()->input('request_id') }}">
+                                        @endif
 
                                         @if ($asset->company)
                                             <!-- accessory name -->

@@ -111,12 +111,11 @@
                         <tr>
                             <th>{{ trans('general.asset_tag') }}</th>
                             <th>{{ trans('general.asset_model') }}</th>
-                            <th>{{ trans('general.model_no') }}</th>
                             <th>{{ trans('general.quickscan_checkin_status') }}</th>
                             <th></th>
                         </tr>
                         <tr id="checkin-loader" style="display: none;">
-                            <td colspan="3">
+                            <td colspan="4">
                                 <x-icon type="spinner" />  {{ trans('general.processing') }}...
                             </td>
                         </tr>
@@ -159,7 +158,7 @@
                 data : formData,
                 success : function (data) {
                     if (data.status == 'success') {
-                        $('#checkedin tbody').prepend("<tr class='success'><td>" + data.payload.asset_tag + "</td><td>" + data.payload.model + "</td><td>" + data.payload.model_number + "</td><td>" + data.messages + "</td><td><i class='fas fa-check text-success'></i></td></tr>");
+                        $('#checkedin tbody').prepend("<tr class='success'><td>" + data.payload.asset_tag + "</td><td>" + data.payload.model + "</td><td>" + data.messages + "</td><td><i class='fas fa-check text-success'></i></td></tr>");
                         appendAssetTag(data.payload.asset_tag || lastSubmittedTag);
 
                         @if ($user?->enable_sounds)
@@ -195,18 +194,16 @@
             if (data.payload.asset_tag) {
                 var asset_tag = data.payload.asset_tag;
                 var model = data.payload.model;
-                var model_number = data.payload.model_number;
             } else {
                 var asset_tag = lastSubmittedTag || '';
                 var model = '';
-                var model_number = '';
             }
             if (data.messages) {
                 var messages = data.messages;
             } else {
                 var messages = '';
             }
-            $('#checkedin tbody').prepend("<tr class='danger'><td>" + asset_tag + "</td><td>" + model + "</td><td>" + model_number + "</td><td>" + messages + "</td><td><i class='fas fa-times text-danger'></i></td></tr>");
+            $('#checkedin tbody').prepend("<tr class='danger'><td>" + asset_tag + "</td><td>" + model + "</td><td>" + messages + "</td><td><i class='fas fa-times text-danger'></i></td></tr>");
             appendAssetTag(asset_tag);
         }
 

@@ -290,12 +290,14 @@ class Importer extends Component
             'company' => trans('general.company'),
             'email' => trans('general.importer.checked_out_to_email'),
             'expiration_date' => trans('admin/licenses/form.expiration'),
+            'maintenance_expires_at' => trans('admin/licenses/form.maintenance_expires_at'),
             'full_name' => trans('general.importer.checked_out_to_fullname'),
             'item_name' => trans('general.item_name_var', ['item' => trans('general.license')]),
             'license_email' => trans('admin/licenses/form.to_email'),
             'license_name' => trans('admin/licenses/form.to_name'),
             'location' => trans('general.location'),
             'maintained' => trans('admin/licenses/form.maintained'),
+            'perpetual' => trans('admin/licenses/form.perpetual'),
             'manufacturer' => trans('general.manufacturer'),
             'min_amt' => trans('general.min_amt'),
             'notes' => trans('general.notes'),
@@ -396,9 +398,6 @@ class Importer extends Component
             'name' => trans('general.name'),
             'notes' => trans('general.notes'),
             'category_type' => trans('admin/categories/general.import_category_type'),
-            'eula_text' => trans('admin/categories/general.import_eula_text'),
-            'use_default_eula' => trans('admin/categories/general.use_default_eula_column'),
-            'require_acceptance' => trans('admin/categories/general.import_require_acceptance'),
             'checkin_email' => trans('admin/categories/general.import_checkin_email'),
         ];
 
@@ -415,7 +414,6 @@ class Importer extends Component
             'model_number' => trans('general.model_no'),
             'notes' => trans('general.item_notes', ['item' => trans('admin/hardware/form.model')]),
             'obsolete' => trans('admin/models/table.obsolete'),
-            'requestable' => trans('admin/models/general.requestable'),
             'require_serial' => trans('admin/hardware/general.require_serial'),
 
         ];

@@ -38,9 +38,6 @@
                                         <i class="fa {!!  (($model->assets_count > 0 ) ? 'fa-warning info' : 'fa-check success') !!}"></i>
                                         {{ $model->display_name }}
 
-                                            @if ($model->model_number)
-                                                ({{ $model->model_number }})
-                                            @endif
                                         </td>
                                         <td>{{ $model->assets_count }} assets
                                     </td>
@@ -54,85 +51,47 @@
                             @include ('partials.forms.edit.manufacturer-select', ['translated_name' => trans('general.manufacturer'), 'fieldname' => 'manufacturer_id'])
 
                             <!-- category -->
-                            @include ('partials.forms.edit.category-select', ['translated_name' => trans('admin/categories/general.category_name'), 'fieldname' => 'category_id', 'required' => 'true', 'category_type' => 'asset'])
-
-                            <!-- custom fields -->
-                            <div class="form-group {{ $errors->has('fieldset_id') ? ' has-error' : '' }}">
-                                <label for="category_id" class="col-md-3 control-label">
-                                    {{ trans('admin/models/general.fieldset') }}
-                                </label>
+                            <div id="category_id" class="form-group{{ $errors->has('category_id') ? ' has-error' : '' }}">
+                                <label for="category_id" class="col-md-3 control-label">{{ trans('admin/categories/general.category_name') }}</label>
                                 <div class="col-md-7">
-                                    <x-input.select
-                                        name="fieldset_id"
-                                        :options="$fieldset_list"
-                                        :selected="old('fieldset_id', 'NC')"
-                                        class="js-fieldset-field"
-                                        style="width:350px"
-                                    />
-                                    {!! $errors->first('fieldset_id', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
+                                    <select class="select2" name="category_id" id="category_id" style="width: 100%" aria-label="category_id">
+                                        <option value="NC" @selected(old('category_id', 'NC') === 'NC')>No Change</option>
+                                        @foreach ($availableCategories as $category)
+                                            <option value="{{ $category->id }}" @selected((string) old('category_id') === (string) $category->id)>
+                                                {{ $category->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    {!! $errors->first('category_id', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
                                 </div>
                             </div>
 
-                            <!-- depreciation -->
-
-                            <div class="form-group {{ $errors->has('depreciation_id') ? ' has-error' : '' }}">
-                                <label for="category_id" class="col-md-3 control-label">
-                                    {{ trans('general.depreciation') }}
-                                </label>
-                                <div class="col-md-7">
-                                    <x-input.select
-                                        name="depreciation_id"
-                                        :options="$depreciation_list"
-                                        :selected="old('depreciation_id', 'NC')"
-                                        style="width:350px"
-                                    />
-                                    {!! $errors->first('depreciation_id', '<span class="alert-msg" aria-hidden="true"><i class="fas fa-times" aria-hidden="true"></i> :message</span>') !!}
-                                </div>
-                            </div>
-
-                            @include ('partials.forms.edit.minimum_quantity')
-                            <!-- require serial boolean -->
-                            <div class="form-group">
-                                <label for="require_serial" class="col-md-3 control-label">
-                                    {{ trans('admin/hardware/general.require_serial') }}
-                                </label>
-
-                                <div class="col-md-9">
-                                    <div class="form-inline" style="display: flex; align-items: center; gap: 8px;">
-                                        <input type="checkbox" name="require_serial" value="1" id="require_serial" aria-label="require_serial" />
-                                        <a
-                                                href="#"
-                                                data-tooltip="true"
-                                                title="{{ trans('admin/hardware/general.require_serial_help') }}"
-                                                style="display: inline-flex; align-items: center;"
-                                        >
-                                            <x-icon type="info-circle" />
-                                            <span class="sr-only">{{ trans('admin/hardware/general.require_serial_help') }}</span>
-                                        </a>
+                            @if (config('leams.model_fieldset_overrides'))
+                                <!-- custom fields -->
+                                <div class="form-group {{ $errors->has('fieldset_id') ? ' has-error' : '' }}">
+                                    <label for="fieldset_id" class="col-md-3 control-label">
+                                        {{ trans('admin/models/general.fieldset') }}
+                                    </label>
+                                    <div class="col-md-7">
+                                        <x-input.select
+                                            name="fieldset_id"
+                                            :options="$fieldset_list"
+                                            :selected="old('fieldset_id', 'NC')"
+                                            class="js-fieldset-field"
+                                            style="width:350px"
+                                        />
+                                        {!! $errors->first('fieldset_id', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
                                     </div>
                                 </div>
-                            </div>
+                            @endif
 
-                            <!-- requestable -->
-                                <div class="form-group{{ $errors->has('requestable') ? ' has-error' : '' }}">
-                                    <div class="col-md-7 col-md-offset-3">
-
-                                        <label for="requestable_nochange" class="form-control">
-                                            <input type="radio" name="requestable" id="requestable_nochange" value="" aria-label="requestable_nochange" checked>
-                                            {{  trans('admin/hardware/general.requestable_status_warning')}}
-                                        </label>
-                                        <label for="requestable" class="form-control">
-                                            <input type="radio" name="requestable" id="requestable" value="1" aria-label="requestable">
-                                            {{  trans('admin/hardware/general.requestable')}}
-                                        </label>
-                                        <label for="not_requestable" class="form-control">
-                                            <input type="radio" name="requestable" id="not_requestable" value="0" aria-label="not_requestable">
-                                            {{  trans('admin/hardware/general.not_requestable')}}
-                                        </label>
-
-
-                                    </div>
+                            <div class="form-group {{ $errors->has('reference_price') ? ' has-error' : '' }}">
+                                <label for="reference_price" class="col-md-3 control-label">Reference Price</label>
+                                <div class="col-md-7">
+                                    <input class="form-control" type="number" name="reference_price" id="reference_price" min="0.00" max="99999999999999999.99" step="0.01" value="{{ old('reference_price') }}" />
+                                    {!! $errors->first('reference_price', '<span class="alert-msg" aria-hidden="true"><br><i class="fas fa-times"></i> :message</span>') !!}
                                 </div>
+                            </div>
 
                             <div class="form-group{{ $errors->has('obsolete') ? ' has-error' : '' }}">
                                 <div class="col-md-7 col-md-offset-3">

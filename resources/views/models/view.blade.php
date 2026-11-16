@@ -3,7 +3,6 @@
 {{-- Page title --}}
 @section('title')
     {{ $model->name }}
-    {{ ($model->model_number) ? '(#'.$model->model_number.')' : '' }}
 @parent
 @stop
 
@@ -161,13 +160,6 @@
                         </li>
                     @endif
 
-                    @if ($model->min_amt)
-                        <li>
-                            <strong>{{ trans('general.min_amt') }}</strong>:
-                           {{$model->min_amt }}
-                        </li>
-                    @endif
-
                     @if ($model->manufacturer)
                         <li>
                             <strong>{{ trans('general.manufacturer') }}</strong>:
@@ -205,26 +197,6 @@
                                 <i class="far fa-envelope"></i> <a href="mailto:{{ $model->manufacturer->support_email }}">{{ $model->manufacturer->support_email }}</a>
                             </li>
                         @endif
-                    @endif
-                    @if ($model->model_number)
-                        <li>
-                            <strong>{{ trans('general.model_no') }}</strong>:
-                            {{ $model->model_number }}
-                        </li>
-                    @endif
-
-                    @if ($model->depreciation)
-                        <li>
-                            <strong>{{ trans('general.depreciation') }}</strong>:
-                            {{ $model->depreciation->name }} ({{ $model->depreciation->months.' '.trans('general.months')}})
-                        </li>
-                    @endif
-
-                    @if ($model->eol)
-                        <li>
-                            <strong>{{ trans('general.eol') }}</strong>:
-                            {{ $model->eol .' '. trans('general.months') }}
-                        </li>
                     @endif
 
                     <li>

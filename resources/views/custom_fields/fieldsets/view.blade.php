@@ -33,8 +33,7 @@
               <th class="col-md-3">{{ trans('admin/custom_fields/general.field_name') }}</th>
               <th class="col-md-2">{{ trans('admin/custom_fields/general.field_format') }}</th>
               <th class="col-md-2">{{ trans('admin/custom_fields/general.field_element') }}</th>
-              <th class="col-md-1">{{ trans('admin/custom_fields/general.encrypted') }}</th>
-              <th class="col-md-1">{{ trans('admin/custom_fields/general.required') }}</th>
+              <th class="col-md-3">{{ trans('admin/custom_fields/general.field_values') }}</th>
               <th class="col-md-1"><span class="sr-only">{{ trans('button.remove') }}</span></th>
             </tr>
           </thead>
@@ -52,27 +51,47 @@
               </td>
               @endcan
               <td class="index" style="display: none;">{{$field->pivot->order + 1}}</td> {{--this +1 needs to exist to keep the first row from reverting to 0 if you edit/delete fields in/from a fielset--}}
-              <td>{{$field->name}}</td>
+              <td>
+                {{$field->name}}
+                @if ($field->pivot->required)
+                  <span class="label label-default">{{ trans('admin/custom_fields/general.required') }}</span>
+                @endif
+                @can('update', $custom_fieldset)
+                  <form method="post" action="{{ route($field->pivot->required ? 'fields.optional' : 'fields.required', [$custom_fieldset->id, $field->id]) }}" class="inline-block">
+                    @csrf
+                    <button type="submit" class="btn btn-link btn-xs" title="{{ $field->pivot->required ? 'Make optional' : 'Make required' }}">
+                      @if ($field->pivot->required)
+                        <i class="fa fa-check text-success" aria-hidden="true"></i>
+                        <span class="sr-only">Make optional</span>
+                      @else
+                        <i class="fa fa-times text-muted" aria-hidden="true"></i>
+                        <span class="sr-only">Make required</span>
+                      @endif
+                    </button>
+                  </form>
+                @endif
+              </td>
               <td>{{$field->format}}</td>
               <td>{{$field->element}}</td>
-              <td>{{ $field->field_encrypted=='1' ?  trans('general.yes') : trans('general.no') }}</td>
-                <td>
-
-                    @if ($field->pivot->required)
-                    <form method="post" action="{{ route('fields.optional', [$custom_fieldset->id, $field->id]) }}">
-                      @csrf 
-                      <button type="submit" class="btn btn-link"><i class="fa fa-check text-success" aria-hidden="true"></i></button>
-                      </form>
-
-                    @else
-
-                      <form method="post" action="{{ route('fields.required', [$custom_fieldset->id, $field->id]) }}">
-                      @csrf 
-                      <button type="submit" class="btn btn-link"><i class="fa fa-times text-danger" aria-hidden="true"></i></button>
-                      </form>
-                    @endif
-
-                </td>
+              <td>
+                @if (in_array($field->element, ['listbox', 'checkbox', 'radio']))
+                  @php($allowedValues = collect($field->formatFieldValuesAsArray())->except(''))
+                  @if ($allowedValues->isNotEmpty())
+                    @foreach ($allowedValues as $storedValue => $displayValue)
+                      <span class="label label-default" style="display:inline-block; margin:2px;">
+                        {{ $displayValue }}
+                        @if ((string) $storedValue !== (string) $displayValue)
+                          <small>({{ $storedValue }})</small>
+                        @endif
+                      </span>
+                    @endforeach
+                  @else
+                    <span class="text-muted">—</span>
+                  @endif
+                @else
+                  <span class="text-muted">—</span>
+                @endif
+              </td>
               <td>
                 @can('update', $custom_fieldset)
                 <form method="post" action="{{ route('fields.disassociate', [$field, $custom_fieldset->id]) }}">
@@ -87,7 +106,7 @@
           @can('update', $custom_fieldset)
           <tfoot>
             <tr>
-              <td colspan="8">
+              <td colspan="7">
                 <form method="POST" action="{{ route('fieldsets.associate', $custom_fieldset->id) }}" accept-charset="UTF-8" class="form-inline" id="ordering">
                   @csrf
 

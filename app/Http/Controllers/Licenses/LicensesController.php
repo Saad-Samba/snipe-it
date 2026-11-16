@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -57,7 +58,6 @@ class LicensesController extends Controller
         ];
 
         return view('licenses/edit')
-            ->with('depreciation_list', Helper::depreciationList())
             ->with('maintained_list', $maintained_list)
             ->with('item', new License);
     }
@@ -76,18 +76,19 @@ class LicensesController extends Controller
     public function store(Request $request)
     {
         $this->authorize('create', License::class);
+        $this->validateMaintenanceExpiry($request);
         // create a new model instance
         $license = new License();
         // Save the license data
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
         $license->discipline_id     = $request->filled('discipline_id') ? $request->input('discipline_id') : null;
-        $license->depreciation_id   = $request->input('depreciation_id');
         $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained', 0);
+        $license->maintenance_expires_at = $request->input('maintenance_expires_at');
         $license->manufacturer_id   = $request->input('manufacturer_id');
         $license->name              = $request->input('name');
         $license->software_version  = $request->input('software_version');
@@ -144,7 +145,6 @@ class LicensesController extends Controller
 
         return view('licenses/edit')
             ->with('item', $license)
-            ->with('depreciation_list', Helper::depreciationList())
             ->with('maintained_list', $maintained_list);
     }
 
@@ -166,14 +166,15 @@ class LicensesController extends Controller
 
 
         $this->authorize('update', $license);
+        $this->validateMaintenanceExpiry($request);
 
         $license->company_id        = Company::getIdForCurrentUser($request->input('company_id'));
-        $license->depreciation_id   = $request->input('depreciation_id');
         $license->perpetual         = $request->boolean('perpetual');
         $license->expiration_date   = $request->input('expiration_date');
         $license->license_email     = $request->input('license_email');
         $license->license_name      = $request->input('license_name');
         $license->maintained        = $request->input('maintained',0);
+        $license->maintenance_expires_at = $request->input('maintenance_expires_at');
         $license->name              = $request->input('name');
         $license->software_version  = $request->input('software_version');
         $license->project_id        = $request->filled('project_id') ? $request->input('project_id') : null;
@@ -201,6 +202,20 @@ class LicensesController extends Controller
         }
         // If we can't adjust the number of seats, the error is flashed to the session by the event handler in License.php
         return redirect()->back()->withInput()->withErrors($license->getErrors());
+    }
+
+    private function validateMaintenanceExpiry(Request $request): void
+    {
+        $maintained = $request->boolean('maintained');
+
+        $request->validate([
+            'maintenance_expires_at' => [
+                'nullable',
+                'date_format:Y-m-d',
+                'max:10',
+                Rule::requiredIf($maintained),
+            ],
+        ]);
     }
 
     /**
@@ -310,7 +325,6 @@ class LicensesController extends Controller
 
         // Show the page
         return view('licenses/edit')
-        ->with('depreciation_list', Helper::depreciationList())
         ->with('item', $license)
         ->with('maintained_list', $maintained_list);
     }
@@ -357,13 +371,12 @@ class LicensesController extends Controller
                         trans('general.licenses_available'),
                         trans('admin/licenses/table.seats'),
                         trans('general.created_by'),
-                        trans('general.depreciation'),
                         trans('general.updated_at'),
                         trans('admin/licenses/table.deleted_at'),
                         trans('general.email'),
-                        trans('admin/hardware/form.fully_depreciated'),
                         trans('general.supplier'),
                         trans('admin/licenses/form.expiration'),
+                        trans('admin/licenses/form.maintenance_expires_at'),
                         trans('admin/licenses/form.purchase_order'),
                         trans('admin/licenses/form.termination_date'),
                         trans('admin/licenses/form.maintained'),
@@ -392,13 +405,12 @@ class LicensesController extends Controller
                             $license->free_seat_count,
                             $license->seats,
                             ($license->adminuser ? $license->adminuser->display_name : trans('admin/reports/general.deleted_user')),
-                            $license->depreciation ? $license->depreciation->name: '',
                             $license->updated_at,
                             $license->deleted_at,
                             $license->email,
-                            ( $license->depreciate == '1') ? trans('general.yes') : trans('general.no'),
                             ($license->supplier) ? $license->supplier->name: '',
                             $license->expiration_date,
+                            $license->maintenance_expires_at,
                             $license->purchase_order,
                             $license->termination_date,
                             ( $license->maintained == '1') ? trans('general.yes') : trans('general.no'),

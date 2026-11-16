@@ -12,7 +12,6 @@
                 @include('modals.partials.name', ['required' => 'true'])
                 @include('modals.partials.categories-select', ['required' => 'true'])
                 @include('modals.partials.manufacturer-select')
-                @include('modals.partials.model-number')
                 @include('modals.partials.fieldset-select')
             </form>
         </div>

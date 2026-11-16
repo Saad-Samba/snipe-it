@@ -13,12 +13,12 @@ class ProjectPolicy extends SnipePermissionsPolicy
 
     public function index(User $user)
     {
-        return $user->isSuperUser();
+        return $user->hasAccess('projects.view');
     }
 
     public function view(User $user, $item = null)
     {
-        return $user->isSuperUser();
+        return $user->hasAccess('projects.view');
     }
 
     public function create(User $user)

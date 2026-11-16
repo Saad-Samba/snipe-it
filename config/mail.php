@@ -238,7 +238,7 @@ return [
 
     'from' => [
         'address' => env('MAIL_FROM_ADDR', null),
-        'name' => env('MAIL_FROM_NAME', null),
+        'name' => 'LEAMS',
     ],
 
     /*
@@ -254,7 +254,7 @@ return [
 
     'reply_to' => [
         'address' => env('MAIL_REPLYTO_ADDR', null),
-        'name' => env('MAIL_REPLYTO_NAME', null),
+        'name' => 'LEAMS',
     ],
 
     /*

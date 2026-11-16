@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Users\SyncUserRacAssignmentsAction;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveUserRequest;
@@ -466,6 +467,7 @@ class UsersController extends Controller
         app('App\Http\Requests\ImageUploadRequest')->handleImages($user, 600, 'avatar', 'avatars', 'avatar');
         
         if ($user->save()) {
+            $this->syncRacAssignment($user, $request);
 
             if (($user->activated == '1') && ($user->email != '') && ($request->input('send_welcome') == '1')) {
 
@@ -591,6 +593,7 @@ class UsersController extends Controller
             app('App\Http\Requests\ImageUploadRequest')->handleImages($user, 600, 'avatar', 'avatars', 'avatar');
 
             if ($user->save()) {
+                $this->syncRacAssignment($user, $request);
                 // Check if the request has groups passed and has a value, AND that the user us a superuser
                 if (($request->has('groups')) && (auth()->user()->isSuperUser())) {
 
@@ -608,6 +611,11 @@ class UsersController extends Controller
                 return response()->json(Helper::formatStandardApiResponse('success', (new UsersTransformer)->transformUser($user), trans('admin/users/message.success.update')));
             }
             return response()->json(Helper::formatStandardApiResponse('error', null, $user->getErrors()));
+    }
+
+    protected function syncRacAssignment(User $user, Request $request): void
+    {
+        SyncUserRacAssignmentsAction::run($user, $request);
     }
 
     /**

@@ -337,7 +337,7 @@ class ReportsController extends Controller
     public function getLicenseReport() : View
     {
         $this->authorize('reports.view');
-        $licenses = License::with('depreciation')->orderBy('created_at', 'DESC')
+        $licenses = License::orderBy('created_at', 'DESC')
                            ->with('company')
                            ->get();
 
@@ -366,7 +366,6 @@ class ReportsController extends Controller
             trans('admin/licenses/form.remaining_seats'),
             trans('admin/licenses/form.expiration'),
             trans('general.purchase_date'),
-            trans('general.depreciation'),
             trans('general.purchase_cost'),
         ];
 
@@ -384,7 +383,6 @@ class ReportsController extends Controller
             $row[] = $license->remaincount();
             $row[] = $license->expiration_date;
             $row[] = $license->purchase_date;
-            $row[] = ($license->depreciation != '') ? '' : e($license->depreciation->name);
             $row[] = '"'.Helper::formatCurrencyOutput($license->purchase_cost).'"';
 
             $rows[] = implode(',', $row);

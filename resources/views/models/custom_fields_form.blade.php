@@ -1,4 +1,4 @@
-@if (($model) && ($model->fieldset) && $model->fieldset->displayAnyFieldsInForm($show_custom_fields_type ?? ''))
+@if (($model) && ($model->fieldset) && $model->fieldset->fields->contains(fn ($field) => $model->ownsSpecification($field)) && $model->fieldset->displayAnyFieldsInForm($show_custom_fields_type ?? ''))
     <div class="col-md-12 col-sm-12">
 
     <fieldset name="custom-fields">
@@ -9,7 +9,7 @@
         </x-form-legend>
 
   @foreach($model->fieldset->fields as $field)
-    @if (!isset($show_custom_fields_type) || ($field->displayFieldInCurrentForm($show_custom_fields_type)))
+    @if ($model->ownsSpecification($field) && (!isset($show_custom_fields_type) || ($field->displayFieldInCurrentForm($show_custom_fields_type))))
 
 
     <div class="form-group{{ $errors->has($field->db_column_name()) ? ' has-error' : '' }}">
@@ -21,6 +21,22 @@
       </label>
 
       <div class="col-md-7 col-sm-12">
+
+          @if ($model->ownsSpecification($field))
+              @php
+                  $specificationValue = $model->specificationValue($field);
+              @endphp
+              <p class="form-control-static">
+                  @if ($field->field_encrypted)
+                      {{ strtoupper(trans('admin/custom_fields/general.encrypted')) }}
+                  @elseif (filled($specificationValue))
+                      {{ $specificationValue }}
+                  @else
+                      &mdash;
+                  @endif
+              </p>
+              <p class="help-block">Set by the model.</p>
+          @else
 
           @if ($field->element!='text')
 
@@ -84,6 +100,8 @@
 
           @endif
 
+          @endif
+
               @if ($field->help_text!='')
               <p class="help-block">{{ $field->help_text }}</p>
               @endif
@@ -109,6 +127,5 @@
     </fieldset>
     </div>
 @endif
-
 
 

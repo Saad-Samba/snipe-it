@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\Category;
+use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\Location;
 use App\Models\Statuslabel;
@@ -33,6 +34,7 @@ class AssetFactory extends Factory
             'name' => null,
             'model_id' => AssetModel::factory(),
             'rtd_location_id' => Location::factory(),
+            'company_id' => Company::factory(),
             'serial' => $this->faker->uuid(),
             'status_id' => function () {
                 return Statuslabel::where('name', 'Ready to Deploy')->first() ?? Statuslabel::factory()->rtd()->create(['name' => 'Ready to Deploy']);

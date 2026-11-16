@@ -158,23 +158,6 @@
               </div>
           @endif
 
-          @if (!$field->id)
-              <!-- Encrypted  -->
-              <div class="col-md-9 col-md-offset-3" id="encryption_section">
-                  <label class="form-control">
-                      <input type="checkbox" value="1" name="field_encrypted" id="field_encrypted"{{ (old('field_encrypted') || $field->field_encrypted) ? ' checked="checked"' : '' }}>
-                      {{ trans('admin/custom_fields/general.encrypt_field') }}
-                  </label>
-              </div>
-              <div class="col-md-9 col-md-offset-3" id="encrypt_warning" style="display:none;">
-                  <div class="callout callout-danger">
-                      <p><x-icon type="warning" /> {{ trans('admin/custom_fields/general.encrypt_field_help') }}</p>
-                  </div>
-              </div>
-          @endif
-
-
-
               <!-- Auto-Add to Future Fieldsets  -->
               <div class="col-md-9 col-md-offset-3" style="padding-bottom: 10px;">
                   <label class="form-control">
@@ -192,8 +175,6 @@
               </div>
 
 
-              @if ((!$field->id) || ($field->field_encrypted=='0'))
-
               <!-- Show in requestable list view -->
               <div class="col-md-9 col-md-offset-3" id="show_in_requestable_list" style="padding-bottom: 10px;">
                   <label class="form-control">
@@ -209,16 +190,6 @@
                       {{ trans('admin/custom_fields/general.show_in_email') }}
                   </label>
               </div>
-
-              <!-- Value Must be Unique -->
-              <div class="col-md-9 col-md-offset-3" id="is_unique" style="padding-bottom: 10px;">
-                  <label class="form-control">
-                      <input type="checkbox" name="is_unique" aria-label="is_unique" value="1"{{ (old('is_unique') || $field->is_unique) ? ' checked="checked"' : '' }}>
-                      {{ trans('admin/custom_fields/general.is_unique') }}
-                  </label>
-              </div>
-              @endif
-
 
              <!-- Show in Checkout Form  -->
              <div class="col-md-9 col-md-offset-3" id="display_checkout" style="padding-bottom: 10px;">
@@ -364,22 +335,6 @@
         }).change();
     });
 
-
-    $("#field_encrypted").change(function() {
-        if (this.checked) {
-            $("#encrypt_warning").show();
-            $("#show_in_email").hide();
-            $("#display_in_user_view").hide();
-            $("#is_unique").hide();
-            $("#show_in_requestable_list").hide();
-        } else {
-            $("#encrypt_warning").hide();
-            $("#show_in_email").show();
-            $("#display_in_user_view").show();
-            $("#is_unique").show();
-            $("#show_in_requestable_list").show();
-        }
-    });
 
 
 

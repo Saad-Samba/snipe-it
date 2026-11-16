@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Users;
 
+use App\Actions\Users\SyncUserRacAssignmentsAction;
 use App\Helpers\Helper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DeleteUserRequest;
@@ -138,6 +139,7 @@ class UsersController extends Controller
 
 
         if ($user->save()) {
+            $this->syncRacAssignment($user, $request);
 
             if (($user->activated == '1') && ($user->email != '') && ($request->input('send_welcome') == '1')) {
 
@@ -190,7 +192,7 @@ class UsersController extends Controller
 
         $this->authorize('update', User::class);
         session()->put('back_url', url()->previous());
-        $user = User::with(['assets', 'assets.model', 'consumables', 'accessories', 'licenses', 'userloc'])->withTrashed()->find($user->id);
+        $user = User::with(['assets', 'assets.model', 'consumables', 'accessories', 'licenses', 'userloc', 'racAssignments'])->withTrashed()->find($user->id);
 
         if ($user) {
 
@@ -237,7 +239,7 @@ class UsersController extends Controller
         $permissions = $request->input('permissions', []);
         app('request')->request->set('permissions', $permissions);
 
-        $user->load(['assets', 'assets.model', 'consumables', 'accessories', 'licenses', 'userloc'])->withTrashed();
+        $user->load(['assets', 'assets.model', 'consumables', 'accessories', 'licenses', 'userloc', 'racAssignments'])->withTrashed();
 
         $this->authorize('update', $user);
 
@@ -328,11 +330,17 @@ class UsersController extends Controller
         session()->put(['redirect_option' => $request->get('redirect_option')]);
 
         if ($user->save()) {
+            $this->syncRacAssignment($user, $request);
             // Redirect to the user page
             return Helper::getRedirectOption($request, $user->id, 'Users')
                 ->with('success', trans('admin/users/message.success.update'));
         }
         return redirect()->back()->withInput()->withErrors($user->getErrors());
+    }
+
+    protected function syncRacAssignment(User $user, Request $request): void
+    {
+        SyncUserRacAssignmentsAction::run($user, $request);
     }
 
     /**
