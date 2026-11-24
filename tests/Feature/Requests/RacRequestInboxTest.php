@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\Discipline;
 use App\Models\Project;
 use App\Models\RegionalAssetCoordinatorAssignment;
+use App\Models\Setting;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -47,13 +48,15 @@ class RacRequestInboxTest extends TestCase
 
     public function test_received_requests_inbox_is_scoped_to_the_rac_and_combines_inventory_disciplines()
     {
-        $requester = User::factory()->create();
+        $requester = User::factory()->create(['display_name' => 'Demo Requestor']);
         $rac = User::factory()->viewAssets()->create();
         $otherRac = User::factory()->viewAssets()->create();
         $electrical = Discipline::create(['name' => 'Electrical', 'created_by' => $requester->id]);
         $mechanical = Discipline::create(['name' => 'Mechanical', 'created_by' => $requester->id]);
         $destinationCompany = Company::factory()->create(['name' => 'Destination Site']);
         $sourceCompany = Company::factory()->create();
+        $requester->forceFill(['company_id' => $destinationCompany->id])->save();
+        $rac->forceFill(['company_id' => $sourceCompany->id])->save();
         $project = Project::factory()->create(['name' => 'Inbox Project']);
         $model = AssetModel::factory()->create(['name' => 'Inbox Model']);
 
@@ -88,6 +91,11 @@ class RacRequestInboxTest extends TestCase
             'discipline_id' => $electrical->id,
         ]);
 
+        $settings = Setting::getSettings();
+        $settings->full_multiple_companies_support = 1;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
         $this->actingAs($rac);
         $result = app(ApiModelRequestsController::class)->received();
 
@@ -96,6 +104,7 @@ class RacRequestInboxTest extends TestCase
         $this->assertSame($request->id, $result['rows'][0]['request_id']);
         $this->assertSame('Inbox Model', $result['rows'][0]['name']);
         $this->assertSame('Inbox Project', $result['rows'][0]['project']);
+        $this->assertSame('Demo Requestor', $result['rows'][0]['requested_by']);
         $this->assertSame('Destination Site', $result['rows'][0]['company']);
         $this->assertSame('Electrical, Mechanical', $result['rows'][0]['inventory_disciplines']);
         $this->assertSame('In progress', $result['rows'][0]['rac_status']);

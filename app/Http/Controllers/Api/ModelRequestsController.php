@@ -9,6 +9,7 @@ use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\CheckoutRequestCoordinator;
+use App\Models\CompanyableScope;
 use App\Models\CustomField;
 use App\Models\Project;
 use Illuminate\Http\Request;
@@ -32,8 +33,8 @@ class ModelRequestsController extends Controller
             ->with([
                 'requestedItem',
                 'project',
-                'company',
-                'user',
+                'company' => fn ($query) => $query->withoutGlobalScope(CompanyableScope::class),
+                'user' => fn ($query) => $query->withoutGlobalScope(CompanyableScope::class)->withTrashed(),
                 'allocatedAssets',
                 'coordinatorTargets' => fn ($query) => $query->where('user_id', $user->id),
                 'coordinatorTargets.discipline',
@@ -75,7 +76,7 @@ class ModelRequestsController extends Controller
                         : null,
                     'project' => e(optional($checkoutRequest->project)->name),
                     'project_requests_url' => $this->projectRequestsUrl($checkoutRequest->project),
-                    'requested_by' => e(optional($checkoutRequest->requestingUser())->display_name),
+                    'requested_by' => e(optional($checkoutRequest->user)->display_name),
                     'company' => e(optional($checkoutRequest->company)->name),
                     'inventory_disciplines' => $targets
                         ->pluck('discipline.name')
