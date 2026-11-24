@@ -494,6 +494,10 @@ class UserPresenter extends Presenter
 
         // If the default is system default
         if (Setting::getSettings()->default_avatar == 'default.png') {
+            if (Storage::disk('public')->missing('default.png')) {
+                return asset('img/default-avatar.svg');
+            }
+
             return Storage::disk('public')->url('default.png');
         }
 

@@ -9,7 +9,7 @@
         <div class="col-md-12">
             <div class="box box-default">
                 <div class="box-body">
-                    <div class="alert alert-info">
+                    <div class="alert" style="background-color: {{ $snipeSettings->header_color ?: '#3c8dbc' }}; border-color: {{ $snipeSettings->header_color ?: '#3c8dbc' }}; color: #fff;">
                         <x-new-feature-label />
                         These requests were routed to you because reusable inventory falls within one or more of your site-and-discipline RAC scopes. Open a request to review and allocate the matching inventory.
                     </div>
@@ -34,6 +34,7 @@
                             <th data-field="project" data-sortable="true" data-formatter="requestProjectLinkFormatter">{{ trans('general.project') }}</th>
                             <th data-field="requested_by" data-sortable="true">Requestor</th>
                             <th data-field="company" data-sortable="true">Destination Site <x-new-feature-label /></th>
+                            <th data-field="destination_discipline" data-sortable="true">Destination Discipline <x-new-feature-label /></th>
                             <th data-field="inventory_disciplines" data-sortable="true">Inventory Discipline(s) <x-new-feature-label /></th>
                             <th data-field="qty" data-sortable="true">Quantity</th>
                             <th data-field="remaining_quantity" data-sortable="true">Remaining</th>

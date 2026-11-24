@@ -42,6 +42,7 @@ class RacRequestInboxTest extends TestCase
             ->assertSee(route('api.rac-requests.index'), false)
             ->assertSee('Inventory Discipline(s)')
             ->assertSee('Destination Site')
+            ->assertSee('Destination Discipline')
             ->assertSee('>Status</th>', false)
             ->assertDontSee('RAC Status');
     }
@@ -65,6 +66,7 @@ class RacRequestInboxTest extends TestCase
             'requestable_id' => $model->id,
             'requestable_type' => AssetModel::class,
             'company_id' => $destinationCompany->id,
+            'requested_discipline_id' => $electrical->id,
             'project_id' => $project->id,
             'quantity' => 3,
             'needed_by_date' => '2026-09-01',
@@ -106,6 +108,7 @@ class RacRequestInboxTest extends TestCase
         $this->assertSame('Inbox Project', $result['rows'][0]['project']);
         $this->assertSame('Demo Requestor', $result['rows'][0]['requested_by']);
         $this->assertSame('Destination Site', $result['rows'][0]['company']);
+        $this->assertSame('Electrical', $result['rows'][0]['destination_discipline']);
         $this->assertSame('Electrical, Mechanical', $result['rows'][0]['inventory_disciplines']);
         $this->assertSame('In progress', $result['rows'][0]['rac_status']);
         $this->assertSame(3, $result['rows'][0]['remaining_quantity']);

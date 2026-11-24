@@ -78,6 +78,7 @@ class ModelRequestsController extends Controller
                     'project_requests_url' => $this->projectRequestsUrl($checkoutRequest->project),
                     'requested_by' => e(optional($checkoutRequest->user)->display_name),
                     'company' => e(optional($checkoutRequest->company)->name),
+                    'destination_discipline' => e(optional($checkoutRequest->requestedDiscipline)->name),
                     'inventory_disciplines' => $targets
                         ->pluck('discipline.name')
                         ->filter()
