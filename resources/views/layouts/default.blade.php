@@ -826,7 +826,6 @@ dir="{{ Helper::determineLanguageDirection() }}">
                                 <a href="#" class="dropdown-toggle">
                                     <x-icon type="requestable" class="fa-fw" />
                                     <span>Requests</span>
-                                    <x-new-feature-label />
                                     <x-icon type="angle-left" class="pull-right"/>
                                 </a>
 

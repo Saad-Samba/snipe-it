@@ -3236,7 +3236,9 @@ class ModelRequestWorkflowTest extends TestCase
         $this->actingAs($coordinator)
             ->get(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']))
             ->assertOk()
-            ->assertSee('Mark no more reusable stock available');
+            ->assertSee('Mark no more reusable stock available')
+            ->assertDontSee('Opening this request does not stop reminders by itself')
+            ->assertDontSee('Coordinator review');
 
         $this->actingAs($coordinator)
             ->post(route('hardware.requests.coordinator-resolution', $request), [
