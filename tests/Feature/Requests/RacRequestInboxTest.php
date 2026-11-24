@@ -118,11 +118,18 @@ class RacRequestInboxTest extends TestCase
         );
         $this->assertNotEmpty($result['rows'][0]['received_at']);
 
-        $this->actingAs($rac)
-            ->get(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']))
-            ->assertOk()
-            ->assertSee('<a href="'.route('rac-requests.index').'">', false)
-            ->assertDontSee('<a href="'.route('requests.index').'">', false);
+        $response = $this->actingAs($rac)
+            ->get(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']));
+
+        $response->assertOk();
+        $this->assertMatchesRegularExpression(
+            '#<li class="breadcrumb-item">\s*<a href="'.preg_quote(route('rac-requests.index'), '#').'">.*?Received Requests#s',
+            $response->getContent()
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '#<li class="breadcrumb-item">\s*<a href="'.preg_quote(route('requests.index'), '#').'">.*?Requests#s',
+            $response->getContent()
+        );
     }
 
     public function test_requester_with_all_companies_permission_can_select_all_destination_sites(): void

@@ -47,36 +47,30 @@ class BreadcrumbsServiceProvider extends ServiceProvider
          */
 
 
-            if ((request()->is('hardware*')) && (request()->filled('request_id'))) {
+        Breadcrumbs::for('hardware.index', function (Trail $trail) {
+            if (request()->filled('request_id')) {
                 $isReceivedRacRequest = auth()->check()
                     && auth()->user()->racRequestTargets()
                         ->where('checkout_request_id', request()->integer('request_id'))
                         ->exists();
 
-                Breadcrumbs::for('hardware.index', fn (Trail $trail) =>
-                $trail->parent('home', route('home'))
+                return $trail->parent('home', route('home'))
                     ->push(
                         $isReceivedRacRequest ? 'Received Requests' : 'Requests',
                         route($isReceivedRacRequest ? 'rac-requests.index' : 'requests.index')
                     )
-                    ->push('Request #'.request()->integer('request_id'), route('hardware.index', request()->query()))
-                );
-
-            } elseif ((request()->is('hardware*')) && (request()->status!='')) {
-                Breadcrumbs::for('hardware.index', fn (Trail $trail) =>
-                $trail->parent('home', route('home'))
-                    ->push(trans('general.assets'), route('hardware.index'))
-                    ->push(trans('general.'.strtolower(e(request()->status))), route('hardware.index', ['status' => request()->status]))
-                );
-
-            } else {
-                Breadcrumbs::for('hardware.index', fn (Trail $trail) =>
-                $trail->parent('home', route('home'))
-                    ->push(trans('general.assets'), route('hardware.index'))
-                );
+                    ->push('Request #'.request()->integer('request_id'), route('hardware.index', request()->query()));
             }
 
+            if (request()->status != '') {
+                return $trail->parent('home', route('home'))
+                    ->push(trans('general.assets'), route('hardware.index'))
+                    ->push(trans('general.'.strtolower(e(request()->status))), route('hardware.index', ['status' => request()->status]));
+            }
 
+            return $trail->parent('home', route('home'))
+                ->push(trans('general.assets'), route('hardware.index'));
+        });
 
 
         Breadcrumbs::for('hardware.create', fn (Trail $trail) =>
