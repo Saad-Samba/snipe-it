@@ -105,7 +105,10 @@ class ModelRequestsController extends Controller
                 'categories' => $field->requestable_categories,
             ])
             ->values();
-        $companies = Company::orderBy('name')->get(['id', 'name']);
+        $companies = Company::query()
+            ->when($includeAllCompanies, fn ($query) => $query->withoutGlobalScope(CompanyableScope::class))
+            ->orderBy('name')
+            ->get(['id', 'name']);
         $disciplines = Discipline::orderBy('name')->get(['id', 'name']);
 
         return view('account/requestable-assets', compact('companies', 'disciplines', 'models', 'specificationSearchFields'));

@@ -1697,7 +1697,7 @@
         $modelRequestProjects = \App\Models\Project::orderBy('name')->get(['id', 'name', 'is_rfq', 'rfq_needed_by_date']);
     @endphp
     var modelRequestProjects = @json($modelRequestProjects);
-    var modelRequestCompanies = @json(\App\Models\Company::orderBy('name')->get(['id', 'name']));
+    var modelRequestCompanies = @json($companies ?? \App\Models\Company::orderBy('name')->get(['id', 'name']));
     var modelRequestDisciplines = @json(\App\Models\Discipline::orderBy('name')->get(['id', 'name']));
     var canCreateProjectsForRequests = @json(auth()->check() && auth()->user()->hasAccess('models.request'));
     var createProjectForRequestsUrl = '{{ route('account.request-projects.store') }}';

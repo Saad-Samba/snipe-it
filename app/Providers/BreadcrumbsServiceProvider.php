@@ -48,9 +48,17 @@ class BreadcrumbsServiceProvider extends ServiceProvider
 
 
             if ((request()->is('hardware*')) && (request()->filled('request_id'))) {
+                $isReceivedRacRequest = auth()->check()
+                    && auth()->user()->racRequestTargets()
+                        ->where('checkout_request_id', request()->integer('request_id'))
+                        ->exists();
+
                 Breadcrumbs::for('hardware.index', fn (Trail $trail) =>
                 $trail->parent('home', route('home'))
-                    ->push('Requests', route('requests.index'))
+                    ->push(
+                        $isReceivedRacRequest ? 'Received Requests' : 'Requests',
+                        route($isReceivedRacRequest ? 'rac-requests.index' : 'requests.index')
+                    )
                     ->push('Request #'.request()->integer('request_id'), route('hardware.index', request()->query()))
                 );
 

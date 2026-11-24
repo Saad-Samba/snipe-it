@@ -117,6 +117,36 @@ class RacRequestInboxTest extends TestCase
             $result['rows'][0]['request_detail_url']
         );
         $this->assertNotEmpty($result['rows'][0]['received_at']);
+
+        $this->actingAs($rac)
+            ->get(route('hardware.index', ['request_id' => $request->id, 'request_bucket' => 'reusable_now']))
+            ->assertOk()
+            ->assertSee('<a href="'.route('rac-requests.index').'">', false)
+            ->assertDontSee('<a href="'.route('requests.index').'">', false);
+    }
+
+    public function test_requester_with_all_companies_permission_can_select_all_destination_sites(): void
+    {
+        $rabat = Company::factory()->create(['name' => 'Rabat']);
+        $valls = Company::factory()->create(['name' => 'Valls']);
+        $requester = User::factory()->create([
+            'company_id' => $rabat->id,
+            'permissions' => json_encode([
+                'models.request' => '1',
+                'models.request.all_companies' => '1',
+            ]),
+        ]);
+
+        $settings = Setting::getSettings();
+        $settings->full_multiple_companies_support = 1;
+        $settings->save();
+        Setting::$_cache = $settings->fresh();
+
+        $this->actingAs($requester)
+            ->get(route('requestable-assets'))
+            ->assertOk()
+            ->assertSee('Rabat')
+            ->assertSee('Valls');
     }
 
     public function test_received_requests_status_says_no_more_stock_available_after_rac_finishes_review(): void

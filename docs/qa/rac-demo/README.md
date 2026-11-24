@@ -10,9 +10,9 @@ The seeder prints the shared demo password. Use a future **Needed By** date for 
 
 | Case | EPL request | RAC login | Asset and expected exercise |
 | --- | --- | --- | --- |
-| Local allocation | VN1630A CAN/LIN Interface × 1, HARDWARE | `demo-RAC-RABAT-HARDWARE` | Verify `DEMO-RF-VN-001` at Rabat, then allocate it through request-aware checkout. Confirm the assigned user, Project, request link, and Remaining quantity. |
-| Cross-site transfer | J-Link PRO Debug Probe × 1, SOFTWARE | `demo-RAC-VALLS-SOFTWARE` | Verify `DEMO-RF-JLINK-001` at Valls and select **Start transfer**. After physical receipt, GSA changes the Site. GSA must also assign the prepared Rabat / SOFTWARE RAC scope before `demo-RAC-RABAT-SOFTWARE` can complete destination location, status, and checkout. |
-| Unavailable after verification | E36313A DC Power Supply × 1, SYSTEMS | `demo-RAC-RABAT-SYSTEMS` | `DEMO-RF-PSU-001` initially appears as reusable. Inspect it and use the prepared *out for repair* outcome: edit its status to **Out for Repair** without assigning it to the request. Reopen the request, confirm the candidate is gone, then use **Mark no more reusable stock available**. `DEMO-RF-PSU-002` is already Out for Repair as a control. |
+| Local allocation | VN1630A × 1, HARDWARE | `demo-RAC-RABAT-HARDWARE` | Verify `DEMO-RF-VN-001` at Rabat, then allocate it through request-aware checkout. Confirm the assigned user, Project, request link, and Remaining quantity. |
+| Cross-site transfer | J-Link PRO × 1, SOFTWARE | `demo-RAC-VALLS-SOFTWARE` | Verify `DEMO-RF-JLINK-001` at Valls and select **Start transfer**. After physical receipt, GSA changes the Site. GSA must also assign the prepared Rabat / SOFTWARE RAC scope before `demo-RAC-RABAT-SOFTWARE` can complete destination location, status, and checkout. |
+| Unavailable after verification | E36313A × 1, SYSTEMS | `demo-RAC-RABAT-SYSTEMS` | `DEMO-RF-PSU-001` initially appears as reusable. Inspect it and use the prepared *out for repair* outcome: edit its status to **Out for Repair** without assigning it to the request. Reopen the request, confirm the candidate is gone, then use **Mark no more reusable stock available**. `DEMO-RF-PSU-002` is already Out for Repair as a control. |
 
 For the unavailable case, record what physical verification actually found. If the asset is held by a user rather than damaged, correct its real assignment through the normal checkout process instead of claiming a repair. Do not allocate an unavailable asset merely to close the request.
 

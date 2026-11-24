@@ -550,7 +550,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
     {
         return [
             'network_interface' => $this->upsertModel(
-                'VN1630A CAN/LIN Interface',
+                'VN1630A',
                 'VN1630A',
                 1850.00,
                 $categories['network'],
@@ -558,7 +558,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $admin
             ),
             'pcan_interface' => $this->upsertModel(
-                'PCAN-USB FD Interface',
+                'PCAN-USB FD',
                 'IPEH-004022',
                 490.00,
                 $categories['network'],
@@ -566,7 +566,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $admin
             ),
             'oscilloscope' => $this->upsertModel(
-                'MDO3024 Oscilloscope',
+                'MDO3024',
                 'MDO3024',
                 6900.00,
                 $categories['lab'],
@@ -574,7 +574,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $admin
             ),
             'keysight_scope' => $this->upsertModel(
-                'DSOX1204G Oscilloscope',
+                'DSOX1204G',
                 'DSOX1204G',
                 2400.00,
                 $categories['lab'],
@@ -582,7 +582,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $admin
             ),
             'debug_probe' => $this->upsertModel(
-                'J-Link PRO Debug Probe',
+                'J-Link PRO',
                 'J-LINK-PRO',
                 1250.00,
                 $categories['embedded'],
@@ -590,7 +590,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $admin
             ),
             'trace32_probe' => $this->upsertModel(
-                'TRACE32 Debug Probe',
+                'TRACE32',
                 'LA-3500',
                 4200.00,
                 $categories['embedded'],
@@ -598,7 +598,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $admin
             ),
             'power_supply' => $this->upsertModel(
-                'E36313A DC Power Supply',
+                'E36313A',
                 'E36313A',
                 3100.00,
                 $categories['power'],
@@ -606,7 +606,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 $admin
             ),
             'ea_power_supply' => $this->upsertModel(
-                'PS 9080-60 DC Power Supply',
+                'PS 9080-60',
                 'EA-PS-9080-60',
                 3600.00,
                 $categories['power'],
@@ -831,9 +831,9 @@ class ReuseWorkflowDemoSeeder extends Seeder
         $this->command?->line('FMCS and FMCS location scoping: enabled');
         $this->command?->line('Destination: Rabat');
         $this->command?->line('For each case, sign in as demo-EPL and submit a separate request for DEMO - BCM / Rabat with a future Needed By date.');
-        $this->command?->line('Allocation: VN1630A CAN/LIN Interface, quantity 1 / HARDWARE; demo-RAC-RABAT-HARDWARE allocates DEMO-RF-VN-001.');
-        $this->command?->line('Transfer: J-Link PRO Debug Probe, quantity 1 / SOFTWARE; demo-RAC-VALLS-SOFTWARE starts transfer of DEMO-RF-JLINK-001.');
-        $this->command?->line('Unavailable after verification: E36313A DC Power Supply, quantity 1 / SYSTEMS; demo-RAC-RABAT-SYSTEMS checks DEMO-RF-PSU-001, marks it Out for Repair, then records no more stock.');
+        $this->command?->line('Allocation: VN1630A, quantity 1 / HARDWARE; demo-RAC-RABAT-HARDWARE allocates DEMO-RF-VN-001.');
+        $this->command?->line('Transfer: J-Link PRO, quantity 1 / SOFTWARE; demo-RAC-VALLS-SOFTWARE starts transfer of DEMO-RF-JLINK-001.');
+        $this->command?->line('Unavailable after verification: E36313A, quantity 1 / SYSTEMS; demo-RAC-RABAT-SYSTEMS checks DEMO-RF-PSU-001, marks it Out for Repair, then records no more stock.');
         $this->command?->line('Intentional routing gap: Rabat / SOFTWARE');
         $this->command?->line('Gap alerts: enabled for demo-gsa@example.com');
         $this->command?->line('Submitting the cart sends the initial RAC and routing-gap notifications.');
