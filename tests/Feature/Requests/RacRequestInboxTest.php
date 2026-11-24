@@ -3,6 +3,8 @@
 namespace Tests\Feature\Requests;
 
 use App\Http\Controllers\Api\ModelRequestsController as ApiModelRequestsController;
+use App\Http\Transformers\AssetsTransformer;
+use App\Models\Asset;
 use App\Models\AssetModel;
 use App\Models\CheckoutRequest;
 use App\Models\Company;
@@ -175,5 +177,22 @@ class RacRequestInboxTest extends TestCase
         $result = app(ApiModelRequestsController::class)->received();
 
         $this->assertSame('No more stock available', $result['rows'][0]['rac_status']);
+    }
+
+    public function test_rac_asset_rows_do_not_link_to_models_or_disciplines_without_access(): void
+    {
+        $rac = User::factory()->viewAssets()->create();
+        $discipline = Discipline::create(['name' => 'Restricted Discipline', 'created_by' => $rac->id]);
+        $model = AssetModel::factory()->create();
+        $asset = Asset::factory()->create([
+            'model_id' => $model->id,
+            'discipline_id' => $discipline->id,
+        ]);
+
+        $this->actingAs($rac);
+        $row = app(AssetsTransformer::class)->transformAsset($asset->fresh(['model', 'discipline']));
+
+        $this->assertFalse($row['model']['can_view']);
+        $this->assertFalse($row['discipline']['can_view']);
     }
 }

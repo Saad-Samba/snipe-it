@@ -1323,6 +1323,10 @@
                     obsoleteIndicator = ' <span class="label label-warning" data-tooltip="true" title="{{ trans('admin/models/general.obsolete_asset_tooltip') }}">{{ trans('admin/models/general.obsolete_indicator') }}</span>';
                 }
 
+                if (value.can_view === false) {
+                    return '<nobr>'+ tag_icon + ' ' + value.name + obsoleteIndicator + '</nobr>';
+                }
+
                 return '<nobr>'+ tag_icon + ' <a href="{{ config('app.url') }}/' + polymorphicItemFormatterDest + dest + '/' + value.id + '">' + value.name + '</a>' + obsoleteIndicator + '</nobr>';
             }
         };

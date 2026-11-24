@@ -43,6 +43,7 @@ class AssetsTransformer
                 'id' => (int) $asset->model->id,
                 'name'=> e($asset->model->name),
                 'obsolete' => (bool) $asset->model->obsolete,
+                'can_view' => Gate::allows('view', $asset->model),
             ] : null,
             'byod' => ($asset->byod ? true : false),
             'requestable' => ($asset->requestable ? true : false),
@@ -91,6 +92,7 @@ class AssetsTransformer
             'discipline' => ($asset->discipline) ? [
                 'id' => (int) $asset->discipline->id,
                 'name'=> e($asset->discipline->name),
+                'can_view' => Gate::allows('view', $asset->discipline),
             ] : null,
             'location' => ($asset->location) ? [
                 'id' => (int) $asset->location->id,
