@@ -91,7 +91,7 @@ class ReuseWorkflowDemoSeeder extends Seeder
             legacyUsername: 'demo-reuse-admin'
         );
 
-        return [
+        $users = [
             'admin' => $admin,
             'epl' => $this->upsertUser(
                 'demo-EPL',
@@ -175,6 +175,13 @@ class ReuseWorkflowDemoSeeder extends Seeder
                 'demo-reuse-engineer'
             ),
         ];
+
+        // Reused demo accounts may retain group grants beyond the RAC role.
+        foreach (['rac_valls_software', 'rac_valls_hardware', 'rac_rabat_hardware', 'rac_rabat_systems', 'rac_rabat_software'] as $racKey) {
+            $users[$racKey]->groups()->sync([]);
+        }
+
+        return $users;
     }
 
     private function upsertUser(
@@ -222,18 +229,12 @@ class ReuseWorkflowDemoSeeder extends Seeder
     private function racPermissions(): array
     {
         return [
-            'reports.view' => '1',
             'assets.view' => '1',
             'assets.edit' => '1',
             'assets.checkin' => '1',
             'assets.checkout' => '1',
             'assets.audit' => '1',
-            'users.view' => '1',
             'models.view' => '1',
-            'categories.view' => '1',
-            'departments.view' => '1',
-            'statuslabels.view' => '1',
-            'customfields.view' => '1',
             'locations.view' => '1',
         ];
     }
